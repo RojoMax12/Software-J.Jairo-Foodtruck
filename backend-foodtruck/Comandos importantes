@@ -1,0 +1,35 @@
+1. Creacion de archivo para crear la tabla de la BD
+
+php artisan make:migration create_usuarios_distribuidores_table --create=usuarios_distribuidores
+
+
+2. Creacion de archivo para modificar la tabla de la BD despues de haber un migrate
+
+
+php artisan make:migration add_estado_despacho_table --table=despachos
+
+
+3. Borrar cache y config
+
+php artisan config:clear
+php artisan cache:clear
+
+4. Correr el Backend
+
+php artisan serve
+
+5. Migrar tablas a la BD
+
+php artisan migrate
+
+6. Hacer un rollback de la ultima migracion
+
+php artisan migrate:rollback
+
+7. Creacion de datos para las tablas de BD con factory
+
+php artisan make:factory ProductoFactory --model=Producto
+
+8. Bota todas las tablas y hace el Factories
+
+php artisan migrate:fresh --seed

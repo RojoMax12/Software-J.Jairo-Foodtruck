@@ -1,0 +1,22 @@
+:root {
+    --DC-pink: #e4869f;
+    --DC-gray: #322c44;
+    --DC-text-gray: #9793a0;
+    --DC-bg-gray: #eeedee;
+    --font-main: 'Open Sans', sans-serif;
+}
+
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: var(--font-main);
+}
+
+body {
+    background-color: var(--DC-bg-gray);
+    color: var(--DC-gray);
+    -webkit-font-smoothing: antialiased; /* Hace que la fuente se vea más suave */
+    -moz-osx-font-smoothing: grayscale;
+}
+
