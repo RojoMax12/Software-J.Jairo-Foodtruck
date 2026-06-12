@@ -1,17 +1,39 @@
+<template>
+  <div>
+    <nav class="dc-navbar">
+      <div class="nav-left">
+        <div class="brand-group" @click="goToHome">
+          <img src="@/assets/logo_jairo.png" alt="Di Creme Logo" class="brand-logo" />
+          <div class="brand-info">
+            <span class="brand-text">J. Junior</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Corregido: Clase cambiada a nav-right para consistencia con tus estilos -->
+      <div class="nav-right">
+        <button class="btn-login">
+          <span>Revisa tu pedido aquí</span>
+        </button>
+        <button class="btn-login" @click="router.push('/login')">
+          <span>Ingresar</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { LogOut, User as UserIcon, Menu } from 'lucide-vue-next'
-import DistributorSideMenu from '@/components/DistributorSideMenu.vue'
 
 const router = useRouter()
 
 // --- ESTADOS REACTIVOS ---
 const username = ref('')
 const isLoggedIn = ref(false)
-const isSideMenuOpen = ref(false) // Controla la barra lateral
+const isSideMenuOpen = ref(false)
 
-// Carga el nombre real del usuario logueado
 const checkAuth = () => {
   const userParsed = localStorage.getItem('user')
   const token = localStorage.getItem('token')
@@ -35,7 +57,6 @@ onMounted(() => {
   checkAuth()
 })
 
-// Cierra la sesión y redirige al catálogo
 const handleLogout = () => {
   localStorage.clear()
   isLoggedIn.value = false
@@ -49,63 +70,9 @@ const goToHome = () => {
 }
 </script>
 
-<template>
-  <div>
-    <DistributorSideMenu 
-      v-if="isLoggedIn"
-      :isOpen="isSideMenuOpen" 
-      @close="isSideMenuOpen = false" 
-    />
-
-    <nav class="dc-navbar">
-      <div class="nav-left">
-        <button 
-          v-if="isLoggedIn" 
-          class="btn-menu" 
-          @click="isSideMenuOpen = true" 
-          title="Menú lateral"
-        >
-          <Menu :size="24" />
-        </button>
-        
-        <div class="brand-group" @click="goToHome">
-          <img src="@/assets/logo_dicreme.png" alt="Di Creme Logo" class="brand-logo" />
-          <div class="brand-info">
-            <span class="brand-text">Di Creme</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="nav-right">
-        <template v-if="isLoggedIn">
-          <div class="session-display">
-            <div class="user-avatar">
-              <UserIcon :size="20" />
-            </div>
-            <div class="user-details">
-              <span class="user-role">Sesión Distribuidor</span>
-              <span class="user-name">{{ username }}</span>
-            </div>
-          </div>
-
-          <button class="btn-logout-icon" @click="handleLogout" title="Cerrar Sesión">
-            <LogOut :size="20" />
-          </button>
-        </template>
-
-        <template v-else>
-          <button class="btn-login" @click="router.push('/login')">
-            <span>INGRESAR</span>
-          </button>
-        </template>
-      </div>
-    </nav>
-  </div>
-</template>
-
 <style scoped>
 .dc-navbar {
-  background-color: white;
+  background-color: #5a3614;
   height: 80px;
   padding: 0 40px;
   display: flex;
@@ -116,12 +83,15 @@ const goToHome = () => {
   top: 0;
   z-index: 990; 
   font-family: sans-serif;
+  transition: all 0.3s ease; /* Transición suave al cambiar tamaño */
 }
 
 .nav-left {
   display: flex;
   align-items: center;
   gap: 20px;
+  /* Evita que el contenedor del logo colapse en pantallas pequeñas */
+  flex-shrink: 0; 
 }
 
 .btn-menu {
@@ -152,6 +122,7 @@ const goToHome = () => {
 .brand-logo {
   height: 55px;
   object-fit: contain;
+  transition: height 0.3s ease;
 }
 
 .brand-info {
@@ -160,101 +131,89 @@ const goToHome = () => {
 }
 
 .brand-text {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: #1a1624;
+  color: #ffffff;
+  font-family: 'Arial Black', Impact, sans-serif;
   font-style: italic;
-  line-height: 1;
+  
+  /* CLAVE RESPONSIVA: Escala dinámicamente entre 1.5rem y 2.5rem según el ancho de pantalla */
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 0;
+  white-space: nowrap; /* Evita que el texto del logo salte a dos líneas */
+
+  /* Múltiples sombras para el borde negro grueso */
+  text-shadow: 
+    -3px -3px 0 #000,  3px -3px 0 #000, -3px  3px 0 #000,  3px  3px 0 #000,
+    -3px  0px 0 #000,  3px  0px 0 #000,  0px -3px 0 #000,  0px  3px 0 #000,
+    5px  5px 0px rgba(0, 0, 0, 0.4);
 }
 
 .nav-right {
   display: flex;
   align-items: center;
-  gap: 24px;
-}
-
-.session-display {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background-color: #f8f7f8;
-  padding: 8px 16px;
-  border-radius: 50px;
-  border: 1px solid #eeedee;
-}
-
-.user-avatar {
-  width: 36px;
-  height: 36px;
-  background-color: #e4869f;
-  color: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.user-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-role {
-  font-size: 0.7rem;
-  color: #9793a0;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.user-name {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #322c44;
-}
-
-.btn-logout-icon {
-  background-color: #3b354d;
-  color: white;
-  border: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-logout-icon:hover {
-  background-color: #e4869f;
-  transform: scale(1.05);
+  gap: 12px; /* Reducido un poco para dar más aire en pantallas medianas */
 }
 
 /* --- ESTILO PARA VISITANTES --- */
 .btn-login {
-  background-color: #3b354d;
-  color: white;
-  border: none;
-  padding: 11px 26px;
+  background-color: #F4E1D2;
+  color: #513119;
+  border: none; /* Corregido de "border: 5px;" que era inválido */
+  padding: 10px 20px;
   border-radius: 25px;
   font-weight: bold;
   font-size: 0.85rem;
   letter-spacing: 0.5px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
+  white-space: nowrap; /* Evita que el texto de los botones salte de línea */
 }
 
 .btn-login:hover {
-  background-color: #1a1624;
+  background-color: #E28743;
+  color: #ffffff;
 }
 
-@media (max-width: 768px) {
+/* --- MEDIAS QUERIES RESPONSIVAS --- */
+
+/* 1. Tablets y Pantallas Medianas */
+@media (max-width: 900px) {
   .dc-navbar {
     padding: 0 20px;
   }
-  .user-details {
-    display: none;
+  .brand-logo {
+    height: 45px; /* Achicamos ligeramente el logo de la izquierda */
+  }
+}
+
+/* 2. Celulares (Modo Vertical y pantallas chicas) */
+@media (max-width: 600px) {
+  .dc-navbar {
+    height: auto; /* Permite que el navbar crezca si los elementos se apilan */
+    padding: 15px 10px;
+    flex-direction: column; /* Apila el logo arriba y los botones abajo */
+    gap: 12px;
+  }
+
+  .nav-left {
+    width: 100%;
+    justify-content: center; /* Centra el logo en celulares */
+  }
+
+  .nav-right {
+    width: 100%;
+    justify-content: space-evenly; /* Distribuye equitativamente ambos botones */
+    gap: 8px;
+  }
+
+  .btn-login {
+    flex: 1; /* Hace que ambos botones ocupen el mismo ancho proporcional en el móvil */
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    text-align: center;
   }
 }
 </style>

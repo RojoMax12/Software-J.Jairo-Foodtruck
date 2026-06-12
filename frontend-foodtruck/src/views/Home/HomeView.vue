@@ -22,7 +22,7 @@
       @confirm="router.push('/login')"
     />
 
-    <Banner />
+    <Carousel :images="bannerImages" :autoPlayInterval="5000"/>
     
     <main class="content-container">
       <SearchBar 
@@ -47,16 +47,13 @@
     <button class="floating-cart" @click="isCartOpen = true">
       <ShoppingCart :size="28" color="white" :stroke-width="2" />
     </button>
-  </div>
-  <div>
-    <Footer />
+    <Footer class="main-footer" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import Banner from '@/components/Banner.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import ProductCard from '@/components/ProductCard.vue'
 import CartModal from '@/components/CartModal.vue'
@@ -67,6 +64,13 @@ import { ShoppingCart } from 'lucide-vue-next'
 import categoryService from '@/services/productCategoryService';
 import productService from '@/services/productService';
 import Footer from '@/components/Footer.vue'
+import Carousel from '@/components/Carousel.vue';
+import imgBanner1 from '@/assets/banner1.png'
+import imgBanner2 from '@/assets/banner2.png'
+import imgBanner3 from '@/assets/banner3.png'
+
+
+
 
 // Estados reactivos
 const isCartOpen = ref(false);
@@ -79,6 +83,13 @@ const router = useRouter();
 const categoriesList = ref<any[]>([]);
 const selectedCategory = ref<string>('Todas');
 const searchQueryText = ref<string>('');
+
+
+const bannerImages = [
+  imgBanner1,
+  imgBanner2,
+  imgBanner3
+];
 
 // Estados autenticación
 const isLoggedIn = ref(false); 
@@ -330,7 +341,11 @@ watch(
 
 <style scoped>
 .content-container {
-  padding: 20px 8%;
+  flex: 1; 
+  padding: 20px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .products-grid {
@@ -338,14 +353,16 @@ watch(
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 20px;
   justify-items: center;
+  margin-top: 20px;
 }
 
 .floating-cart {
   position: fixed;
   bottom: 30px;
   left: 30px;
-  background-color: var(--DC-pink);
-  color: white;
+  padding: 15px;
+  background-color: #E28743;
+  color: rgb(0, 0, 0);
   width: 65px;
   height: 65px;
   border-radius: 50%;
@@ -355,7 +372,7 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 900; 
+  z-index: 999; 
   transition: transform 0.2s ease;
 }
 
@@ -366,4 +383,38 @@ watch(
 .floating-cart:active {
   transform: scale(0.9);
 }
+
+.home-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Ocupa el 100% de la pantalla del usuario */
+  position: relative;
+}
+
+.main-footer {
+  margin-top: auto; /* Garantía de empuje si la grilla de productos se vacía */
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  .content-container {
+    padding: 10px; /* Reducimos el margen para ganar espacio en los lados */
+  }
+
+  .products-grid {
+    /* Permite tarjetas más compactas en pantallas pequeñas */
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+    gap: 12px; /* Juntamos un poco más los productos */
+  }
+
+  .floating-cart {
+    bottom: 20px;
+    right: 20px;   /* Lo posiciona a la derecha en móviles */
+    left: auto;    /* 🔥 CRÍTICO: Cancela el "left: 30px" del diseño de escritorio */
+    width: 55px;
+    height: 55px;  /* Un tamaño ligeramente menor para no tapar tanto contenido */
+    z-index: 9999; /* Asegura que flote por ENCIMA del footer y de las tarjetas */
+  }
+}
+
 </style>
