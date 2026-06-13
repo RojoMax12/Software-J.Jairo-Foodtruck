@@ -11,21 +11,22 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('cotizacion_producto', function (Blueprint $table) {
+        Schema::create('usuarios', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('id_cotizacion');
-            $table->unsignedBigInteger('id_producto');
-            $table->integer('cantidad');
-            $table->integer('precio_unitario_venta');
+            $table->unsignedBigInteger('id_rol');
+            $table->string('nombre');
+            //Estado del usuario, activo o inactivo
+            $table->boolean('estado')->default(true);
+            $table->string('contrasena');
             $table->timestamps();
         });
     }
-
+    
     /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::dropIfExists('cotizacion_producto');
+        Schema::dropIfExists('usuarios');
     }
 };

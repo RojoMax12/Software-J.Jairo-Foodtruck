@@ -1,0 +1,28 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('ingredientes', function (Blueprint $table) {
+            $table->id();
+            $table->string('nombre');
+            // Cantidad aplica solo para algunos ingredientes
+            $table->integer('cantidad')->nullable();
+            $table->dateTime('fecha_de_ingreso');
+            $table->boolean('disponible')->default(true);
+            $table->timestamps();
+        });
+    }
+
+
+    // Eliminar la tabla ingredientes
+    public function down(): void
+    {
+        Schema::dropIfExists('ingredientes');
+    }
+};
