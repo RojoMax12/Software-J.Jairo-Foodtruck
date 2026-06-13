@@ -1,62 +1,50 @@
 <?php
 
 namespace App\Models;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Pedido extends Model
 {
-    use HasFactory;
-
     protected $table = 'pedidos';
 
     protected $fillable = [
-        'id_cotizacion',
         'id_estado_pedido',
-        'id_usuario_dicreme',
-        'id_usuario_distribuidor',
-        'fecha_creacion',
-        'hora_creacion',
-        'monto_estimado',
-        'monto_final'
-        ];
-
-    protected $casts = [
-        'fecha_creacion' => 'date',
-        'hora_creacion' => 'datetime',
+        'id_usuario',
+        'nombre_persona',
+        'numero_telefono',
+        'metodo_pago',
+        'estado_pago',
+        'fecha',
+        'total',
     ];
 
+    protected $casts = [
+        'fecha' => 'datetime',
+        'total'  => 'integer',
+    ];
 
-    public function usuarioDicreme(): BelongsTo
+    // Un pedido pertenece a un estado
+    public function estadoPedido()
     {
-        return $this->belongsTo(Usuario_dicreme::class, 'id_usuario_dicreme');
+        return $this->belongsTo(EstadoPedido::class, 'id_estado_pedido', 'id_pedido');
     }
 
-    public function estadoPedido(): HasOne
+    // Un pedido pertenece a un usuario
+    public function usuario()
     {
-        return $this->HasOne(Estado_pedido::class, 'id_estado_pedido');
+        return $this->belongsTo(Usuario::class, 'id_usuario');
     }
 
-    public function despacho(): HasOne
-    {
-        return $this->hasOne(Despacho::class, 'id_pedido');
-    }
-
-    public function venta(): HasOne
+    // Un pedido tiene una venta
+    public function venta()
     {
         return $this->hasOne(Venta::class, 'id_pedido');
     }
 
-    public function pedidoProductos(): HasMany
+    // Un pedido tiene muchos producto_pedido (one-to-many)
+    public function producto_pedido()
     {
-        return $this->hasMany(Pedido_producto::class, 'id_pedido');
-    }
-
-    public function cotizacion(): BelongsTo
-    {
-        return $this->belongsTo(Cotizacion::class, 'id_cotizacion');
+        return $this->hasMany(ProductoPedido::class, 'id_pedido');
     }
 }

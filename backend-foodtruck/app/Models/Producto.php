@@ -1,52 +1,38 @@
 <?php
 
 namespace App\Models;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Producto extends Model
 {
-    use HasFactory;
-
     protected $table = 'productos';
 
     protected $fillable = [
-        'id_categoria',
-        'id_formato',
-        'nombre_producto',
-        'precio_producto',
+        'nombre',
+        'precio',
+        'tipo',
     ];
 
     protected $casts = [
-        'precio_producto' => 'integer',
+        'precio' => 'integer',
     ];
 
-    public function categoria(): BelongsTo
+    // Un producto pertenece a muchos pedidos (many-to-many)
+    public function pedidos()
     {
-        return $this->belongsTo(Categoria::class, 'id_categoria');
+        return $this->belongsToMany(Pedido::class, 'producto_pedido', 'id_producto', 'id_pedido');
     }
 
-    public function formato(): BelongsTo
+    // Un producto tiene mmuchos producto_ingrediente (one-to-many)
+    public function producto_ingrediente()
     {
-        return $this->belongsTo(Formato::class, 'id_formato');
+        return $this->hasMany(Producto_ingrediente::class, 'id_producto');
     }
 
-    public function pedidoProductos(): HasMany
+    // Un producto aparece en muchas relaciones oferta_producto
+    public function ofertaProductos()
     {
-        return $this->hasMany(Pedido_producto::class, 'id_producto');
+        return $this->hasMany(OfertaProducto::class, 'id_productos');
     }
-
-    public function lotes(): HasMany
-    {
-        return $this->hasMany(Lote::class, 'id_producto');
-    }
-
-    public function cotizacionProductos(): HasMany
-    {
-        return $this->hasMany(Cotizacion_producto::class, 'id_producto');
-    }
-
 }

@@ -14,13 +14,6 @@ class Pedido_producto extends Model
     protected $fillable = [
         'id_pedido',
         'id_producto',
-        'precio_unitario_venta',
-        'cantidad'
-    ];
-
-    protected $casts = [
-        'precio_unitario_venta' => 'integer', # Esto debemos hashearlo, lo dejaré en integer por el momento
-        'cantidad' => 'integer',
     ];
 
     public function pedido(): BelongsTo
@@ -32,5 +25,4 @@ class Pedido_producto extends Model
     {
         return $this->belongsTo(Producto::class, 'id_producto');
     }
-
 }

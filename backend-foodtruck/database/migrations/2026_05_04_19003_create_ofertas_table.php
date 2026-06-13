@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('id_productos')->constrained('productos')->onDelete('restrict');
             $table->string('descripcion');
-            $table->decimal('precio_oferta', 10, 2);
+            $table->integer('precio_oferta');
             $table->string('tipo');
             $table->dateTime('fecha');
             $table->timestamps();
