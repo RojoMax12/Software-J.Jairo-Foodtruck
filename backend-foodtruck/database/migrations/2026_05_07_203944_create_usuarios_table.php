@@ -11,23 +11,22 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('despachos', function (Blueprint $table) {
+        Schema::create('usuarios', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('id_pedido');
-            $table->string('direccion_entrega');
-            $table->string('comuna');
-            $table->date('fecha_entrega')->nullable();
-            $table->string('persona_recibe');
-            $table->string('estado_despacho')->nullable();
+            $table->unsignedBigInteger('id_rol');
+            $table->string('nombre');
+            //Estado del usuario, activo o inactivo
+            $table->boolean('estado')->default(true);
+            $table->string('contrasena');
             $table->timestamps();
         });
     }
-
+    
     /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::dropIfExists('despachos');
+        Schema::dropIfExists('usuarios');
     }
 };

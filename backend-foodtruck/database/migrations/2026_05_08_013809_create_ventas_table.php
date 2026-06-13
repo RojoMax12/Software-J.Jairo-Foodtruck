@@ -13,12 +13,7 @@ return new class extends Migration
     {
         Schema::create('ventas', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('id_cotizacion');
-            $table->string('numero_factura')->unique();
-            $table->date('fecha_venta');
-            $table->string('glosa');
-            $table->string('estado_pago');
-            $table->integer('monto_total');
+            $table->foreignId('id_pedido')->constrained('pedidos')->onDelete('restrict');
             $table->timestamps();
         });
     }

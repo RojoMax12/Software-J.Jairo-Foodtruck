@@ -11,12 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('cotizacion_producto', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('id_cotizacion');
-            $table->unsignedBigInteger('id_producto');
-            $table->integer('cantidad');
-            $table->integer('precio_unitario_venta');
+        Schema::create('estado_pedido', function (Blueprint $table) {
+            $table->id('id_pedido');
+            $table->string('nombre')->unique();
             $table->timestamps();
         });
     }
@@ -26,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('cotizacion_producto');
+        Schema::dropIfExists('estado_pedido');
     }
 };

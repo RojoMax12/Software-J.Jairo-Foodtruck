@@ -1,23 +1,22 @@
 <?php
 
 namespace App\Models;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
-class Estado_pedido extends Model
+class EstadoPedido extends Model
 {
-    use HasFactory;
+    protected $table = 'estado_pedido';
 
-    protected $table = 'estados_pedido';
+    protected $primaryKey = 'id_pedido';
 
     protected $fillable = [
-        'nombre_estado'
+        'nombre',
     ];
 
-    public function pedidos(): HasOne
+    // Un estado tiene muchos pedidos
+    public function pedidos()
     {
-        return $this->hasOne(Pedido::class, 'id_estado_pedido');
+        return $this->hasMany(Pedido::class, 'id_estado_pedido', 'id_pedido');
     }
-
 }

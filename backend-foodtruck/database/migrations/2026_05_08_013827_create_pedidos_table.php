@@ -13,14 +13,15 @@ return new class extends Migration
     {
         Schema::create('pedidos', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('id_cotizacion');
-            $table->unsignedBigInteger('id_estado_pedido');
-            $table->unsignedBigInteger('id_usuario_dicreme')->nullable();
-            $table->unsignedBigInteger('id_usuario_distribuidor');
-            $table->date('fecha_creacion');
-            $table->time('hora_creacion');
-            $table->integer('monto_estimado');
-            $table->integer('monto_final');
+            $table->foreignId('id_estado_pedido')->constrained('estado_pedido', 'id_pedido')->onDelete('restrict');
+            $table->foreignId('id_usuario')->constrained('usuarios')->onDelete('restrict');
+            $table->string('nombre_persona');
+            $table->string('numero_telefono');
+            $table->string('metodo_pago');
+            //Estado del pago, pagado o no pagado - true: pagado, false: no pagado
+            $table->boolean('estado_pago');
+            $table->dateTime('fecha');
+            $table->integer('total');
             $table->timestamps();
         });
     }

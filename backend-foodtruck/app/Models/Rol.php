@@ -15,14 +15,9 @@ class Rol extends Model
         'nombre_rol'
     ];
 
-    public function usuariosDicreme(): HasMany
+    public function usuarios(): HasMany
     {
-        return $this->hasMany(Usuario_dicreme::class, 'id_rol');
-    }
-
-    public function usuariosDistribuidores(): HasMany
-    {
-        return $this->hasMany(Usuario_distribuidores::class, 'id_rol');
+        return $this->hasMany(Usuario::class, 'id_rol');
     }
 
 }
