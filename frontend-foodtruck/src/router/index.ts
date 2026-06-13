@@ -33,25 +33,46 @@ const router = createRouter({
       meta: { hideNavbar: true }
     },
     {
-      path: '/admin',
-      name: 'admin-home',
-      component: () => import('../views/Admin/AdminHomeView.vue')
+      path: '/general-home',
+      name: 'General-home',
+      component: () => import('../views/Operations/GeneralHomeView.vue')
+    },
+  
+    {
+      path: '/general-home/orders',
+      name: 'general-home-orders',
+      component: () => import('../views/Operations/Orders.vue')
     },
     {
-      path: '/admin/quotes',
-      name: 'admin-quotes',
-      component: () => import('../views/Admin/Quotes.vue')
+      path: '/general-home/generate-quote',
+      name: 'general-home-generate-quote',
+      component: () => import('../views/Operations/GenerateQuoteView.vue')
     },
+
     {
-      path: '/admin/orders',
-      name: 'admin-orders',
-      component: () => import('../views/Admin/Orders.vue')
+      path: '/general-home/inventory',
+      name: 'general-home-inventory',
+      component: () => import('../views/Operations/InventoryView.vue')
     },
+
     {
-      path: '/admin/generate-quote',
-      name: 'admin-generate-quote',
-      component: () => import('../views/Admin/AdminGenerateQuoteView.vue')
+      path: '/general-home/admin/cash-flow',
+      name: 'general-home-admin-cash-flow',
+      component: () => import('../views/Admin/CashFlowView.vue')
     },
+
+    {
+      path: '/general-home/admin/product',
+      name: 'general-home-admin-product',
+      component: () => import('../views/Admin/ProductView.vue')
+    },
+
+    {
+      path: '/general-home/admin/worker',
+      name: 'general-home-admin-worker',
+      component: () => import('../views/Admin/WorkerView.vue')
+    },
+
     {
       path: '/cotizacion',
       name: 'quotation',

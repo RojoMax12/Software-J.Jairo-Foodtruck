@@ -45,7 +45,7 @@
     </main>
 
     <button class="floating-cart" @click="isCartOpen = true">
-      <ShoppingCart :size="28" color="white" :stroke-width="2" />
+      <ShoppingCart :size="28" color="black" :stroke-width="2" />
     </button>
     <Footer class="main-footer" />
   </div>
@@ -366,7 +366,7 @@ watch(
   width: 65px;
   height: 65px;
   border-radius: 50%;
-  border: none;
+  border: 12px;
   cursor: pointer;
   box-shadow: 0 4px 15px rgba(0,0,0,0.3);
   display: flex;

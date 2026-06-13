@@ -1,3 +1,64 @@
+<template>
+  <div class="login-container">
+    <div class="login-wrapper">
+
+      <div class="login-card">
+        <div class="back-button" @click="goBack">
+          <ArrowLeft :size="24" color="var(--DC-orange)" />
+          <span>Volver</span>
+        </div>
+        <div class="logo-section">
+          <img src="../assets/logo_jairo.png" alt="J.Jairo Logo" class="logo" />
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="form-section">
+          <!-- Mensaje de Error -->
+          <div v-if="errorMessage" class="error-banner">
+            {{ errorMessage }}
+          </div>
+
+          <div class="input-group">
+            <input 
+              v-model="username" 
+              placeholder="Usuario" 
+              class="custom-input"
+              :disabled="isLoading"
+            />
+            <User class="input-icon" :size="20" color="#322c44" />
+          </div>
+
+          <div class="input-group">
+            <input 
+              v-model="password" 
+              :type="showPassword ? 'text' : 'password'" 
+              placeholder="Contraseña" 
+              class="custom-input"
+              :disabled="isLoading"
+              @keyup.enter="handleLogin"
+            />
+            <div class="icon-wrapper" @click="showPassword = !showPassword">
+              <Eye v-if="!showPassword" class="input-icon clickable" :size="20" color="#322c44" />
+              <EyeOff v-else class="input-icon clickable" :size="20" color="#322c44" />
+            </div>
+          </div>
+
+          <button 
+            @click="handleLogin" 
+            class="btn btn-primary"
+            :disabled="isLoading"
+          >
+            {{ isLoading ? 'INGRESANDO...' : 'INGRESAR' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+
+
 <script setup lang="ts">
 import { ref } from 'vue'
 import { User, Eye, EyeOff, ArrowLeft } from 'lucide-vue-next'
@@ -17,7 +78,7 @@ const goBack = () => {
 
 const handleLogin = async () => {
   if (!username.value || !password.value) {
-    errorMessage.value = 'Por favor, ingresa tu correo y contraseña.'
+    errorMessage.value = 'Por favor, ingresa tu usuario y contraseña.'
     return
   }
 
@@ -50,81 +111,13 @@ const handleLogin = async () => {
 }
 </script>
 
-<template>
-  <div class="login-container">
-    <div class="login-wrapper">
-      <div class="back-button" @click="goBack">
-        <ArrowLeft :size="24" color="#e4869f" />
-        <span>Volver</span>
-      </div>
-
-      <div class="login-card">
-        <div class="logo-section">
-          <img src="../assets/logo_dicreme.png" alt="DiCreme Logo" class="logo" />
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="form-section">
-          <!-- Mensaje de Error -->
-          <div v-if="errorMessage" class="error-banner">
-            {{ errorMessage }}
-          </div>
-
-          <div class="input-group">
-            <input 
-              v-model="username" 
-              type="email" 
-              placeholder="Correo electrónico" 
-              class="custom-input"
-              :disabled="isLoading"
-            />
-            <User class="input-icon" :size="20" color="#322c44" />
-          </div>
-
-          <div class="input-group">
-            <input 
-              v-model="password" 
-              :type="showPassword ? 'text' : 'password'" 
-              placeholder="Contraseña" 
-              class="custom-input"
-              :disabled="isLoading"
-              @keyup.enter="handleLogin"
-            />
-            <div class="icon-wrapper" @click="showPassword = !showPassword">
-              <Eye v-if="!showPassword" class="input-icon clickable" :size="20" color="#322c44" />
-              <EyeOff v-else class="input-icon clickable" :size="20" color="#322c44" />
-            </div>
-          </div>
-
-          <button 
-            @click="handleLogin" 
-            class="btn btn-primary"
-            :disabled="isLoading"
-          >
-            {{ isLoading ? 'INGRESANDO...' : 'INGRESAR' }}
-          </button>
-
-          <router-link to="/forgot-password" class="forgot-password">
-            ¿Olvidaste tu contraseña?
-          </router-link>
-
-          <router-link to="/register" style="width: 100%;">
-            <button class="btn btn-secondary" :disabled="isLoading">CREA TU CUENTA</button>
-          </router-link>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <style scoped>
 .login-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #eeedee;
+  background-color: var(--font-main);
   font-family: sans-serif;
 }
 
@@ -138,16 +131,20 @@ const handleLogin = async () => {
 }
 
 .back-button {
+  /* Lo posicionamos de forma absoluta pero DENTRO de los límites de .login-card */
   position: absolute;
-  left: -6.5rem;
-  top: 0;
+  left: 20px;
+  top: 20px;
   display: flex;
-  flex-direction: column;
+  flex-direction: column; /* Lo cambiamos a fila para que la flecha y el texto queden lado a lado */
   align-items: center;
+  gap: 5px; /* Pequeño espacio entre flecha y texto */
   cursor: pointer;
-  color: #e4869f;
+  color: var(--DC-orange);
   font-weight: bold;
+  font-size: 0.9rem; /* Un poco más pequeño para no competir con el logo */
   transition: all 0.2s ease;
+  z-index: 10; /* Asegura que quede por encima de la tarjeta */
 }
 
 .back-button:hover {
@@ -155,12 +152,13 @@ const handleLogin = async () => {
 }
 
 .back-button span {
-  margin-top: 0.5rem;
+  margin-top: 0;
 }
 
 .login-card {
+  position: relative; /* Agregado para que encierre al back-button */
   background-color: white;
-  padding: 2rem;
+  padding: 3rem 2rem 2rem 2rem; /* Le damos más espacio arriba (3rem) para que el logo no choque con el botón volver */
   border-radius: 1.5rem;
   width: 100%;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
@@ -184,7 +182,7 @@ const handleLogin = async () => {
 .divider {
   width: 80%;
   height: 2px;
-  background-color: #e4869f;
+  background-color: var(--DC-brown);
   margin-bottom: 2rem;
 }
 
@@ -219,7 +217,7 @@ const handleLogin = async () => {
   width: 100%;
   padding: 0.75rem 2.5rem 0.75rem 1rem;
   background-color: #e6e6e6;
-  border: 1px solid #e4869f;
+  border: 1px solid var( --DC-brown);
   border-radius: 0.75rem;
   font-size: 1rem;
   outline: none;
@@ -286,8 +284,8 @@ const handleLogin = async () => {
 }
 
 .btn-primary {
-  background-color: #e4869f;
-  color: white;
+  background-color: var(--DC-orange);
+  color: var(--DC-brown);
 }
 
 .btn-secondary {

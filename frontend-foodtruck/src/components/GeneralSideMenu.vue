@@ -33,8 +33,8 @@ const isActive = (path: string) => {
       <aside v-if="isOpen" class="admin-sidebar">
         <div class="sidebar-header">
           <div class="brand-group">
-            <img src="@/assets/logo_dicreme.png" alt="Logo" class="sidebar-logo" />
-            <span class="brand-name">Di Creme</span>
+            <img src="@/assets/logo_jairo.png" alt="Logo" class="sidebar-logo" />
+            <span class="brand-name">J.Junior</span>
           </div>
           <button class="btn-close" @click="emit('close')">
             <X :size="24" />
@@ -47,17 +47,9 @@ const isActive = (path: string) => {
             
             <button 
               class="nav-item" 
-              :class="{ active: isActive('/admin/quotes') }"
-              @click="navigateTo('/admin/quotes')"
-            >
-              <FileText :size="20" />
-              <span>Cotizaciones</span>
-            </button>
-
-            <button 
-              class="nav-item" 
-              :class="{ active: isActive('/admin/orders') }"
-              @click="navigateTo('/admin/orders')"
+              :class="{ active: isActive('/general-home/orders') }"
+              @click="navigateTo('/general-home/orders')"
+              `v-role="[1,3]"`
             >
               <ShoppingBag :size="20" />
               <span>Pedidos</span>
@@ -65,17 +57,60 @@ const isActive = (path: string) => {
 
             <button 
               class="nav-item" 
-              :class="{ active: isActive('/admin/generate-quote') }"
-              @click="navigateTo('/admin/generate-quote')"
+              :class="{ active: isActive('/general-home/generate-quote') }"
+              @click="navigateTo('/general-home/generate-quote')"
+              `v-role="[1,3]"`
             >
               <FilePlus :size="20" />
-              <span>Generar Cotización</span>
+              <span>Generar Pedidos</span>
+            </button>
+
+            <button 
+              class="nav-item" 
+              :class="{ active: isActive('/general-home/admin/cash-flow') }"
+              @click="navigateTo('/general-home/admin/cash-flow')"
+              `v-role="[1]"`
+            >
+              <FilePlus :size="20" />
+              <span>Caja</span>
+            </button>
+
+            <button 
+              class="nav-item" 
+              :class="{ active: isActive('/general-home/inventory') }"
+              @click="navigateTo('/general-home/inventory')"
+              `v-role="[1,3]"`
+            >
+              <FilePlus :size="20" />
+              <span>Inventario</span>
+            </button>
+
+
+            <button 
+              class="nav-item" 
+              :class="{ active: isActive('/general-home/admin/product') }"
+              @click="navigateTo('/general-home/admin/product')"
+              `v-role="[1]"`
+            >
+              <FilePlus :size="20" />
+              <span>Productos</span>
+            </button>
+
+
+            <button 
+              class="nav-item" 
+              :class="{ active: isActive('/general-home/admin/worker') }"
+              @click="navigateTo('/general-home/admin/worker')"
+             `v-role="[1]" descomentar para pruebas`
+            >
+              <FilePlus :size="20" />
+              <span>Trabajadores</span>
             </button>
           </div>
         </nav>
 
         <div class="sidebar-footer">
-          <span class="version-text">v1.0.0 - Admin Panel</span>
+          <span class="version-text">v1.0.0 - Panel</span>
         </div>
       </aside>
     </Transition>
@@ -100,7 +135,7 @@ const isActive = (path: string) => {
   left: 0;
   width: 280px;
   height: 100vh;
-  background-color: white;
+  background-color: var(--button-color);
   z-index: 1002;
   display: flex;
   flex-direction: column;
@@ -112,7 +147,7 @@ const isActive = (path: string) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #eeedee;
+  border-bottom: 1px solid black;
 }
 
 .brand-group {
@@ -126,16 +161,29 @@ const isActive = (path: string) => {
 }
 
 .brand-name {
-  font-weight: 800;
-  font-size: 1.2rem;
-  color: #1a1624;
+  color: #ffffff;
+  font-family: 'Arial Black', Impact, sans-serif;
   font-style: italic;
+  
+  font-size: 1.4rem; 
+  
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 0;
+  white-space: nowrap;
+
+  /* Sombras reducidas de 3px a 2px para que el borde negro no aplaste el texto */
+  text-shadow: 
+    -2px -2px 0 #000,  2px -2px 0 #000, -2px  2px 0 #000,  2px  2px 0 #000,
+    -2px  0px 0 #000,  2px  0px 0 #000,  0px -2px 0 #000,  0px  2px 0 #000,
+    4px  4px 0px rgba(0, 0, 0, 0.4);
 }
 
 .btn-close {
   background: none;
   border: none;
-  color: #9793a0;
+  color: var(--button-text);
   cursor: pointer;
   padding: 5px;
   border-radius: 8px;
@@ -143,8 +191,8 @@ const isActive = (path: string) => {
 }
 
 .btn-close:hover {
-  background-color: #fff0f3;
-  color: #e4869f;
+  background-color: var(--DC-orange);
+  color: var(--button-color);
 }
 
 .sidebar-nav {
@@ -177,7 +225,7 @@ const isActive = (path: string) => {
   gap: 12px;
   padding: 12px 16px;
   border-radius: 12px;
-  color: #322c44;
+  color: var(--button-text);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -185,13 +233,13 @@ const isActive = (path: string) => {
 }
 
 .nav-item:hover {
-  background-color: #f8f7f8;
-  color: #e4869f;
+  background-color: var(--DC-orange);
+  color: var(--button-color);
 }
 
 .nav-item.active {
-  background-color: #fff0f3;
-  color: #e4869f;
+  background-color: var(--DC-orange);
+  color: var(--button-color);
 }
 
 .sidebar-footer {

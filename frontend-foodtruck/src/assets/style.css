@@ -1,12 +1,24 @@
 :root {
-    --DC-pink: #e4869f;
-    --DC-gray: #322c44;
-    --DC-text-gray: #9793a0;
-    --DC-bg-gray: #f5ebe0;
+    /* 🌟 Colores Principales (Estilo Bajón / Comida Rápida) */
+    --DC-pink: #d80056;        /* Fucsia/Rosado intenso dominante de las insignias */
+    --DC-orange: #e28743;      /* Tu naranja icónico usado en el carrito flotante */
+    --DC-brown: #513119;       /* El café oscuro de tus líneas divisorias y bordes de input */
+    
+    /* 🏛️ Colores de Fondo y Estructura */
+    --DC-gray: #1e1b24;        /* Un tono casi negro muy oscuro para textos principales y títulos */
+    --DC-text-gray: #6e6a75;   /* Gris intermedio, ideal para placeholders y textos secundarios */
+    --DC-bg-gray: #f5ebe0;     /* Fondo sutilmente crema/cálido para que resalten las comidas */
+    
+    /* ✒️ Tipografías */
     --font-main: 'Open Sans', sans-serif;
+    --font-badge: 'Impact', 'Arial Black', sans-serif; /* Para los textos dentro de las insignias */
+
+    --button-color: #F4E1D2;
+    --button-text: #513119;
+    --button-hover: #E28743;
 }
 
-*{
+* {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -16,7 +28,6 @@
 body {
     background-color: var(--DC-bg-gray);
     color: var(--DC-gray);
-    -webkit-font-smoothing: antialiased; /* Hace que la fuente se vea más suave */
+    -webkit-font-smoothing: antialiased; 
     -moz-osx-font-smoothing: grayscale;
 }
-
