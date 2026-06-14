@@ -8,7 +8,7 @@
       <div class="brand-group" @click="goToHome">
         <img src="@/assets/logo_jairo.png" alt="J.jairo logo" class="brand-logo" />
         <div class="brand-info">
-          <span class="brand-text">J.Jairo</span>
+          <span class="brand-text">J.Junior</span>
         </div>
       </div>
     </div>
