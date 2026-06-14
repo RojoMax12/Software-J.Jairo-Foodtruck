@@ -1,32 +1,3 @@
-<script setup lang="ts">
-import { X, Trash2, Plus, Minus, ShoppingCart } from 'lucide-vue-next';
-import { computed } from 'vue';
-
-// Recibimos la lista de productos agregados desde el Home
-const props = defineProps<{
-  isOpen: boolean;
-  cartItems: any[]; 
-}>();
-
-// Definimos los eventos incluyendo 'checkout' para que el HomeView procese la cotización
-const emit = defineEmits(['close', 'update-quantity', 'remove-item', 'checkout']);
-
-// LÓGICA: Calcula el valor total de los productos en el carrito dinámicamente
-const cartTotal = computed(() => {
-  const totalRaw = props.cartItems.reduce((sum, item) => {
-    // Si el precio viene como String (ej: "$45.990"), limpiamos caracteres no numéricos
-    const cleanPrice = typeof item.price === 'string' 
-      ? Number(item.price.replace(/[^0-9]/g, '')) 
-      : Number(item.price);
-      
-    return sum + (cleanPrice * item.quantity);
-  }, 0);
-
-  // Retorna el string formateado como moneda en Chile (ej: $91.980)
-  return `$${totalRaw.toLocaleString('es-CL')}`;
-});
-</script>
-
 <template>
   <Transition name="fade">
     <div v-if="isOpen" class="modal-overlay" @click="emit('close')">
@@ -40,14 +11,14 @@ const cartTotal = computed(() => {
             </button>
             
             <div class="header-info">
-              <ShoppingCart :size="48" color="white" stroke-width="1.5" />
+              <ShoppingCart :size="42" color="var(--DC-orange)" stroke-width="1.5" />
               <h2 class="cart-title">Mi Carrito</h2>
             </div>
           </div>
 
           <div class="cart-body">
             <div v-if="cartItems.length === 0" class="empty-state">
-               <p>Tu carrito está listo para recibir helados</p>
+               <p>No tienes productos en tu carrito</p>
             </div>
             
             <div v-else class="cart-items-list">
@@ -63,7 +34,7 @@ const cartTotal = computed(() => {
                     </button>
                   </div>
                   
-                  <p class="item-category" :style="{ color: item.color }">- {{ item.category }}</p>
+                  <p class="item-category" :style="{ color: item.color || 'var(--DC-pink)' }">- {{ item.category }}</p>
                   
                   <div class="item-action-row">
                     <span class="item-price-info">{{ item.size }} - {{ item.price }}</span>
@@ -90,8 +61,20 @@ const cartTotal = computed(() => {
               <span class="total-amount">{{ cartTotal }}</span>
             </div>
 
-            <button class="btn-checkout" @click="emit('checkout')">
-              Finalizar Cotización
+            <button 
+              v-if="cartItems.length > 0" 
+              class="btn-checkout" 
+              @click="emit('checkout')"
+            >
+              Finalizar Pedido
+            </button>
+
+            <button 
+              v-else 
+              class="btn-checkout" 
+              @click="emit('close')"
+            >
+              Seguir comprando
             </button>
           </div>
 
@@ -101,6 +84,30 @@ const cartTotal = computed(() => {
   </Transition>
 </template>
 
+<script setup lang="ts">
+import { X, Trash2, Plus, Minus, ShoppingCart } from 'lucide-vue-next';
+import { computed } from 'vue';
+
+const props = defineProps<{
+  isOpen: boolean;
+  cartItems: any[]; 
+}>();
+
+const emit = defineEmits(['close', 'update-quantity', 'remove-item', 'checkout']);
+
+const cartTotal = computed(() => {
+  const totalRaw = props.cartItems.reduce((sum, item) => {
+    const cleanPrice = typeof item.price === 'string' 
+      ? Number(item.price.replace(/[^0-9]/g, '')) 
+      : Number(item.price);
+      
+    return sum + (cleanPrice * item.quantity);
+  }, 0);
+
+  return `$${totalRaw.toLocaleString('es-CL')}`;
+});
+</script>
+
 <style scoped>
 .modal-overlay {
   position: fixed;
@@ -108,7 +115,7 @@ const cartTotal = computed(() => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.4);
+  background-color: rgba(0, 0, 0, 0.55); /* Un fondo oscuro un poco más denso */
   z-index: 2000;
   display: flex;
 }
@@ -116,17 +123,18 @@ const cartTotal = computed(() => {
 .modal-content {
   width: 380px;
   height: 100%;
-  background-color: white;
+  background-color: var(--DC-bg-gray); /* 🎨 Cambiado: Ahora usa tu fondo crema bajonero */
   display: flex;
   flex-direction: column;
   position: relative;
+  box-shadow: 5px 0 25px rgba(0, 0, 0, 0.3);
 }
 
 .cart-header {
-  background-color: var(--DC-pink);
-  padding: 15px 20px;
-  border-bottom-left-radius: 25px;
-  border-bottom-right-radius: 25px;
+  background-color: var(--DC-brown); /* El café oscuro corporativo */
+  padding: 20px;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -135,23 +143,30 @@ const cartTotal = computed(() => {
 
 .close-btn {
   position: absolute;
-  top: 15px;
-  right: 15px;
+  top: 18px;
+  right: 18px;
   background: none;
   border: none;
   cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.close-btn:hover {
+  transform: scale(1.15);
 }
 
 .header-info {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  margin-top: 5px;
 }
 
 .cart-title {
-  color: white;
-  font-size: 1.4rem;
+  color: var(--DC-orange);
+  font-family: var(--font-main);
+  font-size: 1.5rem;
   font-weight: 800;
   margin: 0;
 }
@@ -164,11 +179,12 @@ const cartTotal = computed(() => {
 
 .empty-state {
   text-align: center;
-  margin-top: 50px;
-  color: #999;
+  margin-top: 60px;
+  color: var(--DC-text-gray);
+  font-weight: 600;
 }
 
-/* --- ESTILOS DE LA LISTA DE PRODUCTOS (MOCKUP) --- */
+/* --- ELEMENTOS DE LA LISTA DE PRODUCTOS --- */
 .cart-items-list {
   display: flex;
   flex-direction: column;
@@ -178,10 +194,12 @@ const cartTotal = computed(() => {
 .cart-item {
   display: flex;
   gap: 12px;
-  background-color: #f5f4f5;
+  background-color: #ffffff; /* 🎨 Las tarjetas blancas resaltan perfecto sobre el fondo crema */
   padding: 12px;
   border-radius: 15px;
   align-items: center;
+  border: 1px solid rgba(90, 54, 20, 0.08); /* Mini borde café ultra sutil */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
 }
 
 .item-img {
@@ -207,7 +225,7 @@ const cartTotal = computed(() => {
   margin: 0;
   font-size: 0.95rem;
   color: var(--DC-gray);
-  font-weight: 700;
+  font-weight: 800; /* Texto bien marcado */
 }
 
 .delete-btn {
@@ -216,11 +234,16 @@ const cartTotal = computed(() => {
   color: #cc5a71;
   cursor: pointer;
   padding: 2px;
+  transition: color 0.2s;
+}
+
+.delete-btn:hover {
+  color: #ff0033;
 }
 
 .item-category {
   font-size: 0.8rem;
-  margin: 2px 0 8px 0;
+  margin: 3px 0 8px 0;
   font-weight: bold;
 }
 
@@ -233,17 +256,17 @@ const cartTotal = computed(() => {
 .item-price-info {
   font-size: 0.9rem;
   font-weight: 800;
-  color: var(--DC-gray);
+  color: var(--DC-brown); /* Usamos el café para los precios */
 }
 
 .item-quantity-selector {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background-color: white;
-  padding: 2px 6px;
+  gap: 10px;
+  background-color: var(--DC-bg-gray); /* Fondo crema para el selector */
+  padding: 4px 8px;
   border-radius: 12px;
-  border: 1px solid #ddd;
+  border: 1px solid rgba(0,0,0,0.05);
 }
 
 .qty-btn {
@@ -252,7 +275,8 @@ const cartTotal = computed(() => {
   cursor: pointer;
   display: flex;
   align-items: center;
-  color: var(--DC-text-gray);
+  color: var(--DC-brown);
+  font-weight: bold;
 }
 
 .qty-value {
@@ -260,12 +284,14 @@ const cartTotal = computed(() => {
   font-weight: 800;
   min-width: 15px;
   text-align: center;
+  color: var(--DC-gray);
 }
 
 /* --- FOOTER Y SECCIÓN TOTAL --- */
 .cart-footer {
   padding: 20px;
-  border-top: 1px solid #eee;
+  border-top: 2px dashed rgba(0, 0, 0, 0.15); /* Línea discontinua estilo boleta de comida */
+  background-color: var(--font-main);
 }
 
 .total-row {
@@ -279,30 +305,37 @@ const cartTotal = computed(() => {
 .total-label {
   font-size: 1rem;
   font-weight: 700;
-  color: #555;
+  color: var(--DC-text-gray);
 }
 
 .total-amount {
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: var(--DC-pink);
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: var(--DC-pink); /* Fucsia intenso para resaltar el valor total */
 }
 
 .btn-checkout {
   width: 100%;
-  background-color: var(--DC-gray);
-  color: white;
+  background-color: var(--DC-orange); /* 🎨 Corregido: Usa tu naranja de botón principal */
+  color: var(--DC-brown);
   border: none;
   padding: 15px;
   border-radius: 12px;
-  font-weight: bold;
-  font-size: 1rem;
+  font-family: var(--font-main);
+  font-weight: 800;
+  font-size: 1.05rem;
   cursor: pointer;
-  transition: background-color 0.3s;
+  box-shadow: 0 4px 12px rgba(226, 135, 67, 0.3);
+  transition: all 0.2s ease;
 }
 
 .btn-checkout:hover {
-  background-color: var(--DC-gray);
+  background-color: #cf7332; /* Oscurecimiento controlado al pasar el mouse */
+  transform: translateY(-1px);
+}
+
+.btn-checkout:active {
+  transform: translateY(1px);
 }
 
 /* ANIMACIONES */

@@ -2,8 +2,8 @@
 import { ref } from 'vue';
 import { useRoute } from 'vue-router';
 import Navbar from './components/Navbar.vue';
-import AdminNavbar from './components/AdminNavbar.vue';
-import AdminSideMenu from './components/AdminSideMenu.vue';
+import AdminNavbar from './components/GeneralNavbar.vue';
+import AdminSideMenu from './components/GeneralSideMenu.vue';
 // 1. Importamos el estado global de notificaciones
 import { useNotification } from '@/composables/useNotification';
 
@@ -20,14 +20,15 @@ const toggleAdminSidebar = () => {
 
 <template>
   <template v-if="!route.meta.hideNavbar">
-    <template v-if="route.path.startsWith('/admin')">
+    <template v-if="route.path.startsWith('/general-home')">
       <AdminNavbar @toggleSidebar="toggleAdminSidebar" />
       <AdminSideMenu :isOpen="isAdminSidebarOpen" @close="isAdminSidebarOpen = false" />
     </template>
+    
     <Navbar v-else />
   </template>
+  
   <router-view/>
-
 
   <div class="notification-container">
     <TransitionGroup name="toast">

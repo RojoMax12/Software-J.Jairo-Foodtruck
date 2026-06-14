@@ -1,18 +1,105 @@
 <template>
   <div class="admin-quote-wizard">
     <div class="wizard-header">
-      <h1>Generar Nueva Cotización</h1>
+      <h1>Generar Nuevo Pedido</h1>
       <div class="steps-indicator">
-        <div :class="['step', { active: currentStep >= 1 }]">1. Cliente</div>
+        <div :class="['step', { active: currentStep >= 1 }]">1. Productos</div>
         <div class="line"></div>
-        <div :class="['step', { active: currentStep >= 2 }]">2. Productos</div>
+        <div :class="['step', { active: currentStep >= 2 }]">2. Cliente</div>
         <div class="line"></div>
         <div :class="['step', { active: currentStep >= 3 }]">3. Resumen</div>
       </div>
     </div>
 
-    <!-- Paso 1: Datos del Distribuidor -->
-    <div v-if="currentStep === 1" class="step-container client-step">
+    <!-- Paso 2: Selección de Productos -->
+    <div v-if="currentStep === 1" class="step-container product-step">
+      <div class="product-layout">
+        <div class="catalog-section">
+          <div class="catalog-header">
+            <h3>Selección de Productos</h3>
+            <div class="filters">
+              <select v-model="selectedCategory" class="dc-select">
+                <option value="Todas">Todas las categorías</option>
+                <option v-for="cat in categoriesList" :key="cat.id" :value="cat.nombre_categoria">
+                  {{ cat.nombre_categoria }}
+                </option>
+              </select>
+              <div class="product-search">
+                <Search :size="18" />
+                <input v-model="productSearch" type="text" placeholder="Buscar producto..." />
+              </div>
+            </div>
+          </div>
+
+          <div class="products-grid-admin">
+            <div v-for="p in filteredIceCreams" :key="p.name" class="product-card-admin">
+              <img :src="p.image" :alt="p.name" />
+              <div class="p-info">
+                <h4>{{ p.name }}</h4>
+                <span class="p-cat">{{ p.category }}</span>
+                <div class="formats-list">
+                  <div v-for="f in p.formats" :key="f.id" class="format-row">
+                    <span>{{ f.size }} - {{ f.formattedPrice }}</span>
+                    <button class="btn-add-small" @click="addToCart(p, f)">
+                      <Plus :size="14" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="box-ingredient-card">
+          <div class="text-product">
+              
+          </div>
+        </div>
+
+        <aside class="cart-summary-admin">
+          <div class="cart-header">
+            <ShoppingCart :size="20" />
+            <span>Resumen Parcial</span>
+          </div>
+          <div class="cart-items-list">
+            <div v-if="cartItems.length === 0" class="empty-cart">
+              No hay productos
+            </div>
+            <div v-for="(item, idx) in cartItems" :key="item.id" class="cart-item-admin">
+              <div class="item-main">
+                <span class="item-name">{{ item.name }} ({{ item.size }})</span>
+                <span class="item-price">{{ item.formattedPrice }}</span>
+              </div>
+              <div class="item-controls">
+                <div class="qty-btn" @click="updateQuantity(idx, -1)"><Minus :size="12" /></div>
+                <span>{{ item.quantity }}</span>
+                <div class="qty-btn" @click="updateQuantity(idx, 1)"><Plus :size="12" /></div>
+                <button class="btn-delete" @click="removeFromCart(idx)"><Trash2 :size="14" /></button>
+              </div>
+            </div>
+          </div>
+          <div class="cart-total">
+            <span>Total:</span>
+            <strong>{{ totalQuote }}</strong>
+          </div>
+        </aside>
+
+        
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-secondary" @click="router.push('/general-home')">
+          Cancelar
+        </button>
+        <button class="btn btn-primary" @click="nextStep">
+          Continuar a datos del cliente <ArrowRight :size="18" />
+        </button>
+        
+      </div>
+    </div>
+
+        <!-- Paso 2: Datos del Cliente -->
+    <div v-if="currentStep === 2" class="step-container client-step">
       <div class="selection-mode">
         <h3>Seleccione o ingrese los datos del distribuidor</h3>
         
@@ -90,87 +177,9 @@
       </div>
 
       <div class="actions">
-        <button class="btn btn-secondary" @click="router.push('/admin')">Cancelar</button>
-        <button class="btn btn-primary" @click="nextStep">
-          Continuar a Productos <ArrowRight :size="18" />
-        </button>
-      </div>
-    </div>
 
-    <!-- Paso 2: Selección de Productos -->
-    <div v-if="currentStep === 2" class="step-container product-step">
-      <div class="product-layout">
-        <div class="catalog-section">
-          <div class="catalog-header">
-            <h3>Selección de Productos</h3>
-            <div class="filters">
-              <select v-model="selectedCategory" class="dc-select">
-                <option value="Todas">Todas las categorías</option>
-                <option v-for="cat in categoriesList" :key="cat.id" :value="cat.nombre_categoria">
-                  {{ cat.nombre_categoria }}
-                </option>
-              </select>
-              <div class="product-search">
-                <Search :size="18" />
-                <input v-model="productSearch" type="text" placeholder="Buscar sabor..." />
-              </div>
-            </div>
-          </div>
-
-          <div class="products-grid-admin">
-            <div v-for="p in filteredIceCreams" :key="p.name" class="product-card-admin">
-              <img :src="p.image" :alt="p.name" />
-              <div class="p-info">
-                <h4>{{ p.name }}</h4>
-                <span class="p-cat">{{ p.category }}</span>
-                <div class="formats-list">
-                  <div v-for="f in p.formats" :key="f.id" class="format-row">
-                    <span>{{ f.size }} - {{ f.formattedPrice }}</span>
-                    <button class="btn-add-small" @click="addToCart(p, f)">
-                      <Plus :size="14" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <aside class="cart-summary-admin">
-          <div class="cart-header">
-            <ShoppingCart :size="20" />
-            <span>Resumen Parcial</span>
-          </div>
-          <div class="cart-items-list">
-            <div v-if="cartItems.length === 0" class="empty-cart">
-              No hay productos
-            </div>
-            <div v-for="(item, idx) in cartItems" :key="item.id" class="cart-item-admin">
-              <div class="item-main">
-                <span class="item-name">{{ item.name }} ({{ item.size }})</span>
-                <span class="item-price">{{ item.formattedPrice }}</span>
-              </div>
-              <div class="item-controls">
-                <div class="qty-btn" @click="updateQuantity(idx, -1)"><Minus :size="12" /></div>
-                <span>{{ item.quantity }}</span>
-                <div class="qty-btn" @click="updateQuantity(idx, 1)"><Plus :size="12" /></div>
-                <button class="btn-delete" @click="removeFromCart(idx)"><Trash2 :size="14" /></button>
-              </div>
-            </div>
-          </div>
-          <div class="cart-total">
-            <span>Total:</span>
-            <strong>{{ totalQuote }}</strong>
-          </div>
-        </aside>
-      </div>
-
-      <div class="actions">
         <button class="btn btn-secondary" @click="currentStep = 1">
-          <ArrowLeft :size="18" /> Datos Cliente
-        </button>
-        <button class="btn btn-primary" @click="nextStep">
-          Revisar Resumen <ArrowRight :size="18" />
+          <ArrowLeft :size="18" /> Volver a Productos
         </button>
       </div>
     </div>
@@ -395,18 +404,18 @@ const totalQuote = computed(() => {
 
 const nextStep = () => {
   if (currentStep.value === 1) {
-    if (!distributorForm.value.nombre_empresa || !distributorForm.value.rut_empresa) {
-      alert('Por favor ingrese al menos el nombre y RUT de la empresa.');
-      return;
-    }
-    currentStep.value = 2;
-  } else if (currentStep.value === 2) {
     if (cartItems.value.length === 0) {
       alert('Debe añadir al menos un producto a la cotización.');
       return;
     }
+    currentStep.value = 2;
+  } else if (currentStep.value === 2) {
+    if (!distributorForm.value.nombre_empresa || !distributorForm.value.rut_empresa) {
+      alert('Por favor ingrese al menos el nombre y RUT de la empresa.');
+      return;
+      }
+    }
     currentStep.value = 3;
-  }
 };
 
 const confirmQuote = async () => {
@@ -796,6 +805,13 @@ onMounted(() => {
 }
 
 .summary-card {
+  background: #f9f9f9;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #eee;
+}
+
+.box-ingredient-card {
   background: #f9f9f9;
   padding: 1.5rem;
   border-radius: 12px;
