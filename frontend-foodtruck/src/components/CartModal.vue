@@ -28,16 +28,22 @@
                 
                 <div class="item-details">
                   <div class="item-header-row">
-                    <h4 class="item-name">{{ item.name }}</h4>
+                    <h4 class="item-name">{{ item.fullName || item.name }}</h4>
                     <button class="delete-btn" @click="emit('remove-item', { id: item.id, size: item.size })">
                       <Trash2 :size="16" />
                     </button>
                   </div>
                   
-                  <p class="item-category" :style="{ color: item.color || 'var(--DC-pink)' }">- {{ item.category }}</p>
+                  <p v-if="item.size" class="item-size-tag">{{ item.size }}</p>
+
+                  <div v-if="item.excluidos && item.excluidos.length > 0" class="exclusions-box">
+                    <span v-for="ingrediente in item.excluidos" :key="ingrediente" class="exclusion-badge">
+                      Sin {{ ingrediente }}
+                    </span>
+                  </div>
                   
                   <div class="item-action-row">
-                    <span class="item-price-info">{{ item.size }} - {{ item.price }}</span>
+                    <span class="item-price-info">${{ item.price.toLocaleString('es-CL') }}</span>
                     
                     <div class="item-quantity-selector">
                       <button class="qty-btn" @click="emit('update-quantity', { id: item.id, size: item.size, change: -1 })">
@@ -115,7 +121,7 @@ const cartTotal = computed(() => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.55); /* Un fondo oscuro un poco más denso */
+  background-color: rgba(0, 0, 0, 0.55);
   z-index: 2000;
   display: flex;
 }
@@ -123,7 +129,7 @@ const cartTotal = computed(() => {
 .modal-content {
   width: 380px;
   height: 100%;
-  background-color: var(--DC-bg-gray); /* 🎨 Cambiado: Ahora usa tu fondo crema bajonero */
+  background-color: var(--DC-bg-gray); 
   display: flex;
   flex-direction: column;
   position: relative;
@@ -131,7 +137,7 @@ const cartTotal = computed(() => {
 }
 
 .cart-header {
-  background-color: var(--DC-brown); /* El café oscuro corporativo */
+  background-color: var(--DC-brown);
   padding: 20px;
   border-bottom-left-radius: 20px;
   border-bottom-right-radius: 20px;
@@ -177,6 +183,11 @@ const cartTotal = computed(() => {
   overflow-y: auto;
 }
 
+/* Custom Scrollbar para el carrito */
+.cart-body::-webkit-scrollbar { width: 6px; }
+.cart-body::-webkit-scrollbar-track { background: transparent; }
+.cart-body::-webkit-scrollbar-thumb { background: #d0c8c0; border-radius: 4px; }
+
 .empty-state {
   text-align: center;
   margin-top: 60px;
@@ -184,7 +195,6 @@ const cartTotal = computed(() => {
   font-weight: 600;
 }
 
-/* --- ELEMENTOS DE LA LISTA DE PRODUCTOS --- */
 .cart-items-list {
   display: flex;
   flex-direction: column;
@@ -194,11 +204,11 @@ const cartTotal = computed(() => {
 .cart-item {
   display: flex;
   gap: 12px;
-  background-color: #ffffff; /* 🎨 Las tarjetas blancas resaltan perfecto sobre el fondo crema */
+  background-color: #ffffff; 
   padding: 12px;
   border-radius: 15px;
-  align-items: center;
-  border: 1px solid rgba(90, 54, 20, 0.08); /* Mini borde café ultra sutil */
+  align-items: flex-start; /* Cambio a flex-start para que la imagen se quede arriba */
+  border: 1px solid rgba(90, 54, 20, 0.08); 
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
 }
 
@@ -218,14 +228,41 @@ const cartTotal = computed(() => {
 .item-header-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .item-name {
-  margin: 0;
+  margin: 0 0 3px 0;
   font-size: 0.95rem;
   color: var(--DC-gray);
-  font-weight: 800; /* Texto bien marcado */
+  font-weight: 800; 
+  line-height: 1.2;
+}
+
+.item-size-tag {
+  font-size: 0.75rem;
+  color: var(--DC-text-gray);
+  font-weight: 700;
+  margin: 0 0 6px 0;
+}
+
+/* 🌟 ESTILOS DE LOS INGREDIENTES EXCLUIDOS */
+.exclusions-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.exclusion-badge {
+  background-color: #fff0f3;
+  color: #c92a2a;
+  border: 1px solid #ffc9c9;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
 }
 
 .delete-btn {
@@ -236,62 +273,39 @@ const cartTotal = computed(() => {
   padding: 2px;
   transition: color 0.2s;
 }
-
-.delete-btn:hover {
-  color: #ff0033;
-}
-
-.item-category {
-  font-size: 0.8rem;
-  margin: 3px 0 8px 0;
-  font-weight: bold;
-}
+.delete-btn:hover { color: #ff0033; }
 
 .item-action-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-top: auto; /* Empuja esta fila hacia abajo */
 }
 
 .item-price-info {
-  font-size: 0.9rem;
-  font-weight: 800;
-  color: var(--DC-brown); /* Usamos el café para los precios */
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: var(--DC-orange); 
 }
 
 .item-quantity-selector {
   display: flex;
   align-items: center;
   gap: 10px;
-  background-color: var(--DC-bg-gray); /* Fondo crema para el selector */
+  background-color: var(--DC-bg-gray); 
   padding: 4px 8px;
   border-radius: 12px;
   border: 1px solid rgba(0,0,0,0.05);
 }
 
-.qty-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  color: var(--DC-brown);
-  font-weight: bold;
-}
-
-.qty-value {
-  font-size: 0.85rem;
-  font-weight: 800;
-  min-width: 15px;
-  text-align: center;
-  color: var(--DC-gray);
-}
+.qty-btn { background: none; border: none; cursor: pointer; display: flex; align-items: center; color: var(--DC-brown); font-weight: bold; }
+.qty-value { font-size: 0.9rem; font-weight: 800; min-width: 15px; text-align: center; color: var(--DC-gray); }
 
 /* --- FOOTER Y SECCIÓN TOTAL --- */
 .cart-footer {
   padding: 20px;
-  border-top: 2px dashed rgba(0, 0, 0, 0.15); /* Línea discontinua estilo boleta de comida */
-  background-color: var(--font-main);
+  border-top: 2px dashed rgba(0, 0, 0, 0.15); 
+  background-color: white;
 }
 
 .total-row {
@@ -302,45 +316,33 @@ const cartTotal = computed(() => {
   padding: 0 5px;
 }
 
-.total-label {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--DC-text-gray);
-}
-
-.total-amount {
-  font-size: 1.4rem;
-  font-weight: 900;
-  color: var(--DC-pink); /* Fucsia intenso para resaltar el valor total */
-}
+.total-label { font-size: 1rem; font-weight: 700; color: var(--DC-text-gray); }
+.total-amount { font-size: 1.4rem; font-weight: 900; color: var(--DC-orange); }
 
 .btn-checkout {
   width: 100%;
-  background-color: var(--DC-orange); /* 🎨 Corregido: Usa tu naranja de botón principal */
-  color: var(--DC-brown);
+  background-color: var(--DC-orange); 
+  color: white;
   border: none;
   padding: 15px;
   border-radius: 12px;
-  font-family: var(--font-main);
-  font-weight: 800;
+  font-weight: 900;
   font-size: 1.05rem;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(226, 135, 67, 0.3);
   transition: all 0.2s ease;
 }
 
-.btn-checkout:hover {
-  background-color: #cf7332; /* Oscurecimiento controlado al pasar el mouse */
-  transform: translateY(-1px);
-}
-
-.btn-checkout:active {
-  transform: translateY(1px);
-}
+.btn-checkout:hover { background-color: var(--DC-brown); transform: translateY(-1px); box-shadow: 0 6px 15px rgba(81, 49, 25, 0.3); }
+.btn-checkout:active { transform: translateY(1px); }
 
 /* ANIMACIONES */
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 .slide-enter-active, .slide-leave-active { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
 .slide-enter-from, .slide-leave-to { transform: translateX(-100%); }
+
+@media (max-width: 400px) {
+  .modal-content { width: 100%; }
+}
 </style>

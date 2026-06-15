@@ -1,4 +1,3 @@
-
 <template>
   <template v-if="!route.meta.hideNavbar">
     <template v-if="route.path.startsWith('/general-home')">
@@ -47,9 +46,7 @@ const toggleAdminSidebar = () => {
 </script>
 
 <style scoped>
-/* 🎨 4. ESTILOS DE LOS TOASTS FLOTANTES */
 
-/* Contenedor fijo arriba a la derecha */
 .notification-container {
   position: fixed;
   top: 20px;
