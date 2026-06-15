@@ -44,8 +44,16 @@
       </div>
     </main>
 
-    <button class="floating-cart" @click="isCartOpen = true">
+    <button 
+      v-if="!isCartOpen && !isDetailOpen" 
+      class="floating-cart" 
+      @click="isCartOpen = true"
+    >
       <ShoppingCart :size="28" color="black" :stroke-width="2" />
+      
+      <span v-if="totalCartQuantity > 0" class="cart-badge">
+        {{ totalCartQuantity }}
+      </span>
     </button>
     <Footer class="main-footer" />
   </div>
@@ -94,6 +102,10 @@ const bannerImages = [
 // Estados autenticación
 const isLoggedIn = ref(false); 
 const currentUser = ref<any>(null);
+
+const totalCartQuantity = computed(() => {
+  return cartItems.value.reduce((total, item) => total + item.quantity, 0);
+});
 
 // Revisar el estado de autenticación
 const checkAuthStatus = () => {
@@ -217,7 +229,7 @@ const handleRemoveItem = (payload: { id: number, size: string }) => {
 };
 
 // Procesar la cotización hacia la siguiente pantalla
-const goToQuotation = () => {
+/*const goToQuotation = () => {
   if (cartItems.value.length === 0) {
     alert("Tu carrito está vacío.");
     return;
@@ -231,6 +243,17 @@ const goToQuotation = () => {
   } else {
       isNoticeOpen.value = true;
   }
+};*/
+
+const goToQuotation = () => {
+  if (cartItems.value.length === 0) {
+    alert("Tu carrito está vacío.");
+    return;
+  }
+  
+  // Cerramos el carrito y enviamos directo a la cotización sin preguntar
+  isCartOpen.value = false;
+  router.push('/cotizacion'); 
 };
 
 const handleGoToLogin = () => {
@@ -240,7 +263,7 @@ const handleGoToLogin = () => {
 };
 
 // Función para cargar los productos desde la API
-const fetchIceCreams = async () => {
+/*const fetchIceCreams = async () => {
   try {
     const [productsResponse, categoriesResponse] = await Promise.all([
       productService.getProducts(),
@@ -312,7 +335,76 @@ const fetchIceCreams = async () => {
   } catch (error) {
     console.error('Error al cargar los productos:', error);
   }  
-}
+}*/
+
+const fetchIceCreams = async () => {
+  // 1. Definimos las categorías
+  categoriesList.value = [
+    { id: 1, nombre_categoria: 'Completos' },
+    { id: 2, nombre_categoria: 'Pizzas' },
+    { id: 3, nombre_categoria: 'Churrascos' }
+  ];
+
+  // 2. Datos Dummy
+  iceCreams.value = [
+    {
+      id: 1,
+      name: "Completo",
+      category: "Completos",
+      image: "https://images.unsplash.com/photo-1627059318424-5890de49c3c7?q=80&w=400",
+      sizes: ["Normal", "XXL"],
+      activeSize: "Normal",
+      types: [
+        {
+          id: 101, name: "Italiano", desc: "Palta, tomate y mayo",
+          prices: { "Normal": 1500, "XXL": 2500 },
+          producto_ingrediente: [
+            { id: 1, ingrediente: { nombre: "Palta", disponible: true } },
+            { id: 2, ingrediente: { nombre: "Tomate", disponible: true } },
+            { id: 3, ingrediente: { nombre: "Mayo", disponible: true } }
+          ]
+        }
+      ]
+    },
+    {
+      id: 2,
+      name: "Pizza Napolitana",
+      category: "Pizzas",
+      image: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?q=80&w=400",
+      sizes: ["Mediana", "Familiar"],
+      activeSize: "Mediana",
+      types: [
+        {
+          id: 201, name: "Peperoni", desc: "Salsa, queso y peperoni",
+          prices: { "Mediana": 6500, "Familiar": 9000 },
+          producto_ingrediente: [
+            { id: 10, ingrediente: { nombre: "Salsa de Tomate", disponible: true } },
+            { id: 11, ingrediente: { nombre: "Queso Mozzarella", disponible: true } },
+            { id: 12, ingrediente: { nombre: "Peperoni", disponible: true } }
+          ]
+        }
+      ]
+    },
+    {
+      id: 3,
+      name: "Churrasco",
+      category: "Churrascos",
+      image: "https://images.unsplash.com/photo-1553979459-d2229ba7433b?q=80&w=400",
+      sizes: ["Normal"],
+      activeSize: "Normal",
+      types: [
+        {
+          id: 301, name: "Barros Luco", desc: "Churrasco y queso fundido",
+          prices: { "Normal": 4500 },
+          producto_ingrediente: [
+            { id: 50, ingrediente: { nombre: "Churrasco", disponible: true } },
+            { id: 51, ingrediente: { nombre: "Queso Fundido", disponible: true } }
+          ]
+        }
+      ]
+    }
+  ];
+};
 
 onMounted(() => {
   fetchIceCreams();
@@ -394,6 +486,24 @@ watch(
 .main-footer {
   margin-top: auto; /* Garantía de empuje si la grilla de productos se vacía */
   width: 100%;
+}
+
+.cart-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background-color: #e11d48; /* Rojo llamativo */
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 900;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  border: 2px solid #f5ebe0; /* Borde del color de tu fondo para resaltarlo */
 }
 
 @media (max-width: 600px) {

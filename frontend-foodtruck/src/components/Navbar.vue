@@ -12,7 +12,7 @@
       
       <!-- Corregido: Clase cambiada a nav-right para consistencia con tus estilos -->
       <div class="nav-right">
-        <button class="btn-login">
+        <button class="btn-login" @click="router.push('/checkorderstatus')">
           <span>Revisa tu pedido aquí</span>
         </button>
         <button class="btn-login" @click="router.push('/login')">

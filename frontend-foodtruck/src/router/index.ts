@@ -37,6 +37,12 @@ const router = createRouter({
       name: 'General-home',
       component: () => import('../views/Operations/GeneralHomeView.vue')
     },
+
+    {
+      path: '/checkorderstatus',
+      name: 'checkorderstatus',
+      component: () => import('../views/Operations/CheckOrderStatus.vue')
+    },
   
     {
       path: '/general-home/orders',
