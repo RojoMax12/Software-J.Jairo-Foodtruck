@@ -16,6 +16,9 @@
     --button-color: #F4E1D2;
     --button-text: #513119;
     --button-hover: #E28743;
+
+    --space-mobile: 10px;
+    --space-desktop: 20px;
 }
 
 * {
@@ -31,3 +34,30 @@ body {
     -webkit-font-smoothing: antialiased; 
     -moz-osx-font-smoothing: grayscale;
 }
+
+
+html, body {
+  overflow-x: hidden; 
+  width: 100%;
+  position: relative; /* Evita que los elementos 'fixed' rompan el layout */
+}
+
+/* 📱 Base responsiva para que nada se salga del ancho de pantalla */
+* {
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+}
+
+
+@media (max-width: 768px) {
+  :root {
+    --current-space: var(--space-mobile);
+  }
+}
+
+@media (min-width: 769px) {
+  :root {
+    --current-space: var(--space-desktop);
+  }
+}
+

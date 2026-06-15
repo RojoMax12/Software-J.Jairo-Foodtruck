@@ -102,12 +102,15 @@ const toggleSidebar = () => {
   position: sticky;
   top: 0;
   z-index: 1000;
+  width: 100%; /* Asegura que no sobrepase el ancho */
+  box-sizing: border-box; /* Previene el desbordamiento horizontal */
 }
 
 .nav-left {
   display: flex;
   align-items: center;
   gap: 20px;
+  overflow: hidden; /* Evita que el logo estire el contenedor */
 }
 
 .btn-menu {
@@ -121,11 +124,12 @@ const toggleSidebar = () => {
   padding: 8px;
   border-radius: 8px;
   transition: background-color 0.2s ease;
+  flex-shrink: 0; /* Evita que el botón se aplaste */
 }
 
 .btn-menu:hover {
   background-color: var(--button-hover);
-  color: var(--button-color);
+  color: var(--DC-brown);
 }
 
 .brand-group {
@@ -133,11 +137,13 @@ const toggleSidebar = () => {
   align-items: center;
   gap: 15px;
   cursor: pointer;
+  flex-shrink: 1; /* Permite que se comprima si es necesario */
 }
 
 .brand-logo {
   height: 55px;
   object-fit: contain;
+  flex-shrink: 0;
 }
 
 .brand-info {
@@ -149,20 +155,14 @@ const toggleSidebar = () => {
   color: #ffffff;
   font-family: 'Arial Black', Impact, sans-serif;
   font-style: italic;
-  
-  /* CLAVE RESPONSIVA: Escala dinámicamente entre 1.5rem y 2.5rem según el ancho de pantalla */
-  font-size: clamp(1.5rem, 4vw, 2.5rem);
-  
+  font-size: clamp(1.2rem, 3vw, 2.5rem); /* Ajustado para que en celular no se desborde */
   font-weight: 900;
   letter-spacing: 1px;
   text-transform: uppercase;
   margin: 0;
-  white-space: nowrap; /* Evita que el texto del logo salte a dos líneas */
-
-  /* Múltiples sombras para el borde negro grueso */
+  white-space: nowrap;
   text-shadow: 
-    -3px -3px 0 #000,  3px -3px 0 #000, -3px  3px 0 #000,  3px  3px 0 #000,
-    -3px  0px 0 #000,  3px  0px 0 #000,  0px -3px 0 #000,  0px  3px 0 #000,
+    -2px -2px 0 #000,  2px -2px 0 #000, -2px  2px 0 #000,  2px  2px 0 #000,
     5px  5px 0px rgba(0, 0, 0, 0.4);
 }
 
@@ -170,6 +170,7 @@ const toggleSidebar = () => {
   display: flex;
   align-items: center;
   gap: 24px;
+  flex-shrink: 0;
 }
 
 .session-display {
@@ -191,6 +192,7 @@ const toggleSidebar = () => {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .user-details {
@@ -198,18 +200,8 @@ const toggleSidebar = () => {
   flex-direction: column;
 }
 
-.user-role {
-  font-size: 0.7rem;
-  color: var(--DC-brown);
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.user-name {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #322c44;
-}
+.user-role { font-size: 0.7rem; color: var(--DC-brown); font-weight: 600; text-transform: uppercase; }
+.user-name { font-size: 0.95rem; font-weight: 700; color: #322c44; white-space: nowrap; }
 
 .btn-logout-icon {
   background-color: var(--button-color);
@@ -223,6 +215,7 @@ const toggleSidebar = () => {
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .btn-logout-icon:hover {
@@ -232,10 +225,34 @@ const toggleSidebar = () => {
 
 @media (max-width: 768px) {
   .admin-navbar {
-    padding: 0 20px;
+    padding: 0 10px;
+    height: 70px;
   }
-  .user-details {
-    display: none;
+  
+  .nav-left { gap: 8px; }
+  .brand-group { gap: 6px; }
+  .brand-logo { height: 35px; } /* Un poquito más chico para asegurar espacio */
+  
+  .nav-right { gap: 8px; }
+  
+  .user-details { display: none; } 
+  
+  /* 🌟 CORRECCIÓN AQUÍ: El contenedor de sesión en móvil */
+  .session-display {
+    padding: 6px; /* Padding uniforme */
+    border-radius: 50%;
+    width: 40px;  /* Forzamos tamaño cuadrado/circular */
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid #000;
+  }
+
+  .user-avatar {
+    width: 100%; /* Ocupa el espacio del círculo */
+    height: 100%;
+    margin: 0;
   }
 }
 </style>
