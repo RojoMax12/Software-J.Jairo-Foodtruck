@@ -74,18 +74,19 @@ onUnmounted(() => {
 <style scoped>
 .carousel-container {
   position: relative;
-  width: 100vw;         /* Rompe el contenedor padre y toma todo el ancho visible */
-  left: 50%;
-  right: 50%;
-  margin-left: -50vw;
-  margin-right: -50vw;  /* Truco de CSS para forzar diseño de borde a borde */
-  overflow: hidden;
+  width: 100%;        /* Cambiado de 100vw a 100% */
+  overflow-x: hidden; /* Esto es vital: si algo se sale, lo corta */
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  margin: 0;          /* Asegura que no haya márgenes externos */
+  max-width: 100vw; 
+  overflow-x: hidden;
 }
 
+/* El track container también debe ser 100% */
 .carousel-track-container {
   width: 100%;
-  height: 460px;        /* Altura panorámica ideal para monitores y pantallas de escritorio */
+  height: 460px;
+  overflow: hidden; /* Asegura que las imágenes no se salgan del carrusel */
 }
 
 .carousel-track {

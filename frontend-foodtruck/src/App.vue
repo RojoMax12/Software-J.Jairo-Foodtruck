@@ -1,22 +1,3 @@
-<script setup lang="ts">
-import { ref } from 'vue';
-import { useRoute } from 'vue-router';
-import Navbar from './components/Navbar.vue';
-import AdminNavbar from './components/GeneralNavbar.vue';
-import AdminSideMenu from './components/GeneralSideMenu.vue';
-// 1. Importamos el estado global de notificaciones
-import { useNotification } from '@/composables/useNotification';
-
-const route = useRoute();
-// 2. Extraemos el arreglo de notificaciones reactivas
-const { notifications } = useNotification();
-
-const isAdminSidebarOpen = ref(false);
-
-const toggleAdminSidebar = () => {
-  isAdminSidebarOpen.value = !isAdminSidebarOpen.value;
-};
-</script>
 
 <template>
   <template v-if="!route.meta.hideNavbar">
@@ -43,6 +24,27 @@ const toggleAdminSidebar = () => {
     </TransitionGroup>
   </div>
 </template>
+
+
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useRoute } from 'vue-router';
+import Navbar from './components/Navbar.vue';
+import AdminNavbar from './components/GeneralNavbar.vue';
+import AdminSideMenu from './components/GeneralSideMenu.vue';
+// 1. Importamos el estado global de notificaciones
+import { useNotification } from '@/composables/useNotification';
+
+const route = useRoute();
+// 2. Extraemos el arreglo de notificaciones reactivas
+const { notifications } = useNotification();
+
+const isAdminSidebarOpen = ref(false);
+
+const toggleAdminSidebar = () => {
+  isAdminSidebarOpen.value = !isAdminSidebarOpen.value;
+};
+</script>
 
 <style scoped>
 /* 🎨 4. ESTILOS DE LOS TOASTS FLOTANTES */

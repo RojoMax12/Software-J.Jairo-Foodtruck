@@ -70,15 +70,18 @@
   padding: 3rem 1.5rem 1.5rem 1.5rem;
   border-top: 1px solid #eeedee;
   margin-top: auto; 
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .footer-grid {
-  max-width: 1200px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 40px;
   padding-bottom: 20px;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .footer-brand,
