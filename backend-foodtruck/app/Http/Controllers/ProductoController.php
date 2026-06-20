@@ -2,54 +2,43 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\ProductoServices;
+use App\Services\ProductoService;
 use Illuminate\Http\Request;
 
 class ProductoController extends Controller
 {
-    protected $productoServices;
+    protected $productoService;
 
-    public function __construct(ProductoServices $productoServices)
+    public function __construct(ProductoService $productoService)
     {
-        $this->productoServices = $productoServices;
+        $this->productoService = $productoService;
     }
 
     public function index()
     {
-        return response()->json($this->productoServices->getAllProductos());
+        return response()->json($this->productoService->getAllProductos());
     }
 
     public function show($id)
     {
-        return response()->json($this->productoServices->getProductoById($id));
+        return response()->json($this->productoService->getProductoById($id));
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'id_categoria' => 'required|integer|exists:categorias,id',
-            'id_formato' => 'required|integer|exists:formatos,id',
-            'nombre_producto' => 'required|string|max:255',
-            'precio_producto' => 'required|integer|min:0',
-        ]);
-
-        return response()->json($this->productoServices->createProducto($data), 201);
+        $data = $request->all();
+        return response()->json($this->productoService->createProducto($data), 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->validate([
-            'id_categoria' => 'sometimes|required|integer|exists:categorias,id',
-            'id_formato' => 'sometimes|required|integer|exists:formatos,id',
-            'nombre_producto' => 'sometimes|required|string|max:255',
-            'precio_producto' => 'sometimes|required|integer|min:0',
-        ]);
-
-        return response()->json($this->productoServices->updateProducto($id, $data));
+        $data = $request->all();
+        return response()->json($this->productoService->updateProducto($id, $data));
     }
 
     public function destroy($id)
     {
-        return response()->json($this->productoServices->deleteProducto($id));
+        $this->productoService->deleteProductoById($id);
+        return response()->json(null, 204);
     }
 }

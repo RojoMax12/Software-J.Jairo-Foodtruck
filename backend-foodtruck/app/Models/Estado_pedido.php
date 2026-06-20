@@ -8,7 +8,8 @@ class EstadoPedido extends Model
 {
     protected $table = 'estado_pedido';
 
-    protected $primaryKey = 'id_pedido';
+    protected $primaryKey = 'id_estado_pedido';
+
 
     protected $fillable = [
         'nombre',

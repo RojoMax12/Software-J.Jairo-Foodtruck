@@ -1,37 +1,20 @@
 <?php
-
 namespace App\Repositories;
 use App\Models\Producto;
-use Illuminate\Support\Facades\Cache;
 
 # Repositorio Producto
 class ProductoRepository
-{   
-    private const CACHE_KEY = 'catalogo_completo_productos';
-
+{
     # Create
     public function createProducto($data)
-    {      
-        $producto = Producto::create($data);
-        $this->clearCache();
-        return $producto;
+    {
+        return Producto::create($data);
     }
 
     # Geters
     public function getAllProductos()
     {
-        // Si ya está en caché, lo devuelve en < 10ms. Si no, va a la DB.
-        return Cache::remember(self::CACHE_KEY, now()->addHours(24), function () {
-            // Traemos todos, pero optimizando la consulta al máximo
-            return Producto::select('id', 'nombre_producto', 'precio_producto', 'id_categoria', 'id_formato') // 1. Solo campos necesarios
-                ->with([
-                    'categoria' => function($query) { $query->select('id', 'nombre_categoria'); }, // 2. Eager loading limpio
-                    'formato'  => function($query) { $query->select('id', 'nombre_formato'); }
-                ])
-                ->get()
-                ->values()
-                ->toArray();
-        });
+        return Producto::all();
     }
 
     public function getProductoById($id)
@@ -41,17 +24,39 @@ class ProductoRepository
 
     public function getProductoByNombre($nombre)
     {
-        return Producto::where('nombre_producto', $nombre)->first();
+        return Producto::where('nombre', $nombre)->first();
     }
 
-    public function getProductosByCategoriaId($idCategoria)
+    public function getProductosByTipo($tipo)
     {
-        return Producto::where('id_categoria', $idCategoria)->get();
+        return Producto::where('tipo', $tipo)->get();
     }
 
-    public function getProductosByFormatoId($idFormato)
+    public function getPedidosByProductoId($id)
     {
-        return Producto::where('id_formato', $idFormato)->get();
+        $producto = Producto::find($id);
+        if ($producto) {
+            return $producto->pedidos;
+        }
+        return null;
+    }
+
+    public function getIngredientesByProductoId($id)
+    {
+        $producto = Producto::find($id);
+        if ($producto) {
+            return $producto->producto_ingrediente;
+        }
+        return null;
+    }
+
+    public function getOfertasByProductoId($id)
+    {
+        $producto = Producto::find($id);
+        if ($producto) {
+            return $producto->ofertaProductos;
+        }
+        return null;
     }
 
     # Seters
@@ -60,26 +65,19 @@ class ProductoRepository
         $producto = Producto::find($id);
         if ($producto) {
             $producto->update($data);
-            $this->clearCache();
             return $producto;
         }
         return null;
     }
 
     # Delete
-    public function deleteProducto($id)
+    public function deleteProductoById($id)
     {
         $producto = Producto::find($id);
         if ($producto) {
             $producto->delete();
-            $this->clearCache(); 
             return true;
         }
         return false;
-    }
-
-    private function clearCache()
-    {
-        Cache::forget(self::CACHE_KEY); // Adiós fotografía vieja
     }
 }
