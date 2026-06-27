@@ -39,6 +39,7 @@
           :category="item.category"
           :categoryColor="item.color"
           :image="item.image"
+          :price="getCardPrice(item)"
           @view-details="openDetails(item)"
         />
       </div>
@@ -176,6 +177,31 @@ const openDetails = (iceCream: any) => {
   isDetailOpen.value = true;
 };
 
+const getCardPrice = (product: any) => {
+  if (!product || !product.types || product.types.length === 0) {
+    return 'Sin precio';
+  }
+
+  const priceMap = product.types[0].prices || {};
+  const defaultSize = Object.keys(priceMap)[0];
+  const activeSize = product.activeSize || defaultSize;
+  const selectedSize = activeSize ?? defaultSize;
+
+  if (!selectedSize) {
+    return 'Sin precio';
+  }
+
+  const priceValue = priceMap[selectedSize];
+
+  if (priceValue == null) {
+    return 'Sin precio';
+  }
+
+  return typeof priceValue === 'number'
+    ? `$${priceValue.toLocaleString('es-CL')}`
+    : String(priceValue);
+};
+
 // Agregar un producto al carrito
 const addToCart = (purchaseItem: any) => {
 const baseProduct = iceCreams.value.find(p => p.name === purchaseItem.name);
@@ -188,19 +214,18 @@ const baseProduct = iceCreams.value.find(p => p.name === purchaseItem.name);
     else if (purchaseItem.size === '1L') purchaseItem.id = baseProduct.id1l;
   }
 
-  // Comparamos usando el sabor exacto y el tamaño físico
+  // Buscamos un item por su ID único cuando hay exclusiones específicas.
   const existingItem = cartItems.value.find(
-    item => item.name === purchaseItem.name && item.size === purchaseItem.size
+    item => item.id === purchaseItem.id ||
+      (!purchaseItem.id && item.name === purchaseItem.name && item.size === purchaseItem.size)
   );
 
   if (existingItem) {
-    // Si el helado coincide completamente en sabor y formato, incrementamos
     existingItem.quantity += purchaseItem.quantity;
   } else {
-    // Si es un sabor nuevo (aunque compartan el ID de formato general), se añade como una línea independiente
     cartItems.value.push(purchaseItem);
   }
-  
+
   console.log("Estado actual del carrito Di Creme:", cartItems.value);
 
 }
