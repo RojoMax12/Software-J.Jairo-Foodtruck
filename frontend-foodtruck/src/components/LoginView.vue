@@ -117,54 +117,53 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--font-main);
-  font-family: sans-serif;
+  background-color: var(--DC-bg-gray); /* Corregido: antes tenías una variable de fuente aquí */
+  font-family: var(--font-main);
+  padding: 20px; /* 🌟 CLAVE: Esto evita que la tarjeta choque con los bordes en el celular */
+  box-sizing: border-box;
 }
 
 .login-wrapper {
   position: relative;
   width: 100%;
-  max-width: 400px;
+  max-width: 420px; /* Ancho máximo controlado para PC */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.login-card {
+  position: relative;
+  background-color: white;
+  padding: 3.5rem 2rem 2.5rem 2rem;
+  border-radius: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid #eeedee;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 .back-button {
-  /* Lo posicionamos de forma absoluta pero DENTRO de los límites de .login-card */
   position: absolute;
   left: 20px;
   top: 20px;
   display: flex;
-  flex-direction: column; /* Lo cambiamos a fila para que la flecha y el texto queden lado a lado */
   align-items: center;
-  gap: 5px; /* Pequeño espacio entre flecha y texto */
+  gap: 5px;
   cursor: pointer;
   color: var(--DC-orange);
-  font-weight: bold;
-  font-size: 0.9rem; /* Un poco más pequeño para no competir con el logo */
+  font-weight: 800;
+  font-size: 0.9rem;
   transition: all 0.2s ease;
-  z-index: 10; /* Asegura que quede por encima de la tarjeta */
+  z-index: 10;
 }
 
 .back-button:hover {
   transform: translateX(-5px);
-}
-
-.back-button span {
-  margin-top: 0;
-}
-
-.login-card {
-  position: relative; /* Agregado para que encierre al back-button */
-  background-color: white;
-  padding: 3rem 2rem 2rem 2rem; /* Le damos más espacio arriba (3rem) para que el logo no choque con el botón volver */
-  border-radius: 1.5rem;
-  width: 100%;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  color: var(--DC-brown);
 }
 
 .logo-section {
@@ -175,7 +174,7 @@ const handleLogin = async () => {
 }
 
 .logo {
-  max-width: 200px;
+  max-width: 180px; /* Un poco más contenido para que no desborde */
   height: auto;
 }
 
@@ -184,6 +183,7 @@ const handleLogin = async () => {
   height: 2px;
   background-color: var(--DC-brown);
   margin-bottom: 2rem;
+  opacity: 0.2;
 }
 
 .form-section {
@@ -197,13 +197,14 @@ const handleLogin = async () => {
 .error-banner {
   width: 100%;
   padding: 0.75rem 1rem;
-  background-color: #fff5f5;
-  border: 1px solid #fa5252;
+  background-color: #fff0f3;
+  border: 2px solid var(--DC-pink);
   border-radius: 0.75rem;
-  color: #fa5252;
+  color: var(--DC-pink);
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 800;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .input-group {
@@ -215,11 +216,13 @@ const handleLogin = async () => {
 
 .custom-input {
   width: 100%;
-  padding: 0.75rem 2.5rem 0.75rem 1rem;
-  background-color: #e6e6e6;
-  border: 1px solid var( --DC-brown);
+  padding: 0.9rem 2.5rem 0.9rem 1.2rem;
+  background-color: #fcfbf9;
+  border: 2px solid #eeedee;
   border-radius: 0.75rem;
   font-size: 1rem;
+  font-weight: 600;
+  color: var(--DC-gray);
   outline: none;
   box-sizing: border-box;
   transition: all 0.2s;
@@ -227,17 +230,21 @@ const handleLogin = async () => {
 
 .custom-input:focus {
   background-color: #fff;
-  box-shadow: 0 0 0 3px rgba(228, 134, 159, 0.2);
+  border-color: var(--DC-orange);
+  /* Sombra de enfoque naranja, alineada a tu marca */
+  box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.2); 
 }
 
 .custom-input::placeholder {
   color: #9793a0;
+  font-weight: 500;
 }
 
 .input-icon {
   position: absolute;
   right: 1rem;
   pointer-events: none;
+  color: var(--DC-brown);
 }
 
 .icon-wrapper {
@@ -257,50 +264,37 @@ const handleLogin = async () => {
 
 .btn {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.9rem;
   border: none;
   border-radius: 0.75rem;
-  font-weight: bold;
+  font-weight: 900;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 1.05rem;
   transition: all 0.2s ease;
-}
-
-.btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  filter: brightness(0.9);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.btn:active:not(:disabled) {
-  transform: translateY(0);
-  filter: brightness(0.8);
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  filter: grayscale(0.5);
+  margin-top: 0.5rem;
 }
 
 .btn-primary {
   background-color: var(--DC-orange);
-  color: var(--DC-brown);
-}
-
-.btn-secondary {
-  background-color: #9793a0;
   color: white;
+  box-shadow: 0 4px 15px rgba(226, 135, 67, 0.3);
 }
 
-.forgot-password {
-  color: #322c44;
-  text-decoration: none;
-  font-size: 0.9rem;
-  margin: 0.5rem 0;
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background-color: var(--DC-brown);
+  box-shadow: 0 6px 20px rgba(81, 49, 25, 0.3);
 }
 
-.forgot-password:hover {
-  text-decoration: underline;
+.btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background-color: #ccc;
+  box-shadow: none;
+  color: #666;
 }
 </style>

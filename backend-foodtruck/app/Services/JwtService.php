@@ -23,6 +23,8 @@ class JwtService
             'nbf' => $issuedAt,
             'exp' => $expiresAt,
             'jti' => (string) Str::uuid(),
+            'id_rol' => $user->id_rol ?? null,
+            'nombre' => $user->nombre ?? null,
         ], $extraClaims);
 
         $claims = array_filter($claims, static fn ($value) => $value !== null);

@@ -1,44 +1,58 @@
 <?php
+namespace App\Repositories;
+use App\Models\Rol;
 
-namespace App\Repositories; //se define el nombre del espacio en este caso se trabaja en App\Repositories
-use App\Models\Rol; //Se importa el modelo Rol
-
+# Repositorio Rol
 class RolRepository
-{   
-    //Se definen los métodos para interactuar con la base de datos a través del modelo Rol
-    //Se utiliza la sintexis de Eloquent para realizar las operaciones CRUD (Crear, Leer, Actualizar, Eliminar) en la tabla roles
-    //Se puede utilizar otra sintaxis de consulta
-    
+{
+    # Create
+    public function createRol($data)
+    {
+        return Rol::create($data);
+    }
+
+    # Geters
     public function getAllRoles()
     {
         return Rol::all();
     }
 
-    public function getRoleById($id)
+    public function getRolById($id)
     {
         return Rol::find($id);
     }
 
-    public function createRole($data)
+    public function getRolByNombre($nombre)
     {
-        return Rol::create($data);
+        return Rol::where('nombre_rol', $nombre)->first();
     }
 
-    public function updateRole($id, $data)
+    public function getUsuariosByRolId($id)
     {
-        $role = Rol::find($id);
-        if ($role) {
-            $role->update($data);
-            return $role;
+        $rol = Rol::find($id);
+        if ($rol) {
+            return $rol->usuarios;
         }
         return null;
     }
 
-    public function deleteRole($id)
+    # Seters
+    public function updateRol($id, $data)
     {
-        $role = Rol::find($id);
-        if ($role) {
-            $role->delete();
+        $rol = Rol::find($id);
+        if ($rol) {
+            $rol->update($data);
+            return $rol;
+        }
+        return null;
+    }
+
+    # Delete
+    public function deleteRolById($id)
+    {
+        $rol = Rol::find($id);
+        if ($rol) {
+            $rol->delete();
             return true;
         }
         return false;

@@ -1,9 +1,17 @@
 <?php
-
 namespace App\Repositories;
 use App\Models\Pedido;
 
-class PedidoRepository {
+# Repositorio Pedido
+class PedidoRepository
+{
+    # Create
+    public function createPedido($data)
+    {
+        return Pedido::create($data);
+    }
+
+    # Geters
     public function getAllPedidos()
     {
         return Pedido::all();
@@ -13,11 +21,32 @@ class PedidoRepository {
     {
         return Pedido::find($id);
     }
-    public function createPedido($data)
+
+    public function getPedidosByUsuarioId($idUsuario)
     {
-        return Pedido::create($data);
+        return Pedido::where('id_usuario', $idUsuario)->get();
     }
 
+    public function getPedidosByEstadoId($idEstado)
+    {
+        return Pedido::where('id_estado_pedido', $idEstado)->get();
+    }
+
+    public function getPedidosByEstadoPago($estadoPago)
+    {
+        return Pedido::where('estado_pago', $estadoPago)->get();
+    }
+
+    public function getVentaByPedidoId($id)
+    {
+        $pedido = Pedido::find($id);
+        if ($pedido) {
+            return $pedido->venta;
+        }
+        return null;
+    }
+
+    # Seters
     public function updatePedido($id, $data)
     {
         $pedido = Pedido::find($id);
@@ -28,7 +57,8 @@ class PedidoRepository {
         return null;
     }
 
-    public function deletePedido($id)
+    # Delete
+    public function deletePedidoById($id)
     {
         $pedido = Pedido::find($id);
         if ($pedido) {
@@ -37,15 +67,4 @@ class PedidoRepository {
         }
         return false;
     }
-
-     public function getPedidoByUsuario($id)
-    { 
-        return Pedido::where('id_usuario_dicreme', $id)->get();
-    }
-
-    public function getPedidoByUsuario_distribuidores($id){
-
-        return Pedido::where('id_usuario_distribuidor', $id)->get();
-    }
-
 }

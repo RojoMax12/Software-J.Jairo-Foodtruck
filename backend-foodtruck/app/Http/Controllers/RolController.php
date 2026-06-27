@@ -2,49 +2,43 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\RolServices;
+use App\Services\RolService;
 use Illuminate\Http\Request;
 
-/*Las direcciones de las peticiones HTTP van en route/api */
 class RolController extends Controller
 {
-    protected $rolServices;
+    protected $rolService;
 
-    public function __construct(RolServices $rolServices)
+    public function __construct(RolService $rolService)
     {
-        $this->rolServices = $rolServices;
+        $this->rolService = $rolService;
     }
 
     public function index()
     {
-        return response()->json($this->rolServices->getAllRoles());
+        return response()->json($this->rolService->getAllRoles());
     }
 
     public function show($id)
     {
-        return response()->json($this->rolServices->getRoleById($id));
+        return response()->json($this->rolService->getRolById($id));
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'nombre_rol' => 'required|string|max:255',
-        ]);
-
-        return response()->json($this->rolServices->createRole($data), 201);
+        $data = $request->all();
+        return response()->json($this->rolService->createRol($data), 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->validate([
-            'nombre_rol' => 'required|string|max:255',
-        ]);
-
-        return response()->json($this->rolServices->updateRole($id, $data));
+        $data = $request->all();
+        return response()->json($this->rolService->updateRol($id, $data));
     }
 
     public function destroy($id)
     {
-        return response()->json($this->rolServices->deleteRole($id), 204);
+        $this->rolService->deleteRolById($id);
+        return response()->json(null, 204);
     }
 }

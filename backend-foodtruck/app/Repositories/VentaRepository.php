@@ -1,10 +1,16 @@
 <?php
-
 namespace App\Repositories;
 use App\Models\Venta;
-
+# Repositorio Venta
 class VentaRepository
 {
+    # Create
+    public function createVenta($data)
+    {
+        return Venta::create($data);
+    }
+    
+    # Geters
     public function getAllVentas()
     {
         return Venta::all();
@@ -15,11 +21,21 @@ class VentaRepository
         return Venta::find($id);
     }
 
-    public function createVenta($data)
+    public function getVentaByPedidoId($idPedido)
     {
-        return Venta::create($data);
+        return Venta::where('id_pedido', $idPedido)->first();
     }
 
+    public function getCajasByVentaId($id)
+    {
+        $venta = Venta::find($id);
+        if ($venta) {
+            return $venta->cajas;
+        }
+        return null;
+    }
+
+    # Seters
     public function updateVenta($id, $data)
     {
         $venta = Venta::find($id);
@@ -30,7 +46,8 @@ class VentaRepository
         return null;
     }
 
-    public function deleteVenta($id)
+    # Delete
+    public function deleteVentaById($id)
     {
         $venta = Venta::find($id);
         if ($venta) {
