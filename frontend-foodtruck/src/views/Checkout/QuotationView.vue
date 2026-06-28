@@ -114,6 +114,14 @@
             >
               {{ isLoading ? 'Procesando...' : 'Confirmar pedido' }}
             </button>
+
+            <button 
+              class="btn-cancel-cotizacion" 
+              @click="handleCancelQuotation"
+              :disabled="isLoading"
+            >
+              {{ isLoading ? 'Cancelando...' : 'Cancelar pedido' }}
+            </button>
           </div>
         </section>
       </div>
@@ -258,7 +266,11 @@ const totalEstimated = computed(() => {
   }
 }*/
 
-
+const handleCancelQuotation = async () =>{
+  router.push({
+    path: '/'
+})
+}
 const handleConfirmQuotation = async () => {
   // 1. Validaciones
   if (!firstName.value.trim()) { triggerAlert('Por favor, ingresa tu nombre.'); return; }
@@ -380,10 +392,16 @@ select.dc-input {
 .total-label { font-size: 1.1rem; font-weight: 800; color: var(--DC-gray); }
 .total-value { font-size: 1.4rem; font-weight: 900; color: var(--DC-orange); }
 
-.action-row { display: flex; margin-top: 20px; }
+.action-row { display: flex; margin-top: 20px; flex-direction: column; }
 .btn-confirm-cotizacion { width: 100%; background-color: var(--DC-orange); color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 900; font-size: 1.1rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(226, 135, 67, 0.3); text-transform: uppercase; }
 .btn-confirm-cotizacion:hover { background-color: var(--DC-brown); transform: translateY(-2px); }
 .btn-confirm-cotizacion:active { transform: translateY(0); }
+
+
+.btn-cancel-cotizacion {margin-top: 10px;   width: 100%; background-color: var(--DC-orange); color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 900; font-size: 1.1rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(226, 135, 67, 0.3); text-transform: uppercase; }
+.btn-cancel-cotizacion:hover { background-color: var(--DC-brown); transform: translateY(-2px); }
+.btn-cancel-cotizacion:active { transform: translateY(0); }
+
 
 /* RESPONSIVE */
 @media (max-width: 768px) {

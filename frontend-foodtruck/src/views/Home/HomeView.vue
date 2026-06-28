@@ -146,21 +146,32 @@ const handleLogout = () => {
   alert('Has cerrado sesión exitosamente.');
 };
 
-// Computado para filtrar helados por categoría y búsqueda de texto
+// Computado para filtrar productos por categoría y búsqueda de texto
 const filteredIceCreams = computed(() => {
   let results = iceCreams.value;
 
+  const selected = selectedCategory.value?.trim().toLowerCase() || '';
+
   // Filtro 1: por categoría
-  if (selectedCategory.value !== 'Todas' && selectedCategory.value !== '') {
-    if (selectedCategory.value === 'Vegano' || selectedCategory.value === 'Sin lactosa') {
-      results = results.filter(
-        item => item.category === 'Al agua' || item.category === 'Leche de avena'
-      );
-    } else {
-      results = results.filter(item => item.category === selectedCategory.value);
-    }
+  if (selected && selected !== 'todas') {
+    results = results.filter((item) => {
+      const category = String(item.category ?? '').toLowerCase();
+      const name = String(item.name ?? '').toLowerCase();
+
+      const keywords: Record<string, string[]> = {
+        'papas & chorrillanas': ['completo', 'papas', 'chorrillana'],
+        'vianesas': ['vianesa', 'vienesa'],
+        'sánguches / bajones': ['sanguche', 'bajon', 'churrasco'],
+        'promos/combos': ['promo', 'combo', 'pizza'],
+        'masas': ['masa', 'pizza'],
+        'bebestibles': ['bebida', 'bebestible']
+      };
+
+      const matches = keywords[selected] || [];
+      return category.includes(selected) || name.includes(selected) || matches.some(keyword => category.includes(keyword) || name.includes(keyword));
+    });
   }
-  
+
   // Filtro 2: por texto de búsqueda
   if (searchQueryText.value.trim() !== '') {
     const searchLow = searchQueryText.value.toLowerCase();
@@ -168,7 +179,8 @@ const filteredIceCreams = computed(() => {
       item.name.toLowerCase().includes(searchLow)
     );
   }
-  return results;  
+
+  return results;
 });
 
 // Abrir el modal de detalles

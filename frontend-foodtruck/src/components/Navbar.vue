@@ -10,12 +10,12 @@
         </div>
       </div>
       
-      <!-- Corregido: Clase cambiada a nav-right para consistencia con tus estilos -->
+
       <div class="nav-right">
-        <button class="btn-login" @click="router.push('/checkorderstatus')">
+        <button v-if="showCheckOrderButton" class="btn-login" @click="router.push('/checkorderstatus')">
           <span>Revisa tu pedido aquí</span>
         </button>
-        <button class="btn-login" @click="router.push('/login')">
+        <button v-if="showCheckOrderButton" class="btn-login" @click="router.push('/login')">
           <span>Ingresar</span>
         </button>
       </div>
@@ -24,15 +24,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
 
 // --- ESTADOS REACTIVOS ---
 const username = ref('')
 const isLoggedIn = ref(false)
 const isSideMenuOpen = ref(false)
+
+const showCheckOrderButton = computed(() => route.path !== '/checkorderstatus')
 
 const checkAuth = () => {
   const userParsed = localStorage.getItem('user')
