@@ -3,6 +3,7 @@ import LoginView from '../components/LoginView.vue'
 import RegisterView from '../components/RegisterView.vue'
 import ForgotPasswordView from '../components/ForgotPasswordView.vue'
 import HomeView from '../views/Home/HomeView.vue'
+import { globalLoading } from '@/composables/useLoading'; // Importa el estado
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -36,6 +37,12 @@ const router = createRouter({
       path: '/general-home',
       name: 'General-home',
       component: () => import('../views/Operations/GeneralHomeView.vue')
+    },
+
+    {
+      path: '/checkorderstatus',
+      name: 'checkorderstatus',
+      component: () => import('../views/Operations/CheckOrderStatus.vue')
     },
   
     {
@@ -104,7 +111,20 @@ const router = createRouter({
       component: () => import('@/views/Distributor/OrderDetailView.vue'),
     }
   ],
-})
+});
+
+router.beforeEach((to, from, next) => {
+  globalLoading.value = true;
+  next();
+});
+
+// Cuando la página ya cargó, la apagamos (con un pequeño retraso intencional)
+router.afterEach(() => {
+  // Como pediste que "no se vea tan inmediato", agregamos 500ms de gracia
+  setTimeout(() => {
+    globalLoading.value = false;
+  }, 500); 
+});
 
 
 export default router

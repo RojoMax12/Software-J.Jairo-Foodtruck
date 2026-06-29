@@ -10,6 +10,7 @@ class OfertaProducto extends Model
 
     protected $fillable = [
         'id_productos',
+        'id_ofertas',
         'descripcion',
         'precio_oferta',
         'tipo',

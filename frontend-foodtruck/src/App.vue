@@ -1,4 +1,3 @@
-
 <template>
   <template v-if="!route.meta.hideNavbar">
     <template v-if="route.path.startsWith('/general-home')">
@@ -8,7 +7,7 @@
     
     <Navbar v-else />
   </template>
-  
+  <LoadingScreen />
   <router-view/>
 
   <div class="notification-container">
@@ -32,6 +31,7 @@ import { useRoute } from 'vue-router';
 import Navbar from './components/Navbar.vue';
 import AdminNavbar from './components/GeneralNavbar.vue';
 import AdminSideMenu from './components/GeneralSideMenu.vue';
+import LoadingScreen from './components/LoadingScreen.vue';
 // 1. Importamos el estado global de notificaciones
 import { useNotification } from '@/composables/useNotification';
 
@@ -47,9 +47,7 @@ const toggleAdminSidebar = () => {
 </script>
 
 <style scoped>
-/* 🎨 4. ESTILOS DE LOS TOASTS FLOTANTES */
 
-/* Contenedor fijo arriba a la derecha */
 .notification-container {
   position: fixed;
   top: 20px;

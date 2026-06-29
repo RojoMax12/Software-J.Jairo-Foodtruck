@@ -6,25 +6,38 @@
     </header>
 
     <div class="status-cards">
-      <div class="status-card">
+      <div class="status-card card-interactive" :class="{ 'card-active': selectedCard === 'all' }" @click="applySummaryFilter('all')">
         <div class="card-left">
           <div class="icon-box bg-unpaid">
             <ClipboardCheck :size="24" />
           </div>
-          <span class="card-label">Por pagar</span>
+          <span class="card-label">Total pedidos</span>
         </div>
         <div class="card-right">
-          <span class="card-count">{{ stats.unpaid }}</span>
+          <span class="card-count">{{ stats.totalOrders }}</span>
           <span class="card-subtext">Pedidos</span>
         </div>
       </div>
 
-      <div class="status-card">
+      <div class="status-card card-interactive" :class="{ 'card-active': selectedCard === 'amount' }" @click="applySummaryFilter('amount')">
         <div class="card-left">
           <div class="icon-box bg-paid">
             <CheckCircle :size="24" />
           </div>
-          <span class="card-label">Pagada</span>
+          <span class="card-label">Total: $</span>
+        </div>
+        <div class="card-right">
+          <span class="card-count">{{ formatPrice(stats.totalAmount) }}</span>
+          <span class="card-subtext">Pesos</span>
+        </div>
+      </div>
+
+      <div class="status-card card-interactive" :class="{ 'card-active': selectedCard === 'paid' }" @click="applySummaryFilter('paid')">
+        <div class="card-left">
+          <div class="icon-box bg-preparation">
+            <Package :size="24" />
+          </div>
+          <span class="card-label">Total Pagados</span>
         </div>
         <div class="card-right">
           <span class="card-count">{{ stats.paid }}</span>
@@ -32,67 +45,40 @@
         </div>
       </div>
 
-      <div class="status-card">
-        <div class="card-left">
-          <div class="icon-box bg-preparation">
-            <Package :size="24" />
-          </div>
-          <span class="card-label">En preparación</span>
-        </div>
-        <div class="card-right">
-          <span class="card-count">{{ stats.preparation }}</span>
-          <span class="card-subtext">Pedidos</span>
-        </div>
-      </div>
-
-      <div class="status-card">
+      <div class="status-card card-interactive" :class="{ 'card-active': selectedCard === 'delivered' }" @click="applySummaryFilter('delivered')">
         <div class="card-left">
           <div class="icon-box bg-shipping">
             <Truck :size="24" />
           </div>
-          <span class="card-label">En despacho</span>
-        </div>
-        <div class="card-right">
-          <span class="card-count">{{ stats.shipping }}</span>
-          <span class="card-subtext">Pedidos</span>
-        </div>
-      </div>
-
-      <div class="status-card">
-        <div class="card-left">
-          <div class="icon-box bg-delivered">
-            <CheckCircle :size="24" />
-          </div>
-          <span class="card-label">Entregado</span>
+          <span class="card-label">Total Entregados</span>
         </div>
         <div class="card-right">
           <span class="card-count">{{ stats.delivered }}</span>
           <span class="card-subtext">Pedidos</span>
         </div>
       </div>
-    </div>
 
-    <div class="tabs-outer-container">
-      <div class="switch-container">
-        <div class="switch-slider" :class="{ 'slide-right': activeTab === 'pedidos' }"></div>
-        <button 
-          class="switch-btn" 
-          :class="{ active: activeTab === 'pagos' }"
-          @click="activeTab = 'pagos'"
-        >
-          <span>Pagos</span>
-          <span class="count-badge">{{ counts.pagos }}</span>
-        </button>
-        <button 
-          class="switch-btn" 
-          :class="{ active: activeTab === 'pedidos' }"
-          @click="activeTab = 'pedidos'"
-        >
-          <span>Pedidos</span>
-          <span class="count-badge">{{ counts.pedidos }}</span>
-        </button>
+      <div class="status-card">
+        <div class="card-left">
+          <div class="icon-box bg-generic">
+            <CalendarIcon :size="24" />
+          </div>
+          <span class="card-label">Buscar Fecha</span>
+        </div>
+        <div class="card-right">
+          <input 
+            type="date" 
+            v-model="selectedDate" 
+            class="card-date-picker"
+            :disabled="!canEditDate"
+            :title="canEditDate ? 'Cambiar fecha de búsqueda' : 'Solo puedes ver los pedidos de hoy'"
+            :class="{ 'picker-disabled': !canEditDate }"
+          />
+        </div>
       </div>
     </div>
+
+    
 
     <div class="main-table-card">
       <div class="table-actions">
@@ -123,28 +109,6 @@
               <div class="dropdown-item" @click="selectStatus('Entregado')">Entregado</div>
             </div>
           </div>
-
-          <div class="dropdown-container">
-            <button class="btn-secondary" @click.stop="toggleDateDropdown">
-              <Calendar :size="18" />
-              <span>{{ dateFilterLabel }}</span>
-              <ChevronDown :size="16" />
-            </button>
-            
-            <div class="dropdown-menu" v-if="isDateDropdownOpen">
-              <div class="dropdown-item" @click="selectDateFilter('last30', 'Fecha: Últimos 30 días')">Últimos 30 días</div>
-              <div class="dropdown-item" @click="selectDateFilter('last3months', 'Fecha: Últimos 3 meses')">Últimos 3 meses</div>
-              <div class="dropdown-divider"></div>
-              <div class="dropdown-item" @click="selectDateFilter('custom', 'Rango personalizado')">Rango personalizado</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="actions-right">
-          <button class="btn-export">
-            <Download :size="18" />
-            <span>Exportar</span>
-          </button>
         </div>
       </div>
 
@@ -158,7 +122,7 @@
             </th>
             <th @click="sortBy('distributor')">
               <div class="header-content">
-                Distribuidor <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'distributor' }" />
+                Nombre <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'distributor' }" />
               </div>
             </th>
             <th @click="sortBy('status')">
@@ -168,7 +132,7 @@
             </th>
             <th @click="sortBy('date')">
               <div class="header-content">
-                Fecha de ingreso <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'date' }" />
+                Fecha <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'date' }" />
               </div>
             </th>
             <th @click="sortBy('total')">
@@ -192,8 +156,8 @@
             <td colspan="6" class="text-center padding-large">
               <div class="empty-state">
                 <Package :size="48" class="empty-icon" />
-                <p>No se encontraron pedidos en esta sección.</p>
-                <button @click="fetchOrders" class="btn-retry">Reintentar carga</button>
+                <p>No se encontraron pedidos para esta fecha o filtros.</p>
+                <button @click="fetchOrders" class="btn-retry">Actualizar datos</button>
               </div>
             </td>
           </tr>
@@ -246,38 +210,57 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import OrdersDetailModal from './OrdersDetailModal.vue';
-import orderService from '@/services/orderService';
-import distributorService from '@/services/distributorService';
-import orderStatusService from '@/services/orderStatusService';
-import { 
-  ClipboardCheck, 
-  Package, 
-  Truck, 
-  CheckCircle,
-  Search,
-  Filter,
-  ChevronDown,
-  Calendar,
-  Calendar as CalendarIcon,
-  Download,
-  Eye,
-  ChevronsUpDown
+import {
+  ClipboardCheck, Package, Truck, CheckCircle, Search, Filter,
+  ChevronDown, Calendar as CalendarIcon, Eye, ChevronsUpDown
 } from 'lucide-vue-next';
 
 const orders = ref<any[]>([]);
 const isLoading = ref(true);
-const activeTab = ref('pedidos');
 
-// Mapa reactivo que se llenará EXCLUSIVAMENTE desde la BDD
-const statusMap = ref<Map<number, string>>(new Map());
+const userRole = ref<number | null>(null);
 
+const getTodayString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const selectedDate = ref(getTodayString());
+
+const checkUserRole = () => {
+  const userParsed = localStorage.getItem('user');
+  if (userParsed) {
+    try {
+      const userObj = JSON.parse(userParsed);
+      userRole.value = userObj.id_rol;
+    } catch (e) {
+      console.error('Error parseando usuario:', e);
+    }
+  }
+};
+
+const canEditDate = computed(() => userRole.value === 1);
+
+// Mapa reactivo BDD
+const statusMap = ref<Map<number, string>>(new Map([
+  [1, 'En validación'],
+  [2, 'En preparación'],
+  [3, 'En despacho'],
+  [4, 'Entregado'],
+  [5, 'Pendiente'],
+  [6, 'Por pagar'],
+  [7, 'Pagada'],
+  [8, 'Cancelado']
+]));
+
+/*
 const fetchOrders = async () => {
   isLoading.value = true;
-  console.log('--- [DEBUG] INICIANDO CARGA COMPLETA ---');
-  
   try {
     let ordersRes, distsRes, statsRes;
-    
     try { ordersRes = await orderService.getOrders(); } catch (e) { console.error(e); }
     try { distsRes = await distributorService.getDistributors(); } catch (e) { console.error(e); }
     try { statsRes = await orderStatusService.getOrderStatuses(); } catch (e) { console.error(e); }
@@ -295,14 +278,12 @@ const fetchOrders = async () => {
     };
 
     orders.value = rawOrders.map((o: any) => {
-      // 🛡️ Buscamos el ID tolerando si viene en formato string o número desde Laravel
       const statusId = Number(o.id_estado_pedido || o.id_estado || 1);
       const distId = Number(o.id_usuario_distribuidor || o.id_distribuidor || 0);
       
       return {
         id: o.id,
         distributor: distMap.get(distId) || `Distribuidor #${distId}`,
-        // Sincronización perfecta de strings:
         status: statusMap.value.get(statusId) || DEFAULT_NAMES[statusId] || `Estado #${statusId}`,
         total: Number(o.monto_final || o.total_pedido || o.total_cotizacion || 0),
         date: formatDate(o.fecha_creacion || o.fecha_pedido || o.created_at),
@@ -310,40 +291,85 @@ const fetchOrders = async () => {
         rawStatusId: statusId
       };
     });
-
-    console.log('Mapeo de grilla general refrescado con éxito:', orders.value.length);
-
   } catch (error) {
     console.error('Error crítico al refrescar la grilla:', error);
   } finally {
     isLoading.value = false;
   }
+};*/
+
+const fetchOrders = async () => {
+  isLoading.value = true;
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  try {
+    const rawOrders = [
+      { id: 1024, nombre_cliente: 'Camila Rojas', id_estado: 2, monto: 4500, fecha: '2026-06-28T16:30:00Z' },
+      { id: 1025, nombre_cliente: 'Diego Soto', id_estado: 3, monto: 3200, fecha: '2026-06-28T16:45:00Z' },
+      { id: 1026, nombre_cliente: 'Ana Pérez', id_estado: 7, monto: 7800, fecha: '2026-06-28T18:00:00Z' },
+      { id: 1027, nombre_cliente: 'Luis Vega', id_estado: 4, monto: 6200, fecha: '2026-06-28T19:15:00Z' }
+    ];
+
+    orders.value = rawOrders.map((o: any) => {
+      const statusId = Number(o.id_estado);
+      return {
+        id: o.id,
+        distributor: o.nombre_cliente,
+        customer: o.nombre_cliente,
+        status: statusMap.value.get(statusId) || 'En preparación',
+        total: Number(o.monto || 0),
+        date: formatDate(o.fecha),
+        time: (o.fecha || '').split('T')[1]?.substring(0, 5) || '00:00',
+        rawStatusId: statusId
+      };
+    });
+  } catch (error) {
+    console.error(error);
+  } finally {
+    isLoading.value = false;
+  }
 };
 
-const formatDate = (dateString: string) => {
+const formatDate = (dateString?: string) => {
   if (!dateString) return 'Sin fecha';
-  // Si viene con T (ISO), tomamos solo la parte de la fecha
-  const cleanDate = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+  const cleanDate = (dateString.includes('T') ? dateString.split('T')[0] : dateString) ?? '';
   const parts = cleanDate.split('-');
   if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
   return cleanDate;
 };
 
-const counts = computed(() => {
-  // Pagos: Por pagar (6) y Pagada (7)
-  const pagos = orders.value.filter((o: any) => [6, 7].includes(o.rawStatusId)).length;
-  // Pedidos: Todo lo demás + Pagada (7) para que no se pierda el rastro
-  const pedidos = orders.value.filter((o: any) => [1, 2, 3, 4, 5, 7, 8].includes(o.rawStatusId)).length;
-  return { pagos, pedidos };
+// 🌟 Lógica de Filtros Aplicados
+const filteredOrders = computed(() => {
+  let result = orders.value;
+
+  if (selectedDate.value) {
+    const [year, month, day] = selectedDate.value.split('-');
+    const formattedSelectedDate = `${day}/${month}/${year}`;
+    result = result.filter((o: any) => o.date === formattedSelectedDate);
+  }
+
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase();
+    result = result.filter((o: any) => {
+      const name = `${o.distributor || o.customer || ''}`.toLowerCase();
+      return o.id.toString().includes(query) || name.includes(query);
+    });
+  }
+
+  if (statusFilter.value !== 'all') {
+    result = result.filter((o: any) => o.status === statusFilter.value);
+  }
+
+  return result;
 });
 
 const stats = computed(() => {
+  const visibleOrders = filteredOrders.value;
   return {
-    unpaid: orders.value.filter((o: any) => o.rawStatusId === 6).length,
-    paid: orders.value.filter((o: any) => o.rawStatusId === 7).length,
-    preparation: orders.value.filter((o: any) => o.rawStatusId === 2).length,
-    shipping: orders.value.filter((o: any) => o.rawStatusId === 3).length,
-    delivered: orders.value.filter((o: any) => o.rawStatusId === 4).length
+    totalOrders: visibleOrders.length,
+    totalAmount: visibleOrders.reduce((sum: number, o: any) => sum + Number(o.total || 0), 0),
+    paid: visibleOrders.filter((o: any) => o.rawStatusId === 7).length,
+    delivered: visibleOrders.filter((o: any) => o.rawStatusId === 4).length
   };
 });
 
@@ -352,21 +378,18 @@ const formatPrice = (price: number) => {
 };
 
 const getStatusClass = (status: string, statusId?: number) => {
-  // Si viene el ID numérico directo de PostgreSQL, es mucho más rápido y seguro validar por número:
   if (statusId) {
     switch (Number(statusId)) {
-      case 1: return 'status-validation';  // En validación
-      case 2: return 'status-preparation'; // En preparación
-      case 3: return 'status-shipping';    // En despacho
-      case 4: return 'status-completed';   // Entregado
-      case 5: return 'status-pending';     // Pendiente
-      case 6: return 'status-unpaid';      // Por pagar
-      case 7: return 'status-paid';        // Pagada
-      case 8: return 'status-cancelled';   // Cancelado
+      case 1: return 'status-validation';
+      case 2: return 'status-preparation';
+      case 3: return 'status-shipping';
+      case 4: return 'status-completed';
+      case 5: return 'status-pending';
+      case 6: return 'status-unpaid';
+      case 7: return 'status-paid';
+      case 8: return 'status-cancelled';
     }
   }
-
-  // Respaldo por si evalúa mediante el string de texto:
   switch (status) {
     case 'Por pagar': return 'status-unpaid';
     case 'Pagada': return 'status-paid';
@@ -382,10 +405,8 @@ const getStatusClass = (status: string, statusId?: number) => {
 
 const searchQuery = ref('');
 const statusFilter = ref('all');
-const dateFilterLabel = ref('Fecha: Últimos 30 días');
-
+const selectedCard = ref<'all' | 'amount' | 'paid' | 'delivered'>('all');
 const isStatusDropdownOpen = ref(false);
-const isDateDropdownOpen = ref(false);
 
 const isModalOpen = ref(false);
 const selectedOrderId = ref<number | string>('');
@@ -405,62 +426,34 @@ const closeModal = () => {
 
 const toggleStatusDropdown = () => {
   isStatusDropdownOpen.value = !isStatusDropdownOpen.value;
-  isDateDropdownOpen.value = false;
 };
 
-const toggleDateDropdown = () => {
-  isDateDropdownOpen.value = !isDateDropdownOpen.value;
-  isStatusDropdownOpen.value = false;
+const applySummaryFilter = (filter: 'all' | 'amount' | 'paid' | 'delivered') => {
+  selectedCard.value = filter;
+
+  switch (filter) {
+    case 'paid':
+      statusFilter.value = 'Pagada';
+      break;
+    case 'delivered':
+      statusFilter.value = 'Entregado';
+      break;
+    default:
+      statusFilter.value = 'all';
+  }
 };
 
 const selectStatus = (status: string) => {
   statusFilter.value = status;
+  selectedCard.value = status === 'Pagada' ? 'paid' : status === 'Entregado' ? 'delivered' : 'all';
   isStatusDropdownOpen.value = false;
-};
-
-const selectDateFilter = (type: string, label: string) => {
-  dateFilterLabel.value = label;
-  isDateDropdownOpen.value = false;
 };
 
 const closeDropdowns = () => {
   isStatusDropdownOpen.value = false;
-  isDateDropdownOpen.value = false;
 };
 
-// Filtering logic
-const filteredOrders = computed(() => {
-  let result = orders.value;
-
-  // 1. Tab Filter
-  if (activeTab.value === 'pagos') {
-    result = result.filter((o: any) => [6, 7].includes(o.rawStatusId));
-  } else {
-    // Pedidos incluye todo excepto "Por pagar" (6), pero incluye "Pagada" (7)
-    result = result.filter((o: any) => [1, 2, 3, 4, 5, 7, 8].includes(o.rawStatusId));
-  }
-
-  // 2. Search Query (ID or Distributor)
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase();
-    result = result.filter((o: any) => 
-      o.id.toString().includes(query) || 
-      o.distributor.toLowerCase().includes(query)
-    );
-  }
-
-  // 3. Status Filter
-  if (statusFilter.value !== 'all') {
-    result = result.filter((o: any) => o.status === statusFilter.value);
-  }
-
-  return result;
-});
-
-const sortConfig = ref({
-  key: '',
-  direction: 'asc'
-});
+const sortConfig = ref({ key: '', direction: 'asc' });
 
 const sortBy = (key: string) => {
   if (sortConfig.value.key === key) {
@@ -480,9 +473,9 @@ const sortedOrders = computed(() => {
     let bValue = b[sortConfig.value.key];
 
     if (sortConfig.value.key === 'date') {
-      const parseDate = (d: string, t: string) => {
-        const [day, month, year] = d.split('/').map(Number);
-        const [hours, minutes] = t.split(':').map(Number);
+      const parseDate = (d: string, t?: string) => {
+        const [day = 1, month = 1, year = 2000] = d.split('/').map(Number);
+        const [hours = 0, minutes = 0] = (t || '00:00').split(':').map(Number);
         return new Date(year, month - 1, day, hours, minutes).getTime();
       };
       aValue = parseDate(a.date, a.time);
@@ -496,6 +489,7 @@ const sortedOrders = computed(() => {
 });
 
 onMounted(async () => {
+  checkUserRole(); // Verificamos rol
   window.addEventListener('click', closeDropdowns);
   await fetchOrders();
 });
@@ -508,8 +502,7 @@ onUnmounted(() => {
 <style scoped>
 .orders-container {
   padding: 40px 20px;
-  font-family: 'Inter', sans-serif;
-  background-color: #f8f9fa;
+  background-color: transparent;
   min-height: calc(100vh - 80px);
 }
 
@@ -519,21 +512,24 @@ onUnmounted(() => {
 }
 
 .orders-title {
-  font-size: 1.8rem;
-  font-weight: 800;
-  color: #322c44;
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--DC-gray);
   margin: 0;
+  text-transform: uppercase;
 }
 
 .orders-description {
-  font-size: 0.95rem;
-  color: #666;
+  font-size: 1rem;
+  color: var(--DC-text-gray);
   margin-top: 4px;
+  font-weight: 600;
 }
 
+/* TARJETAS SUPERIORES */
 .status-cards {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 15px;
   margin: 0 auto 40px auto;
   max-width: 1200px;
@@ -545,436 +541,319 @@ onUnmounted(() => {
   padding: 15px;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e9ecef;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  align-items: stretch;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 118px;
+  height: 100%;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border: 2px solid transparent;
+  transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
 .status-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  border-color: var(--DC-orange);
+}
+
+.status-card.card-interactive {
+  cursor: pointer;
+}
+
+.status-card.card-active {
+  border-color: var(--DC-orange);
+  box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.16);
 }
 
 .card-left {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1 1 160px;
+  min-width: 0;
 }
 
 .icon-box {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 45px;
+  height: 45px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.bg-unpaid { background-color: #fff0f3; color: #e4869f; }
-.bg-paid { background-color: #ebfbee; color: #37b24d; }
-.bg-preparation { background-color: #e7f5ff; color: #1c7ed6; }
-.bg-shipping { background-color: #dcd5ff; color: #6741d9; }
-.bg-delivered { background-color: #e6fffa; color: #087f5b; }
+/* Colores de las tarjetas alineados al tema */
+.bg-unpaid { background-color: rgba(226, 135, 67, 0.1); color: var(--DC-orange); }
+.bg-paid { background-color: rgba(46, 196, 182, 0.1); color: #2ec4b6; }
+.bg-preparation { background-color: rgba(81, 49, 25, 0.1); color: var(--DC-brown); }
+.bg-shipping { background-color: rgba(216, 0, 86, 0.1); color: var(--DC-pink); }
+.bg-delivered { background-color: #f1f3f5; color: var(--DC-gray); }
+.bg-generic { background-color: #f1f3f5; color: var(--DC-text-gray); }
 
-.card-label {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #322c44;
-}
-
+.card-label { font-size: 0.85rem; font-weight: 800; color: var(--DC-gray); text-transform: uppercase; }
 .card-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  justify-content: center;
+  min-width: 0;
+  text-align: right;
 }
+.card-count { font-size: 1.2rem; font-weight: 900; color: var(--DC-brown); line-height: 1; }
+.card-subtext { font-size: 0.75rem; font-weight: 700; color: var(--DC-text-gray); margin-top: 4px; text-transform: uppercase; }
 
-.card-count {
-  font-size: 1.6rem;
+/* CALENDARIO ESTILOS */
+.card-date-picker {
+  border: 2px solid #eeedee;
+  background-color: #fcfbf9;
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: var(--DC-gray);
   font-weight: 800;
-  color: #322c44;
-  line-height: 1;
+  font-size: 0.9rem;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  width: 140px;
 }
 
-.card-subtext {
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: #868e96;
-  margin-top: 2px;
+.card-date-picker:hover:not(:disabled) {
+  background-color: white;
+  border-color: #ced4da;
 }
 
+.card-date-picker:focus {
+  border-color: var(--DC-orange);
+  box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.2);
+}
+
+::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; transition: 0.2s; }
+::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+
+.picker-disabled {
+  background-color: #f1f3f5;
+  border-color: #dee2e6;
+  color: #adb5bd;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+.picker-disabled::-webkit-calendar-picker-indicator { display: none; }
+
+/* TABS / SWITCH DE PAGOS - PEDIDOS */
 .main-table-card {
   background-color: white;
   border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e9ecef;
-  overflow: hidden;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  border: 1px solid #eeedee;
+  overflow: visible;
   max-width: 1200px;
   margin: 0 auto;
 }
 
-.tabs-outer-container {
-  max-width: 1200px;
-  margin: 0 auto 10px auto;
-  display: flex;
-  justify-content: flex-start;
-}
+.tabs-outer-container { max-width: 1200px; margin: 0 auto 15px auto; display: flex; justify-content: flex-start; }
 
 .switch-container {
   display: flex;
-  background-color: #f1f3f5;
-  padding: 4px;
+  background-color: white;
+  padding: 6px;
   border-radius: 12px;
   width: fit-content;
   position: relative;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
 
 .switch-slider {
   position: absolute;
-  top: 4px;
-  left: 4px;
-  width: calc(50% - 4px);
-  height: calc(100% - 8px);
-  background-color: white;
+  top: 6px; left: 6px;
+  width: calc(50% - 6px); height: calc(100% - 12px);
+  background-color: var(--DC-orange);
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1;
 }
 
-.switch-slider.slide-right {
-  transform: translateX(100%);
-}
+.switch-slider.slide-right { transform: translateX(100%); }
 
 .switch-btn {
-  background: none;
-  border: none;
-  padding: 10px 24px;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #868e96;
-  cursor: pointer;
-  position: relative;
-  z-index: 2;
-  transition: color 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  background: none; border: none; padding: 10px 24px; border-radius: 8px;
+  font-size: 0.95rem; font-weight: 800; color: var(--DC-text-gray);
+  cursor: pointer; position: relative; z-index: 2; transition: color 0.3s ease;
+  display: flex; align-items: center; gap: 10px;
 }
 
-.switch-btn.active {
-  color: #e4869f;
-}
+.switch-btn.active { color: white; }
 
-.count-badge {
-  background-color: #e9ecef;
-  color: #495057;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 0.75rem;
-}
+.count-badge { background-color: #f1f3f5; color: var(--DC-text-gray); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 900;}
+.switch-btn.active .count-badge { background-color: white; color: var(--DC-orange); }
 
-.switch-btn.active .count-badge {
-  background-color: #fff0f3;
-  color: #e4869f;
-}
+/* CONTROLES DE LA TABLA */
+.table-actions { padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px; }
+.actions-left { display: flex; gap: 12px; flex: 1; flex-wrap: wrap; align-items: flex-start;}
 
-.table-actions {
-  padding: 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.actions-left {
-  display: flex;
-  gap: 12px;
-  flex: 1;
-}
-
-.search-box {
-  position: relative;
-  width: 100%;
-  max-width: 400px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #adb5bd;
-}
-
+.search-box { position: relative; width: 100%; max-width: 400px; }
+.search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--DC-brown); }
 .search-box input {
-  width: 100%;
-  padding: 12px 12px 12px 42px;
-  border-radius: 10px;
-  border: 1px solid #dee2e6;
-  font-size: 0.9rem;
-  color: #495057;
-  outline: none;
-  transition: border-color 0.2s;
+  width: 100%; padding: 12px 12px 12px 42px; border-radius: 10px;
+  border: 2px solid #eeedee; font-size: 0.95rem; color: var(--DC-gray); font-weight: 600; outline: none; transition: all 0.2s;
 }
+.search-box input:focus { border-color: var(--DC-orange); }
 
-.search-box input:focus {
-  border-color: #e4869f;
-}
+.dropdown-container { position: relative; }
+.btn-secondary { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background-color: white; border: 2px solid #eeedee; border-radius: 10px; color: var(--DC-gray); font-size: 0.9rem; font-weight: 800; cursor: pointer; transition: all 0.2s; }
+.btn-secondary:hover { border-color: var(--DC-brown); }
 
-.dropdown-container {
-  position: relative;
-}
+.dropdown-menu { position: absolute; top: calc(100% + 8px); left: 0; background-color: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); border: 2px solid var(--DC-brown); min-width: 220px; z-index: 100; padding: 8px; }
+.dropdown-item { padding: 10px 16px; font-size: 0.85rem; font-weight: 700; color: var(--DC-gray); cursor: pointer; border-radius: 8px; transition: all 0.2s; }
+.dropdown-item:hover { background-color: var(--DC-bg-gray); color: var(--DC-orange); }
+.dropdown-divider { height: 1px; background-color: #eeedee; margin: 6px 0; }
 
-.btn-secondary {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  background-color: white;
-  border: 1px solid #dee2e6;
-  border-radius: 10px;
-  color: #495057;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
+.btn-export { display: flex; align-items: center; gap: 10px; padding: 12px 20px; background-color: white; border: 2px solid var(--DC-brown); border-radius: 10px; color: var(--DC-brown); font-size: 0.9rem; font-weight: 900; cursor: pointer; transition: all 0.2s; }
+.btn-export:hover { background-color: var(--DC-brown); color: white; }
 
-.btn-secondary:hover {
-  background-color: #f8f9fa;
-  border-color: #ced4da;
-}
+/* TABLA DE PEDIDOS */
+.orders-table { width: 100%; border-collapse: collapse; }
+.orders-table th { padding: 16px 20px; text-align: left; background-color: var(--DC-brown) !important; color: white !important; font-weight: 900 !important; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; user-select: none; }
+.orders-table th.text-center { text-align: center; }
+.orders-table td { padding: 20px; text-align: left; border-bottom: 1px solid #eeedee; font-size: 0.95rem; color: var(--DC-gray); }
 
-.dropdown-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e9ecef;
-  min-width: 220px;
-  z-index: 100;
-  padding: 8px;
-}
+.bold-text { font-weight: 900; color: var(--DC-gray); font-size: 1rem;}
 
-.dropdown-item {
-  padding: 10px 16px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #495057;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s;
-}
+/* BADGES DE ESTADO (Alineados a los colores de J.Junior) */
+.status-badge { padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 900; text-transform: uppercase; display: inline-block; border: 2px solid transparent;}
+.status-unpaid { background-color: rgba(226, 135, 67, 0.1); color: var(--DC-orange); border-color: var(--DC-orange); }
+.status-paid { background-color: rgba(46, 196, 182, 0.1); color: #2ec4b6; border-color: #2ec4b6; }
+.status-preparation { background-color: rgba(81, 49, 25, 0.1); color: var(--DC-brown); border-color: var(--DC-brown); }
+.status-shipping { background-color: rgba(216, 0, 86, 0.1); color: var(--DC-pink); border-color: var(--DC-pink); }
+.status-completed { background-color: #f1f3f5; color: var(--DC-gray); border-color: var(--DC-gray); }
+.status-validation { background-color: #fff4e6; color: #fd7e14; border-color: #fd7e14; }
+.status-pending { background-color: #f8f9fa; color: #495057; border-color: #ced4da; }
+.status-cancelled { background-color: #f8d7da; color: #e63946; border-color: #e63946; }
+.status-generic { background-color: #f1f3f5; color: var(--DC-text-gray); border-color: #ced4da; }
 
-.dropdown-item:hover {
-  background-color: #fff0f3;
-  color: #e4869f;
-}
+.date-content { display: flex; align-items: center; gap: 10px; }
+.date-time { display: flex; flex-direction: column; }
+.date { font-weight: 800; color: var(--DC-gray); }
+.time { font-size: 0.75rem; color: var(--DC-text-gray); font-weight: 700;}
+.date-icon { color: var(--DC-orange); }
 
-.dropdown-divider {
-  height: 1px;
-  background-color: #e9ecef;
-  margin: 6px 0;
-}
+.actions-content { display: flex; justify-content: center; }
+.btn-action { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; border: 2px solid var(--DC-orange); background-color: white; color: var(--DC-orange); font-size: 0.85rem; font-weight: 800; cursor: pointer; transition: all 0.2s; }
+.btn-action:hover { background-color: var(--DC-orange); color: white; }
 
-.btn-export {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 20px;
-  background-color: white;
-  border: 1.5px solid #e4869f;
-  border-radius: 10px;
-  color: #e4869f;
-  font-size: 0.9rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-export:hover {
-  background-color: #fff0f3;
-}
-
-.orders-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.orders-table th {
-  padding: 16px 20px;
-  text-align: left;
-  border-top: 1px solid #dee2e6;
-  border-bottom: 2px solid #ddd;
-  background-color: #e5e5e5 !important;
-  color: #777777 !important;
-  font-weight: 700 !important;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  user-select: none;
-}
-
-.orders-table th.text-center {
-  text-align: center;
-}
-
-.orders-table td {
-  padding: 20px;
-  text-align: left;
-  border-bottom: 1px solid #f1f3f5;
-  font-size: 0.9rem;
-  color: #495057;
-}
-
-.bold-text {
-  font-weight: 700;
-  color: #322c44;
-}
-
-.status-badge {
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  display: inline-block;
-}
-
-.status-unpaid { background-color: #fff0f3; color: #e4869f; border: 1px solid #e4869f; }
-.status-paid { background-color: #ebfbee; color: #37b24d; border: 1px solid #37b24d; }
-.status-preparation { background-color: #e7f5ff; color: #1c7ed6; border: 1px solid #1c7ed6; }
-.status-shipping { background-color: #dcd5ff; color: #6741d9; border: 1px solid #6741d9; }
-.status-completed { background-color: #e6fffa; color: #087f5b; border: 1px solid #087f5b; }
-.status-validation { background-color: #fff4e6; color: #fd7e14; border: 1px solid #fd7e14; }
-.status-pending { background-color: #f8f9fa; color: #495057; border: 1px solid #ced4da; }
-.status-cancelled { background-color: #f8d7da; color: #fa5252; border: 1px solid #fa5252; }
-.status-generic { background-color: #f1f3f5; color: #868e96; border: 1px solid #ced4da; }
-
-.date-content {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.date-time {
-  display: flex;
-  flex-direction: column;
-}
-
-.date {
-  font-weight: 600;
-  color: #495057;
-}
-
-.time {
-  font-size: 0.75rem;
-  color: #9793a0;
-}
-
-.date-icon {
-  color: #adb5bd;
-}
-
-.actions-content {
-  display: flex;
-  justify-content: center;
-}
-
-.btn-action {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  border: 1px solid #dee2e6;
-  background-color: white;
-  color: #495057;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-action:hover {
-  background-color: #f8f9fa;
-  border-color: #ced4da;
-}
-
-.padding-large {
-  padding: 60px !important;
-}
-
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-  color: #9793a0;
-  font-weight: 600;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #eeedee;
-  border-top: 4px solid #e4869f;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
+.padding-large { padding: 60px !important; }
+.loading-container { display: flex; flex-direction: column; align-items: center; gap: 15px; color: var(--DC-brown); font-weight: 900; text-transform: uppercase; }
+.spinner { width: 40px; height: 40px; border: 4px solid var(--DC-bg-gray); border-top: 4px solid var(--DC-orange); border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 15px;
-  color: #9793a0;
-}
-
-.empty-icon {
-  color: #eeedee;
-}
-
-.btn-retry {
-  padding: 8px 20px;
-  background-color: #e4869f;
-  color: white;
-  border: none;
-  border-radius: 8px;
+  color: var(--DC-text-gray);
   font-weight: 700;
-  cursor: pointer;
-  transition: background-color 0.2s;
+  min-height: 240px;
+  padding: 24px;
+  box-sizing: border-box;
+  text-align: center;
 }
+.empty-icon { color: var(--DC-brown); opacity: 0.5; }
+.btn-retry { padding: 10px 24px; background-color: var(--DC-orange); color: white; border: none; border-radius: 8px; font-weight: 900; cursor: pointer; transition: background-color 0.2s; }
+.btn-retry:hover { background-color: var(--DC-brown); }
 
-.btn-retry:hover {
-  background-color: #d6758e;
-}
+.header-content { display: flex; align-items: center; justify-content: flex-start; gap: 8px; cursor: pointer; }
+.sort-icon { color: rgba(255,255,255,0.5); transition: color 0.2s; }
+.active-sort { color: var(--DC-orange) !important; }
+.orders-table th:hover .sort-icon { color: white; }
 
-.header-content {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  cursor: pointer;
-}
+/* 📱 RESPONSIVO: ESTILO APP NATIVA PARA CELULARES */
+@media (max-width: 768px) {
+  .orders-container { 
+    padding: 15px 10px; 
+    min-height: auto;
+  }
+  .orders-header { margin-bottom: 20px; }
+  .orders-title { font-size: 1.5rem; }
+  .orders-description { font-size: 0.85rem; }
 
-.sort-icon {
-  color: #999;
-  transition: color 0.2s;
-}
+  .status-cards { 
+    display: flex; 
+    overflow-x: auto; 
+    scroll-snap-type: x mandatory; 
+    gap: 12px; 
+    margin: 0 -10px 20px -10px; 
+    padding: 0 10px 10px 10px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; 
+  }
+  .status-cards::-webkit-scrollbar { display: none; }
+  
+  .status-card { 
+    min-width: 220px; 
+    scroll-snap-align: center; 
+    padding: 12px 15px;
+  }
+  .card-count { font-size: 1.5rem; }
+  .icon-box { width: 38px; height: 38px; }
 
-.active-sort {
-  color: #322c44 !important;
-}
+  .tabs-outer-container { margin-bottom: 15px; }
+  .switch-container { width: 100%; }
+  .switch-btn { 
+    flex: 1; 
+    padding: 8px 5px; 
+    font-size: 0.85rem; 
+    justify-content: center;
+  }
 
-.orders-table th:hover .sort-icon {
-  color: #666;
+  .table-actions { 
+    padding: 15px 10px; 
+    flex-direction: column; 
+    gap: 12px; 
+  }
+  .actions-left { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 10px; 
+    width: 100%; 
+  }
+  .search-box { 
+    grid-column: 1 / -1; 
+    max-width: 100%; 
+  }
+  .search-box input { padding: 10px 10px 10px 38px; font-size: 0.85rem; }
+  
+  .dropdown-container { width: 100%; }
+  .btn-secondary { 
+    width: 100%; 
+    padding: 10px 8px; 
+    font-size: 0.75rem; 
+    justify-content: space-between; 
+  }
+  .btn-secondary span {
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+  }
+  .dropdown-menu { width: 100%; min-width: 0; } 
+
+  .actions-right { width: 100%; }
+  .btn-export { width: 100%; justify-content: center; padding: 10px; font-size: 0.85rem; }
+
+  .main-table-card { 
+    border-radius: 12px; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  }
+  .orders-table { 
+    display: block; 
+    overflow-x: auto; 
+    -webkit-overflow-scrolling: touch; 
+  }
+  .orders-table th, .orders-table td { 
+    padding: 12px 10px; 
+    font-size: 0.85rem; 
+    white-space: nowrap; 
+  }
 }
 </style>

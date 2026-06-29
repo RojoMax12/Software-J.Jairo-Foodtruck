@@ -1,151 +1,103 @@
-<script setup lang="ts">
-import { ref, watch } from 'vue';
-import { X, Plus, Minus } from 'lucide-vue-next';
-
-const props = defineProps<{
-  isOpen: boolean;
-  product: any; 
-}>();
-
-// Definimos el evento para añadir al carrito
-const emit = defineEmits(['close', 'add-to-cart']);
-
-const activeImage = ref('');
-const selectedSize = ref<'10L' | '5L' | '2.5L' | '1L'>('10L'); // Formato seleccionado por defecto
-const quantity = ref(1); // Cantidad por defecto
-
-// Resetear estados cuando se abre un producto diferente
-watch(() => props.product, (newProduct) => {
-  if (newProduct) {
-    activeImage.value = newProduct.image10l || newProduct.image;
-    selectedSize.value = '10L';
-    quantity.value = 1;
-  }
-}, { immediate: true });
-
-// Funciones para el contador de cantidad
-const increaseQuantity = () => {
-  quantity.value++;
-};
-
-const decreaseQuantity = () => {
-  if (quantity.value > 1) {
-    quantity.value--;
-  }
-};
-
-// Función para enviar el producto armado al carrito
-const handleAddToCart = () => {
-  // Determinamos el precio correcto según el formato seleccionado
-  let chosenPrice = props.product.price10l;
-  if (selectedSize.value === '5L') chosenPrice = props.product.price5l;
-  if (selectedSize.value === '2.5L') chosenPrice = props.product.price25l;
-  if (selectedSize.value === '1L') chosenPrice = props.product.price1l;
-
-  emit('add-to-cart', {
-    id: props.product.id,
-    name: props.product.name,
-    category: props.product.category,
-    color: props.product.color,
-    image: props.product.image,
-    size: selectedSize.value,
-    quantity: quantity.value,
-    price: chosenPrice
-  });
-
-  emit('close'); // Cerramos el modal tras añadir
-};
-</script>
-
 <template>
   <Transition name="pop">
     <div v-if="isOpen && product" class="modal-overlay" @click="$emit('close')">
       <div class="modal-wrapper" @click.stop>
         
         <button class="close-btn" @click="$emit('close')">
-          <X :size="22" />
+          <X :size="24" />
         </button>
 
         <div class="modal-grid">
           <div class="product-img-box">
-            <img :src="activeImage" :alt="product.name" class="main-product-img" />
+            <img :src="product.image" :alt="product.name" class="main-product-img" />
           </div>
           
           <div class="product-info-box">
-            <span class="tag" :style="{ color: product.color }">- {{ product.category }}</span>
-            <h2 class="product-title">{{ product.name }}</h2>
+            <div class="header-info">
+              <span class="tag">{{ product.category }}</span>
+              <h2 class="product-title">{{ product.name }}</h2>
+            </div>
             
-            <p class="description">
-              Selecciona un formato e ingresa la cantidad deseada para agregar a tu cotización.
-            </p>
-            
-            <div class="liters-section">
-              <p class="section-subtitle">Formatos disponibles:</p>
-              
-              <div class="liters-buttons-container">
-                <button 
-                  class="liter-btn"
-                  :class="{ active: selectedSize === '10L' }"
-                  @mouseenter="activeImage = product.image10l || product.image"
-                  @click="selectedSize = '10L'"
-                >
-                  <div class="btn-main-row">
-                    <span class="btn-title">10L</span>
-                    <span class="btn-price">{{ product.price10l }}</span>
-                  </div>
-                </button>
+            <div class="scrollable-config">
+              <div v-if="product.sizes && product.sizes.length > 1" class="config-section">
+                <p class="section-subtitle">1. Elige el tamaño:</p>
+                <div class="size-pills">
+                  <button 
+                    v-for="size in product.sizes" 
+                    :key="size"
+                    class="size-pill"
+                    :class="{ 'active': selectedSize === size }"
+                    @click="selectedSize = size"
+                  >
+                    {{ size }}
+                  </button>
+                </div>
+              </div>
 
-                <button 
-                  class="liter-btn"
-                  :class="{ active: selectedSize === '5L' }"
-                  @mouseenter="activeImage = product.image5l || product.image"
-                  @click="selectedSize = '5L'"
-                >
-                  <div class="btn-main-row">
-                    <span class="btn-title">5L</span>
-                    <span class="btn-price">{{ product.price5l }}</span>
+              <div v-if="product.types && product.types.length > 0" class="config-section">
+                <p class="section-subtitle">{{ product.sizes?.length > 1 ? '2.' : '1.' }} Variedad:</p>
+                <div class="types-list">
+                  <div 
+                    v-for="tipo in product.types" 
+                    :key="tipo.id"
+                    class="type-row"
+                    :class="{ 'active': selectedType?.id === tipo.id }"
+                    @click="selectType(tipo)"
+                  >
+                    <div class="type-info">
+                      <div class="radio-circle">
+                        <div class="radio-inner" v-if="selectedType?.id === tipo.id"></div>
+                      </div>
+                      <div class="type-texts">
+                        <span class="t-name">{{ tipo.name }}</span>
+                        <span class="t-desc">{{ tipo.desc }}</span>
+                      </div>
+                    </div>
+                    <span class="t-price">${{ tipo.prices[selectedSize] }}</span>
                   </div>
-                </button>
+                </div>
+              </div>
 
-                <button 
-                  class="liter-btn"
-                  :class="{ active: selectedSize === '2.5L' }"
-                  @mouseenter="activeImage = product.image25l || product.image"
-                  @click="selectedSize = '2.5L'"
-                >
-                  <div class="btn-main-row">
-                    <span class="btn-title">2.5L</span>
-                    <span class="btn-price">{{ product.price25l }}</span>
-                  </div>
-                </button>
-
-                <button 
-                  class="liter-btn"
-                  :class="{ active: selectedSize === '1L' }"
-                  @mouseenter="activeImage = product.image1l || product.image"
-                  @click="selectedSize = '1L'"
-                >
-                  <div class="btn-main-row">
-                    <span class="btn-title">1L</span>
-                    <span class="btn-price">{{ product.price1l }}</span>
-                  </div>
-                </button>
+              <div v-if="selectedType && selectedType.producto_ingrediente?.length > 0" class="config-section">
+                <p class="section-subtitle">Ingredientes (Desmarca para quitar):</p>
+                <div class="ingredients-list">
+                  <label 
+                    v-for="pi in selectedType.producto_ingrediente" 
+                    :key="pi.id" 
+                    class="ingredient-item"
+                    :class="{ 'removed': excludedIngredients.includes(pi.ingrediente.nombre) }"
+                  >
+                    <div class="ing-left">
+                      <input 
+                        type="checkbox" 
+                        :checked="!excludedIngredients.includes(pi.ingrediente.nombre)"
+                        @change="toggleIngredient(pi.ingrediente.nombre)"
+                        :disabled="!pi.ingrediente.disponible"
+                        class="custom-checkbox"
+                      />
+                      <span class="ing-name">{{ pi.ingrediente.nombre }}</span>
+                    </div>
+                    <span v-if="!pi.ingrediente.disponible" class="status-badge no-stock">Sin Stock</span>
+                    <span v-else-if="excludedIngredients.includes(pi.ingrediente.nombre)" class="status-badge removed">Quitado</span>
+                  </label>
+                </div>
               </div>
             </div>
 
             <div class="purchase-actions">
               <div class="quantity-selector">
                 <button class="quantity-btn" @click="decreaseQuantity">
-                  <Minus :size="16" />
+                  <Minus :size="18" />
                 </button>
                 <span class="quantity-value">{{ quantity }}</span>
                 <button class="quantity-btn" @click="increaseQuantity">
-                  <Plus :size="16" />
+                  <Plus :size="18" />
                 </button>
               </div>
 
               <button class="add-to-cart-btn" @click="handleAddToCart">
-                Agregar al carrito
+                <span class="btn-text">AÑADIR</span>
+                <span class="btn-total">${{ totalPriceFormatted }}</span>
               </button>
             </div>
 
@@ -157,196 +109,301 @@ const handleAddToCart = () => {
   </Transition>
 </template>
 
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue';
+import { X, Plus, Minus } from 'lucide-vue-next';
+
+const props = defineProps<{
+  isOpen: boolean;
+  product: any; 
+}>();
+
+const emit = defineEmits(['close', 'add-to-cart']);
+
+const selectedSize = ref('');
+const selectedType = ref<any>(null);
+const excludedIngredients = ref<string[]>([]);
+const quantity = ref(1);
+
+// Cuando se abre el modal o cambia el producto, reseteamos los valores
+watch(() => props.product, (newProduct) => {
+  if (newProduct) {
+    selectedSize.value = newProduct.sizes?.[0] || '';
+    selectedType.value = newProduct.types?.[0] || null;
+    excludedIngredients.value = [];
+    quantity.value = 1;
+  }
+}, { immediate: true });
+
+// Cambiar de variedad (ej: de Italiano a Luco)
+const selectType = (tipo: any) => {
+  selectedType.value = tipo;
+  excludedIngredients.value = []; // Si cambia de variedad, reseteamos los ingredientes quitados
+};
+
+// Marcar/Desmarcar ingredientes
+const toggleIngredient = (nombre: string) => {
+  const index = excludedIngredients.value.indexOf(nombre);
+  if (index > -1) {
+    excludedIngredients.value.splice(index, 1); // Lo vuelve a agregar
+  } else {
+    excludedIngredients.value.push(nombre); // Lo quita
+  }
+};
+
+// Controles de cantidad
+const increaseQuantity = () => quantity.value++;
+const decreaseQuantity = () => { if (quantity.value > 1) quantity.value--; };
+
+// Cálculos de precio en tiempo real
+const currentPrice = computed(() => {
+  if (!selectedType.value || !selectedSize.value) return 0;
+  return selectedType.value.prices[selectedSize.value] || 0;
+});
+
+const totalPriceFormatted = computed(() => {
+  return (currentPrice.value * quantity.value).toLocaleString('es-CL');
+});
+
+// Enviar al carrito
+const handleAddToCart = () => {
+  if (!selectedType.value) return;
+
+  // Creamos un ID único para el carrito basado en lo que excluyó para que no se mezclen
+  const exclusionKey = [...excludedIngredients.value].sort().join('-');
+  const cartItemId = `${selectedType.value.id}_${selectedSize.value}_${exclusionKey}`;
+
+  emit('add-to-cart', {
+    id: cartItemId,
+    productId: selectedType.value.id,
+    name: selectedType.value.name,
+    fullName: `${props.product.name} ${selectedType.value.name}`, // Ej: Completo Italiano
+    category: props.product.category,
+    image: props.product.image,
+    size: selectedSize.value,
+    quantity: quantity.value,
+    price: currentPrice.value,
+    excluidos: [...excludedIngredients.value]
+  });
+
+  emit('close');
+};
+</script>
+
 <style scoped>
+/* ESTILOS BASE Y MODAL */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background-color: rgba(30, 27, 36, 0.7); /* Gris oscuro de tu paleta con transparencia */
+  display: flex; align-items: center; justify-content: center;
   z-index: 2500;
+  backdrop-filter: blur(4px);
 }
 
 .modal-wrapper {
-  background-color: white;
-  width: 720px;
+  background-color: #f5ebe0; /* Fondo cálido DiCreme/J.Junior */
+  width: 850px;
   max-width: 95%;
+  height: 85vh; /* Altura máxima para no salir de pantalla */
+  max-height: 700px;
   border-radius: 20px;
-  padding: 35px;
   position: relative;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .close-btn {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--DC-text-gray);
+  top: 15px; right: 15px;
+  background: white; border: none; cursor: pointer;
+  color: var(--DC-gray);
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  z-index: 10;
+  transition: all 0.2s;
 }
+.close-btn:hover { background: var(--DC-orange); color: white; transform: scale(1.05); }
 
+/* GRILLA DIVIDIDA */
 .modal-grid {
   display: grid;
-  grid-template-columns: 1fr 1.2fr;
-  gap: 30px;
-  align-items: center;
+  grid-template-columns: 1fr 1.3fr;
+  height: 100%;
 }
 
 .product-img-box {
-  width: 100%;
-  height: 320px;
-  border-radius: 15px;
-  overflow: hidden;
-  border: 1px solid #eee;
+  background-color: white;
+  height: 100%;
 }
 
 .main-product-img {
-  width: 100%;
+  width: 100%; height: 100%; object-fit: cover;
+}
+
+/* PANEL DERECHO (CONFIGURADOR) */
+/* PANEL DERECHO (CONFIGURADOR) */
+.product-info-box {
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
   height: 100%;
-  object-fit: cover;
-  transition: all 0.3s ease;
-}
-
-.product-title {
-  margin: 5px 0 10px 0;
-  font-size: 1.6rem;
-  color: var(--DC-gray);
-  font-weight: 800;
-}
-
-.tag {
-  font-size: 0.9rem;
-  font-weight: bold;
-}
-
-.description {
-  font-size: 0.85rem;
-  color: var(--DC-text-gray);
-  margin-bottom: 20px;
-  line-height: 1.4;
-}
-
-.section-subtitle {
-  font-size: 0.85rem;
-  font-weight: bold;
-  color: var(--DC-gray);
-  margin-bottom: 8px;
-}
-
-.liters-buttons-container {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.liter-btn {
-  width: 100%;
   background-color: white;
-  border: 2px solid var(--DC-bg-gray);
-  border-radius: 12px;
-  padding: 10px 18px;
+  overflow: hidden; /* 🌟 CLAVE 1: Evita que la caja crezca infinitamente */
+}
+
+/* SCROLL INTERNO PARA OPCIONES */
+
+
+.header-info { margin-bottom: 20px; border-bottom: 2px solid #eeedee; padding-bottom: 15px;}
+.tag { font-size: 0.85rem; font-weight: 900; color: var(--DC-orange); text-transform: uppercase; letter-spacing: 1px;}
+.product-title { margin: 5px 0 0 0; font-size: 2rem; color: var(--DC-gray); font-weight: 900; line-height: 1.1;}
+
+/* SCROLL INTERNO PARA OPCIONES */
+.scrollable-config {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 10px;
   display: flex;
   flex-direction: column;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  gap: 25px;
+  min-height: 0; /* 🌟 CLAVE 2: Le avisa a Flexbox que aquí debe empezar el scroll */
 }
 
-.btn-main-row {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* Custom Scrollbar */
+.scrollable-config::-webkit-scrollbar { width: 6px; }
+.scrollable-config::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+.scrollable-config::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+
+.section-subtitle { font-size: 1rem; font-weight: 800; color: var(--DC-gray); margin-bottom: 12px; }
+
+/* 1. TAMAÑOS (PILLS) */
+.size-pills { display: flex; flex-wrap: wrap; gap: 10px; }
+.size-pill {
+  padding: 8px 16px; border-radius: 20px; font-weight: 800; font-size: 0.9rem;
+  background: white; border: 2px solid #eeedee; color: var(--DC-text-gray);
+  cursor: pointer; transition: all 0.2s;
 }
+.size-pill.active { background: var(--DC-orange); border-color: var(--DC-orange); color: white; }
 
-.btn-title { font-size: 1rem; font-weight: 800; color: var(--DC-gray); }
-.btn-price { font-size: 1rem; font-weight: 700; color: var(--DC-text-gray); transition: color 0.2s; }
-.btn-desc { font-size: 0.75rem; color: var(--DC-text-gray); margin-top: 2px; }
-
-/* ESTADO ACTIVO (CUANDO SE SELECCIONA) */
-.liter-btn.active, .liter-btn:hover {
-  border-color: var(--DC-pink);
-  background-color: rgba(228, 134, 159, 0.03);
+/* 2. TIPOS (RADIOS) */
+.types-list { display: flex; flex-direction: column; gap: 10px; }
+.type-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 15px; border-radius: 12px; border: 2px solid #eeedee;
+  cursor: pointer; transition: all 0.2s; background: white;
 }
+.type-row:hover { border-color: #ccc; }
+.type-row.active { border-color: var(--DC-orange); background-color: rgba(226, 135, 67, 0.05); }
 
-.liter-btn.active .btn-price {
-  color: var(--DC-pink); /* Destaca el precio del formato seleccionado */
+.type-info { display: flex; align-items: center; gap: 12px; }
+.radio-circle { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #ccc; display: flex; align-items: center; justify-content: center; }
+.type-row.active .radio-circle { border-color: var(--DC-orange); }
+.radio-inner { width: 10px; height: 10px; border-radius: 50%; background: var(--DC-orange); }
+.type-texts { display: flex; flex-direction: column; }
+.t-name { font-weight: 800; color: var(--DC-gray); font-size: 1rem;}
+.t-desc { font-size: 0.75rem; color: var(--DC-text-gray); font-weight: 600;}
+.t-price { font-weight: 900; color: var(--DC-orange); font-size: 1.1rem; }
+
+/* 3. INGREDIENTES */
+.ingredients-list { display: flex; flex-direction: column; gap: 8px; }
+.ingredient-item {
+  display: flex; justify-content: space-between; align-items: center;
+  background: #f8f9fa; padding: 12px 15px; border-radius: 10px;
+  border: 1px solid #eeedee; cursor: pointer; transition: all 0.2s;
 }
+.ingredient-item:hover { background: #f1f3f5; }
+.ingredient-item.removed { opacity: 0.6; background-color: #fff0f3; border-color: #ffc9c9; }
+.ing-left { display: flex; align-items: center; gap: 12px; }
+.custom-checkbox { width: 18px; height: 18px; accent-color: var(--DC-orange); cursor: pointer; }
+.ingredient-item.removed .ing-name { text-decoration: line-through; color: var(--DC-text-gray); }
+.ing-name { font-weight: 700; color: var(--DC-gray); font-size: 0.9rem; }
 
-/* --- NUEVOS ESTILOS CONTADOR Y ACCIÓN --- */
+.status-badge { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; }
+.status-badge.removed { background: #ffc9c9; color: #c92a2a; }
+.status-badge.no-stock { background: #e9ecef; color: #868e96; }
+
+/* FOOTER COMPRAS */
 .purchase-actions {
-  display: flex;
-  gap: 15px;
-  align-items: center;
-  margin-top: 15px;
+  display: flex; gap: 15px; align-items: center;
+  margin-top: 20px; padding-top: 20px;
+  border-top: 2px solid #eeedee;
 }
 
 .quantity-selector {
-  display: flex;
-  align-items: center;
-  border: 2px solid var(--DC-bg-gray);
-  border-radius: 25px;
-  padding: 4px;
-  background-color: white;
+  display: flex; align-items: center; justify-content: space-between;
+  border: 2px solid #eeedee; border-radius: 12px; padding: 5px;
+  background-color: white; width: 130px;
 }
-
 .quantity-btn {
-  background: none;
-  border: none;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--DC-gray);
-  border-radius: 50%;
-  transition: background-color 0.2s;
+  background: #f1f3f5; border: none; width: 35px; height: 35px;
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--DC-gray); transition: background-color 0.2s;
 }
-
-.quantity-btn:hover {
-  background-color: var(--DC-bg-gray);
-}
-
-.quantity-value {
-  font-size: 1rem;
-  font-weight: 800;
-  width: 30px;
-  text-align: center;
-  color: var(--DC-gray);
-}
+.quantity-btn:hover { background: #e9ecef; }
+.quantity-value { font-size: 1.1rem; font-weight: 900; color: var(--DC-gray); }
 
 .add-to-cart-btn {
-  flex: 1;
-  background-color: var(--DC-pink);
-  color: white;
-  border: none;
-  padding: 12px;
-  border-radius: 25px;
-  font-weight: bold;
-  font-size: 1rem;
-  cursor: pointer;
-  box-shadow: 0 4px 10px rgba(228, 134, 159, 0.3);
-  transition: transform 0.2s, filter 0.2s;
+  flex: 1; background-color: var(--DC-brown); color: white;
+  border: none; padding: 15px 20px; border-radius: 12px;
+  display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer; box-shadow: 0 4px 15px rgba(81, 49, 25, 0.3);
+  transition: all 0.2s;
 }
+.add-to-cart-btn:hover { background-color: var(--DC-orange); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(226, 135, 67, 0.3); }
+.add-to-cart-btn:active { transform: translateY(0); }
+.btn-text { font-weight: 900; font-size: 1rem; letter-spacing: 1px;}
+.btn-total { font-weight: 900; font-size: 1.2rem; }
 
-.add-to-cart-btn:hover {
-  filter: brightness(1.05);
-  transform: translateY(-2px);
-}
-
-.add-to-cart-btn:active {
-  transform: translateY(0);
-}
-
-/* ANIMACIONES POP */
-.pop-enter-active, .pop-leave-active { transition: all 0.3s ease; }
+/* ANIMACIONES */
+.pop-enter-active, .pop-leave-active { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 .pop-enter-from, .pop-leave-to { opacity: 0; }
-.pop-enter-from .modal-wrapper, .pop-leave-to .modal-wrapper { transform: scale(0.95); }
+.pop-enter-from .modal-wrapper, .pop-leave-to .modal-wrapper { transform: scale(0.95) translateY(20px); }
+
+/* 📱 RESPONSIVIDAD */
+@media (max-width: 768px) {
+  .modal-wrapper { 
+    height: 95vh; 
+    max-height: none; 
+    border-radius: 15px; 
+  }
+
+  .modal-grid { 
+    grid-template-columns: 1fr; 
+    /* 🌟 CLAVE: Usamos 'auto' para la imagen para que solo ocupe lo que necesita,
+       y '1fr' para que la info ocupe todo el resto del espacio disponible */
+    grid-template-rows: auto 1fr; 
+  }
+
+  .product-img-box {
+    height: 180px; /* 🌟 AJUSTE: Reducimos de 250px a 180px */
+    width: 100%;
+  }
+
+  .main-product-img {
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .product-info-box { 
+    padding: 20px; 
+    overflow-y: auto; /* 🌟 Esto permite que el contenido scrollée dentro de la caja */
+  }
+
+  /* Aseguramos que la sección scrollable no empuje los botones fuera de la pantalla */
+  .scrollable-config {
+    gap: 15px; /* Un poco más compacto en móvil */
+  }
+
+  .purchase-actions { 
+    flex-direction: column; 
+    margin-top: 10px;
+  }
+  .quantity-selector { width: 100%; padding: 8px; }
+  .add-to-cart-btn { width: 100%; padding: 12px; }
+}
 </style>

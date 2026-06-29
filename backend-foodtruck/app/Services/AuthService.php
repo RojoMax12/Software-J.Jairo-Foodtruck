@@ -2,41 +2,29 @@
 
 namespace App\Services;
 
-use App\Repositories\Usuario_dicremeRepository;
-use App\Repositories\Usuario_distribuidoresRepository;
+use App\Repositories\UsuarioRepository;
 use App\Services\JwtService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 
 class AuthService
 {
-    protected $usuariodicremeRepository;
-    protected $usuariodistribuidorRepository;
+    protected $usuarioRepository;
     protected $jwtService;
 
     public function __construct(
-        Usuario_dicremeRepository $usuariodicremeRepository, 
-        Usuario_distribuidoresRepository $usuariodistribuidorRepository,
+        UsuarioRepository $usuarioRepository, 
         JwtService $jwtService
     ) {
-        $this->usuariodicremeRepository = $usuariodicremeRepository;
+        $this->usuarioRepository = $usuarioRepository;
         $this->jwtService = $jwtService;
-        $this->usuariodistribuidorRepository = $usuariodistribuidorRepository;
     }
 
-    /**
-     * PASO 1: Generar el JWT de recuperación y mandar el correo
-     */
-    public function enviarEnlaceRecuperacion($email)
+    //Generar el JWT de recuperación y mandar el correo
+    public function enviarEnlaceRecuperacion($identificador)
     {   
-
-        $usuario = $this->usuariodicremeRepository->getUsuarioDicremeByCorreo($email);
-        
-
-        if (!$usuario) {
-            $usuario = $this->usuariodistribuidorRepository->getUsuarioDistribuidorByCorreo($email);
-        }
-
+        //Buscamos el usuario por el identificador (nombre)
+        $usuario = $this->usuarioRepository->getUsuarioByNombre($identificador);
 
         if (!$usuario) {
             return false; 
@@ -44,7 +32,7 @@ class AuthService
 
         $tokenPayload = $this->jwtService->issueForUser($usuario, [
             'purpose' => 'password_reset',
-            'email' => $email
+            'identificador' => $identificador
         ]);
 
         $token = $tokenPayload['access_token'];
@@ -52,7 +40,7 @@ class AuthService
         // URL hacia tu Frontend en Vue.js pepito
         $urlFrontend = "http://localhost:5173/reset-password?token=" . $token;
 
-        $correoDestinatario = $usuario->correo_electronico; 
+        $correoDestinatario = $usuario->nombre; // Usamos el nombre asumiendo que guarda el formato de correo
 
         Mail::send('emails.recuperar_password', ['url' => $urlFrontend], function($message) use ($correoDestinatario) {
             $message->to($correoDestinatario);
@@ -62,14 +50,9 @@ class AuthService
         return true;
     }
 
-    /**
-     * PASO 2: Validar el JWT de vuelta desde Vue y cambiar la contraseña en la BD
-     */
+    //Validar el JWT de vuelta desde Vue y cambiar la contraseña en la BD
     public function restablecerContrasena($token, $nuevaContrasena)
     {
-  
-        $tipoUsuario = null; 
-
         try {
             $claims = $this->jwtService->decode($token);
 
@@ -77,50 +60,33 @@ class AuthService
                 throw new \Exception("El token provisto no es válido para esta operación.");
             }
 
-            // Extracción limpia del correo (El bloque tolerante a fallos que armamos antes)
-            $emailLimpio = '';
-            if (isset($claims->email)) {
-                if (is_string($claims->email)) {
-                    $emailLimpio = $claims->email;
-                } elseif (is_object($claims->email) && isset($claims->email->email)) {
-                    $emailLimpio = $claims->email->email;
-                } else {
-                    $emailLimpio = $claims->email->correo_electronico ?? $claims->email->correo ?? '';
-                }
+            // Extracción limpia del identificador
+            $identificador = '';
+            if (isset($claims->identificador)) {
+                $identificador = $claims->identificador;
+            } elseif (isset($claims->email)) {
+                // Compatibilidad hacia atrás si hay tokens viejos
+                $identificador = is_object($claims->email) ? ($claims->email->email ?? '') : $claims->email;
             }
 
             // BÚSQUEDA
-            $usuario = $this->usuariodicremeRepository->getUsuarioDicremeByCorreo($emailLimpio);
-            $tipoUsuario = 'dicreme'; 
+            $usuario = $this->usuarioRepository->getUsuarioByNombre($identificador);
 
             if (!$usuario) {
-                $usuario = $this->usuariodistribuidorRepository->getUsuarioDistribuidorByCorreo($emailLimpio);
-                $tipoUsuario = 'distribuidor'; 
+                throw new \Exception("El usuario asociado a este identificador ($identificador) ya no existe en el sistema.");
             }
 
-            if (!$usuario) {
-                throw new \Exception("El usuario asociado a este correo ($emailLimpio) ya no existe en el sistema.");
-            }
+            $nuevaContrasenaHasheada = Hash::make($nuevaContrasena);
 
-
-            $nuevaContrasenaHasheada = \Illuminate\Support\Facades\Hash::make($nuevaContrasena);
-
-            if ($tipoUsuario === 'dicreme') {
-                $this->usuariodicremeRepository->updateUsuarioDicreme($usuario->id, [
-                    'contrasena' => $nuevaContrasenaHasheada
-                ]);
-            } else {
-                $this->usuariodistribuidorRepository->updateUsuarioDistribuidor($usuario->id, [
-                    'contrasena' => $nuevaContrasenaHasheada
-                ]);
-            }
+            $this->usuarioRepository->updateUsuario($usuario->id, [
+                'contrasena' => $nuevaContrasenaHasheada
+            ]);
 
             $this->jwtService->blacklist($claims);
 
             return true;
 
         } catch (\Exception $e) {
-
             throw new \Exception("Error al procesar la solicitud: " . $e->getMessage());
         }
     }

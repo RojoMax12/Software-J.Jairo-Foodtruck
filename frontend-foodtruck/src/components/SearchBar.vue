@@ -4,27 +4,51 @@
     <div class="search-controls">
       
       <div class="inputs-group">
-        <button class="badge-button color-papas">
+        <button
+          class="badge-button color-papas"
+          :class="{ 'is-active': props.modelValue === 'Papas & Chorrillanas' }"
+          @click="toggleCategory('Papas & Chorrillanas')"
+        >
           <span class="badge-text">Papas &<br>Chorrillanas</span>
         </button>
         
-        <button class="badge-button color-vianesas">
+        <button
+          class="badge-button color-vianesas"
+          :class="{ 'is-active': props.modelValue === 'Vianesas' }"
+          @click="toggleCategory('Vianesas')"
+        >
           <span class="badge-text">Vianesas</span>
         </button>
 
-        <button class="badge-button color-sanguches">
+        <button
+          class="badge-button color-sanguches"
+          :class="{ 'is-active': props.modelValue === 'Sánguches / Bajones' }"
+          @click="toggleCategory('Sánguches / Bajones')"
+        >
           <span class="badge-text">Sánguches /<br>Bajones</span>
         </button>
 
-        <button class="badge-button color-promos">
+        <button
+          class="badge-button color-promos"
+          :class="{ 'is-active': props.modelValue === 'Promos/Combos' }"
+          @click="toggleCategory('Promos/Combos')"
+        >
           <span class="badge-text">Promos/<br>Combos</span>
         </button>
         
-        <button class="badge-button color-masas">
+        <button
+          class="badge-button color-masas"
+          :class="{ 'is-active': props.modelValue === 'Masas' }"
+          @click="toggleCategory('Masas')"
+        >
           <span class="badge-text">Masas</span>
         </button>
 
-        <button class="badge-button color-bebestibles">
+        <button
+          class="badge-button color-bebestibles"
+          :class="{ 'is-active': props.modelValue === 'Bebestibles' }"
+          @click="toggleCategory('Bebestibles')"
+        >
           <span class="badge-text">Bebestibles</span>
         </button>
 
@@ -47,13 +71,17 @@
 <script setup lang="ts">
 import { Search } from 'lucide-vue-next';
 
-defineProps<{
+const props = defineProps<{
   modelValue: string;
   searchQuery: string; 
   categories: any[];
 }>();
 
 const emit = defineEmits(['update:modelValue', 'update:searchQuery']);
+
+const toggleCategory = (category: string) => {
+  emit('update:modelValue', props.modelValue === category ? 'Todas' : category);
+};
 </script>
 
 <style scoped>
@@ -97,6 +125,15 @@ const emit = defineEmits(['update:modelValue', 'update:searchQuery']);
 
 .badge-button:hover {
   transform: scale(1.08) rotate(2deg);
+}
+
+.badge-button.is-active {
+  transform: scale(1.05);
+  filter: drop-shadow(0px 6px 10px rgba(255, 231, 10, 0.85) );
+}
+
+.badge-button.is-active::after {
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.85);
 }
 
 /* Capa del borde negro */

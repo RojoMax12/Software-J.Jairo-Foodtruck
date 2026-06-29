@@ -2,50 +2,43 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\CategoriaServices;
+use App\Services\CategoriaService;
 use Illuminate\Http\Request;
 
 class CategoriaController extends Controller
 {
-    protected $categoriaServices;
+    protected $categoriaService;
 
-    public function __construct(CategoriaServices $categoriaServices)
+    public function __construct(CategoriaService $categoriaService)
     {
-        $this->categoriaServices = $categoriaServices;
+        $this->categoriaService = $categoriaService;
     }
 
     public function index()
     {
-        return response()->json($this->categoriaServices->getAllCategorias());
+        return response()->json($this->categoriaService->getAllCategorias());
     }
 
     public function show($id)
     {
-        return response()->json($this->categoriaServices->getCategoriaById($id));
+        return response()->json($this->categoriaService->getCategoriaById($id));
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'nombre_categoria' => 'required|string|max:255',
-            'descripcion_categoria' => 'required|string|max:255',
-        ]);
-
-        return response()->json($this->categoriaServices->createCategoria($data), 201);
+        $data = $request->all();
+        return response()->json($this->categoriaService->createCategoria($data), 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->validate([
-            'nombre_categoria' => 'sometimes|required|string|max:255',
-            'descripcion_categoria' => 'sometimes|required|string|max:255',
-        ]);
-
-        return response()->json($this->categoriaServices->updateCategoria($id, $data));
+        $data = $request->all();
+        return response()->json($this->categoriaService->updateCategoria($id, $data));
     }
 
     public function destroy($id)
     {
-        return response()->json($this->categoriaServices->deleteCategoria($id));
+        $this->categoriaService->deleteCategoriaById($id);
+        return response()->json(null, 204);
     }
 }

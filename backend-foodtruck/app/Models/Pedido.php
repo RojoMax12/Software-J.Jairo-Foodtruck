@@ -45,6 +45,6 @@ class Pedido extends Model
     // Un pedido tiene muchos producto_pedido (one-to-many)
     public function producto_pedido()
     {
-        return $this->hasMany(ProductoPedido::class, 'id_pedido');
+        return $this->hasMany(Producto_Pedido::class, 'id_pedido');
     }
 }
