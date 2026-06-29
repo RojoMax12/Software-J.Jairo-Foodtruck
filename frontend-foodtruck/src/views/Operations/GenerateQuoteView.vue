@@ -173,7 +173,10 @@
 
     <div v-if="currentStep === 2" class="step-container client-step">
       <div class="selection-mode">
-        <h3>Datos del cliente y Pago</h3>
+        <div class="section-intro">
+          <h3>Datos del cliente y Pago</h3>
+          <p>Completa la información para confirmar la comanda con mayor claridad.</p>
+        </div>
         <form class="distributor-form">
           <div class="input-row">
             <div class="input-group">
@@ -207,7 +210,10 @@
     </div>
 
     <div v-if="currentStep === 3" class="step-container summary-step">
-      <h3>Resumen Final del pedido</h3>
+      <div class="section-intro">
+        <h3>Resumen Final del pedido</h3>
+        <p>Revisa el pedido antes de enviarlo a cocina.</p>
+      </div>
       <div class="summary-grid">
         <div class="summary-section">
           <h4>Datos del cliente</h4>
@@ -617,6 +623,40 @@ onMounted(() => { cargarMetodosSimulados(); fetchIceCreams(); });
 /* ----------------------------------------------------
    6. GLOBALES Y FORMS
 ---------------------------------------------------- */
+.client-step,
+.summary-step {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.selection-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section-intro {
+  background: linear-gradient(135deg, #fff8f1 0%, #fff 100%);
+  border: 1px solid #f0dfc8;
+  border-radius: 16px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+}
+
+.section-intro h3 {
+  margin: 0 0 0.35rem;
+  color: #2f2a2a;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.section-intro p {
+  margin: 0;
+  color: #7e7575;
+  font-size: 0.95rem;
+}
+
 .actions { display: flex; justify-content: space-between; margin-top: 2.5rem; width: 100%; border-top: 2px solid #eee; padding-top: 1.5rem; }
 .btn { padding: 0.8rem 1.8rem; border-radius: 12px; font-weight: 900; cursor: pointer; border: none; display: flex; align-items: center; gap: 0.5rem; font-size: 1rem; transition: all 0.2s; }
 .btn-primary { background: #965314; color: white; box-shadow: 0 4px 12px rgba(150, 83, 20, 0.2); }
@@ -624,10 +664,143 @@ onMounted(() => { cargarMetodosSimulados(); fetchIceCreams(); });
 .btn-secondary { background: #e0e0e0; color: #555; }
 .btn-secondary:hover { background: #d0d0d0; }
 
-.distributor-form { display: flex; flex-direction: column; gap: 1.5rem; background: #faf9f7; padding: 2.5rem; border-radius: 16px; border: 1px solid #eaeaea; }
+.distributor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background: linear-gradient(135deg, #fffdfb 0%, #fcf7f1 100%);
+  padding: 2rem;
+  border-radius: 18px;
+  border: 1px solid #efe1cf;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.04);
+}
+
 .input-row { display: flex; gap: 2rem; flex-wrap: wrap; }
 .input-group { flex: 1; display: flex; flex-direction: column; gap: 0.5rem; min-width: 250px; }
 .input-group label { font-weight: 900; font-size: 0.85rem; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+.input-group .dc-input,
+.input-group .dc-select {
+  width: 100%;
+  border: 1px solid #e5d6c0;
+  border-radius: 999px;
+  padding: 0.9rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #2f2a2a;
+  background: #fff;
+  outline: none;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.input-group .dc-input:focus,
+.input-group .dc-select:focus {
+  border-color: #965314;
+  box-shadow: 0 0 0 3px rgba(150, 83, 20, 0.15);
+}
+.input-group .dc-select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #965314 50%), linear-gradient(135deg, #965314 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.summary-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.summary-section h4 {
+  margin: 0;
+  color: #965314;
+  font-size: 0.95rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-card {
+  background: #fff;
+  border: 1px solid #efe1cf;
+  border-radius: 16px;
+  padding: 1.1rem 1.2rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+}
+
+.summary-card p {
+  margin: 0.35rem 0;
+  color: #4c4646;
+  line-height: 1.5;
+}
+
+.products-list-final {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.final-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid #f2ebdf;
+}
+
+.final-item:last-child {
+  border-bottom: none;
+}
+
+.final-item-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.final-item-name {
+  font-weight: 800;
+  color: #2f2a2a;
+}
+
+.final-exclusions-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.exclusion-badge-item {
+  padding: 0.24rem 0.5rem;
+  border-radius: 999px;
+  background: #fdecec;
+  color: #b94f4f;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.final-item-price {
+  font-weight: 900;
+  color: #965314;
+  white-space: nowrap;
+}
+
+.final-total {
+  margin-top: 0.4rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid #f2ebdf;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 900;
+  color: #2f2a2a;
+}
 
 /* ----------------------------------------------------
    7. RESPONSIVIDAD: TABLETS Y LAPTOPS (Hasta 1200px)
@@ -687,6 +860,8 @@ onMounted(() => { cargarMetodosSimulados(); fetchIceCreams(); });
   }
 
   .input-row { flex-direction: column; gap: 1rem; width: 100%; }
+  .summary-grid { grid-template-columns: 1fr; }
+  .distributor-form { padding: 1.25rem; }
   
   .actions { flex-direction: column-reverse; gap: 1rem; margin-top: 1.5rem; }
   .btn { width: 100%; justify-content: center; padding: 1rem; font-size: 1.1rem; }

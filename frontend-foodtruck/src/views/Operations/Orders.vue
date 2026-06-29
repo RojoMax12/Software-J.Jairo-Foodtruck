@@ -6,7 +6,7 @@
     </header>
 
     <div class="status-cards">
-      <div class="status-card">
+      <div class="status-card card-interactive" :class="{ 'card-active': selectedCard === 'all' }" @click="applySummaryFilter('all')">
         <div class="card-left">
           <div class="icon-box bg-unpaid">
             <ClipboardCheck :size="24" />
@@ -14,12 +14,12 @@
           <span class="card-label">Total pedidos</span>
         </div>
         <div class="card-right">
-          <span class="card-count">{{ stats.unpaid }}</span> 
+          <span class="card-count">{{ stats.totalOrders }}</span>
           <span class="card-subtext">Pedidos</span>
         </div>
       </div>
 
-      <div class="status-card">
+      <div class="status-card card-interactive" :class="{ 'card-active': selectedCard === 'amount' }" @click="applySummaryFilter('amount')">
         <div class="card-left">
           <div class="icon-box bg-paid">
             <CheckCircle :size="24" />
@@ -27,12 +27,12 @@
           <span class="card-label">Total: $</span>
         </div>
         <div class="card-right">
-          <span class="card-count">{{ stats.paid }}</span>
+          <span class="card-count">{{ formatPrice(stats.totalAmount) }}</span>
           <span class="card-subtext">Pesos</span>
         </div>
       </div>
 
-      <div class="status-card">
+      <div class="status-card card-interactive" :class="{ 'card-active': selectedCard === 'paid' }" @click="applySummaryFilter('paid')">
         <div class="card-left">
           <div class="icon-box bg-preparation">
             <Package :size="24" />
@@ -40,12 +40,12 @@
           <span class="card-label">Total Pagados</span>
         </div>
         <div class="card-right">
-          <span class="card-count">{{ stats.preparation }}</span>
+          <span class="card-count">{{ stats.paid }}</span>
           <span class="card-subtext">Pedidos</span>
         </div>
       </div>
 
-      <div class="status-card">
+      <div class="status-card card-interactive" :class="{ 'card-active': selectedCard === 'delivered' }" @click="applySummaryFilter('delivered')">
         <div class="card-left">
           <div class="icon-box bg-shipping">
             <Truck :size="24" />
@@ -53,7 +53,7 @@
           <span class="card-label">Total Entregados</span>
         </div>
         <div class="card-right">
-          <span class="card-count">{{ stats.shipping }}</span>
+          <span class="card-count">{{ stats.delivered }}</span>
           <span class="card-subtext">Pedidos</span>
         </div>
       </div>
@@ -210,17 +210,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import OrdersDetailModal from './OrdersDetailModal.vue';
-import orderService from '@/services/orderService';
-import distributorService from '@/services/distributorService';
-import orderStatusService from '@/services/orderStatusService';
-import { 
-  ClipboardCheck, Package, Truck, CheckCircle, Search, Filter, 
-  ChevronDown, Calendar as CalendarIcon, Download, Eye, ChevronsUpDown
+import {
+  ClipboardCheck, Package, Truck, CheckCircle, Search, Filter,
+  ChevronDown, Calendar as CalendarIcon, Eye, ChevronsUpDown
 } from 'lucide-vue-next';
 
 const orders = ref<any[]>([]);
 const isLoading = ref(true);
-const activeTab = ref('pedidos');
 
 const userRole = ref<number | null>(null);
 
@@ -249,8 +245,18 @@ const checkUserRole = () => {
 const canEditDate = computed(() => userRole.value === 1);
 
 // Mapa reactivo BDD
-const statusMap = ref<Map<number, string>>(new Map());
+const statusMap = ref<Map<number, string>>(new Map([
+  [1, 'En validación'],
+  [2, 'En preparación'],
+  [3, 'En despacho'],
+  [4, 'Entregado'],
+  [5, 'Pendiente'],
+  [6, 'Por pagar'],
+  [7, 'Pagada'],
+  [8, 'Cancelado']
+]));
 
+/*
 const fetchOrders = async () => {
   isLoading.value = true;
   try {
@@ -290,11 +296,43 @@ const fetchOrders = async () => {
   } finally {
     isLoading.value = false;
   }
+};*/
+
+const fetchOrders = async () => {
+  isLoading.value = true;
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  try {
+    const rawOrders = [
+      { id: 1024, nombre_cliente: 'Camila Rojas', id_estado: 2, monto: 4500, fecha: '2026-06-28T16:30:00Z' },
+      { id: 1025, nombre_cliente: 'Diego Soto', id_estado: 3, monto: 3200, fecha: '2026-06-28T16:45:00Z' },
+      { id: 1026, nombre_cliente: 'Ana Pérez', id_estado: 7, monto: 7800, fecha: '2026-06-28T18:00:00Z' },
+      { id: 1027, nombre_cliente: 'Luis Vega', id_estado: 4, monto: 6200, fecha: '2026-06-28T19:15:00Z' }
+    ];
+
+    orders.value = rawOrders.map((o: any) => {
+      const statusId = Number(o.id_estado);
+      return {
+        id: o.id,
+        distributor: o.nombre_cliente,
+        customer: o.nombre_cliente,
+        status: statusMap.value.get(statusId) || 'En preparación',
+        total: Number(o.monto || 0),
+        date: formatDate(o.fecha),
+        time: (o.fecha || '').split('T')[1]?.substring(0, 5) || '00:00',
+        rawStatusId: statusId
+      };
+    });
+  } catch (error) {
+    console.error(error);
+  } finally {
+    isLoading.value = false;
+  }
 };
 
-const formatDate = (dateString: string) => {
+const formatDate = (dateString?: string) => {
   if (!dateString) return 'Sin fecha';
-  const cleanDate = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+  const cleanDate = (dateString.includes('T') ? dateString.split('T')[0] : dateString) ?? '';
   const parts = cleanDate.split('-');
   if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
   return cleanDate;
@@ -304,30 +342,20 @@ const formatDate = (dateString: string) => {
 const filteredOrders = computed(() => {
   let result = orders.value;
 
-  // 1. Filtro de Fecha (Aplica SIEMPRE según el input calendar)
   if (selectedDate.value) {
     const [year, month, day] = selectedDate.value.split('-');
     const formattedSelectedDate = `${day}/${month}/${year}`;
     result = result.filter((o: any) => o.date === formattedSelectedDate);
   }
 
-  // 2. Tab Filter
-  if (activeTab.value === 'pagos') {
-    result = result.filter((o: any) => [6, 7].includes(o.rawStatusId));
-  } else {
-    result = result.filter((o: any) => [1, 2, 3, 4, 5, 7, 8].includes(o.rawStatusId));
-  }
-
-  // 3. Search Query
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
-    result = result.filter((o: any) => 
-      o.id.toString().includes(query) || 
-      o.distributor.toLowerCase().includes(query)
-    );
+    result = result.filter((o: any) => {
+      const name = `${o.distributor || o.customer || ''}`.toLowerCase();
+      return o.id.toString().includes(query) || name.includes(query);
+    });
   }
 
-  // 4. Status Filter
   if (statusFilter.value !== 'all') {
     result = result.filter((o: any) => o.status === statusFilter.value);
   }
@@ -335,20 +363,13 @@ const filteredOrders = computed(() => {
   return result;
 });
 
-// Estadísticas basadas EN LOS PEDIDOS FILTRADOS (Para que las tarjetas reflejen el día seleccionado)
-const counts = computed(() => {
-  const pagos = filteredOrders.value.filter((o: any) => [6, 7].includes(o.rawStatusId)).length;
-  const pedidos = filteredOrders.value.filter((o: any) => [1, 2, 3, 4, 5, 7, 8].includes(o.rawStatusId)).length;
-  return { pagos, pedidos };
-});
-
 const stats = computed(() => {
+  const visibleOrders = filteredOrders.value;
   return {
-    unpaid: filteredOrders.value.filter((o: any) => o.rawStatusId === 6).length,
-    paid: filteredOrders.value.filter((o: any) => o.rawStatusId === 7).length,
-    preparation: filteredOrders.value.filter((o: any) => o.rawStatusId === 2).length,
-    shipping: filteredOrders.value.filter((o: any) => o.rawStatusId === 3).length,
-    delivered: filteredOrders.value.filter((o: any) => o.rawStatusId === 4).length
+    totalOrders: visibleOrders.length,
+    totalAmount: visibleOrders.reduce((sum: number, o: any) => sum + Number(o.total || 0), 0),
+    paid: visibleOrders.filter((o: any) => o.rawStatusId === 7).length,
+    delivered: visibleOrders.filter((o: any) => o.rawStatusId === 4).length
   };
 });
 
@@ -384,6 +405,7 @@ const getStatusClass = (status: string, statusId?: number) => {
 
 const searchQuery = ref('');
 const statusFilter = ref('all');
+const selectedCard = ref<'all' | 'amount' | 'paid' | 'delivered'>('all');
 const isStatusDropdownOpen = ref(false);
 
 const isModalOpen = ref(false);
@@ -406,8 +428,24 @@ const toggleStatusDropdown = () => {
   isStatusDropdownOpen.value = !isStatusDropdownOpen.value;
 };
 
+const applySummaryFilter = (filter: 'all' | 'amount' | 'paid' | 'delivered') => {
+  selectedCard.value = filter;
+
+  switch (filter) {
+    case 'paid':
+      statusFilter.value = 'Pagada';
+      break;
+    case 'delivered':
+      statusFilter.value = 'Entregado';
+      break;
+    default:
+      statusFilter.value = 'all';
+  }
+};
+
 const selectStatus = (status: string) => {
   statusFilter.value = status;
+  selectedCard.value = status === 'Pagada' ? 'paid' : status === 'Entregado' ? 'delivered' : 'all';
   isStatusDropdownOpen.value = false;
 };
 
@@ -435,9 +473,9 @@ const sortedOrders = computed(() => {
     let bValue = b[sortConfig.value.key];
 
     if (sortConfig.value.key === 'date') {
-      const parseDate = (d: string, t: string) => {
-        const [day, month, year] = d.split('/').map(Number);
-        const [hours, minutes] = t.split(':').map(Number);
+      const parseDate = (d: string, t?: string) => {
+        const [day = 1, month = 1, year = 2000] = d.split('/').map(Number);
+        const [hours = 0, minutes = 0] = (t || '00:00').split(':').map(Number);
         return new Date(year, month - 1, day, hours, minutes).getTime();
       };
       aValue = parseDate(a.date, a.time);
@@ -503,7 +541,11 @@ onUnmounted(() => {
   padding: 15px;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: stretch;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 118px;
+  height: 100%;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   border: 2px solid transparent;
   transition: transform 0.2s ease, border-color 0.2s ease;
@@ -514,7 +556,22 @@ onUnmounted(() => {
   border-color: var(--DC-orange);
 }
 
-.card-left { display: flex; align-items: center; gap: 12px; }
+.status-card.card-interactive {
+  cursor: pointer;
+}
+
+.status-card.card-active {
+  border-color: var(--DC-orange);
+  box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.16);
+}
+
+.card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 160px;
+  min-width: 0;
+}
 
 .icon-box {
   width: 45px;
@@ -534,8 +591,15 @@ onUnmounted(() => {
 .bg-generic { background-color: #f1f3f5; color: var(--DC-text-gray); }
 
 .card-label { font-size: 0.85rem; font-weight: 800; color: var(--DC-gray); text-transform: uppercase; }
-.card-right { display: flex; flex-direction: column; align-items: flex-end; }
-.card-count { font-size: 1.8rem; font-weight: 900; color: var(--DC-brown); line-height: 1; }
+.card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  min-width: 0;
+  text-align: right;
+}
+.card-count { font-size: 1.2rem; font-weight: 900; color: var(--DC-brown); line-height: 1; }
 .card-subtext { font-size: 0.75rem; font-weight: 700; color: var(--DC-text-gray); margin-top: 4px; text-transform: uppercase; }
 
 /* CALENDARIO ESTILOS */
@@ -582,7 +646,7 @@ onUnmounted(() => {
   border-radius: 16px;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
   border: 1px solid #eeedee;
-  overflow: hidden;
+  overflow: visible;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -624,8 +688,8 @@ onUnmounted(() => {
 .switch-btn.active .count-badge { background-color: white; color: var(--DC-orange); }
 
 /* CONTROLES DE LA TABLA */
-.table-actions { padding: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
-.actions-left { display: flex; gap: 12px; flex: 1; flex-wrap: wrap;}
+.table-actions { padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px; }
+.actions-left { display: flex; gap: 12px; flex: 1; flex-wrap: wrap; align-items: flex-start;}
 
 .search-box { position: relative; width: 100%; max-width: 400px; }
 .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--DC-brown); }
@@ -682,7 +746,19 @@ onUnmounted(() => {
 .spinner { width: 40px; height: 40px; border: 4px solid var(--DC-bg-gray); border-top: 4px solid var(--DC-orange); border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-.empty-state { display: flex; flex-direction: column; align-items: center; gap: 15px; color: var(--DC-text-gray); font-weight: 700;}
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  color: var(--DC-text-gray);
+  font-weight: 700;
+  min-height: 240px;
+  padding: 24px;
+  box-sizing: border-box;
+  text-align: center;
+}
 .empty-icon { color: var(--DC-brown); opacity: 0.5; }
 .btn-retry { padding: 10px 24px; background-color: var(--DC-orange); color: white; border: none; border-radius: 8px; font-weight: 900; cursor: pointer; transition: background-color 0.2s; }
 .btn-retry:hover { background-color: var(--DC-brown); }

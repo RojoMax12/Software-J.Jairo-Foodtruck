@@ -42,6 +42,10 @@ const horaCotizacion = route.query.hora || '--:--'
             <span class="data-value">{{ horaCotizacion }}</span>
           </div>
         </div>
+
+        <button class="btn-home" @click="router.push('/')">
+          Volver al inicio
+        </button>
       </div>
     </main>
   </div>
@@ -63,4 +67,6 @@ const horaCotizacion = route.query.hora || '--:--'
 .data-label { color: #666; }
 .data-value { font-weight: 600; }
 .font-mono { font-family: monospace; font-size: 1.05rem; }
+.btn-home { width: 100%; margin-top: 24px; background-color: var(--DC-orange); color: white; border: none; padding: 12px 16px; border-radius: 12px; font-weight: 800; cursor: pointer; transition: all 0.2s; }
+.btn-home:hover { background-color: var(--DC-brown); transform: translateY(-1px); }
 </style>

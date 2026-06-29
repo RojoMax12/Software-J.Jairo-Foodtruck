@@ -7,7 +7,7 @@
     
     <Navbar v-else />
   </template>
-  
+  <LoadingScreen />
   <router-view/>
 
   <div class="notification-container">
@@ -31,6 +31,7 @@ import { useRoute } from 'vue-router';
 import Navbar from './components/Navbar.vue';
 import AdminNavbar from './components/GeneralNavbar.vue';
 import AdminSideMenu from './components/GeneralSideMenu.vue';
+import LoadingScreen from './components/LoadingScreen.vue';
 // 1. Importamos el estado global de notificaciones
 import { useNotification } from '@/composables/useNotification';
 
