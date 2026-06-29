@@ -189,6 +189,22 @@ const openDetails = (iceCream: any) => {
   isDetailOpen.value = true;
 };
 
+
+const getCardPrice = (product: any) => {
+  if (!product.types?.length) return "Sin precio";
+
+  const firstType = product.types[0];
+
+  const firstSize = product.sizes?.[0];
+
+  if (!firstSize) return "Sin precio";
+
+  const price = firstType.prices[firstSize];
+
+  return `$${price.toLocaleString("es-CL")}`;
+};
+
+/*
 const getCardPrice = (product: any) => {
   if (!product || !product.types || product.types.length === 0) {
     return 'Sin precio';
@@ -213,6 +229,7 @@ const getCardPrice = (product: any) => {
     ? `$${priceValue.toLocaleString('es-CL')}`
     : String(priceValue);
 };
+*/
 
 // Agregar un producto al carrito
 const addToCart = (purchaseItem: any) => {
@@ -228,8 +245,7 @@ const baseProduct = iceCreams.value.find(p => p.name === purchaseItem.name);
 
   // Buscamos un item por su ID único cuando hay exclusiones específicas.
   const existingItem = cartItems.value.find(
-    item => item.id === purchaseItem.id ||
-      (!purchaseItem.id && item.name === purchaseItem.name && item.size === purchaseItem.size)
+    item => item.id === purchaseItem.id
   );
 
   if (existingItem) {
@@ -375,71 +391,424 @@ const handleGoToLogin = () => {
 }*/
 
 const fetchIceCreams = async () => {
-  // 1. Definimos las categorías
   categoriesList.value = [
-    { id: 1, nombre_categoria: 'Completos' },
-    { id: 2, nombre_categoria: 'Pizzas' },
-    { id: 3, nombre_categoria: 'Churrascos' }
+    { id: 1, nombre_categoria: "Completos" },
+    { id: 2, nombre_categoria: "Papas" },
+    { id: 3, nombre_categoria: "Churrascos" },
+    { id: 4, nombre_categoria: "Pizzas" },
+    { id: 5, nombre_categoria: "Bebidas" }
   ];
 
-  // 2. Datos Dummy
   iceCreams.value = [
+
+    //---------------------------------------
+    // COMPLETO
+    //---------------------------------------
     {
-      id: 1,
       name: "Completo",
       category: "Completos",
-      image: "https://images.unsplash.com/photo-1627059318424-5890de49c3c7?q=80&w=400",
-      sizes: ["Normal", "XXL"],
-      activeSize: "Normal",
+      color: "#E28743",
+      image: "https://images.unsplash.com/photo-1612392062798-7c7e16d7f49f?w=900",
+      sizes: ["Normal", "XL"],
+
       types: [
+
         {
-          id: 101, name: "Italiano", desc: "Palta, tomate y mayo",
-          prices: { "Normal": 1500, "XXL": 2500 },
+          id: 101,
+          name: "Italiano",
+          desc: "Palta, tomate y mayo",
+
+          prices: {
+            Normal: 2500,
+            XL: 3300
+          },
+
           producto_ingrediente: [
-            { id: 1, ingrediente: { nombre: "Palta", disponible: true } },
-            { id: 2, ingrediente: { nombre: "Tomate", disponible: true } },
-            { id: 3, ingrediente: { nombre: "Mayo", disponible: true } }
+
+            {
+              id: 1,
+              ingrediente: {
+                nombre: "Vienesa",
+                disponible: true
+              }
+            },
+
+            {
+              id: 2,
+              ingrediente: {
+                nombre: "Palta",
+                disponible: true
+              }
+            },
+
+            {
+              id: 3,
+              ingrediente: {
+                nombre: "Tomate",
+                disponible: true
+              }
+            },
+
+            {
+              id: 4,
+              ingrediente: {
+                nombre: "Mayonesa",
+                disponible: true
+              }
+            }
+
+          ]
+        },
+
+        {
+          id: 102,
+          name: "Dinámico",
+          desc: "Palta, tomate, americana y mayo",
+
+          prices: {
+            Normal: 2700,
+            XL: 3600
+          },
+
+          producto_ingrediente: [
+
+            {
+              id: 5,
+              ingrediente: {
+                nombre: "Vienesa",
+                disponible: true
+              }
+            },
+
+            {
+              id: 6,
+              ingrediente: {
+                nombre: "Palta",
+                disponible: true
+              }
+            },
+
+            {
+              id: 7,
+              ingrediente: {
+                nombre: "Tomate",
+                disponible: true
+              }
+            },
+
+            {
+              id: 8,
+              ingrediente: {
+                nombre: "Americana",
+                disponible: true
+              }
+            },
+
+            {
+              id: 9,
+              ingrediente: {
+                nombre: "Mayonesa",
+                disponible: true
+              }
+            }
+
+          ]
+        },
+
+        {
+          id: 103,
+          name: "Luco",
+          desc: "Queso fundido",
+
+          prices: {
+            Normal: 2800,
+            XL: 3700
+          },
+
+          producto_ingrediente: [
+
+            {
+              id: 10,
+              ingrediente: {
+                nombre: "Vienesa",
+                disponible: true
+              }
+            },
+
+            {
+              id: 11,
+              ingrediente: {
+                nombre: "Queso",
+                disponible: true
+              }
+            }
+
           ]
         }
+
       ]
     },
+
+    //---------------------------------------
+    // PAPAS
+    //---------------------------------------
+
     {
-      id: 2,
-      name: "Pizza Napolitana",
-      category: "Pizzas",
-      image: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?q=80&w=400",
-      sizes: ["Mediana", "Familiar"],
-      activeSize: "Mediana",
+      name: "Papas Fritas",
+      category: "Papas",
+      color: "#F9B233",
+      image: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=900",
+
+      sizes: [
+        "Pequeña",
+        "Mediana",
+        "Grande"
+      ],
+
       types: [
+
         {
-          id: 201, name: "Peperoni", desc: "Salsa, queso y peperoni",
-          prices: { "Mediana": 6500, "Familiar": 9000 },
+          id: 201,
+          name: "Tradicional",
+          desc: "Sólo papas",
+
+          prices: {
+            Pequeña: 2500,
+            Mediana: 3500,
+            Grande: 4800
+          },
+
           producto_ingrediente: [
-            { id: 10, ingrediente: { nombre: "Salsa de Tomate", disponible: true } },
-            { id: 11, ingrediente: { nombre: "Queso Mozzarella", disponible: true } },
-            { id: 12, ingrediente: { nombre: "Peperoni", disponible: true } }
+            {
+              id: 20,
+              ingrediente: {
+                nombre: "Sal",
+                disponible: true
+              }
+            }
+          ]
+        },
+
+        {
+          id: 202,
+          name: "Papas Queso",
+          desc: "Con queso cheddar",
+
+          prices: {
+            Pequeña: 3200,
+            Mediana: 4300,
+            Grande: 5800
+          },
+
+          producto_ingrediente: [
+
+            {
+              id: 21,
+              ingrediente: {
+                nombre: "Papas",
+                disponible: true
+              }
+            },
+
+            {
+              id: 22,
+              ingrediente: {
+                nombre: "Queso Cheddar",
+                disponible: true
+              }
+            }
+
           ]
         }
+
       ]
     },
+
+    //---------------------------------------
+    // CHURRASCOS
+    //---------------------------------------
+
     {
-      id: 3,
       name: "Churrasco",
       category: "Churrascos",
-      image: "https://images.unsplash.com/photo-1553979459-d2229ba7433b?q=80&w=400",
-      sizes: ["Normal"],
-      activeSize: "Normal",
+      color: "#9C6644",
+      image: "https://images.unsplash.com/photo-1550317138-10000687a72b?w=900",
+
+      sizes: [
+        "Normal"
+      ],
+
       types: [
+
         {
-          id: 301, name: "Barros Luco", desc: "Churrasco y queso fundido",
-          prices: { "Normal": 4500 },
+          id: 301,
+          name: "Barros Luco",
+          desc: "Queso fundido",
+
+          prices: {
+            Normal: 6500
+          },
+
           producto_ingrediente: [
-            { id: 50, ingrediente: { nombre: "Churrasco", disponible: true } },
-            { id: 51, ingrediente: { nombre: "Queso Fundido", disponible: true } }
+
+            {
+              id: 30,
+              ingrediente: {
+                nombre: "Carne",
+                disponible: true
+              }
+            },
+
+            {
+              id: 31,
+              ingrediente: {
+                nombre: "Queso",
+                disponible: true
+              }
+            }
+
+          ]
+        },
+
+        {
+          id: 302,
+          name: "Italiano",
+          desc: "Palta, tomate y mayo",
+
+          prices: {
+            Normal: 6900
+          },
+
+          producto_ingrediente: [
+
+            {
+              id: 32,
+              ingrediente: {
+                nombre: "Carne",
+                disponible: true
+              }
+            },
+
+            {
+              id: 33,
+              ingrediente: {
+                nombre: "Palta",
+                disponible: true
+              }
+            },
+
+            {
+              id: 34,
+              ingrediente: {
+                nombre: "Tomate",
+                disponible: true
+              }
+            },
+
+            {
+              id: 35,
+              ingrediente: {
+                nombre: "Mayonesa",
+                disponible: true
+              }
+            }
+
           ]
         }
+
+      ]
+    },
+
+    //---------------------------------------
+    // PIZZA
+    //---------------------------------------
+
+    {
+      name: "Pizza",
+      category: "Pizzas",
+      color: "#D1495B",
+      image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=900",
+
+      sizes: [
+        "Mediana",
+        "Familiar"
+      ],
+
+      types: [
+
+        {
+          id: 401,
+          name: "Napolitana",
+          desc: "Jamón, tomate",
+
+          prices: {
+            Mediana: 8900,
+            Familiar: 11900
+          },
+
+          producto_ingrediente: [
+
+            {
+              id: 40,
+              ingrediente: {
+                nombre: "Jamón",
+                disponible: true
+              }
+            },
+
+            {
+              id: 41,
+              ingrediente: {
+                nombre: "Tomate",
+                disponible: true
+              }
+            },
+
+            {
+              id: 42,
+              ingrediente: {
+                nombre: "Queso",
+                disponible: true
+              }
+            }
+
+          ]
+        },
+
+        {
+          id: 402,
+          name: "Pepperoni",
+          desc: "Pepperoni extra",
+
+          prices: {
+            Mediana: 9500,
+            Familiar: 12500
+          },
+
+          producto_ingrediente: [
+
+            {
+              id: 43,
+              ingrediente: {
+                nombre: "Pepperoni",
+                disponible: true
+              }
+            },
+
+            {
+              id: 44,
+              ingrediente: {
+                nombre: "Queso",
+                disponible: true
+              }
+            }
+
+          ]
+        }
+
       ]
     }
+
   ];
 };
 
