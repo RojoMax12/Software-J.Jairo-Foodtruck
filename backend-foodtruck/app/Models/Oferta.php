@@ -21,7 +21,7 @@ class Oferta extends Model
     ];
 
     protected $casts = [
-        'precio_oferta' => 'Integer',
+        'precio_oferta' => 'integer',
         'fecha'         => 'datetime',
     ];
 

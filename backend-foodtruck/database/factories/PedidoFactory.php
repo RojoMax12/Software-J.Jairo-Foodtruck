@@ -2,7 +2,10 @@
 
 namespace Database\Factories;
 
+use App\Models\Estado_pago;
+use App\Models\Estado_pedido;
 use App\Models\Pedido;
+use App\Models\Usuario;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -10,25 +13,20 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class PedidoFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
-
-        'id_usuario' => $this->faker->numberBetween(1, 10),
-        'id_estado_pedido' => $this->faker->numberBetween(1, 5),
-        'id_estado_pago' => $this->faker->numberBetween(1, 3),
-        'numero_pedido_dia' => $this->faker->numberBetween(1, 100),
-        'nombre_persona' => $this->faker->name(),
-        'numero_telefono' => $this->faker->phoneNumber(),
-        'metodo_pago' => $this->faker->randomElement(['efectivo', 'tarjeta', 'transferencia']),
-        'fecha_de_pago' => $this->faker->dateTimeBetween('-1 month', 'now'),
-        'fecha' => $this->faker->dateTimeBetween('-1 month', 'now'),
-        'total' => $this->faker->randomFloat(2, 10, 500),
-        'nota' => $this->faker->sentence(),];
+            'id_usuario' => Usuario::inRandomOrder()->first()?->getKey() ?? Usuario::factory(),
+            'id_estado_pedido' => Estado_pedido::inRandomOrder()->first()?->getKey() ?? Estado_pedido::factory(),
+            'id_estado_pago' => Estado_pago::inRandomOrder()->first()?->getKey() ?? Estado_pago::factory(),
+            'numero_pedido_dia' => $this->faker->numberBetween(1, 100),
+            'nombre_persona' => $this->faker->name(),
+            'numero_telefono' => $this->faker->phoneNumber(),
+            'metodo_pago' => $this->faker->randomElement(['efectivo', 'tarjeta', 'transferencia']),
+            'fecha_de_pago' => $this->faker->dateTimeBetween('-1 month', 'now'),
+            'fecha' => $this->faker->dateTimeBetween('-1 month', 'now'),
+            'total' => $this->faker->numberBetween(1000, 100000),
+            'notas' => $this->faker->sentence(),
+        ];
     }
 }

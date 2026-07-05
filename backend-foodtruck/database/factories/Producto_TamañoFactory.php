@@ -2,7 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Models\Producto;
 use App\Models\Producto_Tamaño;
+use App\Models\Tamaño;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -10,18 +12,12 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class Producto_TamañoFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
-            'id_producto' => $this->faker->numberBetween(1, 10),
-            'id_tamaño' => $this->faker->numberBetween(1, 10),
-            'precio' => $this->faker->randomFloat(2, 1, 100),
-            //
+            'id_producto' => Producto::inRandomOrder()->first()?->getKey() ?? Producto::factory(),
+            'id_tamaño' => Tamaño::inRandomOrder()->first()?->getKey() ?? Tamaño::factory(),
+            'precio' => $this->faker->numberBetween(1000, 10000),
         ];
     }
 }

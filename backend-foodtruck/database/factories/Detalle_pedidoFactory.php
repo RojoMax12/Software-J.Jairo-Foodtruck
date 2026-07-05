@@ -3,6 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Detalle_Pedido;
+use App\Models\Pedido;
+use App\Models\Producto;
+use App\Models\Tamaño;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -10,20 +13,14 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class Detalle_pedidoFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
-            'id_producto' => $this->faker->numberBetween(1, 10),
-            'id_pedido' => $this->faker->numberBetween(1, 10),
-            'id_tamaño' => $this->faker->numberBetween(1, 10),
+            'id_producto' => Producto::inRandomOrder()->first()?->getKey() ?? Producto::factory(),
+            'id_pedido' => Pedido::inRandomOrder()->first()?->getKey() ?? Pedido::factory(),
+            'id_tamaño' => Tamaño::inRandomOrder()->first()?->getKey() ?? Tamaño::factory(),
             'cantidad' => $this->faker->numberBetween(1, 5),
-            'precio_unitario' => $this->faker->randomFloat(2, 1, 100),
-            //  
+            'precio_unitario' => $this->faker->numberBetween(100, 1000),
         ];
     }
 }

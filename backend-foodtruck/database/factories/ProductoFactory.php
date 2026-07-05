@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Categoria;
 use App\Models\Producto;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -10,20 +11,15 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class ProductoFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
-            'nombre' => $this->faker->word(),
-            'precio_ingrediente_extra' => $this->faker->randomFloat(2, 0, 10),
-            'tipo_armado' => $this->faker->randomElement(['personalizado', 'predeterminado']),
-            'cantidad_incluida' => $this->faker->numberBetween(1, 5),
-            'id_categoria' => $this->faker->numberBetween(1, 10),
+            'nombre' => $this->faker->words(2, true),
             'descripcion' => $this->faker->sentence(),
+            'tipo_armado' => $this->faker->randomElement(['predeterminado', 'personalizado']),
+            'cantidad_incluida' => $this->faker->numberBetween(1, 5),
+            'precio_ingrediente_extra' => $this->faker->numberBetween(1000, 5000),
+            'id_categoria' => Categoria::inRandomOrder()->first()?->getKey() ?? Categoria::factory(),
         ];
     }
 }

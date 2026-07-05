@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Rol;
 use App\Models\Usuario;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -10,15 +11,10 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class UsuarioFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
-            'id_rol' => $this->faker->numberBetween(1, 10),
+            'id_rol' => Rol::inRandomOrder()->first()?->getKey() ?? Rol::factory(),
             'nombre' => $this->faker->name(),
             'estado' => $this->faker->boolean(),
             'contrasena' => $this->faker->password(),

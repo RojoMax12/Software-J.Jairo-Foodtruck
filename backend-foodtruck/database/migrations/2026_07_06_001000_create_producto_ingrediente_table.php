@@ -9,6 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('producto_ingrediente', function (Blueprint $table) {
+            $table->id();
             $table->unsignedBigInteger('id_producto');
             $table->unsignedBigInteger('id_ingrediente');
             $table->boolean('incluido_por_defecto')->default(true);

@@ -12,7 +12,7 @@ use App\Models\Horario_atencion;
 use App\Models\Ingrediente;
 use App\Models\Movimientos;
 use App\Models\Oferta;
-use App\Models\OfertaProducto;
+use App\Models\Oferta_producto;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\Producto_Tamaño;
@@ -27,9 +27,6 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->call([
-            RolSeeder::class,
-        ]);
 
         $roles = ['Admin', 'Cliente', 'Trabajador'];
         foreach ($roles as $rol) {
@@ -72,7 +69,7 @@ class DatabaseSeeder extends Seeder
             Usuario::firstOrCreate(
                 ['correo' => 'admin@foodtruck.test'],
                 [
-                    'id_rol' => $adminRole->id,
+                    'id_rol' => $adminRole->id_rol,
                     'nombre' => 'Administrador',
                     'estado' => true,
                     'contrasena' => bcrypt('Admin1234'),
@@ -87,7 +84,7 @@ class DatabaseSeeder extends Seeder
         Ingrediente::factory(12)->create();
         Producto_ingrediente::factory(20)->create();
         Oferta::factory(6)->create();
-        OfertaProducto::factory(10)->create();
+        Oferta_producto::factory(10)->create();
         Pedido::factory(15)->create();
         Venta::factory(10)->create();
         Detalle_Pedido::factory(20)->create();
@@ -125,24 +122,23 @@ class DatabaseSeeder extends Seeder
                     'precio_ingrediente_extra' => 1000,
                     'tipo_armado' => 'predeterminado',
                     'cantidad_incluida' => 1,
-                    'id_categoria' => $categoria->id,
+                    'id_categoria' => $categoria->id_categoria,
                     'descripcion' => $productoData['descripcion'],
                 ]
             );
 
             foreach ($tamañosDisponibles as $tamaño) {
-                ProductoTamaño::firstOrCreate(
+                // Antes: ProductoTamaño (clase inexistente) y $tamaño->id (la PK real es id_tamaño).
+                Producto_Tamaño::firstOrCreate(
                     [
-                        'id_producto' => $producto->id,
-                        'id_tamaño' => $tamaño->id,
+                        'id_producto' => $producto->id_producto,
+                        'id_tamaño' => $tamaño->id_tamaño,
                     ],
                     [
-                        'precio' => $productoData['precio'] + ($tamaño->id * 500),
+                        'precio' => $productoData['precio'] + ($tamaño->id_tamaño * 500),
                     ]
                 );
             }
         }
     }
 }
-
-

@@ -15,6 +15,7 @@ return new class extends Migration
             $table->integer('precio_oferta');
             $table->string('tipo');
             $table->dateTime('fecha');
+            $table->string('dia_semana');
             $table->timestamps();
 
             $table->foreign('id_productos')->references('id_producto')->on('productos')->onDelete('restrict');
