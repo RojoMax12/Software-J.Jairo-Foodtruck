@@ -4,11 +4,11 @@
       <AdminNavbar @toggleSidebar="toggleAdminSidebar" />
       <AdminSideMenu :isOpen="isAdminSidebarOpen" @close="isAdminSidebarOpen = false" />
     </template>
-    
     <Navbar v-else />
   </template>
-  <LoadingScreen />
-  <router-view/>
+
+  <GlobalLoader />
+  <router-view v-if="!globalLoading"/>
 
   <div class="notification-container">
     <TransitionGroup name="toast">
@@ -17,7 +17,7 @@
         :key="notification.id" 
         :class="['toast-card', `toast-${notification.type}`]"
       >
-        <span class="toast-icon">{{ notification.type === 'success' ? '✅' : '❌' }}</span>
+        <span class="toast-icon">{{ getIcon(notification.type) }}</span>
         <span class="toast-text">{{ notification.message }}</span>
       </div>
     </TransitionGroup>
@@ -31,9 +31,11 @@ import { useRoute } from 'vue-router';
 import Navbar from './components/Navbar.vue';
 import AdminNavbar from './components/GeneralNavbar.vue';
 import AdminSideMenu from './components/GeneralSideMenu.vue';
-import LoadingScreen from './components/LoadingScreen.vue';
+import GlobalLoader from './components/LoadingScreen.vue';
 // 1. Importamos el estado global de notificaciones
 import { useNotification } from '@/composables/useNotification';
+import { globalLoading } from '@/composables/useLoading';
+
 
 const route = useRoute();
 // 2. Extraemos el arreglo de notificaciones reactivas
@@ -43,6 +45,12 @@ const isAdminSidebarOpen = ref(false);
 
 const toggleAdminSidebar = () => {
   isAdminSidebarOpen.value = !isAdminSidebarOpen.value;
+};
+
+const getIcon = (type: string) => {
+  if (type === 'success') return '✅';
+  if (type === 'warning') return '⚠️';
+  return '❌';
 };
 </script>
 

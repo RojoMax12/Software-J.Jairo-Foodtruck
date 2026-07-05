@@ -33,7 +33,7 @@ const isActive = (path: string) => {
       <aside v-if="isOpen" class="admin-sidebar">
         <div class="sidebar-header">
           <div class="brand-group">
-            <img src="@/assets/logo_jairo.png" alt="Logo" class="sidebar-logo" />
+            <img src="@/assets/logo_jairo.webp" alt="Logo" class="sidebar-logo" />
             <span class="brand-name">J.Junior</span>
           </div>
           <button class="btn-close" @click="emit('close')">

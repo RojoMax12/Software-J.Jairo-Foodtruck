@@ -19,111 +19,138 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: LoginView,
-      meta: { hideNavbar: true }
+      meta: { hideNavbar: true, useLoader: true }
     },
     {
       path: '/register',
       name: 'register',
       component: RegisterView,
-      meta: { hideNavbar: true }
+      meta: { hideNavbar: true, useLoader: true }
     },
     {
       path: '/forgot-password',
       name: 'forgot-password',
       component: ForgotPasswordView,
-      meta: { hideNavbar: true }
+      meta: { hideNavbar: true, useLoader: true }
     },
     {
       path: '/general-home',
       name: 'General-home',
-      component: () => import('../views/Operations/GeneralHomeView.vue')
+      component: () => import('../views/Operations/GeneralHomeView.vue'),
+      meta: {useLoader: true}
     },
 
     {
       path: '/checkorderstatus',
       name: 'checkorderstatus',
-      component: () => import('../views/Operations/CheckOrderStatus.vue')
+      component: () => import('../views/Operations/CheckOrderStatus.vue'),
+      meta: {useLoader: true}
     },
   
     {
       path: '/general-home/orders',
       name: 'general-home-orders',
-      component: () => import('../views/Operations/Orders.vue')
+      component: () => import('../views/Operations/Orders.vue'),
+      meta: {useLoader: true}
     },
     {
       path: '/general-home/generate-quote',
       name: 'general-home-generate-quote',
-      component: () => import('../views/Operations/GenerateQuoteView.vue')
+      component: () => import('../views/Operations/GenerateQuoteView.vue'),
+      meta: {useLoader: true}
     },
 
     {
       path: '/general-home/inventory',
       name: 'general-home-inventory',
-      component: () => import('../views/Operations/InventoryView.vue')
+      component: () => import('../views/Operations/InventoryView.vue'),
+      meta: {useLoader: true}
     },
 
     {
       path: '/general-home/admin/cash-flow',
       name: 'general-home-admin-cash-flow',
-      component: () => import('../views/Admin/CashFlowView.vue')
+      component: () => import('../views/Admin/CashFlowView.vue'),
+      meta: {useLoader: true}
     },
 
     {
       path: '/general-home/admin/product',
       name: 'general-home-admin-product',
-      component: () => import('../views/Admin/ProductView.vue')
+      component: () => import('../views/Admin/ProductView.vue'),
+      meta: {useLoader: true}
     },
 
     {
       path: '/general-home/admin/worker',
       name: 'general-home-admin-worker',
-      component: () => import('../views/Admin/WorkerView.vue')
+      component: () => import('../views/Admin/WorkerView.vue'),
+      meta: {useLoader: true}
     },
 
     {
       path: '/cotizacion',
       name: 'quotation',
-      component: () => import('../views/Checkout/QuotationView.vue')
+      component: () => import('../views/Checkout/QuotationView.vue'),
+      meta: {useLoader: true}
     },
     {
       path: '/cotizacion-exitosa',
       name: 'CotizacionExitosa',
-      component: () => import('@/views/Checkout/SuccesfulQuotationView.vue')
+      component: () => import('@/views/Checkout/SuccesfulQuotationView.vue'),
+      meta: {useLoader: true}
     },
     {
       path: '/mis-cotizaciones',
       name: 'my-quotations',
-      component: () => import('@/views/Distributor/MyQuotationsView.vue')
+      component: () => import('@/views/Distributor/MyQuotationsView.vue'),
+      meta: {useLoader: true}
     },
     {
     path: '/cotizacion/:id', 
     name: 'quotation-detail',
     component: () => import('@/views/Distributor/QuotationDetailView.vue'),
+    meta: {useLoader: true}
     },
     {
       path: '/mis-pedidos',
       name: 'my-orders',
-      component: () => import('@/views/Distributor/MyOrdersView.vue')
+      component: () => import('@/views/Distributor/MyOrdersView.vue'),
+      meta: {useLoader: true}
     },
     {
       path: '/pedido/:id', 
       name: 'order-detail',
       component: () => import('@/views/Distributor/OrderDetailView.vue'),
+      meta: {useLoader: true}
     }
   ],
 });
 
+// router/index.ts
 router.beforeEach((to, from, next) => {
-  globalLoading.value = true;
-  next();
+  // Solo activamos si la ruta lo requiere
+  if (to.meta.useLoader) {
+    globalLoading.value = true;
+  }
+  
+  // Usamos un pequeño retraso para asegurar que Vue procese el estado "true"
+  // antes de renderizar la nueva ruta
+  setTimeout(() => {
+    next();
+  }, 50); 
 });
 
-// Cuando la página ya cargó, la apagamos (con un pequeño retraso intencional)
-router.afterEach(() => {
-  // Como pediste que "no se vea tan inmediato", agregamos 500ms de gracia
-  setTimeout(() => {
+router.afterEach((to) => {
+  // Si la ruta no usa loader, aseguramos que esté apagado
+  if (!to.meta.useLoader) {
     globalLoading.value = false;
-  }, 500); 
+  } else {
+    // Si la ruta sí usa loader, apagamos después de un tiempo
+    setTimeout(() => {
+      globalLoading.value = false;
+    }, 600);
+  }
 });
 
 

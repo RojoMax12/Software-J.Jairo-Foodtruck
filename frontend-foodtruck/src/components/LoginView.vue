@@ -8,21 +8,21 @@
           <span>Volver</span>
         </div>
         <div class="logo-section">
-          <img src="../assets/logo_jairo.png" alt="J.Jairo Logo" class="logo" />
+          <img src="../assets/logo_jairo.webp" alt="J.Jairo Logo" class="logo" />
         </div>
 
         <div class="divider"></div>
 
         <div class="form-section">
-          <!-- Mensaje de Error -->
+
           <div v-if="errorMessage" class="error-banner">
             {{ errorMessage }}
           </div>
 
           <div class="input-group">
             <input 
-              v-model="username" 
-              placeholder="Usuario" 
+              v-model="correo" 
+              placeholder="Correo" 
               class="custom-input"
               :disabled="isLoading"
             />
@@ -51,6 +51,14 @@
           >
             {{ isLoading ? 'INGRESANDO...' : 'INGRESAR' }}
           </button>
+
+          <router-link to="/forgot-password" class="forgot-password">
+            ¿Olvidaste tu contraseña?
+          </router-link>
+
+          <router-link to="/register" style="width: 100%;">
+            <button class="btn btn-secondary" :disabled="isLoading">CREA TU CUENTA</button>
+          </router-link>
         </div>
       </div>
     </div>
@@ -66,7 +74,7 @@ import { useRouter } from 'vue-router'
 import { authService } from '../services/authService'
 
 const router = useRouter()
-const username = ref('')
+const correo = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const isLoading = ref(false)

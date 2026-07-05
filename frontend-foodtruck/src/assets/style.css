@@ -48,6 +48,7 @@ html, body {
   overflow-x: hidden; 
   width: 100%;
   position: relative; 
+  
 }
 
 /* 3. Las imágenes nunca deben salirse de su contenedor (Esto reemplaza tu antigua regla) */

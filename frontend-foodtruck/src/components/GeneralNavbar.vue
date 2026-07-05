@@ -6,7 +6,7 @@
       </button>
       
       <div class="brand-group" @click="goToHome">
-        <img src="@/assets/logo_jairo.png" alt="J.jairo logo" class="brand-logo" />
+        <img src="@/assets/logo_jairo.webp" alt="J.jairo logo" class="brand-logo" />
         <div class="brand-info">
           <span class="brand-text">J.Junior</span>
         </div>
@@ -76,13 +76,7 @@ const handleLogout = () => {
 
 // Enrutamiento dinámico al presionar el logo
 const goToHome = () => {
-  if (roleId.value == 1) {
-    router.push('/admin')
-  } else if (roleId.value == 2) {
-    router.push('/trabajador') // Cambia esto por la ruta real de tu panel de trabajadores
-  } else {
-    router.push('/')
-  }
+    router.push('/general-home')
 }
 
 const toggleSidebar = () => {
@@ -155,12 +149,15 @@ const toggleSidebar = () => {
   color: #ffffff;
   font-family: 'Arial Black', Impact, sans-serif;
   font-style: italic;
-  font-size: clamp(1.2rem, 3vw, 2.5rem); /* Ajustado para que en celular no se desborde */
-  font-weight: 900;
+  font-size: clamp(1.2rem, 3vw, 2.5rem); 
+  font-weight: 800;
   letter-spacing: 1px;
   text-transform: uppercase;
   margin: 0;
   white-space: nowrap;
+  
+  padding-right: 8px; 
+
   text-shadow: 
     -2px -2px 0 #000,  2px -2px 0 #000, -2px  2px 0 #000,  2px  2px 0 #000,
     5px  5px 0px rgba(0, 0, 0, 0.4);
@@ -229,19 +226,34 @@ const toggleSidebar = () => {
     height: 70px;
   }
   
-  .nav-left { gap: 8px; }
-  .brand-group { gap: 6px; }
-  .brand-logo { height: 35px; } /* Un poquito más chico para asegurar espacio */
+  .nav-left { 
+    gap: 6px; /* Bajamos de 8px a 6px */
+    max-width: 60%; /* Evita que la izquierda intente tomar toda la pantalla */
+  } 
   
-  .nav-right { gap: 8px; }
+  .brand-group { 
+    gap: 4px; /* Bajamos de 6px a 4px */
+  } 
+  
+  .brand-logo { 
+    height: 35px; 
+  }
+  
+  /* Ocultamos el contenedor de la info de texto de la marca si la pantalla es diminuta */
+  .brand-info {
+    min-width: 0; 
+  }
+  
+  .nav-right { 
+    gap: 6px; 
+  }
   
   .user-details { display: none; } 
   
-  /* 🌟 CORRECCIÓN AQUÍ: El contenedor de sesión en móvil */
   .session-display {
-    padding: 6px; /* Padding uniforme */
+    padding: 6px;
     border-radius: 50%;
-    width: 40px;  /* Forzamos tamaño cuadrado/circular */
+    width: 40px;  
     height: 40px;
     display: flex;
     justify-content: center;
@@ -250,9 +262,16 @@ const toggleSidebar = () => {
   }
 
   .user-avatar {
-    width: 100%; /* Ocupa el espacio del círculo */
+    width: 100%;
     height: 100%;
     margin: 0;
+  }
+
+  /* 🌟 NUEVA PROTECCIÓN EXTRA PARA PANTALLAS MENORES A 360px */
+  @media (max-width: 360px) {
+    .brand-logo {
+      display: none; /* Escondemos el logo de imagen para priorizar la lectura de "J.Junior" */
+    }
   }
 }
 </style>

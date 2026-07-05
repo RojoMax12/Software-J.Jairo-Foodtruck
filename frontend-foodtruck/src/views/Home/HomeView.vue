@@ -74,9 +74,9 @@ import categoryService from '@/services/productCategoryService';
 import productService from '@/services/productService';
 import Footer from '@/components/Footer.vue'
 import Carousel from '@/components/Carousel.vue';
-import imgBanner1 from '@/assets/banner1.png'
-import imgBanner2 from '@/assets/banner2.png'
-import imgBanner3 from '@/assets/banner3.png'
+import imgBanner1 from '@/assets/banner1.webp'
+import imgBanner2 from '@/assets/banner2.webp'
+import imgBanner3 from '@/assets/banner3.webp'
 
 
 

@@ -3,7 +3,7 @@
     <nav class="dc-navbar">
       <div class="nav-left">
         <div class="brand-group" @click="goToHome">
-          <img src="@/assets/logo_jairo.png" alt="Di Creme Logo" class="brand-logo" />
+          <img src="@/assets/logo_jairo.webp" alt="Di Creme Logo" class="brand-logo" />
           <div class="brand-info">
             <span class="brand-text">J. Junior</span>
           </div>

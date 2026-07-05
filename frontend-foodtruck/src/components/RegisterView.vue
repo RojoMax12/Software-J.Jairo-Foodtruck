@@ -129,165 +129,83 @@ const goToLogin = () => {
   <div class="register-container">
     <div class="register-wrapper">
       <div class="back-button" @click="goBack" v-if="!showSuccessModal">
-        <ArrowLeft :size="24" color="#e4869f" />
+        <ArrowLeft :size="24" color="var(--DC-orange)" />
         <span>Volver</span>
       </div>
 
       <div class="register-card">
         <div class="logo-section">
-          <img src="../assets/logo_dicreme.png" alt="DiCreme Logo" class="logo" />
+          <img src="../assets/logo_jairo.webp" alt="J.Jairo Logo" class="logo" />
         </div>
-        
+
         <div class="divider"></div>
 
         <div class="form-section">
-          <!-- Mensaje de Error -->
+          <div class="page-title">Crea tu cuenta</div>
+
           <div v-if="errorMessage" class="error-banner">
             {{ errorMessage }}
           </div>
 
-          <!-- Fila 1: RUT Empresa -->
           <div class="input-group">
-            <input 
-              v-model="form.rut_empresa" 
-              type="text" 
-              placeholder="RUT Empresa" 
+            <input
+              v-model="form.correo_electronico"
+              type="email"
+              placeholder="Correo electrónico"
               class="custom-input"
               :disabled="isLoading"
             />
-            <Fingerprint class="input-icon" :size="20" color="#322c44" />
+            <Mail class="input-icon" :size="20" />
           </div>
 
-          <!-- Fila 2: Nombre de Empresa -->
-          <div class="input-group">
-            <input 
-              v-model="form.nombre_empresa" 
-              type="text" 
-              placeholder="Nombre de Empresa" 
-              class="custom-input"
-              :disabled="isLoading"
-            />
-            <Building2 class="input-icon" :size="20" color="#322c44" />
-          </div>
-
-          <!-- Fila 3: Correo electrónico -->
-          <div class="input-group">
-            <input 
-              v-model="form.correo_electronico" 
-              type="email" 
-              placeholder="Correo electrónico" 
-              class="custom-input"
-              :disabled="isLoading"
-            />
-            <Mail class="input-icon" :size="20" color="#322c44" />
-          </div>
-
-          <!-- Fila 4: Teléfono -->
           <div class="input-group">
             <div class="phone-input-wrapper">
               <div class="phone-prefix-outside">+56</div>
               <div class="phone-input-container">
-                <input 
-                  v-model="form.telefono" 
-                  type="tel" 
-                  placeholder="Teléfono" 
+                <input
+                  v-model="form.telefono"
+                  type="tel"
+                  placeholder="Teléfono"
                   class="custom-input phone-input"
                   maxlength="9"
                   :disabled="isLoading"
                 />
-                <Phone class="input-icon" :size="20" color="#322c44" />
+                <Phone class="input-icon" :size="20" />
               </div>
             </div>
           </div>
 
-          <!-- Fila 5: Comuna | Dirección -->
-          <div class="input-row">
-            <div class="input-group half custom-dropdown-container">
-              <div 
-                class="custom-input clickable-input" 
-                :class="{ 'disabled-input': isLoading, 'placeholder-text': !form.comuna }"
-                @click.stop="!isLoading && toggleDropdown()"
-              >
-                <span>
-                  {{ form.comuna || 'Comuna' }}
-                </span>
-                <ChevronDown class="input-icon" :size="20" color="#322c44" :class="{ 'rotated': isDropdownOpen }" />
-              </div>
-              
-              <!-- Dropdown Menu -->
-              <div v-if="isDropdownOpen" class="dropdown-menu">
-                <div class="search-inner" @click.stop>
-                  <Search :size="16" class="inner-search-icon" />
-                  <input 
-                    v-model="searchQuery" 
-                    type="text" 
-                    placeholder="Buscar comuna..." 
-                    class="inner-search-input"
-                    autofocus
-                  />
-                  <X v-if="searchQuery" :size="16" class="clear-icon" @click="searchQuery = ''" />
-                </div>
-                <div class="options-list">
-                  <div 
-                    v-for="comuna in filteredComunas" 
-                    :key="comuna" 
-                    class="option-item"
-                    :class="{ 'selected': form.comuna === comuna }"
-                    @click="selectComuna(comuna)"
-                  >
-                    {{ comuna }}
-                  </div>
-                  <div v-if="filteredComunas.length === 0" class="no-results">
-                    No se encontraron resultados
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            <div class="input-group half">
-              <input 
-                v-model="form.direccion" 
-                type="text" 
-                placeholder="Dirección" 
-                class="custom-input"
-                :disabled="isLoading"
-              />
-              <MapPin class="input-icon" :size="20" color="#322c44" />
-            </div>
-          </div>
-          
-          <!-- Fila 6: Contraseña -->
           <div class="input-group">
-            <input 
-              v-model="form.contrasena" 
-              :type="showPassword ? 'text' : 'password'" 
-              placeholder="Contraseña" 
+            <input
+              v-model="form.contrasena"
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="Contraseña"
               class="custom-input"
               :disabled="isLoading"
             />
             <div class="icon-wrapper" @click="showPassword = !showPassword">
-              <Eye v-if="!showPassword" class="input-icon clickable" :size="20" color="#322c44" />
-              <EyeOff v-else class="input-icon clickable" :size="20" color="#322c44" />
+              <Eye v-if="!showPassword" class="input-icon clickable" :size="20" />
+              <EyeOff v-else class="input-icon clickable" :size="20" />
             </div>
           </div>
 
-          <!-- Fila 7: Confirmar Contraseña -->
           <div class="input-group">
-            <input 
-              v-model="form.confirmPassword" 
-              :type="showConfirmPassword ? 'text' : 'password'" 
-              placeholder="Confirmar contraseña" 
+            <input
+              v-model="form.confirmPassword"
+              :type="showConfirmPassword ? 'text' : 'password'"
+              placeholder="Confirmar contraseña"
               class="custom-input"
               :disabled="isLoading"
             />
             <div class="icon-wrapper" @click="showConfirmPassword = !showConfirmPassword">
-              <Eye v-if="!showConfirmPassword" class="input-icon clickable" :size="20" color="#322c44" />
-              <EyeOff v-else class="input-icon clickable" :size="20" color="#322c44" />
+              <Eye v-if="!showConfirmPassword" class="input-icon clickable" :size="20" />
+              <EyeOff v-else class="input-icon clickable" :size="20" />
             </div>
           </div>
 
-          <button 
-            @click="handleRegister" 
+          <button
+            @click="handleRegister"
             class="btn btn-primary"
             :disabled="isLoading"
           >
@@ -297,7 +215,6 @@ const goToLogin = () => {
       </div>
     </div>
 
-    <!-- Success Modal -->
     <SuccessAccountModal
       v-if="showSuccessModal"
       @accept="goToLogin"
@@ -311,15 +228,16 @@ const goToLogin = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #eeedee;
-  font-family: sans-serif;
-  padding: 2rem 0;
+  background-color: var(--DC-bg-gray);
+  font-family: var(--font-main);
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 .register-wrapper {
   position: relative;
   width: 100%;
-  max-width: 450px;
+  max-width: 460px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -327,31 +245,33 @@ const goToLogin = () => {
 
 .back-button {
   position: absolute;
-  left: -6.5rem;
-  top: 0;
+  left: 20px;
+  top: 20px;
   display: flex;
-  flex-direction: column;
   align-items: center;
+  gap: 5px;
   cursor: pointer;
-  color: #e4869f;
-  font-weight: bold;
+  color: var(--DC-orange);
+  font-weight: 800;
+  font-size: 0.9rem;
   transition: all 0.2s ease;
+  z-index: 10;
 }
 
 .back-button:hover {
   transform: translateX(-5px);
-}
-
-.back-button span {
-  margin-top: 0.5rem;
+  color: var(--DC-brown);
 }
 
 .register-card {
+  position: relative;
   background-color: white;
-  padding: 2rem;
+  padding: 3rem 2rem 2rem 2rem;
   border-radius: 1.5rem;
   width: 100%;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid #eeedee;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -372,28 +292,37 @@ const goToLogin = () => {
 .divider {
   width: 80%;
   height: 2px;
-  background-color: #e4869f;
-  margin-bottom: 2rem;
+  background-color: var(--DC-brown);
+  margin-bottom: 1.5rem;
+  opacity: 0.2;
 }
 
 .form-section {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
   align-items: center;
+}
+
+.page-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--DC-gray);
+  margin-bottom: 0.25rem;
 }
 
 .error-banner {
   width: 100%;
   padding: 0.75rem 1rem;
-  background-color: #fff5f5;
-  border: 1px solid #fa5252;
+  background-color: #fff0f3;
+  border: 2px solid var(--DC-pink);
   border-radius: 0.75rem;
-  color: #fa5252;
+  color: var(--DC-pink);
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 800;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .input-row {
@@ -415,11 +344,13 @@ const goToLogin = () => {
 
 .custom-input {
   width: 100%;
-  padding: 0.75rem 2.5rem 0.75rem 1rem;
-  background-color: #e6e6e6;
-  border: 1px solid #e4869f;
+  padding: 0.9rem 2.5rem 0.9rem 1.2rem;
+  background-color: #fcfbf9;
+  border: 2px solid #eeedee;
   border-radius: 0.75rem;
   font-size: 1rem;
+  font-weight: 600;
+  color: var(--DC-gray);
   outline: none;
   box-sizing: border-box;
   transition: all 0.2s;
@@ -427,7 +358,8 @@ const goToLogin = () => {
 
 .custom-input:focus {
   background-color: #fff;
-  box-shadow: 0 0 0 3px rgba(228, 134, 159, 0.2);
+  border-color: var(--DC-orange);
+  box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.2);
 }
 
 .disabled-input {
@@ -436,16 +368,16 @@ const goToLogin = () => {
 }
 
 .custom-input::placeholder {
-  color: #9793a0;
+  color: var(--DC-text-gray);
+  font-weight: 500;
 }
 
 .custom-select {
   appearance: none;
   cursor: pointer;
-  color: #322c44;
+  color: var(--DC-gray);
 }
 
-/* Phone Prefix Styles */
 .phone-input-wrapper {
   display: flex;
   align-items: center;
@@ -454,12 +386,12 @@ const goToLogin = () => {
 }
 
 .phone-prefix-outside {
-  background-color: #e6e6e6;
-  border: 1px solid #e4869f;
+  background-color: #fcfbf9;
+  border: 2px solid #eeedee;
   border-radius: 0.75rem;
-  padding: 0.75rem 0.8rem;
-  font-weight: 600;
-  color: #e4869f;
+  padding: 0.9rem 0.8rem;
+  font-weight: 700;
+  color: var(--DC-orange);
   font-size: 1rem;
   user-select: none;
   min-width: 55px;
@@ -477,7 +409,6 @@ const goToLogin = () => {
   padding-left: 1rem !important;
 }
 
-/* Custom Dropdown Styles */
 .custom-dropdown-container {
   position: relative;
 }
@@ -490,7 +421,7 @@ const goToLogin = () => {
 }
 
 .placeholder-text {
-  color: #9793a0 !important;
+  color: var(--DC-text-gray) !important;
 }
 
 .rotated {
@@ -503,7 +434,7 @@ const goToLogin = () => {
   left: 0;
   width: 100%;
   background-color: white;
-  border: 1px solid #e4869f;
+  border: 1px solid var(--DC-orange);
   border-radius: 1rem;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
   z-index: 1000;
@@ -528,7 +459,7 @@ const goToLogin = () => {
 }
 
 .inner-search-icon {
-  color: #e4869f;
+  color: var(--DC-orange);
 }
 
 .inner-search-input {
@@ -537,12 +468,12 @@ const goToLogin = () => {
   outline: none;
   font-size: 0.95rem;
   width: 100%;
-  color: #322c44;
+  color: var(--DC-gray);
   font-weight: 500;
 }
 
 .clear-icon {
-  color: #9793a0;
+  color: var(--DC-text-gray);
   cursor: pointer;
   padding: 2px;
   border-radius: 50%;
@@ -568,7 +499,7 @@ const goToLogin = () => {
 }
 
 .options-list::-webkit-scrollbar-thumb {
-  background: #e4869f;
+  background: var(--DC-orange);
   border-radius: 10px;
 }
 
@@ -584,12 +515,12 @@ const goToLogin = () => {
 
 .option-item:hover {
   background-color: #fff0f3;
-  color: #e4869f;
+  color: var(--DC-orange);
   padding-left: 25px;
 }
 
 .option-item.selected {
-  background-color: #e4869f;
+  background-color: var(--DC-orange);
   color: white;
   font-weight: 600;
 }
@@ -598,7 +529,7 @@ const goToLogin = () => {
   padding: 20px;
   text-align: center;
   font-size: 0.9rem;
-  color: #9793a0;
+  color: var(--DC-text-gray);
   font-style: italic;
 }
 
@@ -607,6 +538,7 @@ const goToLogin = () => {
   right: 1rem;
   pointer-events: none;
   transition: transform 0.3s ease;
+  color: var(--DC-brown);
 }
 
 .icon-wrapper {
@@ -626,35 +558,53 @@ const goToLogin = () => {
 
 .btn {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.9rem;
   border: none;
   border-radius: 0.75rem;
-  font-weight: bold;
+  font-weight: 900;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 1.05rem;
   transition: all 0.2s ease;
   margin-top: 0.5rem;
 }
 
 .btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  filter: brightness(0.9);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background-color: var(--DC-brown);
+  box-shadow: 0 6px 20px rgba(81, 49, 25, 0.3);
 }
 
 .btn:active:not(:disabled) {
   transform: translateY(0);
-  filter: brightness(0.8);
 }
 
 .btn:disabled {
-  opacity: 0.6;
+  opacity: 0.7;
   cursor: not-allowed;
-  filter: grayscale(0.5);
+  background-color: #ccc;
+  box-shadow: none;
+  color: #666;
 }
 
 .btn-primary {
-  background-color: #e4869f;
+  background-color: var(--DC-orange);
   color: white;
+  box-shadow: 0 4px 15px rgba(226, 135, 67, 0.3);
+}
+
+@media (max-width: 576px) {
+  .register-card {
+    padding: 2.5rem 1rem 1.5rem;
+  }
+
+  .back-button {
+    top: 12px;
+    left: 12px;
+    font-size: 0.85rem;
+  }
+
+  .input-row {
+    flex-direction: column;
+  }
 }
 </style>
