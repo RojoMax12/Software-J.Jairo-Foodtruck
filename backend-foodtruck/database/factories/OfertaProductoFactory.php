@@ -2,13 +2,13 @@
 
 namespace Database\Factories;
 
-use App\Models\Stock;
+use App\Models\OfertaProducto;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<Stock>
+ * @extends Factory<OfertaProducto>
  */
-class StockFactory extends Factory
+class OfertaProductoFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -18,7 +18,9 @@ class StockFactory extends Factory
     public function definition(): array
     {
         return [
-            'cantidad_stock' => $this->faker->numberBetween(0, 500),
+            'id_producto' => $this->faker->numberBetween(1, 10),
+            'id_oferta' => $this->faker->numberBetween(1, 10),
+            //
         ];
     }
 }

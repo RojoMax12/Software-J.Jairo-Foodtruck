@@ -4,12 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class EstadoPedido extends Model
+class Estado_pedido extends Model
 {
     protected $table = 'estado_pedido';
 
     protected $primaryKey = 'id_estado_pedido';
 
+    public $incrementing = true;
 
     protected $fillable = [
         'nombre',

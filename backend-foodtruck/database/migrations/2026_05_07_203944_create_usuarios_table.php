@@ -11,15 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('usuarios', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('id_rol');
-            $table->string('nombre');
-            //Estado del usuario, activo o inactivo
-            $table->boolean('estado')->default(true);
-            $table->string('contrasena');
-            $table->timestamps();
-        });
+        if (! Schema::hasTable('usuarios')) {
+            Schema::create('usuarios', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('id_rol');
+                $table->string('nombre');
+                $table->string('correo')->unique();
+                $table->boolean('estado')->default(true);
+                $table->string('contrasena');
+                $table->timestamps();
+            });
+        }
     }
     
     /**

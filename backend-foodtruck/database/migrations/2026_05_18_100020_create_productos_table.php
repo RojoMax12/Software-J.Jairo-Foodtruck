@@ -11,14 +11,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('productos', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('id_categoria')->constrained('categorias')->onDelete('cascade');
-            $table->string('nombre');
-            $table->string('descripcion');
-            $table->integer('precio');
-            $table->timestamps();
-        });
+        if (! Schema::hasTable('productos')) {
+            Schema::create('productos', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('id_categoria');
+                $table->string('tipo_armado');
+                $table->integer('cantidad_incluida');
+                $table->decimal('precio_ingrediente_extra', 8, 2);
+                $table->string('nombre');
+                $table->string('descripcion');
+                $table->timestamps();
+
+                $table->foreign('id_categoria')->references('id')->on('categorias')->onDelete('cascade');
+            });
+        }
     }
 
     /**

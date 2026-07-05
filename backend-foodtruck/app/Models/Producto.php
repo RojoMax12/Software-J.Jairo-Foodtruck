@@ -2,20 +2,28 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Producto extends Model
 {
+    use HasFactory;
+
     protected $table = 'productos';
 
     protected $fillable = [
         'nombre',
-        'precio',
-        'tipo',
+        'precio_ingrediente_extra',
+        'tipo_armado',
+        'cantidad_incluida',
+        'id_categoria',
+        'descripcion',
     ];
 
     protected $casts = [
-        'precio' => 'integer',
+        'precio_ingrediente_extra' => 'integer',
+        'tipo_armado' => 'string',
+        'cantidad_incluida' => 'integer',
     ];
 
     // Un producto pertenece a muchos pedidos (many-to-many)
@@ -34,5 +42,10 @@ class Producto extends Model
     public function ofertaProductos()
     {
         return $this->hasMany(OfertaProducto::class, 'id_productos');
+    }
+
+    public function categoria()
+    {
+        return $this->belongsTo(Categoria::class, 'id_categoria');
     }
 }

@@ -11,8 +11,9 @@ return new class extends Migration
         Schema::create('ingredientes', function (Blueprint $table) {
             $table->id();
             $table->string('nombre');
-            // Cantidad aplica solo para algunos ingredientes
-            $table->integer('cantidad')->nullable();
+            $table->string('descripcion')->nullable();
+            $table->integer('cantidad_actual')->default(0);
+            $table->integer('cantidad_minima')->default(0);
             $table->dateTime('fecha_de_ingreso');
             $table->boolean('disponible')->default(true);
             $table->timestamps();

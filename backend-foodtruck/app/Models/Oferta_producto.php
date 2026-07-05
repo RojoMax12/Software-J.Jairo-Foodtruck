@@ -2,22 +2,18 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class OfertaProducto extends Model
 {
+    use HasFactory;
+
     protected $table = 'oferta_producto';
 
     protected $fillable = [
         'id_productos',
         'id_ofertas',
-        'descripcion',
-        'precio_oferta',
-        'tipo',
-    ];
-
-    protected $casts = [
-        'precio_oferta' => 'integer',
     ];
 
     // Pertenece a un producto

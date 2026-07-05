@@ -11,19 +11,43 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('pedidos', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('id_estado_pedido')->constrained('estado_pedido', 'id_pedido')->onDelete('restrict');
-            $table->foreignId('id_usuario')->constrained('usuarios')->onDelete('restrict');
-            $table->string('nombre_persona');
-            $table->string('numero_telefono');
-            $table->string('metodo_pago');
-            //Estado del pago, pagado o no pagado - true: pagado, false: no pagado
-            $table->boolean('estado_pago');
-            $table->dateTime('fecha');
-            $table->integer('total');
-            $table->timestamps();
-        });
+        if (! Schema::hasTable('estado_pedido')) {
+            Schema::create('estado_pedido', function (Blueprint $table) {
+                $table->id('id_estado_pedido');
+                $table->string('nombre')->unique();
+                $table->timestamps();
+            });
+        }
+
+        if (! Schema::hasTable('usuarios')) {
+            Schema::create('usuarios', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('id_rol');
+                $table->string('nombre');
+                $table->string('correo')->unique();
+                $table->boolean('estado')->default(true);
+                $table->string('contrasena');
+                $table->timestamps();
+            });
+        }
+
+        if (! Schema::hasTable('pedidos')) {
+            Schema::create('pedidos', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('id_estado_pedido');
+                $table->unsignedBigInteger('id_usuario');
+                $table->string('nombre_persona');
+                $table->string('numero_telefono');
+                $table->string('metodo_pago');
+                $table->boolean('estado_pago');
+                $table->dateTime('fecha');
+                $table->integer('total');
+                $table->timestamps();
+
+                $table->foreign('id_estado_pedido')->references('id_estado_pedido')->on('estado_pedido')->onDelete('restrict');
+                $table->foreign('id_usuario')->references('id')->on('usuarios')->onDelete('restrict');
+            });
+        }
     }
 
     /**

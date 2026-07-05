@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Venta extends Model
 {
+    use HasFactory;
+
     protected $table = 'ventas';
 
     protected $fillable = [
         'id_pedido',
+        'id_caja',
     ];
 
     // Una venta pertenece a un pedido
@@ -18,9 +22,11 @@ class Venta extends Model
         return $this->hasOne(Pedido::class, 'id_pedido');
     }
 
-    // Una venta tiene muchos registros de caja
-    public function cajas()
+    // Una venta pertenece a una caja
+    public function caja()
     {
-        return $this->hasMany(Caja::class, 'id_venta');
+        return $this->belongsTo(Caja::class, 'id_caja');
     }
+
+    
 }

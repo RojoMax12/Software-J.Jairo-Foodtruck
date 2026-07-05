@@ -18,12 +18,12 @@ class CategoriaFactory extends Factory
     public function definition(): array
     {
         $categorias = [
-            ['nombre_categoria' => 'Normales', 'descripcion_categoria' => 'Helados clásicos y tradicionales.'],
-            ['nombre_categoria' => 'Premium', 'descripcion_categoria' => 'Helados con ingredientes de mayor calidad y recetas especiales.'],
-            ['nombre_categoria' => 'Vegano', 'descripcion_categoria' => 'Helados sin ingredientes de origen animal.'],
-            ['nombre_categoria' => 'Sin Azúcar', 'descripcion_categoria' => 'Helados reducidos o libres de azúcar agregada.'],
-            ['nombre_categoria' => 'Sin Lactosa', 'descripcion_categoria' => 'Helados aptos para personas sensibles a la lactosa.'],
-        ];
+            ['nombre_categoria' => 'Papas & Chorillanas', 'descripcion_categoria' => 'Deliciosos productos con papas y chorillanas para disfrutar en cualquier momento.'],
+            ['nombre_categoria' => 'Vianesas', 'descripcion_categoria' => 'Deliciosos productos con vianesas para disfrutar en cualquier momento.'],
+            ['nombre_categoria' => 'Sanguches / Bajones', 'descripcion_categoria' => 'Sanguches y bajones para disfrutar en cualquier momento.'],
+            ['nombre_categoria' => 'Promos / Combos', 'descripcion_categoria' => 'Promociones y combos especiales'],
+            ['nombre_categoria' => 'Masas', 'descripcion_categoria' => 'Productos con pan'],
+            ['nombre_categoria' => 'Bebestibles', 'descripcion_categoria' => 'Bebidas'], ];
 
         return $this->faker->randomElement($categorias);
     }

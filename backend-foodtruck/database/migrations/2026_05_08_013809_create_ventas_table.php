@@ -11,12 +11,31 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('ventas', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('id_pedido')->constrained('pedidos')->onDelete('restrict');
-            $table->timestamps();
-        });
-    }
+        if (! Schema::hasTable('pedidos')) {
+            Schema::create('pedidos', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('id_estado_pedido');
+                $table->unsignedBigInteger('id_usuario');
+                $table->string('nombre_persona');
+                $table->string('numero_telefono');
+                $table->string('metodo_pago');
+                $table->boolean('estado_pago');
+                $table->dateTime('fecha');
+                $table->integer('total');
+                $table->timestamps();
+            });
+        }
+
+        if (! Schema::hasTable('ventas')) {
+            Schema::create('ventas', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('id_pedido');
+                $table->timestamps();
+
+                $table->foreign('id_pedido')->references('id')->on('pedidos')->onDelete('restrict');
+            });
+        }
+    } // Aquí cierra correctamente el método up()
 
     /**
      * Reverse the migrations.
@@ -24,5 +43,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('ventas');
+        Schema::dropIfExists('pedidos'); // Buena práctica: eliminar también pedidos si se revierte
     }
 };

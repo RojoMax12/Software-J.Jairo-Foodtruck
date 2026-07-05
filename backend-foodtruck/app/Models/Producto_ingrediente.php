@@ -14,6 +14,7 @@ class Producto_ingrediente extends Model
     protected $fillable = [
         'id_producto',
         'id_ingrediente',
+        'incluido_por_defecto',
     ];
 
     public function producto(): BelongsTo

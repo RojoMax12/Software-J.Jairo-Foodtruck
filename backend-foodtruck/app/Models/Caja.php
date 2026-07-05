@@ -2,16 +2,19 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Caja extends Model
 {
+    use HasFactory;
+
     protected $table = 'caja';
 
     protected $fillable = [
-        'id_venta',
         'id_usuario',
         'fecha_apertura',
+        'monto_inicial',
         'total_ventas',
         'total_recaudado',
     ];
@@ -22,10 +25,10 @@ class Caja extends Model
         'total_recaudado'  => 'integer',
     ];
 
-    // Una caja pertenece a una venta
-    public function venta()
+    // Una caja tiene muchas ventas
+    public function ventas()
     {
-        return $this->belongsTo(Venta::class, 'id_venta');
+        return $this->hasMany(Venta::class, 'id_caja');
     }
 
     // Una caja pertenece a un usuario (solo admin)

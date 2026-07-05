@@ -1,6 +1,6 @@
 <?php
 namespace App\Repositories;
-use App\Models\EstadoPedido;
+use App\Models\Estado_pedido;
 
 # Repositorio EstadoPedido
 class EstadoPedidoRepository
@@ -8,28 +8,28 @@ class EstadoPedidoRepository
     # Create
     public function createEstadoPedido($data)
     {
-        return EstadoPedido::create($data);
+        return Estado_pedido::create($data);
     }
 
     # Geters
     public function getAllEstadosPedido()
     {
-        return EstadoPedido::all();
+        return Estado_pedido::all();
     }
 
     public function getEstadoPedidoById($id)
     {
-        return EstadoPedido::find($id);
+        return Estado_pedido::find($id);
     }
 
     public function getEstadoPedidoByNombre($nombre)
     {
-        return EstadoPedido::where('nombre', $nombre)->first();
+        return Estado_pedido::where('nombre', $nombre)->first();
     }
 
     public function getPedidosByEstadoId($id)
     {
-        $estado = EstadoPedido::find($id);
+        $estado = Estado_pedido::find($id);
         if ($estado) {
             return $estado->pedidos;
         }
@@ -39,7 +39,7 @@ class EstadoPedidoRepository
     # Seters
     public function updateEstadoPedido($id, $data)
     {
-        $estado = EstadoPedido::find($id);
+        $estado = Estado_pedido::find($id);
         if ($estado) {
             $estado->update($data);
             return $estado;
@@ -50,7 +50,7 @@ class EstadoPedidoRepository
     # Delete
     public function deleteEstadoPedidoById($id)
     {
-        $estado = EstadoPedido::find($id);
+        $estado = Estado_pedido::find($id);
         if ($estado) {
             $estado->delete();
             return true;

@@ -18,13 +18,8 @@ class VentaFactory extends Factory
     public function definition(): array
     {
         return [
-            'id_cotizacion' => \App\Models\Cotizacion::inRandomOrder()->first()?->id 
-                            ?? \App\Models\Cotizacion::factory(),
-            'numero_factura' => $this->faker->unique()->numerify('FAC-#####'),
-            'fecha_venta' => $this->faker->dateTimeBetween('-1 year', 'now'),
-            'glosa' => $this->faker->sentence(),
-            'estado_pago' => $this->faker->randomElement(['Pendiente']),
-            'monto_total' => $this->faker->numberBetween(10000, 1000000), 
+         'id_pedido' => $this->faker->numberBetween(1, 10),
+         'id_caja' => $this->faker->numberBetween(1, 10),
             //
         ];
     }
