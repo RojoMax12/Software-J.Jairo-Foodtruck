@@ -11,6 +11,8 @@ class Movimientos extends Model
 
     protected $table = 'movimientos';
 
+    protected $primaryKey = 'id_movimiento';
+
     protected $fillable = [
         'id_ingrediente',
         'cantidad',

@@ -36,6 +36,11 @@ class Detalle_Pedido extends Model
     {
         return $this->belongsTo(Tamaño::class, 'id_tamaño');
     }
+
+    public function ingredientes()
+    {
+        return $this->hasMany(Detalle_Pedido_Ingrediente::class, 'id_detalle_pedido');
+    }
 }
 
 

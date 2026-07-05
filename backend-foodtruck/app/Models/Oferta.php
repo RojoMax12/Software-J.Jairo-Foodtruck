@@ -11,6 +11,8 @@ class Oferta extends Model
 
     protected $table = 'ofertas';
 
+    protected $primaryKey = 'id_oferta';
+
     protected $fillable = [
         'descripcion',
         'precio_oferta',
@@ -19,7 +21,7 @@ class Oferta extends Model
     ];
 
     protected $casts = [
-        'precio_oferta' => 'decimal:2',
+        'precio_oferta' => 'Integer',
         'fecha'         => 'datetime',
     ];
 

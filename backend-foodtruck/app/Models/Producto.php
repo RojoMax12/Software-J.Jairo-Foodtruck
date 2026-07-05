@@ -11,6 +11,8 @@ class Producto extends Model
 
     protected $table = 'productos';
 
+    protected $primaryKey = 'id_producto';
+
     protected $fillable = [
         'nombre',
         'precio_ingrediente_extra',
@@ -26,26 +28,31 @@ class Producto extends Model
         'cantidad_incluida' => 'integer',
     ];
 
-    // Un producto pertenece a muchos pedidos (many-to-many)
-    public function pedidos()
+    public function categoria()
     {
-        return $this->belongsToMany(Pedido::class, 'producto_pedido', 'id_producto', 'id_pedido');
+        return $this->belongsTo(Categoria::class, 'id_categoria');
     }
 
-    // Un producto tiene mmuchos producto_ingrediente (one-to-many)
-    public function producto_ingrediente()
+    public function ingredientes()
     {
         return $this->hasMany(Producto_ingrediente::class, 'id_producto');
     }
 
-    // Un producto aparece en muchas relaciones oferta_producto
-    public function ofertaProductos()
+    public function tamaños()
     {
-        return $this->hasMany(OfertaProducto::class, 'id_productos');
+        return $this->belongsToMany(Tamaño::class, 'producto_tamaño', 'id_producto', 'id_tamaño')
+                    ->withPivot('precio');
     }
 
-    public function categoria()
+    public function ofertas()
     {
-        return $this->belongsTo(Categoria::class, 'id_categoria');
+        return $this->hasMany(Oferta::class, 'id_productos');
+    }
+
+    // Antes usaba belongsToMany(Pedido::class, 'producto_pedido', ...) hacia una
+    // tabla que ya no existe. Un pedido se relaciona con el producto vía detalle_pedido.
+    public function detalles()
+    {
+        return $this->hasMany(Detalle_Pedido::class, 'id_producto');
     }
 }

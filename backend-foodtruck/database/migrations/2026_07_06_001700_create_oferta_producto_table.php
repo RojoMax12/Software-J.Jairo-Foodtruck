@@ -8,19 +8,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (! Schema::hasTable('productos')) {
-            Schema::create('productos', function (Blueprint $table) {
-                $table->id();
-                $table->unsignedBigInteger('id_categoria');
-                $table->string('tipo_armado');
-                $table->integer('cantidad_incluida');
-                $table->decimal('precio_ingrediente_extra', 8, 2);
-                $table->string('nombre');
-                $table->string('descripcion');
-                $table->timestamps();
-            });
-        }
-
         Schema::create('oferta_producto', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('id_productos');
@@ -29,7 +16,7 @@ return new class extends Migration
             $table->string('tipo');
             $table->timestamps();
 
-            $table->foreign('id_productos')->references('id')->on('productos')->onDelete('cascade');
+            $table->foreign('id_productos')->references('id_producto')->on('productos')->onDelete('cascade');
         });
     }
 

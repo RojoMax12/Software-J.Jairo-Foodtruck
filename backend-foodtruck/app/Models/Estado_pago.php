@@ -18,7 +18,7 @@ class Estado_pago extends Model
     // Un estado tiene muchos pedidos
     public function pedidos()
     {
-        return $this->hasMany(Pedido::class, 'id_estado_pago', 'id_pedido');
+        return $this->hasMany(Pedido::class, 'id_estado_pago', 'id_estado_pago');
     }
 
 

@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('ingredientes', function (Blueprint $table) {
-            $table->id();
+            $table->id('id_ingrediente');
             $table->string('nombre');
             $table->string('descripcion')->nullable();
             $table->integer('cantidad_actual')->default(0);
@@ -20,8 +20,6 @@ return new class extends Migration
         });
     }
 
-
-    // Eliminar la tabla ingredientes
     public function down(): void
     {
         Schema::dropIfExists('ingredientes');

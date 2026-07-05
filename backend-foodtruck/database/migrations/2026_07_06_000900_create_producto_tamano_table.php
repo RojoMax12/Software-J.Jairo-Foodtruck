@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('producto_tamaño', function (Blueprint $table) {
@@ -17,12 +14,12 @@ return new class extends Migration
             $table->unsignedBigInteger('id_tamaño');
             $table->decimal('precio', 8, 2);
             $table->timestamps();
+
+            $table->foreign('id_producto')->references('id_producto')->on('productos')->onDelete('cascade');
+            $table->foreign('id_tamaño')->references('id_tamaño')->on('tamaños')->onDelete('cascade');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('producto_tamaño');

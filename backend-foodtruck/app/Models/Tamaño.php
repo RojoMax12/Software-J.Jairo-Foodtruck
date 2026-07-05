@@ -19,9 +19,9 @@ class Tamaño extends Model
         'nombre',
     ];
 
-    // Un tamaño tiene muchos productos
     public function productos()
     {
-        return $this->hasMany(Producto::class, 'id_tamaño', 'id_producto');
+        return $this->belongsToMany(Producto::class, 'producto_tamaño', 'id_tamaño', 'id_producto')
+                    ->withPivot('precio');
     }
 }

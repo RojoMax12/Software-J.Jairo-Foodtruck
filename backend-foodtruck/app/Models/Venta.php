@@ -11,6 +11,8 @@ class Venta extends Model
 
     protected $table = 'ventas';
 
+    protected $primaryKey = 'id_venta';
+
     protected $fillable = [
         'id_pedido',
         'id_caja',

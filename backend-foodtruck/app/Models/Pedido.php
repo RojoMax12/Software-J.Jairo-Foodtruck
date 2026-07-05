@@ -11,6 +11,8 @@ class Pedido extends Model
 
     protected $table = 'pedidos';
 
+    protected $primaryKey = 'id_pedido';
+
     protected $fillable = [
         'id_estado_pedido',
         'id_usuario',
@@ -27,18 +29,19 @@ class Pedido extends Model
 
     protected $casts = [
         'fecha' => 'datetime',
+        'fecha_de_pago' => 'datetime',
         'total'  => 'integer',
     ];
 
     // Un pedido pertenece a un estado
     public function estadoPedido()
     {
-        return $this->belongsTo(EstadoPedido::class, 'id_estado_pedido', 'id_pedido');
+        return $this->belongsTo(Estado_pedido::class, 'id_estado_pedido', 'id_pedido');
     }
 
     public function estadoPago()
     {
-        return $this->belongsTo(EstadoPago::class, 'id_estado_pago', 'id_pedido');
+        return $this->belongsTo(Estado_pago::class, 'id_estado_pago', 'id_pedido');
     }
 
     // Un pedido pertenece a un usuario
@@ -53,9 +56,9 @@ class Pedido extends Model
         return $this->hasOne(Venta::class, 'id_pedido');
     }
 
-    // Un pedido tiene muchos producto_pedido (one-to-many)
-    public function producto_pedido()
+    public function detalles()
     {
-        return $this->hasMany(Producto_Pedido::class, 'id_pedido');
+        return $this->hasMany(Detalle_Pedido::class, 'id_pedido');
     }
+
 }

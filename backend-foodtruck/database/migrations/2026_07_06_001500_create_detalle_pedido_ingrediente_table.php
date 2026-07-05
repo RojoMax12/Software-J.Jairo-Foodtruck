@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('detalle_pedido_ingrediente', function (Blueprint $table) {
@@ -18,12 +15,12 @@ return new class extends Migration
             $table->string('tipo_modificacion');
             $table->decimal('precio_aplicado', 8, 2);
             $table->timestamps();
+
+            $table->foreign('id_detalle_pedido')->references('id_detalle_pedido')->on('detalle_pedido')->onDelete('cascade');
+            $table->foreign('id_ingrediente')->references('id_ingrediente')->on('ingredientes')->onDelete('restrict');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('detalle_pedido_ingrediente');

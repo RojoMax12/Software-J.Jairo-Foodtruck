@@ -11,6 +11,8 @@ class Caja extends Model
 
     protected $table = 'caja';
 
+    protected $primaryKey = 'id_caja';
+
     protected $fillable = [
         'id_usuario',
         'fecha_apertura',
