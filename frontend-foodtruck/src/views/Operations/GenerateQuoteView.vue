@@ -12,7 +12,34 @@
     </div>
 
     <div v-if="currentStep === 1" class="step-container product-step">
-      <div class="product-layout">
+      <!-- BARRA DE PESTAÑAS MÓVIL -->
+      <div class="mobile-tabs-bar">
+        <button 
+          class="mobile-tab-btn" 
+          :class="{ 'active': mobileTab === 'catalog' }" 
+          @click="mobileTab = 'catalog'"
+        >
+          <Utensils :size="16" /> Catálogo
+        </button>
+        
+        <button 
+          class="mobile-tab-btn" 
+          :class="{ 'active': mobileTab === 'recipe' }" 
+          @click="mobileTab = 'recipe'"
+        >
+          <FileText :size="16" /> Receta
+        </button>
+
+        <button 
+          class="mobile-tab-btn" 
+          :class="{ 'active': mobileTab === 'cart' }" 
+          @click="mobileTab = 'cart'"
+        >
+          <ShoppingCart :size="16" /> Comanda ({{ totalUnits }})
+        </button>
+      </div>
+
+      <div class="product-layout" :class="`show-tab-${mobileTab}`">
         
         <div class="catalog-section">
           <div class="catalog-header">
@@ -27,9 +54,18 @@
             </div>
           </div>
 
-          <div class="products-grid-admin">
+          <div v-if="isLoadingProducts" class="products-grid-admin">
+            <div v-for="n in 6" :key="'gen-skel-' + n" class="brown-menu-card-skeleton">
+              <div class="skeleton-img"></div>
+              <div class="skeleton-body">
+                <div class="skeleton-pill width-120"></div>
+                <div class="skeleton-pill width-80 margin-top-4"></div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="products-grid-admin">
             <div 
-              v-for="p in filteredIceCreams" 
+              v-for="p in filteredProducts" 
               :key="p.id" 
               class="brown-menu-card"
             >
@@ -88,39 +124,80 @@
           <div class="ingredient-content">
             <template v-if="activeVariant">
               <h2 class="product-name-highlight">
-                {{ activeVariant.baseName }} {{ activeVariant.type.name }} ({{ activeVariant.size }})
+                {{ activeVariant.baseName }} ({{ activeVariant.size }})
               </h2>
-              
-              <div class="ingredient-list">
-                <h4>Ingredientes incluidos (Desmarca para quitar)</h4>
+
+              <!-- MODO PERSONALIZABLE (Pizzas, Hamburguesas, Fajitas) -->
+              <div v-if="isPersonalizableProduct" class="ingredient-list">
+                <h4>
+                  Ingredientes opcionales a elección 
+                  <span class="subtitle-hint">
+                    (Incluye {{ activeVariant.cantidad_incluida || 3 }} gratis, extra +${{ activeVariant.precio_ingrediente_extra || 500 }} c/u)
+                  </span>
+                </h4>
                 
                 <div class="ingredients-wrapper">
                   <label 
-                    v-for="pi in activeVariant.type.producto_ingrediente" 
+                    v-for="pi in optionalExtraIngredients" 
                     :key="pi.id" 
                     class="ingredient-item-row"
-                    :class="{ 'ingredient-removed': excludedIngredients.includes(pi.ingrediente.nombre) }"
+                    :class="{ 
+                      'ingredient-added': addedExtraIngredients.includes(pi.ingrediente?.nombre),
+                      'ingredient-disabled': !pi.ingrediente?.disponible
+                    }"
                   >
                     <div class="ing-left">
                       <input 
                         type="checkbox" 
-                        :checked="!excludedIngredients.includes(pi.ingrediente.nombre)"
-                        @change="toggleIngredient(pi.ingrediente.nombre)"
-                        :disabled="!pi.ingrediente.disponible"
+                        :checked="addedExtraIngredients.includes(pi.ingrediente?.nombre)"
+                        @change="toggleExtraIngredient(pi.ingrediente?.nombre)"
+                        :disabled="!pi.ingrediente?.disponible"
                         class="custom-checkbox"
                       />
-                      <span class="ing-name">{{ pi.ingrediente.nombre }}</span>
+                      <span class="ing-name">{{ pi.ingrediente?.nombre }}</span>
                     </div>
 
-                    <span v-if="!pi.ingrediente.disponible" class="ing-status no-stock">Sin Stock</span>
-                    <span v-else-if="excludedIngredients.includes(pi.ingrediente.nombre)" class="ing-status removed">QUITADO</span>
+                    <span v-if="!pi.ingrediente?.disponible" class="ing-status no-stock">Sin Stock</span>
+                    <span v-else-if="addedExtraIngredients.includes(pi.ingrediente?.nombre)" class="ing-status added">AGREGADO</span>
+                    <span v-else class="ing-status ok">Opcional</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- MODO ESTANDAR (Vianesas, Churrascos, Ass, Lomitos) -->
+              <div v-else class="ingredient-list">
+                <h4>Ingredientes incluidos (Desmarca para quitar)</h4>
+                
+                <div class="ingredients-wrapper">
+                  <label 
+                    v-for="pi in customizableRecipeIngredients" 
+                    :key="pi.id" 
+                    class="ingredient-item-row"
+                    :class="{ 
+                      'ingredient-removed': excludedIngredients.includes(pi.ingrediente?.nombre),
+                      'ingredient-disabled': !pi.ingrediente?.disponible
+                    }"
+                  >
+                    <div class="ing-left">
+                      <input 
+                        type="checkbox" 
+                        :checked="!excludedIngredients.includes(pi.ingrediente?.nombre)"
+                        @change="toggleIngredient(pi.ingrediente?.nombre)"
+                        :disabled="!pi.ingrediente?.disponible"
+                        class="custom-checkbox"
+                      />
+                      <span class="ing-name">{{ pi.ingrediente?.nombre }}</span>
+                    </div>
+
+                    <span v-if="!pi.ingrediente?.disponible" class="ing-status no-stock">Sin Stock</span>
+                    <span v-else-if="excludedIngredients.includes(pi.ingrediente?.nombre)" class="ing-status removed">QUITADO</span>
                     <span v-else class="ing-status ok">Lleva</span>
                   </label>
                 </div>
               </div>
 
               <button class="btn-add-to-cart-large" @click="addActiveVariantToCart">
-                AÑADIR A COMANDA - ${{ activeVariant.price }}
+                AÑADIR A COMANDA - ${{ currentVariantUnitPrice }}
               </button>
             </template>
             
@@ -133,7 +210,7 @@
         <aside class="cart-summary-admin">
           <div class="cart-header">
             <ShoppingCart :size="20" />
-            <span>Comanda Actual</span>
+            <span>Comanda Actual ({{ totalUnits }} {{ totalUnits === 1 ? 'unidad' : 'unidades' }})</span>
           </div>
           <div class="cart-items-list">
             <div v-if="cartItems.length === 0" class="empty-cart">No hay productos en la orden</div>
@@ -143,6 +220,9 @@
                   <span class="item-name">{{ item.fullName }} ({{ item.size }})</span>
                   <span v-if="item.excluidos && item.excluidos.length > 0" class="badge-removed-items">
                     SIN: {{ item.excluidos.join(', ') }}
+                  </span>
+                  <span v-if="item.agregados && item.agregados.length > 0" class="badge-added-items">
+                    CON: {{ item.agregados.join(', ') }}
                   </span>
                 </div>
                 <span class="item-price">${{ item.price * item.quantity }}</span>
@@ -163,6 +243,17 @@
 
       </div>
 
+      <!-- BARRA FLOTANTE MÓVIL EN LA PARTE INFERIOR -->
+      <div v-if="cartItems.length > 0 && currentStep === 1" class="mobile-floating-cart-bar" @click="mobileTab = 'cart'">
+        <div class="cart-bar-info">
+          <span class="badge-count">{{ cartItems.reduce((acc, i) => acc + i.quantity, 0) }}</span>
+          <span class="cart-bar-total">{{ totalQuote }}</span>
+        </div>
+        <button class="btn-checkout-mobile" @click.stop="nextStep">
+          Ir a Cobrar <ArrowRight :size="16" />
+        </button>
+      </div>
+
       <div class="actions">
         <button class="btn btn-secondary" @click="router.push('/general-home')">Cancelar</button>
         <button class="btn btn-primary" @click="nextStep">
@@ -181,23 +272,21 @@
           <div class="input-row">
             <div class="input-group">
               <label>Nombre y Apellido Cliente</label>
-              <input v-model="distributorForm.nombre_empresa" type="text" placeholder="Ej: Johan Neira" class="dc-input" />
+              <input v-model="customerForm.nombre" type="text" placeholder="Ej: Johan Neira" class="dc-input" />
             </div>
           </div>
           <div class="input-row">
             <div class="input-group">
               <label>Teléfono (Opcional)</label>
-              <input v-model="distributorForm.telefono" type="text" placeholder="+569..." class="dc-input" @input="handlePhoneInput"/>
+              <input v-model="customerForm.telefono" type="text" placeholder="+569..." class="dc-input" @input="handlePhoneInput"/>
             </div>
           </div>
           <div class="input-row">
             <div class="input-group">
               <label>Método de Pago</label>
-              <select v-model="selectedPaymentMethod" class="dc-select">
-                <option value="" disabled selected>Seleccione método de pago...</option>
-                <option v-for="metodo in metodosdepago" :key="metodo.id" :value="metodo.nombre">
-                  {{ metodo.nombre }}
-                </option>
+              <select v-model="selectedPaymentMethod" class="dc-input">
+                <option value="" disabled>Seleccione método de pago</option>
+                <option v-for="m in metodosdepago" :key="m.id" :value="m.nombre">{{ m.nombre }}</option>
               </select>
             </div>
           </div>
@@ -218,8 +307,8 @@
         <div class="summary-section">
           <h4>Datos del cliente</h4>
           <div class="summary-card">
-            <p><strong>Cliente:</strong> {{ distributorForm.nombre_empresa }}</p>
-            <p><strong>Teléfono:</strong> {{ distributorForm.telefono || 'No registrado' }}</p>
+            <p><strong>Cliente:</strong> {{ customerForm.nombre || 'Cliente Presencial' }}</p>
+            <p><strong>Teléfono:</strong> {{ customerForm.telefono || 'No registrado' }}</p>
             <p><strong>Método de Pago:</strong> {{ selectedPaymentMethod }}</p>
           </div>
         </div>
@@ -231,6 +320,9 @@
                 <span class="final-item-name">{{ item.quantity }}x {{ item.fullName }} ({{ item.size }})</span>
                 <div v-if="item.excluidos && item.excluidos.length > 0" class="final-exclusions-box">
                   <span v-for="ing in item.excluidos" :key="ing" class="exclusion-badge-item">❌ SIN: {{ ing }}</span>
+                </div>
+                <div v-if="item.agregados && item.agregados.length > 0" class="final-exclusions-box">
+                  <span v-for="ing in item.agregados" :key="ing" class="exclusion-badge-item added">✅ CON: {{ ing }}</span>
                 </div>
               </div>
               <span class="final-item-price">${{ item.price * item.quantity }}</span>
@@ -252,23 +344,30 @@
   </div>
 </template>
 
+
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { Search, ArrowRight, ArrowLeft, ShoppingCart, Trash2, Plus, Minus, FileText } from 'lucide-vue-next';
-import quoteService from '@/services/quoteService';
+import { Search, ArrowRight, ArrowLeft, ShoppingCart, Trash2, Plus, Minus, FileText, Utensils } from 'lucide-vue-next';
+import productService from '@/services/productService';
+import categoryService from '@/services/categoryService';
+import orderService from '@/services/orderService';
+import { useNotification } from '@/composables/useNotification';
 
 const router = useRouter();
+const { notify } = useNotification();
 const currentStep = ref(1);
 const isSubmitting = ref(false);
 
+const mobileTab = ref<'catalog' | 'recipe' | 'cart'>('catalog');
 const activeVariant = ref<any>(null);
 const excludedIngredients = ref<string[]>([]);
+const addedExtraIngredients = ref<string[]>([]);
 const selectedPaymentMethod = ref('');
 
-const distributorForm = ref({ id: null, nombre_empresa: '', rut_empresa: '11.111.111-1', correo_electronico: '', telefono: '+56', direccion: '', comuna: '', persona_recibe: '' });
+const customerForm = ref({ nombre: '', telefono: '+56' });
 
-const iceCreams = ref<any[]>([]);
+const foodProducts = ref<any[]>([]);
 const categoriesList = ref<any[]>([]);
 const cartItems = ref<any[]>([]);
 const selectedCategory = ref('Todas');
@@ -281,107 +380,156 @@ const cargarMetodosSimulados = () => {
   ];
 };
 
-const fetchIceCreams = async () => {
-  categoriesList.value = [
-    { id: 1, nombre_categoria: 'Completos' },
-    { id: 2, nombre_categoria: 'Ass' },
-    { id: 3, nombre_categoria: 'Churrascos' }
-  ];
+const isLoadingProducts = ref(true);
 
-  iceCreams.value = [
-    {
-      id: 1,
-      name: "Completo",
-      category: "Completos",
-      image: "https://images.unsplash.com/photo-1627059318424-5890de49c3c7?q=80&w=400&auto=format&fit=crop",
-      sizes: ["Chicos", "Grandes", "XXL"],
-      activeSize: "Chicos",
-      types: [
-        {
-          id: 101, name: "Italiano", desc: "Palta - Tomate - Mayo",
-          prices: { "Chicos": 1400, "Grandes": 1850, "XXL": 2600 },
-          producto_ingrediente: [
-            { id: 1, ingrediente: { nombre: "Palta", disponible: true } },
-            { id: 2, ingrediente: { nombre: "Tomate", disponible: true } },
-            { id: 3, ingrediente: { nombre: "Mayo", disponible: true } }
-          ]
-        },
-        {
-          id: 102, name: "Completo", desc: "Chucrut - Americana - Tomate - Mayo",
-          prices: { "Chicos": 1400, "Grandes": 1850, "XXL": 2600 },
-          producto_ingrediente: [
-            { id: 4, ingrediente: { nombre: "Chucrut", disponible: true } },
-            { id: 5, ingrediente: { nombre: "Salsa Americana", disponible: true } },
-            { id: 2, ingrediente: { nombre: "Tomate", disponible: true } },
-            { id: 3, ingrediente: { nombre: "Mayo", disponible: true } }
-          ]
-        },
-        {
-          id: 103, name: "Dinámico", desc: "Chucrut - Americana - Tomate - Palta - Mayo",
-          prices: { "Chicos": 1500, "Grandes": 1900, "XXL": 2600 },
-          producto_ingrediente: [
-            { id: 4, ingrediente: { nombre: "Chucrut", disponible: true } },
-            { id: 5, ingrediente: { nombre: "Salsa Americana", disponible: true } },
-            { id: 2, ingrediente: { nombre: "Tomate", disponible: true } },
-            { id: 1, ingrediente: { nombre: "Palta", disponible: true } },
-            { id: 3, ingrediente: { nombre: "Mayo", disponible: true } }
-          ]
-        }
-      ]
-    },
-    {
-      id: 2,
-      name: "Ass",
-      category: "Ass",
-      image: "https://images.unsplash.com/photo-1553979459-d2229ba7433b?q=80&w=400&auto=format&fit=crop",
-      sizes: ["Chicos", "Grandes"],
-      activeSize: "Chicos",
-      types: [
-        {
-          id: 201, name: "Italiano", desc: "Palta - Tomate - Mayo",
-          prices: { "Chicos": 2800, "Grandes": 3200 },
-          producto_ingrediente: [
-            { id: 20, ingrediente: { nombre: "Churrasco", disponible: true } },
-            { id: 1, ingrediente: { nombre: "Palta", disponible: true } },
-            { id: 2, ingrediente: { nombre: "Tomate", disponible: true } },
-            { id: 3, ingrediente: { nombre: "Mayo", disponible: true } }
-          ]
-        }
-      ]
-    },
-    {
-      id: 3,
-      name: "Churrasco",
-      category: "Churrascos",
-      image: "https://images.unsplash.com/photo-1553979459-d2229ba7433b?q=80&w=400&auto=format&fit=crop",
-      sizes: ["Normal"],
-      activeSize: "Normal",
-      types: [
-        {
-          id: 301, name: "Italiano", desc: "Churrasco - Palta - Tomate - Mayo",
-          prices: { "Normal": 3700 },
-          producto_ingrediente: [
-            { id: 50, ingrediente: { nombre: "Churrasco", disponible: true } },
-            { id: 1, ingrediente: { nombre: "Palta", disponible: true } },
-            { id: 2, ingrediente: { nombre: "Tomate", disponible: true } },
-            { id: 3, ingrediente: { nombre: "Mayo", disponible: true } }
-          ]
-        },
-        {
-          id: 303, name: "Barros Luco", desc: "Churrasco - Queso Fundido",
-          prices: { "Normal": 3700 },
-          producto_ingrediente: [
-            { id: 50, ingrediente: { nombre: "Churrasco", disponible: true } },
-            { id: 53, ingrediente: { nombre: "Queso Fundido", disponible: true } }
-          ]
-        }
-      ]
-    }
-  ];
+const fetchProducts = async () => {
+  isLoadingProducts.value = true;
+  try {
+    const [productsRes, categoriesRes] = await Promise.all([
+      productService.getPublicProducts(),
+      categoryService.getPublicCategories()
+    ]);
+
+    const dbProducts = productsRes.data || [];
+    const dbCategories = categoriesRes.data || [];
+
+    categoriesList.value = dbCategories.map((c: any) => ({
+      id: c.id_categoria,
+      nombre_categoria: c.nombre_categoria
+    }));
+
+    const categoryImages: Record<string, string> = {
+      'Vianesas': 'https://images.unsplash.com/photo-1612392062798-7c7e16d7f49f?w=900',
+      'Ass': 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=900',
+      'Churrascos': 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=900',
+      'Lomitos': 'https://images.unsplash.com/photo-1509722747041-616f39b57569?w=900',
+      'Hamburguesas': 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=900',
+      'Pizzas': 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=900',
+      'Fajitas': 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=900',
+      'Sándwich de Pollo': 'https://images.unsplash.com/photo-1606755962773-d324e0a13086?w=900',
+      'Papas & Chorrillanas': 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=900',
+      'Empanadas & Sopaipillas': 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=900',
+      'Bebestibles & Jugos': 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=900'
+    };
+
+    foodProducts.value = dbProducts.map((prod: any) => {
+      const catName = prod.categoria?.nombre_categoria || 'Varios';
+      const sizesArray = (prod.tamaños || []).map((t: any) => t.nombre);
+      const pricesMap: Record<string, number> = {};
+      const sizesMap: Record<string, number> = {};
+
+      (prod.tamaños || []).forEach((t: any) => {
+        pricesMap[t.nombre] = Number(t.pivot?.precio || 0);
+        sizesMap[t.nombre] = Number(t.id_tamaño || t.id || 1);
+      });
+
+      return {
+        id: prod.id_producto,
+        name: prod.nombre,
+        category: catName,
+        image: categoryImages[catName] || 'https://images.unsplash.com/photo-1567620812782-f461bc805b46?w=900',
+        tipo_armado: prod.tipo_armado || 'Estandar',
+        cantidad_incluida: prod.cantidad_incluida ?? 0,
+        precio_ingrediente_extra: Number(prod.precio_ingrediente_extra || 0),
+        sizes: sizesArray,
+        activeSize: sizesArray[0] || 'Único',
+        tamano_id: prod.tamaños?.[0]?.id_tamaño || 1,
+        sizesMap: sizesMap,
+        types: [
+          {
+            id: prod.id_producto,
+            name: prod.nombre,
+            desc: prod.descripcion,
+            prices: pricesMap,
+            producto_ingrediente: prod.ingredientes || []
+          }
+        ]
+      };
+    });
+  } catch (error) {
+    console.error('Error cargando productos en Generar Pedido:', error);
+  } finally {
+    isLoadingProducts.value = false;
+  }
 };
 
-const filteredIceCreams = computed(() => {
-  let results = iceCreams.value;
+const BASE_INGREDIENT_NAMES = [
+  'pan', 'pan completo', 'pan frica', 'pan marraqueta',
+  'vianesa', 'carne', 'hamburguesa', 'pollo', 'lomo',
+  'churrasco', 'masa', 'masa pizza'
+];
+
+const isBaseIngredient = (nombre: string) => {
+  if (!nombre) return false;
+  const lower = nombre.toLowerCase().trim();
+  return lower.startsWith('pan ') ||
+         lower === 'pan' ||
+         lower === 'vianesa' ||
+         lower === 'carne' ||
+         lower === 'lomito' ||
+         lower === 'pollo' ||
+         lower === 'hamburguesa' ||
+         lower === 'masa pizza' ||
+         lower === 'sopaipilla' ||
+         lower === 'empanada' ||
+         BASE_INGREDIENT_NAMES.some(b => lower.includes(b));
+};
+
+const isPersonalizableProduct = computed(() => {
+  if (!activeVariant.value) return false;
+  const p = activeVariant.value;
+  const cat = (p.baseProduct?.category || '').toLowerCase();
+  return p.tipo_armado === 'Personalizable' || 
+         cat.includes('hamburguesa') || 
+         cat.includes('pizza') || 
+         cat.includes('fajita') || 
+         (p.cantidad_incluida && p.cantidad_incluida > 0);
+});
+
+const customizableRecipeIngredients = computed(() => {
+  if (!activeVariant.value || !activeVariant.value.type || !activeVariant.value.type.producto_ingrediente) return [];
+  return activeVariant.value.type.producto_ingrediente.filter((pi: any) => {
+    if (pi.incluido_por_defecto === false || pi.incluido_por_defecto === 0) return false;
+    const ingName = pi.ingrediente?.nombre || '';
+    return !isBaseIngredient(ingName);
+  });
+});
+
+const optionalExtraIngredients = computed(() => {
+  if (!activeVariant.value || !activeVariant.value.type || !activeVariant.value.type.producto_ingrediente) return [];
+  const seenNames = new Set<string>();
+  const result: any[] = [];
+
+  for (const pi of activeVariant.value.type.producto_ingrediente) {
+    const ingName = pi.ingrediente?.nombre || '';
+    if (!ingName) continue;
+
+    if (!seenNames.has(ingName)) {
+      seenNames.add(ingName);
+      result.push(pi);
+    }
+  }
+
+  return result;
+});
+
+const extraIngredientsCost = computed(() => {
+  if (!activeVariant.value || !isPersonalizableProduct.value) return 0;
+  const count = addedExtraIngredients.value.length;
+  const included = activeVariant.value.cantidad_incluida || 3;
+  const extraCount = Math.max(0, count - included);
+  const extraPrice = activeVariant.value.precio_ingrediente_extra || 0;
+  return extraCount * extraPrice;
+});
+
+const currentVariantUnitPrice = computed(() => {
+  if (!activeVariant.value) return 0;
+  const basePrice = Number(activeVariant.value.price || 0);
+  return basePrice + extraIngredientsCost.value;
+});
+
+const filteredProducts = computed(() => {
+  let results = foodProducts.value;
   if (selectedCategory.value !== 'Todas') {
     results = results.filter(item => item.category === selectedCategory.value);
   }
@@ -392,32 +540,52 @@ const filteredIceCreams = computed(() => {
   return results;
 });
 
-// 🌟 Aquí guardamos el 'name' base (p.name) para usarlo en la columna central
 const selectVariant = (baseProduct: any, type: any) => {
+  const sizeName = baseProduct.activeSize;
+  const tamanoId = baseProduct.sizesMap?.[sizeName] || baseProduct.tamano_id || 1;
+
   activeVariant.value = {
     baseProduct: baseProduct,
-    baseName: baseProduct.name, // Ej: "Completo" o "Churrasco"
+    baseName: baseProduct.name,
     type: type,
-    size: baseProduct.activeSize,
-    price: type.prices[baseProduct.activeSize]
+    size: sizeName,
+    tamano_id: tamanoId,
+    price: type.prices[sizeName] || 0,
+    tipo_armado: baseProduct.tipo_armado || 'Estandar',
+    cantidad_incluida: baseProduct.cantidad_incluida ?? 0,
+    precio_ingrediente_extra: Number(baseProduct.precio_ingrediente_extra || 0)
   };
   excludedIngredients.value = [];
+  addedExtraIngredients.value = [];
+  mobileTab.value = 'recipe';
 };
 
 const toggleIngredient = (nombreIngrediente: string) => {
+  if (!nombreIngrediente || isBaseIngredient(nombreIngrediente)) return;
+
   const index = excludedIngredients.value.indexOf(nombreIngrediente);
   if (index > -1) { excludedIngredients.value.splice(index, 1); } 
   else { excludedIngredients.value.push(nombreIngrediente); }
 };
 
+const toggleExtraIngredient = (nombreIngrediente: string) => {
+  if (!nombreIngrediente) return;
+
+  const index = addedExtraIngredients.value.indexOf(nombreIngrediente);
+  if (index > -1) { addedExtraIngredients.value.splice(index, 1); } 
+  else { addedExtraIngredients.value.push(nombreIngrediente); }
+};
+
 const addActiveVariantToCart = () => {
   if (!activeVariant.value) return;
 
+  const isPersonalizable = isPersonalizableProduct.value;
   const exclusionKey = [...excludedIngredients.value].sort().join('-');
-  const cartItemId = `${activeVariant.value.type.id}_${activeVariant.value.size}_${exclusionKey}`;
+  const additionKey = [...addedExtraIngredients.value].sort().join('-');
+  const cartItemId = `${activeVariant.value.type.id}_${activeVariant.value.size}_${exclusionKey}_${additionKey}`;
 
-  // 🌟 Armamos el nombre completo (Ej: "Completo Italiano" o "Churrasco Luco")
-  const fullProductName = `${activeVariant.value.baseName} ${activeVariant.value.type.name}`;
+  const fullProductName = `${activeVariant.value.baseName}`;
+  const finalUnitPrice = currentVariantUnitPrice.value;
 
   const existing = cartItems.value.find(item => item.id === cartItemId);
   if (existing) {
@@ -427,13 +595,16 @@ const addActiveVariantToCart = () => {
       id: cartItemId,
       productId: activeVariant.value.type.id,
       name: activeVariant.value.type.name,
-      fullName: fullProductName, // Guardamos el nombre combinado
+      fullName: fullProductName,
       size: activeVariant.value.size,
-      price: activeVariant.value.price,
+      tamano_id: activeVariant.value.tamano_id,
+      price: finalUnitPrice,
       quantity: 1,
-      excluidos: [...excludedIngredients.value] 
+      excluidos: isPersonalizable ? [] : [...excludedIngredients.value],
+      agregados: isPersonalizable ? [...addedExtraIngredients.value] : []
     });
   }
+  mobileTab.value = 'catalog';
 };
 
 const removeFromCart = (index: number) => { cartItems.value.splice(index, 1); };
@@ -444,100 +615,113 @@ const updateQuantity = (index: number, change: number) => {
 
 const windowQuote = computed(() => cartItems.value.reduce((sum, item) => sum + (item.price * item.quantity), 0));
 const totalQuote = computed(() => `$${windowQuote.value.toLocaleString('es-CL')}`);
+const totalUnits = computed(() => cartItems.value.reduce((acc, item) => acc + item.quantity, 0));
 
 const nextStep = () => {
   if (currentStep.value === 1) {
-    if (cartItems.value.length === 0) return alert('Debe añadir al menos un producto a la comanda.');
+    if (cartItems.value.length === 0) return notify('Debe añadir al menos un producto a la comanda.', 'warning');
     currentStep.value = 2;
   } else if (currentStep.value === 2) {
-    if (!distributorForm.value.nombre_empresa) return alert('Por favor, ingrese el Nombre del cliente.');
-    if (!selectedPaymentMethod.value) return alert('Por favor, seleccione un Método de Pago.');
+    if (!customerForm.value.nombre) return notify('Por favor, ingrese el Nombre del cliente.', 'warning');
+    if (!selectedPaymentMethod.value) return notify('Por favor, seleccione un Método de Pago.', 'warning');
     currentStep.value = 3;
   }
 };
 
-const handlePhoneInput = () => { if (!distributorForm.value.telefono.startsWith('+56')) distributorForm.value.telefono = '+56'; };
+const handlePhoneInput = () => { if (!customerForm.value.telefono.startsWith('+56')) customerForm.value.telefono = '+56'; };
 
 const confirmQuote = async () => {
   if (isSubmitting.value) return;
   isSubmitting.value = true;
   try {
     const payload = {
-      id_distribuidor: 1,
-      id_estado_cotizacion: 1,
-      persona_recibe: distributorForm.value.nombre_empresa,
-      total_cotizacion: windowQuote.value,
-      metodo_pago: selectedPaymentMethod.value, 
-      cotizacion_productos: cartItems.value.map(item => ({
-        id_producto: item.productId, 
-        cantidad: item.quantity, 
-        precio_unitario_venta: item.price, 
-        ingredientes_excluidos: item.excluidos 
+      nombre_persona: customerForm.value.nombre || 'Cliente Presencial',
+      numero_telefono: customerForm.value.telefono || '',
+      metodo_pago: selectedPaymentMethod.value || 'Efectivo',
+      total: windowQuote.value,
+      items: cartItems.value.map(item => ({
+        id_producto: item.productId || 1,
+        id_tamaño: item.tamano_id || 1,
+        cantidad: item.quantity || 1,
+        precio_unitario: Number(item.price || 0),
+        modificaciones: (item.excluidos || []).map((ex: string) => ({
+          tipo: 'Exclusión',
+          precio: 0,
+          ingrediente: ex
+        }))
       }))
     };
-    await quoteService.createQuote(payload);
-    alert('Comanda registrada y enviada a cocina.');
-    currentStep.value = 1; cartItems.value = [];
+
+    await orderService.createPublicOrder(payload);
+    notify('¡Pedido registrado y enviado a cocina exitosamente!', 'success');
+    currentStep.value = 1; 
+    cartItems.value = [];
     activeVariant.value = null;
+    router.push('/general-home/orders');
   } catch (error) {
-    console.error(error); alert('Error al procesar la comanda.');
-  } finally { isSubmitting.value = false; }
+    console.error('Error al procesar el pedido:', error); 
+    notify('Error al procesar el pedido', 'warning');
+  } finally { 
+    isSubmitting.value = false; 
+  }
 };
 
-onMounted(() => { cargarMetodosSimulados(); fetchIceCreams(); });
+onMounted(() => { cargarMetodosSimulados(); fetchProducts(); });
 </script>
 
 <style scoped>
 /* ----------------------------------------------------
    1. CONTENEDOR PRINCIPAL
 ---------------------------------------------------- */
+/* ----------------------------------------------------
+   1. CONTENEDOR PRINCIPAL
+---------------------------------------------------- */
 .admin-quote-wizard { 
-  width: 95%; /* Ocupa casi todo el ancho pero con un pequeño margen lateral */
-  max-width: 1500px; 
-  margin: 20px auto; /* Centrado automático */
-  padding: 20px; 
+  width: 98%; 
+  max-width: 1600px; 
+  margin: 10px auto; 
+  padding: 15px 20px; 
   background: white; 
   border-radius: 20px; 
   box-shadow: 0 10px 30px rgba(0,0,0,0.05); 
 }
 
-.wizard-header { text-align: center; margin-bottom: 2.5rem; }
-.wizard-header h1 { color: #1a1624; margin-bottom: 1rem; font-size: 2.2rem; font-weight: 900; }
-.steps-indicator { display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap; }
-.step { padding: 0.5rem 1.2rem; border-radius: 20px; background: #f0f0f0; color: #888; font-weight: 800; font-size: 0.9rem; transition: all 0.3s; }
+.wizard-header { text-align: center; margin-bottom: 0.8rem; }
+.wizard-header h1 { color: #1a1624; margin-bottom: 0.4rem; font-size: 1.6rem; font-weight: 900; }
+.steps-indicator { display: flex; align-items: center; justify-content: center; gap: 0.8rem; flex-wrap: wrap; }
+.step { padding: 0.4rem 1rem; border-radius: 20px; background: #f0f0f0; color: #888; font-weight: 800; font-size: 0.85rem; transition: all 0.3s; }
 .step.active { background: #965314; color: white; box-shadow: 0 4px 10px rgba(150, 83, 20, 0.3); }
 .line { height: 3px; width: 40px; background: #eee; border-radius: 2px; }
 
 /* ----------------------------------------------------
-   2. LAYOUT DE COLUMNAS (PC: 3 Columnas)
+   2. LAYOUT DE COLUMNAS (PC: 3 Columnas compactas)
 ---------------------------------------------------- */
 .product-layout { 
   display: grid; 
-  /* Damos más espacio al catálogo (min 450px), y fijamos las barras laterales */
-  grid-template-columns: minmax(450px, 1.8fr) 320px 320px; 
-  gap: 1.5rem; 
-  align-items: start; 
+  grid-template-columns: minmax(400px, 1.8fr) 300px 320px; 
+  gap: 1rem; 
+  align-items: stretch; 
   width: 100%; 
+  max-height: calc(100vh - 140px);
 }
 
 /* ----------------------------------------------------
    3. CATÁLOGO Y TARJETAS (Marrón POS)
 ---------------------------------------------------- */
 .catalog-section { background: #ffffff; border-radius: 16px; width: 100%; }
-.catalog-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
-.catalog-header h3 { font-size: 1.3rem; margin: 0; color: #333; font-weight: 900; }
+.catalog-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.8rem; }
+.catalog-header h3 { font-size: 1.15rem; margin: 0; color: #333; font-weight: 900; }
 .filters { display: flex; gap: 0.8rem; flex-wrap: wrap; flex: 1; justify-content: flex-end; }
-.dc-select { padding: 0.7rem 1rem; border: 2px solid #965314; border-radius: 10px; font-size: 0.9rem; font-weight: 700; color: #333; background: white; cursor: pointer; }
-.product-search { position: relative; display: flex; align-items: center; min-width: 200px; }
-.product-search input { padding: 0.7rem 1rem 0.7rem 2.5rem; border: 2px solid #965314; border-radius: 10px; font-size: 0.9rem; width: 100%; font-weight: 600; }
-.product-search svg { position: absolute; left: 0.8rem; color: #965314; }
+.dc-select { padding: 0.5rem 0.8rem; border: 2px solid #965314; border-radius: 10px; font-size: 0.85rem; font-weight: 700; color: #333; background: white; cursor: pointer; }
+.product-search { position: relative; display: flex; align-items: center; min-width: 180px; }
+.product-search input { padding: 0.5rem 0.8rem 0.5rem 2.2rem; border: 2px solid #965314; border-radius: 10px; font-size: 0.85rem; width: 100%; font-weight: 600; }
+.product-search svg { position: absolute; left: 0.6rem; color: #965314; }
 
 .products-grid-admin { 
   display: grid; 
-  /* Auto-fill asegura que las tarjetas no se aplasten, mínimo 220px */
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); 
-  gap: 1.2rem; 
-  max-height: 700px; 
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
+  gap: 1rem; 
+  max-height: calc(100vh - 230px); 
   overflow-y: auto; 
   padding-right: 5px; 
 }
@@ -545,59 +729,87 @@ onMounted(() => { cargarMetodosSimulados(); fetchIceCreams(); });
 /* Diseño de la Tarjeta */
 .brown-menu-card { 
   background: #a05a2c; 
-  border-radius: 16px; 
+  border-radius: 14px; 
   overflow: hidden; 
-  box-shadow: 0 6px 15px rgba(0,0,0,0.1); 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
   display: flex; 
   flex-direction: column; 
   transition: transform 0.2s, box-shadow 0.2s;
   border: 2px solid transparent;
 }
-.brown-menu-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(160, 90, 44, 0.3); }
-.brown-menu-card img { width: 100%; height: 130px; object-fit: cover; }
-.brown-card-body { padding: 1.2rem; display: flex; flex-direction: column; color: white; flex: 1; }
-.card-main-title { margin: 0; text-align: center; font-size: 1.2rem; font-weight: 900; text-shadow: 1px 1px 3px rgba(0,0,0,0.4); letter-spacing: 0.5px; }
+.brown-menu-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(160, 90, 44, 0.25); }
+.brown-menu-card img { width: 100%; height: 85px; object-fit: cover; }
+.brown-card-body { padding: 0.8rem; display: flex; flex-direction: column; color: white; flex: 1; }
+.card-main-title { margin: 0; text-align: center; font-size: 1.1rem; font-weight: 900; text-shadow: 1px 1px 3px rgba(0,0,0,0.4); letter-spacing: 0.5px; }
 
 /* Botones de Tamaño (Pills) */
-.size-pills-container { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin: 15px 0; }
+.size-pills-container { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
 .size-pill { 
   background: #cba342; border: 2px solid #e1b958; color: #111; font-weight: 900; 
-  border-radius: 20px; padding: 5px 14px; cursor: pointer; transition: all 0.2s; font-size: 0.85rem;
+  border-radius: 20px; padding: 4px 12px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;
 }
 .size-pill:hover { background: #dfb755; }
-.active-pill { background: #ffce44; border-color: #fff; transform: scale(1.08); box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+.active-pill { background: #ffce44; border-color: #fff; transform: scale(1.05); box-shadow: 0 3px 8px rgba(0,0,0,0.3); }
 
 /* Radios de Variedades */
-.type-section-title { text-align: center; font-weight: 900; margin-bottom: 10px; font-size: 1.05rem; color: #f2c75c; text-transform: uppercase; }
-.variants-list { display: flex; flex-direction: column; gap: 8px; }
-.variant-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+.type-section-title { text-align: center; font-weight: 900; margin-bottom: 8px; font-size: 0.95rem; color: #f2c75c; text-transform: uppercase; }
+.variants-list { display: flex; flex-direction: column; gap: 6px; }
+.variant-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
 .variant-row:hover { background: rgba(255,255,255,0.1); }
 .active-row { background: rgba(255,255,255,0.15); border-left: 4px solid #ffce44; }
 
-.variant-left { display: flex; align-items: center; gap: 10px; overflow: hidden; }
-.radio-circle { width: 18px; height: 18px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.radio-inner { width: 10px; height: 10px; border-radius: 50%; background: #ffce44; }
+.variant-left { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+.radio-circle { width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.radio-inner { width: 8px; height: 8px; border-radius: 50%; background: #ffce44; }
 .variant-texts { display: flex; flex-direction: column; overflow: hidden; }
-.v-name { font-weight: 900; font-size: 1rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+.v-name { font-weight: 900; font-size: 0.9rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
 .v-desc { font-size: 0.65rem; color: #eee; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.v-price { font-weight: 900; font-size: 1.05rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); flex-shrink: 0; color: #ffce44; }
+.v-price { font-weight: 900; font-size: 0.95rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); flex-shrink: 0; color: #ffce44; }
 
 /* ----------------------------------------------------
    4. RECETA (COLUMNA CENTRAL)
 ---------------------------------------------------- */
-.box-ingredient-card { background: #fdfdfd; padding: 1.5rem; border-radius: 16px; border: 2px solid #a05a2c; position: sticky; top: 20px; display: flex; flex-direction: column; min-height: 350px; }
-.card-header { display: flex; align-items: center; gap: 0.5rem; font-weight: 900; color: #a05a2c; border-bottom: 2px dashed rgba(160, 90, 44, 0.2); padding-bottom: 1rem; margin-bottom: 1rem; text-transform: uppercase; }
-.product-name-highlight { font-size: 1.4rem; color: #222; margin-bottom: 1rem; font-weight: 900; line-height: 1.2; text-transform: capitalize; }
-.ingredient-list h4 { font-size: 0.8rem; color: #777; text-transform: uppercase; margin-bottom: 1rem; font-weight: 800; }
-.ingredients-wrapper { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem; overflow-y: auto; max-height: 300px; padding-right: 5px; }
-.ingredient-item-row { display: flex; justify-content: space-between; align-items: center; background: #f4f4f4; padding: 12px 14px; border-radius: 10px; font-size: 0.9rem; font-weight: 700; color: #333; cursor: pointer; border: 1px solid #eaeaea; transition: all 0.2s; }
+.box-ingredient-card { 
+  background: #fdfdfd; 
+  padding: 1.2rem; 
+  border-radius: 16px; 
+  border: 2px solid #a05a2c; 
+  display: flex; 
+  flex-direction: column; 
+  max-height: calc(100vh - 160px); 
+  overflow: hidden; 
+}
+.card-header { display: flex; align-items: center; gap: 0.5rem; font-weight: 900; color: #a05a2c; border-bottom: 2px dashed rgba(160, 90, 44, 0.2); padding-bottom: 0.8rem; margin-bottom: 0.8rem; text-transform: uppercase; font-size: 0.9rem; }
+.product-name-highlight { font-size: 1.2rem; color: #222; margin-bottom: 0.8rem; font-weight: 900; line-height: 1.2; text-transform: capitalize; }
+.ingredient-list { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.ingredient-list h4 { font-size: 0.75rem; color: #777; text-transform: uppercase; margin-bottom: 0.8rem; font-weight: 800; }
+.ingredients-wrapper { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; max-height: 300px; overflow-y: auto; flex: 1; padding-right: 6px; }
+.ingredient-item-row { display: flex; justify-content: space-between; align-items: center; background: #f4f4f4; padding: 10px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; color: #333; cursor: pointer; border: 1px solid #eaeaea; transition: all 0.2s; }
 .ingredient-item-row:hover { background: #f0edea; border-color: #a05a2c; }
 .ing-left { display: flex; align-items: center; gap: 12px; }
 .custom-checkbox { width: 18px; height: 18px; accent-color: #a05a2c; cursor: pointer; }
+
+/* ----------------------------------------------------
+   5. CARRITO Y COMANDA (COLUMNA DERECHA)
+---------------------------------------------------- */
+.cart-summary-admin { 
+  background: #faf9f7; 
+  border-radius: 16px; 
+  padding: 1.2rem; 
+  border: 2px solid #eee; 
+  display: flex; 
+  flex-direction: column; 
+  max-height: calc(100vh - 160px); 
+  overflow-y: auto; 
+}
 .ingredient-removed { opacity: 0.6; background-color: #fceceb; border-color: #f5c2c7; text-decoration: line-through; }
+.ingredient-added { background-color: #e6fcf5; border-color: #96f2d7; }
+.ingredient-disabled { opacity: 0.5; background-color: #f1f5f9; cursor: not-allowed; }
 .ing-status { font-size: 0.75rem; font-weight: 900; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; }
 .ing-status.ok { background: #e0f8f5; color: #0f9d8a; }
+.ing-status.added { background: #d3f9d8; color: #2b8a3e; }
 .ing-status.removed { background: #ffe5e8; color: #d62839; }
+.ing-status.no-stock { background: #fee2e2; color: #dc2626; }
 
 .btn-add-to-cart-large { width: 100%; background: #965314; color: white; border: none; padding: 14px; border-radius: 12px; font-weight: 900; font-size: 1.1rem; cursor: pointer; margin-top: auto; box-shadow: 0 6px 15px rgba(150, 83, 20, 0.3); transition: all 0.2s; }
 .btn-add-to-cart-large:hover { background: #7a410f; transform: translateY(-2px); }
@@ -615,13 +827,56 @@ onMounted(() => { cargarMetodosSimulados(); fetchIceCreams(); });
 .item-name { font-weight: 900; font-size: 0.95rem; color: #222; line-height: 1.2; }
 .item-price { font-size: 1rem; color: #965314; font-weight: 900; }
 .badge-removed-items { font-size: 0.7rem; background-color: #ffe5e8; color: #d62839; padding: 3px 8px; border-radius: 6px; font-weight: 900; display: inline-block; width: fit-content; margin-top: 2px; }
+.badge-added-items { font-size: 0.7rem; background-color: #d3f9d8; color: #2b8a3e; padding: 3px 8px; border-radius: 6px; font-weight: 900; display: inline-block; width: fit-content; margin-top: 2px; }
+.exclusion-badge-item.added { background-color: #ebfbee; color: #2b8a3e; border: 1px solid #b2f2bb; }
 .item-controls { display: flex; align-items: center; gap: 0.8rem; font-weight: 900; color: #333; background: #f4f4f4; padding: 4px; border-radius: 8px; width: fit-content; }
 .qty-btn { width: 26px; height: 26px; border-radius: 6px; background: white; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #965314; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 .btn-delete { margin-left: auto; background: none; border: none; color: #d62839; cursor: pointer; padding: 6px; }
 .cart-total { border-top: 2px dashed #ccc; padding-top: 1.2rem; display: flex; justify-content: space-between; font-size: 1.3rem; color: #111; font-weight: 900; margin-top: 1rem; }
 
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.brown-menu-card-skeleton {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 2px solid #e0d8d0;
+  display: flex;
+  flex-direction: column;
+}
+
+.brown-menu-card-skeleton .skeleton-img {
+  width: 100%;
+  height: 160px;
+  background: linear-gradient(90deg, #f0ede9 25%, #f8f6f3 50%, #f0ede9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.brown-menu-card-skeleton .skeleton-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeleton-pill {
+  height: 16px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0ede9 25%, #f8f6f3 50%, #f0ede9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.width-80 { width: 80px; }
+.width-120 { width: 120px; }
+.margin-top-4 { margin-top: 4px; }
+
 /* ----------------------------------------------------
-   6. GLOBALES Y FORMS
+   4. DETALLE DE RECETA
 ---------------------------------------------------- */
 .client-step,
 .summary-step {
@@ -873,4 +1128,148 @@ onMounted(() => { cargarMetodosSimulados(); fetchIceCreams(); });
 ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
 ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+.ing-status.base {
+  background-color: #e2e8f0;
+  color: #475569;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+}
+
+.ingredient-disabled {
+  opacity: 0.85;
+}
+
+/* ----------------------------------------------------
+   PESTAÑAS Y CARRITO FLOTANTE EN MÓVILES (< 900px)
+---------------------------------------------------- */
+.mobile-tabs-bar {
+  display: none;
+}
+
+.mobile-floating-cart-bar {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .product-step .actions {
+    display: none !important;
+  }
+
+  .mobile-tabs-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    background: #f4efe9;
+    padding: 6px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+  }
+
+  .mobile-tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 6px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #6e6a75;
+    font-weight: 800;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .mobile-tab-btn.active {
+    background: #965314;
+    color: white;
+    box-shadow: 0 2px 8px rgba(150, 83, 20, 0.25);
+  }
+
+  .product-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .product-layout.show-tab-catalog .box-ingredient-card,
+  .product-layout.show-tab-catalog .cart-summary-admin {
+    display: none !important;
+  }
+
+  .product-layout.show-tab-recipe .catalog-section,
+  .product-layout.show-tab-recipe .cart-summary-admin {
+    display: none !important;
+  }
+
+  .product-layout.show-tab-cart .catalog-section,
+  .product-layout.show-tab-cart .box-ingredient-card {
+    display: none !important;
+  }
+
+  .mobile-floating-cart-bar {
+    position: fixed;
+    bottom: 15px;
+    left: 15px;
+    right: 15px;
+    background: #513119;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    z-index: 999;
+    cursor: pointer;
+    animation: slideUp 0.3s ease;
+  }
+
+  .cart-bar-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .badge-count {
+    background: #e28743;
+    color: white;
+    font-weight: 900;
+    font-size: 0.85rem;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cart-bar-total {
+    font-weight: 900;
+    font-size: 1.1rem;
+  }
+
+  .btn-checkout-mobile {
+    background: #e28743;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 900;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+}
 </style>

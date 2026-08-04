@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileText, ShoppingBag, FilePlus, X } from 'lucide-vue-next'
+import { BadgeDollarSign , ShoppingBag, X, Package, Store, Users, PackageSearch   } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 
 const props = defineProps<{
@@ -49,7 +49,7 @@ const isActive = (path: string) => {
               class="nav-item" 
               :class="{ active: isActive('/general-home/orders') }"
               @click="navigateTo('/general-home/orders')"
-              `v-role="[1,3]"`
+              v-role="[1,3]"
             >
               <ShoppingBag :size="20" />
               <span>Pedidos</span>
@@ -59,9 +59,9 @@ const isActive = (path: string) => {
               class="nav-item" 
               :class="{ active: isActive('/general-home/generate-quote') }"
               @click="navigateTo('/general-home/generate-quote')"
-              `v-role="[1,3]"`
+              v-role="[1,3]"
             >
-              <FilePlus :size="20" />
+              <Store :size="20" />
               <span>Generar Pedidos</span>
             </button>
 
@@ -69,9 +69,9 @@ const isActive = (path: string) => {
               class="nav-item" 
               :class="{ active: isActive('/general-home/admin/cash-flow') }"
               @click="navigateTo('/general-home/admin/cash-flow')"
-              `v-role="[1]"`
+              v-role="[1]"
             >
-              <FilePlus :size="20" />
+              <BadgeDollarSign  :size="20" />
               <span>Caja</span>
             </button>
 
@@ -79,9 +79,9 @@ const isActive = (path: string) => {
               class="nav-item" 
               :class="{ active: isActive('/general-home/inventory') }"
               @click="navigateTo('/general-home/inventory')"
-              `v-role="[1,3]"`
+              v-role="[1,3]"
             >
-              <FilePlus :size="20" />
+              <Package :size="20" />
               <span>Inventario</span>
             </button>
 
@@ -90,9 +90,9 @@ const isActive = (path: string) => {
               class="nav-item" 
               :class="{ active: isActive('/general-home/admin/product') }"
               @click="navigateTo('/general-home/admin/product')"
-              `v-role="[1]"`
+              v-role="[1]"
             >
-              <FilePlus :size="20" />
+              <PackageSearch :size="20" />
               <span>Productos</span>
             </button>
 
@@ -101,9 +101,9 @@ const isActive = (path: string) => {
               class="nav-item" 
               :class="{ active: isActive('/general-home/admin/worker') }"
               @click="navigateTo('/general-home/admin/worker')"
-             `v-role="[1]" descomentar para pruebas`
+              v-role="[1]"
             >
-              <FilePlus :size="20" />
+              <Users :size="20" />
               <span>Trabajadores</span>
             </button>
           </div>

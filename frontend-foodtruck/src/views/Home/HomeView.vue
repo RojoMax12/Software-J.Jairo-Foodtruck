@@ -31,7 +31,17 @@
         :categories="categoriesList"
       />
       
-      <div class="products-grid">
+      <div v-if="isLoadingProducts" class="products-grid">
+        <div v-for="n in 8" :key="'prod-skel-' + n" class="product-card-skeleton">
+          <div class="skeleton-img"></div>
+          <div class="skeleton-body">
+            <div class="skeleton-pill width-80"></div>
+            <div class="skeleton-pill width-120"></div>
+            <div class="skeleton-pill width-60"></div>
+          </div>
+        </div>
+      </div>
+      <div v-else class="products-grid">
         <ProductCard 
           v-for="item in filteredIceCreams" 
           :key="item.name"
@@ -68,7 +78,6 @@ import ProductCard from '@/components/ProductCard.vue'
 import CartModal from '@/components/CartModal.vue'
 import ProductDetailModal from '@/components/ProductDetailModal.vue';
 import LoginNoticeModal from '@/components/LoginNoticeModal.vue';
-import fotoCaja from '@/assets/caja_dicreme.jpg'
 import { ShoppingCart } from 'lucide-vue-next'
 import categoryService from '@/services/productCategoryService';
 import productService from '@/services/productService';
@@ -77,11 +86,15 @@ import Carousel from '@/components/Carousel.vue';
 import imgBanner1 from '@/assets/banner1.webp'
 import imgBanner2 from '@/assets/banner2.webp'
 import imgBanner3 from '@/assets/banner3.webp'
+import { useNotification } from '@/composables/useNotification';
+
+const { notify } = useNotification();
 
 
 
 
 // Estados reactivos
+const isLoadingProducts = ref(true);
 const isCartOpen = ref(false);
 const isDetailOpen = ref(false);
 const isNoticeOpen = ref(false);
@@ -143,7 +156,7 @@ const handleLogout = () => {
   localStorage.removeItem('user');
   isLoggedIn.value = false;
   currentUser.value = null;
-  alert('Has cerrado sesión exitosamente.');
+  notify('Has cerrado sesión exitosamente.', 'success');
 };
 
 // Computado para filtrar productos por categoría y búsqueda de texto
@@ -193,15 +206,23 @@ const openDetails = (iceCream: any) => {
 const getCardPrice = (product: any) => {
   if (!product.types?.length) return "Sin precio";
 
-  const firstType = product.types[0];
+  let minPrice = Infinity;
+  product.types.forEach((t: any) => {
+    Object.values(t.prices || {}).forEach((p: any) => {
+      const num = Number(p);
+      if (!isNaN(num) && num > 0 && num < minPrice) {
+        minPrice = num;
+      }
+    });
+  });
 
-  const firstSize = product.sizes?.[0];
+  if (minPrice === Infinity) return "Sin precio";
 
-  if (!firstSize) return "Sin precio";
+  if (product.sizes?.length > 1) {
+    return `Desde $${minPrice.toLocaleString("es-CL")}`;
+  }
 
-  const price = firstType.prices[firstSize];
-
-  return `$${price.toLocaleString("es-CL")}`;
+  return `$${minPrice.toLocaleString("es-CL")}`;
 };
 
 /*
@@ -254,8 +275,7 @@ const baseProduct = iceCreams.value.find(p => p.name === purchaseItem.name);
     cartItems.value.push(purchaseItem);
   }
 
-  console.log("Estado actual del carrito Di Creme:", cartItems.value);
-
+  notify(`¡${purchaseItem.fullName || 'Producto'} añadido al carrito!`, 'success');
 }
 
 // Función para cambiar cantidades desde el carrito lateral
@@ -279,28 +299,12 @@ const handleRemoveItem = (payload: { id: number, size: string }) => {
   cartItems.value = cartItems.value.filter(
     item => !(item.id === payload.id && item.size === payload.size)
   );
+  notify('Producto eliminado del carrito.', 'warning');
 };
-
-// Procesar la cotización hacia la siguiente pantalla
-/*const goToQuotation = () => {
-  if (cartItems.value.length === 0) {
-    alert("Tu carrito está vacío.");
-    return;
-  }
-  
-  const token = localStorage.getItem('token');  
-  
-  if (token) {
-      isCartOpen.value = false;
-      router.push('/cotizacion');
-  } else {
-      isNoticeOpen.value = true;
-  }
-};*/
 
 const goToQuotation = () => {
   if (cartItems.value.length === 0) {
-    alert("Tu carrito está vacío.");
+    notify('Tu carrito está vacío.', 'warning');
     return;
   }
   
@@ -316,500 +320,114 @@ const handleGoToLogin = () => {
 };
 
 // Función para cargar los productos desde la API
-/*const fetchIceCreams = async () => {
+const fetchIceCreams = async () => {
+  isLoadingProducts.value = true;
   try {
-    const [productsResponse, categoriesResponse] = await Promise.all([
-      productService.getProducts(),
-      categoryService.getCategory()
+    const [productsRes, categoriesRes] = await Promise.all([
+      productService.getPublicProducts(),
+      categoryService.getPublicCategories()
     ]);
 
-    if (!productsResponse || !categoriesResponse) {
-      throw new Error('Error al obtener los datos');
-    }
+    const dbProducts = productsRes.data || [];
+    const dbCategories = categoriesRes.data || [];
 
-    const dbProducts = productsResponse.data;
-    const dbCategories = categoriesResponse.data;
-
-    categoriesList.value = dbCategories;
-
-    // Diccionario de categorías para mapear IDs a nombres legibles
-    const categoryMap: Record<number, string> = {};
-    dbCategories.forEach((cat: any) => {
-      const catId = cat.id || cat.ID;
-      if (catId){
-        categoryMap[catId] = cat.nombre_categoria;
-      }
+    // Filtrar solo productos activos para el menú público del cliente
+    const activeDbProducts = dbProducts.filter((p: any) => {
+      if (p.active === false || p.activo === false || p.estado === 0 || p.activo === 0) return false;
+      return true;
     });
 
-    // Auxiliar para agrupar los formatos individuales bajo el mismo nombre de sabor
-    const grouped: Record<string, any> = {};
+    categoriesList.value = dbCategories.map((c: any) => ({
+      id: c.id_categoria,
+      nombre_categoria: c.nombre_categoria
+    }));
+
+    const categoryColors: Record<string, string> = {
+      'Vianesas': '#E28743',
+      'Ass': '#C0392B',
+      'Churrascos': '#D35400',
+      'Lomitos': '#8E44AD',
+      'Hamburguesas': '#27AE60',
+      'Pizzas': '#F39C12',
+      'Fajitas': '#16A085',
+      'Sándwich de Pollo': '#2980B9',
+      'Papas & Chorrillanas': '#F1C40F',
+      'Empanadas & Sopaipillas': '#E67E22',
+      'Bebestibles & Jugos': '#3498DB'
+    };
+
+    const categoryImages: Record<string, string> = {
+      'Vianesas': 'https://images.unsplash.com/photo-1612392062798-7c7e16d7f49f?w=900',
+      'Ass': 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=900',
+      'Churrascos': 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=900',
+      'Lomitos': 'https://images.unsplash.com/photo-1509722747041-616f39b57569?w=900',
+      'Hamburguesas': 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=900',
+      'Pizzas': 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=900',
+      'Fajitas': 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=900',
+      'Sándwich de Pollo': 'https://images.unsplash.com/photo-1606755962773-d324e0a13086?w=900',
+      'Papas & Chorrillanas': 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=900',
+      'Empanadas & Sopaipillas': 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=900',
+      'Bebestibles & Jugos': 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=900'
+    };
+
+    const groupableCategories = ['Vianesas', 'Ass', 'Churrascos', 'Lomitos'];
+    const groupedMap: Record<string, any> = {};
 
     dbProducts.forEach((prod: any) => {
-      const flavorName = prod.nombre_producto;
-      const catId = prod.id_categoria || prod.ID_categoria;
-      const categoryName = categoryMap[catId] || 'Sin categoría';
+      const catName = prod.categoria?.nombre_categoria || 'Varios';
+      const isGroupable = groupableCategories.includes(catName);
+      const groupKey = isGroupable ? catName : prod.nombre;
 
-      if (!grouped[flavorName]){
-        grouped[flavorName] = {
-          name: flavorName,
-          category: categoryName,
-          color: 'var(--DC-pink)',
-          image: fotoCaja,
-          id10l: null, price10l: 'No disponible',
-          id5l: null, price5l: 'No disponible',
-          id25l: null, price25l: 'No disponible',
-          id1l: null, price1l: 'No disponible'
+      if (!groupedMap[groupKey]) {
+        groupedMap[groupKey] = {
+          id: prod.id_producto,
+          name: isGroupable ? catName : prod.nombre,
+          category: catName,
+          color: categoryColors[catName] || '#E28743',
+          image: categoryImages[catName] || 'https://images.unsplash.com/photo-1567620812782-f461bc805b46?w=900',
+          descripcion: prod.descripcion,
+          tipo_armado: prod.tipo_armado,
+          cantidad_incluida: prod.cantidad_incluida,
+          precio_ingrediente_extra: prod.precio_ingrediente_extra,
+          sizes: [],
+          tamaños_obj: [],
+          types: []
         };
       }
 
-      const rawPrice = prod.precio_producto || 0;
-      const formattedPrice = `$${Number(rawPrice).toLocaleString('es-CL')}`;
-      console.log(`Producto: ${flavorName}, Formato ID: ${prod.id_formato || prod.ID_formato}, Precio: ${rawPrice}`);
+      const pricesMap: Record<string, number> = {};
+      (prod.tamaños || []).forEach((t: any) => {
+        pricesMap[t.nombre] = Number(t.pivot?.precio || 0);
+      });
 
-      const formatId = prod.id_formato || prod.ID_formato;
-      
-      // Asignamos el ID único de la base de datos de cada helado concreto a su respectivo formato mapeado
-      if (formatId === 1) {
-        grouped[flavorName].id10l = prod.id || prod.ID;
-        grouped[flavorName].price10l = formattedPrice;
-      } else if (formatId === 2) {
-        grouped[flavorName].id5l = prod.id || prod.ID;
-        grouped[flavorName].price5l = formattedPrice;
-      } else if (formatId === 3) {
-        grouped[flavorName].id25l = prod.id || prod.ID;
-        grouped[flavorName].price25l = formattedPrice;
-      } else if (formatId === 4) {
-        grouped[flavorName].id1l = prod.id || prod.ID;
-        grouped[flavorName].price1l = formattedPrice;
-      }
+      const isProdActive = prod.active !== false && prod.activo !== false && prod.estado !== 0 && prod.activo !== 0;
+
+      groupedMap[groupKey].types.push({
+        id: prod.id_producto,
+        name: prod.nombre,
+        desc: prod.descripcion,
+        active: isProdActive,
+        prices: pricesMap,
+        tamaños_obj: prod.tamaños || [],
+        producto_ingrediente: prod.ingredientes || []
+      });
+
+      (prod.tamaños || []).forEach((t: any) => {
+        if (!groupedMap[groupKey].sizes.includes(t.nombre)) {
+          groupedMap[groupKey].sizes.push(t.nombre);
+        }
+        if (!groupedMap[groupKey].tamaños_obj.some((existing: any) => existing.id_tamaño === t.id_tamaño)) {
+          groupedMap[groupKey].tamaños_obj.push(t);
+        }
+      });
     });
 
-    iceCreams.value = Object.values(grouped);
+    iceCreams.value = Object.values(groupedMap);
   } catch (error) {
-    console.error('Error al cargar los productos:', error);
-  }  
-}*/
-
-const fetchIceCreams = async () => {
-  categoriesList.value = [
-    { id: 1, nombre_categoria: "Completos" },
-    { id: 2, nombre_categoria: "Papas" },
-    { id: 3, nombre_categoria: "Churrascos" },
-    { id: 4, nombre_categoria: "Pizzas" },
-    { id: 5, nombre_categoria: "Bebidas" }
-  ];
-
-  iceCreams.value = [
-
-    //---------------------------------------
-    // COMPLETO
-    //---------------------------------------
-    {
-      name: "Completo",
-      category: "Completos",
-      color: "#E28743",
-      image: "https://images.unsplash.com/photo-1612392062798-7c7e16d7f49f?w=900",
-      sizes: ["Normal", "XL"],
-
-      types: [
-
-        {
-          id: 101,
-          name: "Italiano",
-          desc: "Palta, tomate y mayo",
-
-          prices: {
-            Normal: 2500,
-            XL: 3300
-          },
-
-          producto_ingrediente: [
-
-            {
-              id: 1,
-              ingrediente: {
-                nombre: "Vienesa",
-                disponible: true
-              }
-            },
-
-            {
-              id: 2,
-              ingrediente: {
-                nombre: "Palta",
-                disponible: true
-              }
-            },
-
-            {
-              id: 3,
-              ingrediente: {
-                nombre: "Tomate",
-                disponible: true
-              }
-            },
-
-            {
-              id: 4,
-              ingrediente: {
-                nombre: "Mayonesa",
-                disponible: true
-              }
-            }
-
-          ]
-        },
-
-        {
-          id: 102,
-          name: "Dinámico",
-          desc: "Palta, tomate, americana y mayo",
-
-          prices: {
-            Normal: 2700,
-            XL: 3600
-          },
-
-          producto_ingrediente: [
-
-            {
-              id: 5,
-              ingrediente: {
-                nombre: "Vienesa",
-                disponible: true
-              }
-            },
-
-            {
-              id: 6,
-              ingrediente: {
-                nombre: "Palta",
-                disponible: true
-              }
-            },
-
-            {
-              id: 7,
-              ingrediente: {
-                nombre: "Tomate",
-                disponible: true
-              }
-            },
-
-            {
-              id: 8,
-              ingrediente: {
-                nombre: "Americana",
-                disponible: true
-              }
-            },
-
-            {
-              id: 9,
-              ingrediente: {
-                nombre: "Mayonesa",
-                disponible: true
-              }
-            }
-
-          ]
-        },
-
-        {
-          id: 103,
-          name: "Luco",
-          desc: "Queso fundido",
-
-          prices: {
-            Normal: 2800,
-            XL: 3700
-          },
-
-          producto_ingrediente: [
-
-            {
-              id: 10,
-              ingrediente: {
-                nombre: "Vienesa",
-                disponible: true
-              }
-            },
-
-            {
-              id: 11,
-              ingrediente: {
-                nombre: "Queso",
-                disponible: true
-              }
-            }
-
-          ]
-        }
-
-      ]
-    },
-
-    //---------------------------------------
-    // PAPAS
-    //---------------------------------------
-
-    {
-      name: "Papas Fritas",
-      category: "Papas",
-      color: "#F9B233",
-      image: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=900",
-
-      sizes: [
-        "Pequeña",
-        "Mediana",
-        "Grande"
-      ],
-
-      types: [
-
-        {
-          id: 201,
-          name: "Tradicional",
-          desc: "Sólo papas",
-
-          prices: {
-            Pequeña: 2500,
-            Mediana: 3500,
-            Grande: 4800
-          },
-
-          producto_ingrediente: [
-            {
-              id: 20,
-              ingrediente: {
-                nombre: "Sal",
-                disponible: true
-              }
-            }
-          ]
-        },
-
-        {
-          id: 202,
-          name: "Papas Queso",
-          desc: "Con queso cheddar",
-
-          prices: {
-            Pequeña: 3200,
-            Mediana: 4300,
-            Grande: 5800
-          },
-
-          producto_ingrediente: [
-
-            {
-              id: 21,
-              ingrediente: {
-                nombre: "Papas",
-                disponible: true
-              }
-            },
-
-            {
-              id: 22,
-              ingrediente: {
-                nombre: "Queso Cheddar",
-                disponible: true
-              }
-            }
-
-          ]
-        }
-
-      ]
-    },
-
-    //---------------------------------------
-    // CHURRASCOS
-    //---------------------------------------
-
-    {
-      name: "Churrasco",
-      category: "Churrascos",
-      color: "#9C6644",
-      image: "https://images.unsplash.com/photo-1550317138-10000687a72b?w=900",
-
-      sizes: [
-        "Normal"
-      ],
-
-      types: [
-
-        {
-          id: 301,
-          name: "Barros Luco",
-          desc: "Queso fundido",
-
-          prices: {
-            Normal: 6500
-          },
-
-          producto_ingrediente: [
-
-            {
-              id: 30,
-              ingrediente: {
-                nombre: "Carne",
-                disponible: true
-              }
-            },
-
-            {
-              id: 31,
-              ingrediente: {
-                nombre: "Queso",
-                disponible: true
-              }
-            }
-
-          ]
-        },
-
-        {
-          id: 302,
-          name: "Italiano",
-          desc: "Palta, tomate y mayo",
-
-          prices: {
-            Normal: 6900
-          },
-
-          producto_ingrediente: [
-
-            {
-              id: 32,
-              ingrediente: {
-                nombre: "Carne",
-                disponible: true
-              }
-            },
-
-            {
-              id: 33,
-              ingrediente: {
-                nombre: "Palta",
-                disponible: true
-              }
-            },
-
-            {
-              id: 34,
-              ingrediente: {
-                nombre: "Tomate",
-                disponible: true
-              }
-            },
-
-            {
-              id: 35,
-              ingrediente: {
-                nombre: "Mayonesa",
-                disponible: true
-              }
-            }
-
-          ]
-        }
-
-      ]
-    },
-
-    //---------------------------------------
-    // PIZZA
-    //---------------------------------------
-
-    {
-      name: "Pizza",
-      category: "Pizzas",
-      color: "#D1495B",
-      image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=900",
-
-      sizes: [
-        "Mediana",
-        "Familiar"
-      ],
-
-      types: [
-
-        {
-          id: 401,
-          name: "Napolitana",
-          desc: "Jamón, tomate",
-
-          prices: {
-            Mediana: 8900,
-            Familiar: 11900
-          },
-
-          producto_ingrediente: [
-
-            {
-              id: 40,
-              ingrediente: {
-                nombre: "Jamón",
-                disponible: true
-              }
-            },
-
-            {
-              id: 41,
-              ingrediente: {
-                nombre: "Tomate",
-                disponible: true
-              }
-            },
-
-            {
-              id: 42,
-              ingrediente: {
-                nombre: "Queso",
-                disponible: true
-              }
-            }
-
-          ]
-        },
-
-        {
-          id: 402,
-          name: "Pepperoni",
-          desc: "Pepperoni extra",
-
-          prices: {
-            Mediana: 9500,
-            Familiar: 12500
-          },
-
-          producto_ingrediente: [
-
-            {
-              id: 43,
-              ingrediente: {
-                nombre: "Pepperoni",
-                disponible: true
-              }
-            },
-
-            {
-              id: 44,
-              ingrediente: {
-                nombre: "Queso",
-                disponible: true
-              }
-            }
-
-          ]
-        }
-
-      ]
-    }
-
-  ];
+    console.error('Error al cargar productos desde la API:', error);
+  } finally {
+    isLoadingProducts.value = false;
+  }
 };
 
 onMounted(() => {
@@ -881,6 +499,47 @@ watch(
 .floating-cart:active {
   transform: scale(0.9);
 }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.product-card-skeleton {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+.skeleton-img {
+  width: 100%;
+  height: 180px;
+  background: linear-gradient(90deg, #f0ede9 25%, #f8f6f3 50%, #f0ede9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeleton-pill {
+  height: 16px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0ede9 25%, #f8f6f3 50%, #f0ede9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.width-60 { width: 60px; }
+.width-80 { width: 80px; }
+.width-120 { width: 120px; }
 
 .home-page {
   display: flex;

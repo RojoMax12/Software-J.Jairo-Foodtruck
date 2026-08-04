@@ -14,6 +14,8 @@ class Producto_ingrediente extends Model
     protected $fillable = [
         'id_producto',
         'id_ingrediente',
+        'id_tamaño',
+        'cantidad',
         'incluido_por_defecto',
     ];
 
@@ -25,5 +27,10 @@ class Producto_ingrediente extends Model
     public function ingrediente(): BelongsTo
     {
         return $this->belongsTo(Ingrediente::class, 'id_ingrediente');
+    }
+
+    public function tamaño(): BelongsTo
+    {
+        return $this->belongsTo(Tamaño::class, 'id_tamaño');
     }
 }

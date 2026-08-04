@@ -99,7 +99,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Clock, ChefHat, CheckCircle, PackageCheck } from 'lucide-vue-next'; // Asegúrate de tener lucide-vue-next instalado
+import { Clock, ChefHat, CheckCircle, PackageCheck } from 'lucide-vue-next';
+import orderService from '@/services/orderService';
 
 const router = useRouter();
 const orderId = ref('');
@@ -135,49 +136,64 @@ const isStepActive = (stepId: string) => {
   return orderResult.value.currentStatus === stepId;
 };
 
-// Función de Búsqueda (Simulada)
-// Función de Búsqueda (Simulada)
+// Función de Búsqueda por API Real
 const handleSearch = async () => {
   errorMessage.value = '';
   orderResult.value = null;
 
-  if (!orderId.value.trim()) {
-    errorMessage.value = 'Por favor, ingresa el número de tu pedido.';
+  const rawInput = orderId.value.trim();
+  if (!rawInput) {
+    errorMessage.value = 'Por favor, ingresa el número de tu pedido (ej: 3 o #3).';
     return;
   }
 
+  const cleanQuery = rawInput.replace(/^#/, '');
   isLoading.value = true;
-  await new Promise(resolve => setTimeout(resolve, 800)); // Simula latencia de red
 
-  // Lógica Dummy para pruebas de diferentes estados
-  if (orderId.value === '1024') {
-    orderResult.value = {
-      id: '1024',
-      customerName: 'Juan Pérez',
-      customerPhone: '+569 1234 5678',
-      customerMetododepago: 'Efectivo', // 🌟 AGREGADO AQUÍ
-      currentStatus: 'preparacion', 
-      items: [
-        { quantity: 2, name: 'Chorrillana Mediana', excluidos: ['Cebolla'] },
-        { quantity: 1, name: 'Bebida 1.5L', excluidos: [] }
-      ]
+  try {
+    const response = await orderService.getPublicOrderById(cleanQuery);
+    const data = response.data;
+
+    if (!data) {
+      errorMessage.value = `No encontramos el pedido #${cleanQuery} en la jornada de atención actual.`;
+      return;
+    }
+
+    const statusMap: Record<number, string> = {
+      1: 'en_cola',
+      2: 'preparacion',
+      3: 'listo',
+      4: 'entregado'
     };
-  } else if (orderId.value === '1025') {
+
+    const itemsMapped = (data.detalles || []).map((det: any) => {
+      const prodName = det.producto?.nombre || 'Producto';
+      const sizeName = det.tamaño?.nombre ? ` (${det.tamaño.nombre})` : '';
+      const excluidosList = (det.ingredientes || [])
+        .filter((ing: any) => ing.tipo_modificacion === 'Exclusión')
+        .map((ing: any) => ing.ingrediente?.nombre || 'Ingrediente');
+
+      return {
+        quantity: det.cantidad,
+        name: `${prodName}${sizeName}`,
+        excluidos: excluidosList
+      };
+    });
+
     orderResult.value = {
-      id: '1025',
-      customerName: 'María Soto',
-      customerPhone: '+569 8765 4321',
-      customerMetododepago: 'Tarjeta de Débito', // 🌟 AGREGADO AQUÍ
-      currentStatus: 'listo',
-      items: [
-        { quantity: 1, name: 'Completo Italiano', excluidos: ['Mayo'] }
-      ]
+      id: data.numero_pedido_dia || data.id_pedido,
+      customerName: data.nombre_persona || 'Cliente',
+      customerPhone: data.numero_telefono || 'Sin teléfono',
+      customerMetododepago: data.metodo_pago || 'Efectivo',
+      currentStatus: statusMap[data.id_estado_pedido] || 'en_cola',
+      items: itemsMapped
     };
-  } else {
-    errorMessage.value = `No encontramos el pedido #${orderId.value}.`;
+  } catch (error) {
+    console.error('Error al buscar pedido:', error);
+    errorMessage.value = `No encontramos el pedido #${cleanQuery} en la jornada de atención actual.`;
+  } finally {
+    isLoading.value = false;
   }
-
-  isLoading.value = false;
 };
 
 </script>

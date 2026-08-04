@@ -123,6 +123,12 @@ const router = createRouter({
       name: 'order-detail',
       component: () => import('@/views/Distributor/OrderDetailView.vue'),
       meta: {useLoader: true}
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('@/views/Error/NotFoundView.vue'),
+      meta: { hideNavbar: true, useLoader: true }
     }
   ],
 });

@@ -14,12 +14,17 @@ export function useNotification() {
     notifications.value.push({ id, message, type });
 
     setTimeout(() => {
-      notifications.value = notifications.value.filter(n => n.id !== id);
+      dismissNotification(id);
     }, 4000);
+  };
+
+  const dismissNotification = (id: number) => {
+    notifications.value = notifications.value.filter(n => n.id !== id);
   };
 
   return {
     notifications,
-    notify
+    notify,
+    dismissNotification
   };
 }

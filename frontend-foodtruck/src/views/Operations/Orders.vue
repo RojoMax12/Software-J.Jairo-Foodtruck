@@ -6,7 +6,7 @@
     </header>
 
     <div class="status-cards">
-      <div class="status-card card-interactive" :class="{ 'card-active': selectedCard === 'all' }" @click="applySummaryFilter('all')">
+      <div class="status-card">
         <div class="card-left">
           <div class="icon-box bg-unpaid">
             <ClipboardCheck :size="24" />
@@ -19,7 +19,7 @@
         </div>
       </div>
 
-      <div class="status-card card-interactive" :class="{ 'card-active': selectedCard === 'amount' }" @click="applySummaryFilter('amount')">
+      <div class="status-card">
         <div class="card-left">
           <div class="icon-box bg-paid">
             <CheckCircle :size="24" />
@@ -32,7 +32,20 @@
         </div>
       </div>
 
-      <div class="status-card card-interactive" :class="{ 'card-active': selectedCard === 'paid' }" @click="applySummaryFilter('paid')">
+      <div class="status-card">
+        <div class="card-left">
+          <div class="icon-box bg-paid">
+            <CheckCircle :size="24" />
+          </div>
+          <span class="card-label">Total Pagados: $</span>
+        </div>
+        <div class="card-right">
+          <span class="card-count">{{ formatPrice(stats.totalPaid) }}</span>
+          <span class="card-subtext">Pesos</span>
+        </div>
+      </div>
+
+      <div class="status-card">
         <div class="card-left">
           <div class="icon-box bg-preparation">
             <Package :size="24" />
@@ -45,7 +58,7 @@
         </div>
       </div>
 
-      <div class="status-card card-interactive" :class="{ 'card-active': selectedCard === 'delivered' }" @click="applySummaryFilter('delivered')">
+      <div class="status-card">
         <div class="card-left">
           <div class="icon-box bg-shipping">
             <Truck :size="24" />
@@ -57,28 +70,7 @@
           <span class="card-subtext">Pedidos</span>
         </div>
       </div>
-
-      <div class="status-card">
-        <div class="card-left">
-          <div class="icon-box bg-generic">
-            <CalendarIcon :size="24" />
-          </div>
-          <span class="card-label">Buscar Fecha</span>
-        </div>
-        <div class="card-right">
-          <input 
-            type="date" 
-            v-model="selectedDate" 
-            class="card-date-picker"
-            :disabled="!canEditDate"
-            :title="canEditDate ? 'Cambiar fecha de búsqueda' : 'Solo puedes ver los pedidos de hoy'"
-            :class="{ 'picker-disabled': !canEditDate }"
-          />
-        </div>
-      </div>
     </div>
-
-    
 
     <div class="main-table-card">
       <div class="table-actions">
@@ -92,6 +84,18 @@
             />
           </div>
 
+          <div class="date-filter-box">
+            <CalendarIcon :size="18" class="date-filter-icon" />
+            <input 
+              type="date" 
+              v-model="selectedDate" 
+              class="mobile-date-input"
+              :disabled="!canEditDate"
+              :class="{ 'picker-disabled': !canEditDate }"
+              :title="canEditDate ? 'Buscar por fecha' : 'Solo ver pedidos de hoy'"
+            />
+          </div>
+
           <div class="dropdown-container">
             <button class="btn-secondary" @click.stop="toggleStatusDropdown">
               <Filter :size="18" />
@@ -102,105 +106,125 @@
             <div class="dropdown-menu" v-if="isStatusDropdownOpen">
               <div class="dropdown-item" @click="selectStatus('all')">Todos los estados</div>
               <div class="dropdown-divider"></div>
-              <div class="dropdown-item" @click="selectStatus('Por pagar')">Por pagar</div>
-              <div class="dropdown-item" @click="selectStatus('Pagada')">Pagada</div>
+              <div class="dropdown-item" @click="selectStatus('Pendiente')">Pendiente</div>
+              <div class="dropdown-item" @click="selectStatus('Pagado')">Pagado</div>
+              <div class="dropdown-item" @click="selectStatus('Anulado')">Anulado</div>
               <div class="dropdown-item" @click="selectStatus('En preparación')">En preparación</div>
-              <div class="dropdown-item" @click="selectStatus('En despacho')">En despacho</div>
-              <div class="dropdown-item" @click="selectStatus('Entregado')">Entregado</div>
+              <div class="dropdown-item" @click="selectStatus('Entregado')">Entregado</div>              
             </div>
           </div>
+
+          <button 
+            class="btn-live-toggle" 
+            :class="{ active: autoRefresh }" 
+            @click="autoRefresh = !autoRefresh"
+            :title="autoRefresh ? 'Auto-actualización en vivo activa (cada 20s)' : 'Auto-actualización pausada'"
+          >
+            <RefreshCw :size="16" :class="{ spinning: isLoading }" />
+            <span>{{ autoRefresh ? `En vivo (${secondsCountdown}s)` : 'En vivo Pausado' }}</span>
+          </button>
         </div>
       </div>
 
-      <table class="orders-table">
-        <thead>
-          <tr>
-            <th @click="sortBy('id')">
-              <div class="header-content">
-                ID pedido <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'id' }" />
-              </div>
-            </th>
-            <th @click="sortBy('distributor')">
-              <div class="header-content">
-                Nombre <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'distributor' }" />
-              </div>
-            </th>
-            <th @click="sortBy('status')">
-              <div class="header-content">
-                Estado <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'status' }" />
-              </div>
-            </th>
-            <th @click="sortBy('date')">
-              <div class="header-content">
-                Fecha <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'date' }" />
-              </div>
-            </th>
-            <th @click="sortBy('total')">
-              <div class="header-content">
-                Total <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'total' }" />
-              </div>
-            </th>
-            <th class="text-center">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="isLoading">
-            <td colspan="6" class="text-center padding-large">
-              <div class="loading-container">
-                <div class="spinner"></div>
-                <span>Cargando pedidos...</span>
-              </div>
-            </td>
-          </tr>
-          <tr v-else-if="sortedOrders.length === 0">
-            <td colspan="6" class="text-center padding-large">
-              <div class="empty-state">
-                <Package :size="48" class="empty-icon" />
-                <p>No se encontraron pedidos para esta fecha o filtros.</p>
-                <button @click="fetchOrders" class="btn-retry">Actualizar datos</button>
-              </div>
-            </td>
-          </tr>
-          <tr v-else v-for="order in sortedOrders" :key="order.id">
-            <td class="bold-text">#{{ order.id }}</td>
-            <td class="bold-text">{{ order.distributor }}</td>
-            <td>
-              <span class="status-badge" :class="getStatusClass(order.status, order.rawStatusId)">
-                {{ order.status }}
-              </span>
-            </td>
-            <td>
-              <div class="date-content">
-                <CalendarIcon :size="18" class="date-icon" />
-                <div class="date-time">
-                  <span class="date">{{ order.date }}</span>
-                  <span class="time">{{ order.time }}</span>
+      <div class="table-responsive">
+        <table class="orders-table">
+          <thead>
+            <tr>
+              <th @click="sortBy('id')">
+                <div class="header-content">
+                  ID pedido <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'id' }" />
                 </div>
-              </div>
-            </td>
-            <td class="bold-text">${{ formatPrice(order.total) }}</td>
-            <td>
-              <div class="actions-content">
-                <button class="btn-action btn-detail" @click="openModal(order.id)">
-                  <Eye :size="18" />
-                  <span>Detalle</span>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+              </th>
+              <th @click="sortBy('distributor')">
+                <div class="header-content">
+                  Nombre <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'distributor' }" />
+                </div>
+              </th>
+              <th @click="sortBy('status')">
+                <div class="header-content">
+                  Estado <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'status' }" />
+                </div>
+              </th>
+              <th @click="sortBy('date')">
+                <div class="header-content">
+                  Fecha <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'date' }" />
+                </div>
+              </th>
+              <th @click="sortBy('total')">
+                <div class="header-content">
+                  Total <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'total' }" />
+                </div>
+              </th>
+              <th class="text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="isLoading" v-for="n in 5" :key="'skel-' + n" class="skeleton-row">
+              <td><div class="skeleton-pill width-50"></div></td>
+              <td><div class="skeleton-pill width-120"></div></td>
+              <td><div class="skeleton-pill width-100"></div></td>
+              <td><div class="skeleton-pill width-80"></div></td>
+              <td><div class="skeleton-pill width-70"></div></td>
+              <td><div class="skeleton-pill width-90"></div></td>
+            </tr>
+            <tr v-else-if="sortedOrders.length === 0">
+              <td colspan="6" class="text-center padding-large">
+                <div class="empty-state">
+                  <Package :size="48" class="empty-icon" />
+                  <p>No se encontraron pedidos para esta fecha o filtros.</p>
+                  <button @click="fetchOrders" class="btn-retry">Actualizar datos</button>
+                </div>
+              </td>
+            </tr>
+            <tr v-else v-for="order in sortedOrders" :key="order.id">
+              <td class="bold-text">#{{ order.id }}</td>
+              <td class="bold-text">{{ order.distributor }}</td>
+              <td>
+                <div class="badges-cell">
+                  <span class="status-badge" :class="getStatusClass(order.status, order.rawStatusId)">
+                    {{ order.status }}
+                  </span>
+                  <span class="status-badge" :class="Number(order.id_estado_pago) === 2 ? 'status-paid' : 'status-unpaid'">
+                    {{ Number(order.id_estado_pago) === 2 ? 'PAGADO' : 'POR PAGAR' }}
+                  </span>
+                </div>
+              </td>
+              <td>
+                <div class="date-content">
+                  <CalendarIcon :size="18" class="date-icon" />
+                  <div class="date-time">
+                    <span class="date">{{ order.date }}</span>
+                    <span class="time">{{ order.time }}</span>
+                  </div>
+                </div>
+              </td>
+              <td class="bold-text">${{ formatPrice(order.total) }}</td>
+              <td>
+                <div class="actions-content">
+                  <button class="btn-action btn-detail" @click="openModal(order.id)">
+                    <Eye :size="18" />
+                    <span>Detalle</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <OrdersDetailModal 
       v-if="isModalOpen" 
       :order-id="selectedOrderId" 
+      :real-id="selectedOrder?.real_id"
       :distributor="selectedOrder?.distributor"
+      :phone="selectedOrder?.phone"
       :status="selectedOrder?.status"
       :status-id="selectedOrder?.rawStatusId"
       :date="selectedOrder?.date"
       :time="selectedOrder?.time"
       :total="selectedOrder?.total"
+      :raw-order="selectedOrder"
       @close="closeModal" 
       @status-changed="fetchOrders"
     />
@@ -212,13 +236,56 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import OrdersDetailModal from './OrdersDetailModal.vue';
 import {
   ClipboardCheck, Package, Truck, CheckCircle, Search, Filter,
-  ChevronDown, Calendar as CalendarIcon, Eye, ChevronsUpDown
+  ChevronDown, Calendar as CalendarIcon, Eye, ChevronsUpDown,
+  RefreshCw, Clock, ArrowRight
 } from 'lucide-vue-next';
+import orderService  from '@/services/orderService';
+
 
 const orders = ref<any[]>([]);
 const isLoading = ref(true);
+const autoRefresh = ref(true);
+const secondsCountdown = ref(20);
+const refreshInterval = ref<any>(null);
+const countdownTimer = ref<any>(null);
 
 const userRole = ref<number | null>(null);
+
+const getElapsedMinutes = (rawDateStr?: string) => {
+  if (!rawDateStr) return 0;
+  let dateToParse = rawDateStr;
+  if (rawDateStr.includes(' ') && !rawDateStr.includes('T')) {
+    dateToParse = rawDateStr.replace(' ', 'T');
+  }
+  const orderTime = new Date(dateToParse).getTime();
+  if (isNaN(orderTime)) return 0;
+  const diffMs = Date.now() - orderTime;
+  return Math.max(0, Math.floor(diffMs / 60000));
+};
+
+const getElapsedBadgeClass = (minutes: number) => {
+  if (minutes > 30) return 'elapsed-danger';
+  if (minutes > 15) return 'elapsed-warning';
+  return 'elapsed-ok';
+};
+
+const advanceOrderStatus = async (order: any) => {
+  const nextStatusMap: Record<number, number> = {
+    1: 2, // Pendiente -> En preparación
+    2: 3, // En preparación -> Listo
+    3: 4  // Listo -> Entregado
+  };
+
+  const nextId = nextStatusMap[Number(order.rawStatusId)];
+  if (!nextId) return;
+
+  try {
+    await orderService.updateOrder(order.real_id, { id_estado_pedido: nextId });
+    await fetchOrders();
+  } catch (err) {
+    console.error('Error al avanzar estado de pedido:', err);
+  }
+};
 
 const getTodayString = () => {
   const today = new Date();
@@ -228,7 +295,37 @@ const getTodayString = () => {
   return `${year}-${month}-${day}`;
 };
 
-const selectedDate = ref(getTodayString());
+const getShiftDateString = (inputDate?: string | Date) => {
+  let dateObj: Date;
+  if (!inputDate) {
+    dateObj = new Date();
+  } else if (typeof inputDate === 'string') {
+    let dateToParse = inputDate;
+    if (inputDate.includes(' ') && !inputDate.includes('T')) {
+      dateToParse = inputDate.replace(' ', 'T');
+    }
+    dateObj = new Date(dateToParse);
+  } else {
+    dateObj = new Date(inputDate);
+  }
+
+  if (isNaN(dateObj.getTime())) {
+    dateObj = new Date();
+  }
+
+  // Si la hora es de madrugada (00:00 AM - 05:59 AM), la jornada pertenece al turno que comenzó ayer
+  if (dateObj.getHours() < 6) {
+    dateObj.setDate(dateObj.getDate() - 1);
+  }
+
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+const selectedDate = ref(getShiftDateString());
 
 const checkUserRole = () => {
   const userParsed = localStorage.getItem('user');
@@ -254,88 +351,84 @@ const statusMap = ref<Map<number, string>>(new Map([
   [6, 'Por pagar'],
   [7, 'Pagada'],
   [8, 'Cancelado']
-]));
+]))
 
-/*
 const fetchOrders = async () => {
   isLoading.value = true;
+
   try {
-    let ordersRes, distsRes, statsRes;
-    try { ordersRes = await orderService.getOrders(); } catch (e) { console.error(e); }
-    try { distsRes = await distributorService.getDistributors(); } catch (e) { console.error(e); }
-    try { statsRes = await orderStatusService.getOrderStatuses(); } catch (e) { console.error(e); }
-
-    const rawOrders = Array.isArray(ordersRes?.data) ? ordersRes.data : (ordersRes?.data?.data || []);
-    const rawDists = Array.isArray(distsRes?.data) ? distsRes.data : (distsRes?.data?.data || []);
-    const rawStats = Array.isArray(statsRes?.data) ? statsRes.data : (statsRes?.data?.data || []);
-
-    statusMap.value = new Map(rawStats.map((s: any) => [Number(s.id), s.nombre_estado || s.nombre_estado_pedido]));
-    const distMap = new Map(rawDists.map((d: any) => [Number(d.id), d.nombre_empresa]));
+    const res = await orderService.getOrders();
+    const rawOrders = res.data || [];
 
     const DEFAULT_NAMES: Record<number, string> = {
-      1: 'En validación', 2: 'En preparación', 3: 'En despacho', 
-      4: 'Entregado', 5: 'Pendiente', 6: 'Por pagar', 7: 'Pagada', 8: 'Cancelado'
+      1: 'Pendiente',
+      2: 'En preparación',
+      3: 'Listo',
+      4: 'Entregado',
+      5: 'Cancelado'
     };
 
     orders.value = rawOrders.map((o: any) => {
-      const statusId = Number(o.id_estado_pedido || o.id_estado || 1);
-      const distId = Number(o.id_usuario_distribuidor || o.id_distribuidor || 0);
-      
+      const statusId = Number(o.id_estado_pedido || 1);
+      const customerName = o.nombre_persona || (o.usuario?.nombre_empresa) || 'Cliente Anónimo';
+      const dt = parseDateTime(o.fecha || o.created_at);
+      const shiftDate = getShiftDateString(o.fecha || o.created_at);
+  
       return {
-        id: o.id,
-        distributor: distMap.get(distId) || `Distribuidor #${distId}`,
-        status: statusMap.value.get(statusId) || DEFAULT_NAMES[statusId] || `Estado #${statusId}`,
-        total: Number(o.monto_final || o.total_pedido || o.total_cotizacion || 0),
-        date: formatDate(o.fecha_creacion || o.fecha_pedido || o.created_at),
-        time: (o.hora_creacion || o.created_at || '').substring(0, 5),
-        rawStatusId: statusId
+        id: o.numero_pedido_dia || o.id_pedido,
+        real_id: o.id_pedido,
+        distributor: customerName,
+        customer: customerName,
+        phone: o.numero_telefono || o.telefono || '',
+        status: o.estado_pedido?.nombre || DEFAULT_NAMES[statusId] || `Estado #${statusId}`,
+        total: Number(o.total || 0),
+        date: dt.date,
+        time: dt.time,
+        shiftDate: shiftDate,
+        rawStatusId: statusId,
+        elapsedMinutes: getElapsedMinutes(o.fecha || o.created_at),
+        id_estado_pago: Number(o.id_estado_pago || 1),
+        metodo_pago: o.metodo_pago || 'Efectivo',
+        detalles: o.detalles || []
       };
     });
+    console.log(orders.value)
   } catch (error) {
-    console.error('Error crítico al refrescar la grilla:', error);
-  } finally {
-    isLoading.value = false;
-  }
-};*/
-
-const fetchOrders = async () => {
-  isLoading.value = true;
-  await new Promise(resolve => setTimeout(resolve, 500));
-
-  try {
-    const rawOrders = [
-      { id: 1024, nombre_cliente: 'Camila Rojas', id_estado: 2, monto: 4500, fecha: '2026-06-28T16:30:00Z' },
-      { id: 1025, nombre_cliente: 'Diego Soto', id_estado: 3, monto: 3200, fecha: '2026-06-28T16:45:00Z' },
-      { id: 1026, nombre_cliente: 'Ana Pérez', id_estado: 7, monto: 7800, fecha: '2026-06-28T18:00:00Z' },
-      { id: 1027, nombre_cliente: 'Luis Vega', id_estado: 4, monto: 6200, fecha: '2026-06-28T19:15:00Z' }
-    ];
-
-    orders.value = rawOrders.map((o: any) => {
-      const statusId = Number(o.id_estado);
-      return {
-        id: o.id,
-        distributor: o.nombre_cliente,
-        customer: o.nombre_cliente,
-        status: statusMap.value.get(statusId) || 'En preparación',
-        total: Number(o.monto || 0),
-        date: formatDate(o.fecha),
-        time: (o.fecha || '').split('T')[1]?.substring(0, 5) || '00:00',
-        rawStatusId: statusId
-      };
-    });
-  } catch (error) {
-    console.error(error);
+    console.error('Error al cargar pedidos desde API:', error);
   } finally {
     isLoading.value = false;
   }
 };
 
+const parseDateTime = (dateString?: string) => {
+  if (!dateString) return { date: 'Sin fecha', time: '00:00' };
+
+  let dateToParse = dateString;
+  if (dateString.includes(' ') && !dateString.includes('T')) {
+    dateToParse = dateString.replace(' ', 'T');
+  }
+
+  const dateObj = new Date(dateToParse);
+
+  if (isNaN(dateObj.getTime())) {
+    return { date: 'Sin fecha', time: '00:00' };
+  }
+
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const year = dateObj.getFullYear();
+
+  const hours = String(dateObj.getHours()).padStart(2, '0');
+  const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+
+  return {
+    date: `${day}/${month}/${year}`,
+    time: `${hours}:${minutes}`
+  };
+};
+
 const formatDate = (dateString?: string) => {
-  if (!dateString) return 'Sin fecha';
-  const cleanDate = (dateString.includes('T') ? dateString.split('T')[0] : dateString) ?? '';
-  const parts = cleanDate.split('-');
-  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-  return cleanDate;
+  return parseDateTime(dateString).date;
 };
 
 // 🌟 Lógica de Filtros Aplicados
@@ -345,7 +438,7 @@ const filteredOrders = computed(() => {
   if (selectedDate.value) {
     const [year, month, day] = selectedDate.value.split('-');
     const formattedSelectedDate = `${day}/${month}/${year}`;
-    result = result.filter((o: any) => o.date === formattedSelectedDate);
+    result = result.filter((o: any) => o.shiftDate === selectedDate.value || o.date === formattedSelectedDate);
   }
 
   if (searchQuery.value) {
@@ -368,8 +461,9 @@ const stats = computed(() => {
   return {
     totalOrders: visibleOrders.length,
     totalAmount: visibleOrders.reduce((sum: number, o: any) => sum + Number(o.total || 0), 0),
-    paid: visibleOrders.filter((o: any) => o.rawStatusId === 7).length,
-    delivered: visibleOrders.filter((o: any) => o.rawStatusId === 4).length
+    totalPaid: visibleOrders.filter((o: any) => Number(o.id_estado_pago) === 2).reduce((sum: number, o: any) => sum + Number(o.total || 0), 0), 
+    paid: visibleOrders.filter((o: any) => Number(o.id_estado_pago) === 2).length,
+    delivered: visibleOrders.filter((o: any) => Number(o.rawStatusId) === 4).length
   };
 });
 
@@ -405,7 +499,7 @@ const getStatusClass = (status: string, statusId?: number) => {
 
 const searchQuery = ref('');
 const statusFilter = ref('all');
-const selectedCard = ref<'all' | 'amount' | 'paid' | 'delivered'>('all');
+const selectedCard = ref<'all' | 'amount' | 'paid' | 'delivered' | 'amount_paid'>('all');
 const isStatusDropdownOpen = ref(false);
 
 const isModalOpen = ref(false);
@@ -422,6 +516,7 @@ const openModal = (id: number | string) => {
 
 const closeModal = () => {
   isModalOpen.value = false;
+  fetchOrders();
 };
 
 const toggleStatusDropdown = () => {
@@ -489,13 +584,28 @@ const sortedOrders = computed(() => {
 });
 
 onMounted(async () => {
-  checkUserRole(); // Verificamos rol
+  checkUserRole();
   window.addEventListener('click', closeDropdowns);
   await fetchOrders();
+
+  refreshInterval.value = setInterval(() => {
+    if (autoRefresh.value && !isModalOpen.value) {
+      fetchOrders();
+      secondsCountdown.value = 20;
+    }
+  }, 20000);
+
+  countdownTimer.value = setInterval(() => {
+    if (autoRefresh.value && !isModalOpen.value) {
+      secondsCountdown.value = secondsCountdown.value > 1 ? secondsCountdown.value - 1 : 20;
+    }
+  }, 1000);
 });
 
 onUnmounted(() => {
   window.removeEventListener('click', closeDropdowns);
+  if (refreshInterval.value) clearInterval(refreshInterval.value);
+  if (countdownTimer.value) clearInterval(countdownTimer.value);
 });
 </script>
 
@@ -606,7 +716,7 @@ onUnmounted(() => {
 .card-date-picker {
   border: 2px solid #eeedee;
   background-color: #fcfbf9;
-  padding: 8px 12px;
+  padding: 8px 10px 8px 12px;
   border-radius: 10px;
   color: var(--DC-gray);
   font-weight: 800;
@@ -615,7 +725,8 @@ onUnmounted(() => {
   cursor: pointer;
   font-family: inherit;
   transition: all 0.2s ease;
-  width: 140px;
+  min-width: 165px;
+  width: 165px;
 }
 
 .card-date-picker:hover:not(:disabled) {
@@ -737,6 +848,118 @@ onUnmounted(() => {
 .time { font-size: 0.75rem; color: var(--DC-text-gray); font-weight: 700;}
 .date-icon { color: var(--DC-orange); }
 
+.badges-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.status-paid {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.status-unpaid {
+  background-color: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffcc80;
+}
+
+.btn-live-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background-color: #fcfbf9;
+  border: 2px solid #eeedee;
+  border-radius: 10px;
+  color: var(--DC-gray);
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-live-toggle.active {
+  background-color: #e8f5e9;
+  border-color: #a5d6a7;
+  color: #2e7d32;
+}
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+.elapsed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.elapsed-ok {
+  background-color: #f1f3f5;
+  color: #495057;
+}
+.elapsed-warning {
+  background-color: #fff3bf;
+  color: #f59f00;
+  border: 1px solid #ffe066;
+}
+.elapsed-danger {
+  background-color: #ffe3e3;
+  color: #e03131;
+  border: 1px solid #ffc9c9;
+  animation: pulse-danger 1.5s infinite;
+}
+@keyframes pulse-danger {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+.btn-quick-advance {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.advance-step-1 {
+  background-color: #fff4e6;
+  color: #fd7e14;
+  border: 1px solid #ffe8cc;
+}
+.advance-step-1:hover {
+  background-color: #fd7e14;
+  color: white;
+}
+.advance-step-2 {
+  background-color: #e6fcf5;
+  color: #0ca678;
+  border: 1px solid #c3fae8;
+}
+.advance-step-2:hover {
+  background-color: #0ca678;
+  color: white;
+}
+.advance-step-3 {
+  background-color: #e7f5ff;
+  color: #1c7ed6;
+  border: 1px solid #d0ebff;
+}
+.advance-step-3:hover {
+  background-color: #1c7ed6;
+  color: white;
+}
+
 .actions-content { display: flex; justify-content: center; }
 .btn-action { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; border: 2px solid var(--DC-orange); background-color: white; color: var(--DC-orange); font-size: 0.85rem; font-weight: 800; cursor: pointer; transition: all 0.2s; }
 .btn-action:hover { background-color: var(--DC-orange); color: white; }
@@ -745,6 +968,30 @@ onUnmounted(() => {
 .loading-container { display: flex; flex-direction: column; align-items: center; gap: 15px; color: var(--DC-brown); font-weight: 900; text-transform: uppercase; }
 .spinner { width: 40px; height: 40px; border: 4px solid var(--DC-bg-gray); border-top: 4px solid var(--DC-orange); border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-row td {
+  padding: 18px 20px;
+}
+
+.skeleton-pill {
+  height: 18px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0ede9 25%, #f8f6f3 50%, #f0ede9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.width-50 { width: 50px; }
+.width-70 { width: 70px; }
+.width-80 { width: 80px; }
+.width-90 { width: 90px; }
+.width-100 { width: 100px; }
+.width-120 { width: 120px; }
 
 .empty-state {
   display: flex;
@@ -767,6 +1014,37 @@ onUnmounted(() => {
 .sort-icon { color: rgba(255,255,255,0.5); transition: color 0.2s; }
 .active-sort { color: var(--DC-orange) !important; }
 .orders-table th:hover .sort-icon { color: white; }
+
+.date-filter-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.date-filter-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--DC-brown);
+  pointer-events: none;
+}
+
+.mobile-date-input {
+  padding: 10px 12px 10px 38px;
+  border: 2px solid #eeedee;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--DC-gray);
+  background-color: white;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.mobile-date-input:focus {
+  border-color: var(--DC-orange);
+}
 
 /* 📱 RESPONSIVO: ESTILO APP NATIVA PARA CELULARES */
 @media (max-width: 768px) {
@@ -791,7 +1069,7 @@ onUnmounted(() => {
   .status-cards::-webkit-scrollbar { display: none; }
   
   .status-card { 
-    min-width: 220px; 
+    min-width: 250px; 
     scroll-snap-align: center; 
     padding: 12px 15px;
   }
@@ -813,22 +1091,39 @@ onUnmounted(() => {
     gap: 12px; 
   }
   .actions-left { 
-    display: grid; 
-    grid-template-columns: 1fr 1fr; 
+    display: flex; 
+    flex-direction: column; 
     gap: 10px; 
     width: 100%; 
   }
   .search-box { 
-    grid-column: 1 / -1; 
+    width: 100%; 
     max-width: 100%; 
   }
   .search-box input { padding: 10px 10px 10px 38px; font-size: 0.85rem; }
+
+  .date-filter-box {
+    width: 100%;
+  }
+
+  .mobile-date-input {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 16px;
+  }
+
+  .card-date-picker {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    font-size: 16px;
+  }
   
   .dropdown-container { width: 100%; }
   .btn-secondary { 
     width: 100%; 
     padding: 10px 8px; 
-    font-size: 0.75rem; 
+    font-size: 0.85rem; 
     justify-content: space-between; 
   }
   .btn-secondary span {

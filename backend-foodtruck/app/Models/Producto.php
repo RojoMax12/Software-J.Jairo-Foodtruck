@@ -20,12 +20,16 @@ class Producto extends Model
         'cantidad_incluida',
         'id_categoria',
         'descripcion',
+        'activo',
+        'disponible',
     ];
 
     protected $casts = [
         'precio_ingrediente_extra' => 'integer',
         'tipo_armado' => 'string',
         'cantidad_incluida' => 'integer',
+        'activo' => 'boolean',
+        'disponible' => 'boolean',
     ];
 
     public function categoria()

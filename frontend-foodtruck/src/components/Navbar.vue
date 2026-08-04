@@ -3,9 +3,9 @@
     <nav class="dc-navbar">
       <div class="nav-left">
         <div class="brand-group" @click="goToHome">
-          <img src="@/assets/logo_jairo.webp" alt="Di Creme Logo" class="brand-logo" />
+          <img src="@/assets/logo_jairo.webp" alt="Foodtruck J.Jairo Logo" class="brand-logo" />
           <div class="brand-info">
-            <span class="brand-text">J. Junior</span>
+            <span class="brand-text">J. Jairo</span>
           </div>
         </div>
       </div>
@@ -13,7 +13,7 @@
 
       <div class="nav-right">
         <button v-if="showCheckOrderButton" class="btn-login" @click="router.push('/checkorderstatus')">
-          <span>Revisa tu pedido aquí</span>
+          <span>Revisa tu pedido</span>
         </button>
         <button v-if="showCheckOrderButton" class="btn-login" @click="router.push('/login')">
           <span>Ingresar</span>
@@ -44,7 +44,7 @@ const checkAuth = () => {
   if (userParsed && token) {
     try {
       const userObj = JSON.parse(userParsed)
-      username.value = userObj.nombre_empresa || userObj.nombre_usuario || userObj.nombre || 'Distribuidor'
+      username.value = userObj.nombre_empresa || userObj.nombre_usuario || userObj.nombre || 'Usuario'
       isLoggedIn.value = true
     } catch (e) {
       console.error('Error parsing user session inside Navbar:', e)
@@ -60,14 +60,6 @@ onMounted(() => {
   checkAuth()
 })
 
-const handleLogout = () => {
-  localStorage.clear()
-  isLoggedIn.value = false
-  username.value = ''
-  isSideMenuOpen.value = false
-  router.push('/')
-}
-
 const goToHome = () => {
   router.push('/')
 }
@@ -75,55 +67,38 @@ const goToHome = () => {
 
 <style scoped>
 .dc-navbar {
-  background-color: #5a3614;
-  height: 80px;
-  padding: 0 40px;
+  background-color: var(--DC-brown, #513119);
+  height: 75px;
+  padding: 0 30px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
   position: sticky;
   top: 0;
   z-index: 990; 
-  font-family: sans-serif;
-  transition: all 0.3s ease; /* Transición suave al cambiar tamaño */
+  font-family: var(--font-main, sans-serif);
+  transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .nav-left {
   display: flex;
   align-items: center;
-  gap: 20px;
-  /* Evita que el contenedor del logo colapse en pantallas pequeñas */
+  gap: 15px;
   flex-shrink: 0; 
-}
-
-.btn-menu {
-  background: none;
-  border: none;
-  color: #322c44;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px;
-  border-radius: 8px;
-  transition: background-color 0.2s ease;
-}
-
-.btn-menu:hover {
-  background-color: #f6f4f6;
-  color: #e4869f;
 }
 
 .brand-group {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
   cursor: pointer;
 }
 
 .brand-logo {
-  height: 55px;
+  height: 50px;
   object-fit: contain;
   transition: height 0.3s ease;
 }
@@ -137,42 +112,37 @@ const goToHome = () => {
   color: #ffffff;
   font-family: 'Arial Black', Impact, sans-serif;
   font-style: italic;
-  
-  /* CLAVE RESPONSIVA: Escala dinámicamente entre 1.5rem y 2.5rem según el ancho de pantalla */
-  font-size: clamp(1.5rem, 4vw, 2.5rem);
-  
+  font-size: clamp(1.3rem, 3.5vw, 2.2rem);
   font-weight: 900;
   letter-spacing: 1px;
   text-transform: uppercase;
   margin: 0;
-  white-space: nowrap; /* Evita que el texto del logo salte a dos líneas */
+  white-space: nowrap;
 
-  /* Múltiples sombras para el borde negro grueso */
   text-shadow: 
-    -3px -3px 0 #000,  3px -3px 0 #000, -3px  3px 0 #000,  3px  3px 0 #000,
-    -3px  0px 0 #000,  3px  0px 0 #000,  0px -3px 0 #000,  0px  3px 0 #000,
-    5px  5px 0px rgba(0, 0, 0, 0.4);
+    -2px -2px 0 #000,  2px -2px 0 #000, -2px  2px 0 #000,  2px  2px 0 #000,
+    -2px  0px 0 #000,  2px  0px 0 #000,  0px -2px 0 #000,  0px  2px 0 #000,
+    4px  4px 0px rgba(0, 0, 0, 0.4);
 }
 
 .nav-right {
   display: flex;
   align-items: center;
-  gap: 12px; /* Reducido un poco para dar más aire en pantallas medianas */
+  gap: 10px;
 }
 
-/* --- ESTILO PARA VISITANTES --- */
 .btn-login {
   background-color: #F4E1D2;
   color: #513119;
-  border: none; /* Corregido de "border: 5px;" que era inválido */
-  padding: 10px 20px;
+  border: none;
+  padding: 8px 16px;
   border-radius: 25px;
-  font-weight: bold;
-  font-size: 0.85rem;
-  letter-spacing: 0.5px;
+  font-weight: 800;
+  font-size: 0.82rem;
+  letter-spacing: 0.3px;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap; /* Evita que el texto de los botones salte de línea */
+  white-space: nowrap;
 }
 
 .btn-login:hover {
@@ -181,42 +151,34 @@ const goToHome = () => {
 }
 
 /* --- MEDIAS QUERIES RESPONSIVAS --- */
-
-/* 1. Tablets y Pantallas Medianas */
-@media (max-width: 900px) {
+@media (max-width: 768px) {
   .dc-navbar {
-    padding: 0 20px;
+    height: 65px;
+    padding: 0 12px;
   }
+
   .brand-logo {
-    height: 45px; /* Achicamos ligeramente el logo de la izquierda */
-  }
-}
-
-/* 2. Celulares (Modo Vertical y pantallas chicas) */
-@media (max-width: 600px) {
-  .dc-navbar {
-    height: auto; /* Permite que el navbar crezca si los elementos se apilan */
-    padding: 15px 10px;
-    flex-direction: column; /* Apila el logo arriba y los botones abajo */
-    gap: 12px;
-  }
-
-  .nav-left {
-    width: 100%;
-    justify-content: center; /* Centra el logo en celulares */
+    height: 40px;
   }
 
   .nav-right {
-    width: 100%;
-    justify-content: space-evenly; /* Distribuye equitativamente ambos botones */
-    gap: 8px;
+    gap: 6px;
   }
 
   .btn-login {
-    flex: 1; /* Hace que ambos botones ocupen el mismo ancho proporcional en el móvil */
-    padding: 8px 12px;
-    font-size: 0.8rem;
-    text-align: center;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand-text {
+    font-size: 1.1rem;
+  }
+
+  .btn-login {
+    padding: 5px 8px;
+    font-size: 0.7rem;
   }
 }
 </style>

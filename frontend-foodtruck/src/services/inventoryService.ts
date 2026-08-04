@@ -13,6 +13,7 @@ export interface InventoryItem {
   formatName: string;
   quantity: number;
   minStock: number;
+  disponible: boolean;
   status: InventoryStatus;
   statusLabel: string;
   statusClass: string;
@@ -133,65 +134,53 @@ const dummyInventoryItems: InventoryItem[] = [
   },
 ];
 
+const detectCategoryName = (name: string): string => {
+  if (!name) return 'Insumos Varios';
+  const lower = name.toLowerCase();
+
+  if (lower.includes('pan') || lower.includes('masa')) return 'Panadería & Masas';
+  if (lower.includes('carne') || lower.includes('vianesa') || lower.includes('lomo') || lower.includes('churrasco') || lower.includes('pollo') || lower.includes('huevo') || lower.includes('tocino')) return 'Proteínas';
+  if (lower.includes('queso') || lower.includes('leche') || lower.includes('crema')) return 'Lácteos';
+  if (lower.includes('tomate') || lower.includes('palta') || lower.includes('chucrut') || lower.includes('cebolla') || lower.includes('pepinillo') || lower.includes('lechuga') || lower.includes('choclo')) return 'Frescos & Verduras';
+  if (lower.includes('mayo') || lower.includes('ketchup') || lower.includes('mostaza') || lower.includes('salsa') || lower.includes('ají')) return 'Salsas & Aderezos';
+  if (lower.includes('papa')) return 'Acompañamientos';
+  if (lower.includes('bebida') || lower.includes('jugo')) return 'Bebestibles';
+  if (lower.includes('envase') || lower.includes('bolsa') || lower.includes('servilleta') || lower.includes('caja')) return 'Empaques';
+
+  return 'Insumos Varios';
+};
+
 const getInventoryItems = async (): Promise<InventoryItem[]> => {
   try {
-    const [stocksRes, productsRes, categoriesRes, formatsRes] = await Promise.all([
-      stockService.getStocks(),
-      productService.getProducts(),
-      categoryService.getCategory(),
-      formatService.getFormats(),
-    ]);
-
+    const stocksRes = await stockService.getStocks();
     const rawStocks = toArray(stocksRes);
-    const rawProducts = toArray(productsRes);
-    const rawCategories = toArray(categoriesRes);
-    const rawFormats = toArray(formatsRes);
 
     if (rawStocks.length === 0) {
       return dummyInventoryItems;
     }
 
-    const productMap = new Map<number, any>();
-    rawProducts.forEach((product: any) => {
-      const productId = Number(product.id ?? product.ID);
-      if (productId) productMap.set(productId, product);
-    });
-
-    const categoryMap = new Map<number, string>();
-    rawCategories.forEach((category: any) => {
-      const categoryId = Number(category.id ?? category.ID);
-      if (categoryId) categoryMap.set(categoryId, category.nombre_categoria || category.nombre || `Categoría #${categoryId}`);
-    });
-
-    const formatMap = new Map<number, string>();
-    rawFormats.forEach((format: any) => {
-      const formatId = Number(format.id ?? format.ID);
-      if (formatId) formatMap.set(formatId, format.nombre_formato || format.nombre || `Formato #${formatId}`);
-    });
-
-    return rawStocks.map((stock: any, index: number) => {
-      const stockId = stock.id ?? stock.ID ?? index + 1;
-      const quantity = Number(stock.cantidad_stock ?? stock.cantidad ?? 0);
-      const productId = Number(stock.id_producto ?? stock.product_id ?? stock.producto?.id ?? 0);
-      const product = productMap.get(productId);
-
-      const categoryId = Number(product?.id_categoria ?? product?.ID_categoria ?? stock.id_categoria ?? 0);
-      const formatId = Number(product?.id_formato ?? product?.ID_formato ?? stock.id_formato ?? 0);
-      const minStock = Number(stock.stock_minimo ?? stock.min_stock ?? product?.stock_minimo ?? 10);
+    return rawStocks.map((ingrediente: any, index: number) => {
+      const stockId = ingrediente.id_ingrediente ?? index + 1;
+      const quantity = Number(ingrediente.cantidad_actual ?? 0);
+      const minStock = Number(ingrediente.cantidad_minima ?? 5);
       const status = buildStatus(quantity, minStock);
+      const ingName = ingrediente.nombre || `Ingrediente #${stockId}`;
+
+      const isAvailable = ingrediente.disponible !== false && quantity > 0;
 
       return {
         id: stockId,
-        productName: product?.nombre_producto || stock.nombre_producto || `Producto #${productId || stockId}`,
-        shortLabel: (product?.nombre_producto || stock.nombre_producto || 'PX').toString().slice(0, 2).toUpperCase(),
-        categoryName: categoryMap.get(categoryId) || stock.nombre_categoria || 'Sin categoría',
-        formatName: formatMap.get(formatId) || stock.nombre_formato || 'Formato no definido',
+        productName: ingName,
+        shortLabel: ingName.toString().slice(0, 2).toUpperCase(),
+        categoryName: detectCategoryName(ingName),
+        formatName: 'Unidad',
         quantity,
         minStock,
-        status,
+        disponible: isAvailable,
+        status: status,
         statusLabel: statusLabelByType[status],
         statusClass: `status-${status}`,
-        updatedLabel: formatDateLabel(stock.updated_at || stock.created_at),
+        updatedLabel: formatDateLabel(ingrediente.updated_at || ingrediente.created_at),
       };
     });
   } catch (error) {
@@ -204,9 +193,14 @@ export default {
   getInventoryItems,
   async updateInventoryQuantity(stockId: number, quantity: number) {
     await stockService.updateStock(stockId, {
+      cantidad_actual: quantity,
       cantidad_stock: quantity,
     });
 
+    return getInventoryItems();
+  },
+  async toggleAvailability(stockId: number | string, disponible: boolean) {
+    await stockService.updateStock(stockId, { disponible });
     return getInventoryItems();
   },
 };

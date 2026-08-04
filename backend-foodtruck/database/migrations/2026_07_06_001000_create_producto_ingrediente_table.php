@@ -12,12 +12,14 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('id_producto');
             $table->unsignedBigInteger('id_ingrediente');
+            $table->unsignedBigInteger('id_tamaño')->nullable();
+            $table->integer('cantidad')->default(1);
             $table->boolean('incluido_por_defecto')->default(true);
             $table->timestamps();
 
-            $table->primary(['id_producto', 'id_ingrediente']);
             $table->foreign('id_producto')->references('id_producto')->on('productos')->onDelete('cascade');
             $table->foreign('id_ingrediente')->references('id_ingrediente')->on('ingredientes')->onDelete('cascade');
+            $table->foreign('id_tamaño')->references('id_tamaño')->on('tamaños')->onDelete('cascade');
         });
     }
 

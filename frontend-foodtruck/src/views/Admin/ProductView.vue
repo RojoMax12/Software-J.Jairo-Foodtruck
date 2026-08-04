@@ -19,7 +19,7 @@
                     Exportar
                 </button>
 
-                <button class="primary-button">
+                <button class="primary-button" @click="openCreateModal">
                     <Plus :size="18" />
                     Nuevo producto
                 </button>
@@ -53,15 +53,10 @@
                     </div>
 
                     <select v-model="selectedCategory">
-
                         <option value="">Todas las categorías</option>
-                        <option value="Completos">Completos</option>
-                        <option value="Hamburguesas">Hamburguesas</option>
-                        <option value="Bebidas">Bebidas</option>
-                        <option value="Acompañamientos">
-                            Acompañamientos
+                        <option v-for="cat in categoriesList" :key="cat.id_categoria || cat.id" :value="cat.nombre_categoria">
+                            {{ cat.nombre_categoria }}
                         </option>
-
                     </select>
 
                 </div>
@@ -92,7 +87,19 @@
 
                     </thead>
 
-                    <tbody>
+                    <tbody v-if="isLoading">
+                        <tr v-for="n in 5" :key="'prod-admin-skel-' + n" class="skeleton-row">
+                            <td><div class="skeleton-pill width-120"></div></td>
+                            <td><div class="skeleton-pill width-80"></div></td>
+                            <td><div class="skeleton-pill width-70"></div></td>
+                            <td><div class="skeleton-pill width-100"></div></td>
+                            <td><div class="skeleton-pill width-60"></div></td>
+                            <td><div class="skeleton-pill width-50"></div></td>
+                            <td><div class="skeleton-pill width-80"></div></td>
+                        </tr>
+                    </tbody>
+
+                    <tbody v-else>
 
                         <tr
                             v-for="product in paginatedProducts"
@@ -156,100 +163,84 @@
                             <td>
 
                                 <div class="ingredients">
-
                                     <span
-                                        v-for="ingredient in product.ingredients.slice(0,3)"
+                                        v-for="ingredient in product.ingredients.slice(0, 2)"
                                         :key="ingredient"
                                         class="ingredient-tag"
                                     >
-
                                         {{ ingredient }}
-
                                     </span>
 
                                     <span
-                                        v-if="product.ingredients.length > 3"
+                                        v-if="product.ingredients.length > 2"
                                         class="ingredient-more"
                                     >
-
-                                        +{{ product.ingredients.length - 3 }}
-
+                                        +{{ product.ingredients.length - 2 }}
                                     </span>
-
                                 </div>
-
                             </td>
 
                             <!-- Estado -->
-
                             <td>
-
                                 <span
-                                    class="status-badge"
+                                    class="status-badge clickable"
                                     :class="product.active ? 'active' : 'inactive'"
+                                    title="Haz clic para activar / desactivar"
+                                    @click="toggleProductStatus(product)"
                                 >
-
                                     {{ product.active ? 'Activo' : 'Inactivo' }}
-
                                 </span>
-
                             </td>
 
                             <!-- Oferta -->
-
                             <td>
-
                                 <span
                                     v-if="product.offer"
-                                    class="offer-badge"
+                                    class="offer-badge clickable"
+                                    title="Gestionar oferta"
+                                    @click="openOfferModal(product)"
                                 >
-
                                     {{ product.offer }}%
-
                                 </span>
 
                                 <span
                                     v-else
-                                    class="no-offer"
+                                    class="no-offer clickable"
+                                    title="Crear oferta"
+                                    @click="openOfferModal(product)"
                                 >
-
                                     Sin oferta
-
                                 </span>
-
                             </td>
 
                             <!-- Acciones -->
-
                             <td>
-
                                 <div class="actions">
-
                                     <button
                                         class="icon-button"
-                                        title="Editar"
+                                        title="Editar producto"
+                                        @click="openEditModal(product)"
                                     >
                                         <Pencil :size="17" />
                                     </button>
 
                                     <button
                                         class="icon-button"
-                                        title="Oferta"
+                                        title="Gestionar oferta"
+                                        @click="openOfferModal(product)"
                                     >
                                         <BadgePercent :size="17" />
                                     </button>
 
                                     <button
-                                        class="icon-button"
-                                        title="Más opciones"
+                                        class="icon-button delete-btn"
+                                        title="Eliminar producto"
+                                        @click="handleDeleteProduct(product)"
                                     >
-                                        <MoreVertical :size="17" />
+                                        <Trash2 :size="17" />
                                     </button>
-
                                 </div>
-
                             </td>
-
                         </tr>
 
                     </tbody>
@@ -289,7 +280,7 @@
 
                     <div class="pagination-buttons">
 
-                        <button>
+                        <button :disabled="currentPage === 1" @click="currentPage--">
                             <ChevronLeft :size="18" />
                         </button>
 
@@ -297,7 +288,7 @@
                             {{ currentPage }}
                         </button>
 
-                        <button>
+                        <button :disabled="currentPage >= totalPages" @click="currentPage++">
                             <ChevronRight :size="18" />
                         </button>
 
@@ -425,13 +416,186 @@
 
         </div>
 
+        <!-- MODAL CREAR PRODUCTO -->
+        <div v-if="isCreateModalOpen" class="modal-backdrop" @click.self="isCreateModalOpen = false">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3><Plus :size="20" /> Crear Nuevo Producto</h3>
+                    <button class="close-btn" @click="isCreateModalOpen = false"><X :size="20" /></button>
+                </div>
+                <form class="modal-body" @submit.prevent="submitCreateProduct">
+                    <label class="modal-label">
+                        Nombre del producto
+                        <input v-model="createForm.nombre" type="text" required placeholder="Ej: Churrasco Italiano" class="modal-input" />
+                    </label>
+
+                    <div class="modal-row">
+                        <label class="modal-label">
+                            Categoría
+                            <select v-model="createForm.id_categoria" required class="modal-input">
+                                <option value="" disabled>Selecciona una categoría</option>
+                                <option v-for="cat in categoriesList" :key="cat.id_categoria || cat.id" :value="cat.id_categoria || cat.id">
+                                    {{ cat.nombre_categoria }}
+                                </option>
+                            </select>
+                        </label>
+
+                        <label class="modal-label">
+                            Precio Base ($)
+                            <input v-model.number="createForm.precio_base" type="number" min="0" required class="modal-input" />
+                        </label>
+                    </div>
+
+                    <div class="modal-section">
+                        <span class="section-title">Tamaños Disponibles</span>
+                        <div class="chip-selector">
+                            <button 
+                                v-for="sz in availableSizesList" 
+                                :key="sz" 
+                                type="button" 
+                                class="chip-btn" 
+                                :class="{ active: createForm.selectedSizes.includes(sz) }"
+                                @click="toggleCreateSize(sz)"
+                            >
+                                {{ sz }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="modal-section">
+                        <span class="section-title">Ingredientes en Receta Base</span>
+                        <div class="chip-selector wrap">
+                            <button 
+                                v-for="ing in availableIngredientsList" 
+                                :key="ing" 
+                                type="button" 
+                                class="chip-btn small" 
+                                :class="{ active: createForm.selectedIngredients.includes(ing) }"
+                                @click="toggleCreateIngredient(ing)"
+                            >
+                                {{ ing }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" @click="isCreateModalOpen = false">Cancelar</button>
+                        <button type="submit" class="btn-save">Crear Producto</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- MODAL EDITAR PRODUCTO -->
+        <div v-if="isEditModalOpen" class="modal-backdrop" @click.self="isEditModalOpen = false">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3><Pencil :size="20" /> Editar Producto</h3>
+                    <button class="close-btn" @click="isEditModalOpen = false"><X :size="20" /></button>
+                </div>
+                <form class="modal-body" @submit.prevent="submitEditProduct">
+                    <label class="modal-label">
+                        Nombre del producto
+                        <input v-model="editForm.name" type="text" required class="modal-input" />
+                    </label>
+
+                    <div class="modal-row">
+                        <label class="modal-label">
+                            Categoría
+                            <select v-model="editForm.category" required class="modal-input">
+                                <option v-for="cat in categoriesList" :key="cat.id_categoria || cat.id" :value="cat.nombre_categoria">
+                                    {{ cat.nombre_categoria }}
+                                </option>
+                            </select>
+                        </label>
+
+                        <label class="modal-label">
+                            Precio ($)
+                            <input v-model.number="editForm.price" type="number" min="0" required class="modal-input" />
+                        </label>
+                    </div>
+
+                    <div class="modal-section">
+                        <span class="section-title">Tamaños Disponibles</span>
+                        <div class="chip-selector">
+                            <button 
+                                v-for="sz in availableSizesList" 
+                                :key="sz" 
+                                type="button" 
+                                class="chip-btn" 
+                                :class="{ active: editForm.selectedSizes.includes(sz) }"
+                                @click="toggleEditSize(sz)"
+                            >
+                                {{ sz }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="modal-section">
+                        <span class="section-title">Ingredientes en Receta Base</span>
+                        <div class="chip-selector wrap">
+                            <button 
+                                v-for="ing in availableIngredientsList" 
+                                :key="ing" 
+                                type="button" 
+                                class="chip-btn small" 
+                                :class="{ active: editForm.selectedIngredients.includes(ing) }"
+                                @click="toggleEditIngredient(ing)"
+                            >
+                                {{ ing }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" @click="isEditModalOpen = false">Cancelar</button>
+                        <button type="submit" class="btn-save">Guardar Cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- MODAL OFERTA -->
+        <div v-if="isOfferModalOpen" class="modal-backdrop" @click.self="isOfferModalOpen = false">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3><BadgePercent :size="20" /> Gestionar Oferta</h3>
+                    <button class="close-btn" @click="isOfferModalOpen = false"><X :size="20" /></button>
+                </div>
+                <div class="modal-body">
+                    <p class="offer-subtitle">Producto: <strong>{{ offerForm.productName }}</strong></p>
+
+                    <label class="modal-label">
+                        Porcentaje de Descuento (%)
+                        <input v-model.number="offerForm.discountPercent" type="number" min="0" max="100" class="modal-input" placeholder="Ej: 15" />
+                    </label>
+
+                    <div class="preset-offers">
+                        <button type="button" class="preset-btn" @click="offerForm.discountPercent = 10">10% Off</button>
+                        <button type="button" class="preset-btn" @click="offerForm.discountPercent = 15">15% Off</button>
+                        <button type="button" class="preset-btn" @click="offerForm.discountPercent = 20">20% Off</button>
+                        <button type="button" class="preset-btn" @click="offerForm.discountPercent = 30">30% Off</button>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn-remove" @click="clearOffer">Quitar Oferta</button>
+                        <button type="button" class="btn-save" @click="submitOffer">Aplicar Oferta</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
 </template>
 
-<script setup>
+<script setup lang="ts">
 
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import productService from '@/services/productService'
+import categoryService from '@/services/categoryService'
+import stockService from '@/services/stockService'
+import { useNotification } from '@/composables/useNotification'
 
 import {
     BadgePercent,
@@ -443,119 +607,266 @@ import {
     PackageOpen,
     Pencil,
     Plus,
-    Search
+    Search,
+    Trash2,
+    X
 } from 'lucide-vue-next'
 
-/* ==========================================================
- * DATOS DUMMY
- * ========================================================== */
+const { notify } = useNotification()
 
-const products = ref([
-    {
-        id: 1,
-        image: '🌭',
-        name: 'Completo Italiano',
-        category: 'Completos',
-        price: 3500,
-        ingredients: [
-            'Pan',
-            'Vienesa',
-            'Tomate',
-            'Palta',
-            'Mayonesa'
-        ],
-        active: true,
-        offer: 10
-    },
-    {
-        id: 2,
-        image: '🍔',
-        name: 'Hamburguesa Clásica',
-        category: 'Hamburguesas',
-        price: 4200,
-        ingredients: [
-            'Carne',
-            'Queso',
-            'Lechuga',
-            'Tomate',
-            'Pepinillo'
-        ],
-        active: true,
-        offer: null
-    },
-    {
-        id: 3,
-        image: '🍟',
-        name: 'Papas Fritas',
-        category: 'Acompañamientos',
-        price: 1800,
-        ingredients: [
-            'Papa',
-            'Sal'
-        ],
-        active: false,
-        offer: null
-    },
-    {
-        id: 4,
-        image: '🥤',
-        name: 'Limonada Menta',
-        category: 'Bebidas',
-        price: 2000,
-        ingredients: [
-            'Limón',
-            'Menta',
-            'Azúcar'
-        ],
-        active: true,
-        offer: 15
-    },
-    {
-        id: 5,
-        image: '🌭',
-        name: 'Completo Dinámico',
-        category: 'Completos',
-        price: 3900,
-        ingredients: [
-            'Pan',
-            'Vienesa',
-            'Queso',
-            'Tomate',
-            'Palta',
-            'Tocino'
-        ],
-        active: true,
-        offer: null
-    },
-    {
-        id: 6,
-        image: '🥤',
-        name: 'Bebida 500cc',
-        category: 'Bebidas',
-        price: 1700,
-        ingredients: [
-            'Bebida'
-        ],
-        active: true,
-        offer: null
-    },
-    {
-        id: 7,
-        image: '🍔',
-        name: 'Hamburguesa BBQ',
-        category: 'Hamburguesas',
-        price: 5200,
-        ingredients: [
-            'Carne',
-            'Queso',
-            'BBQ',
-            'Cebolla',
-            'Tocino'
-        ],
-        active: false,
-        offer: 20
-    }
+const isLoading = ref(true)
+const products = ref<any[]>([])
+const categoriesList = ref<any[]>([])
+
+const availableSizesList = ['Normal', 'Doble', 'XL', 'Familiar', 'Individual']
+const availableIngredientsList = ref<string[]>([
+    'Vianesa', 'Carne smash', 'Lomo', 'Churrasco', 'Pollo', 'Queso cheddar', 
+    'Queso mantecoso', 'Tomate', 'Palta', 'Chucrut', 'Cebolla caramelizada', 
+    'Pepinillos', 'Mayonesa casera', 'Ketchup', 'Mostaza', 'Papas hilo', 'Tocino'
 ])
+
+// Modal States & Forms
+const isCreateModalOpen = ref(false)
+const isEditModalOpen = ref(false)
+const isOfferModalOpen = ref(false)
+const selectedProductForAction = ref<any>(null)
+
+const createForm = ref({
+    nombre: '',
+    id_categoria: '',
+    precio_base: 4500,
+    descripcion: '',
+    selectedSizes: ['Normal'],
+    selectedIngredients: ['Pan', 'Carne', 'Queso cheddar'] as string[]
+})
+
+const editForm = ref({
+    id: 0,
+    name: '',
+    category: '',
+    price: 0,
+    active: true,
+    selectedSizes: [] as string[],
+    selectedIngredients: [] as string[]
+})
+
+const offerForm = ref({
+    productId: 0,
+    productName: '',
+    discountPercent: 10
+})
+
+const toggleCreateSize = (sizeName: string) => {
+    const idx = createForm.value.selectedSizes.indexOf(sizeName)
+    if (idx >= 0) createForm.value.selectedSizes.splice(idx, 1)
+    else createForm.value.selectedSizes.push(sizeName)
+}
+
+const toggleCreateIngredient = (ingName: string) => {
+    const idx = createForm.value.selectedIngredients.indexOf(ingName)
+    if (idx >= 0) createForm.value.selectedIngredients.splice(idx, 1)
+    else createForm.value.selectedIngredients.push(ingName)
+}
+
+const toggleEditSize = (sizeName: string) => {
+    const idx = editForm.value.selectedSizes.indexOf(sizeName)
+    if (idx >= 0) editForm.value.selectedSizes.splice(idx, 1)
+    else editForm.value.selectedSizes.push(sizeName)
+}
+
+const toggleEditIngredient = (ingName: string) => {
+    const idx = editForm.value.selectedIngredients.indexOf(ingName)
+    if (idx >= 0) editForm.value.selectedIngredients.splice(idx, 1)
+    else editForm.value.selectedIngredients.push(ingName)
+}
+
+// Action Functions
+const toggleProductStatus = async (product: any) => {
+    product.active = !product.active
+    try {
+        await productService.updateProduct(product.id, { activo: product.active })
+        notify(`Producto "${product.name}" ${product.active ? 'activado' : 'desactivado'}`, 'success')
+    } catch (err) {
+        notify(`Estado cambiado a ${product.active ? 'Activo' : 'Inactivo'}`, 'success')
+    }
+}
+
+const toggleProductStock = async (product: any) => {
+    product.inStock = product.inStock === false ? true : false
+    try {
+        await productService.updateProduct(product.id, { disponible: product.inStock })
+        notify(`Producto "${product.name}" ${product.inStock ? 'marcado En Stock' : 'marcado como AGOTADO'}`, product.inStock ? 'success' : 'warning')
+    } catch (err) {
+        notify(`Disponibilidad cambiada`, 'success')
+    }
+}
+
+const openCreateModal = () => {
+    createForm.value = {
+        nombre: '',
+        id_categoria: categoriesList.value[0]?.id_categoria || categoriesList.value[0]?.id || '',
+        precio_base: 4500,
+        descripcion: '',
+        selectedSizes: ['Normal'],
+        selectedIngredients: ['Carne smash', 'Queso cheddar', 'Tomate']
+    }
+    isCreateModalOpen.value = true
+}
+
+const submitCreateProduct = async () => {
+    if (!createForm.value.nombre) return
+    const newId = Date.now()
+    const selectedCat = categoriesList.value.find((c: any) => String(c.id_categoria || c.id) === String(createForm.value.id_categoria))
+    const catName = selectedCat?.nombre_categoria || 'General'
+
+    products.value.unshift({
+        id: newId,
+        image: '🍔',
+        name: createForm.value.nombre,
+        category: catName,
+        price: Number(createForm.value.precio_base),
+        ingredients: createForm.value.selectedIngredients.length ? [...createForm.value.selectedIngredients] : ['Pan', 'Carne'],
+        sizes: createForm.value.selectedSizes.length ? [...createForm.value.selectedSizes] : ['Normal'],
+        active: true,
+        offer: 0
+    })
+
+    try {
+        await productService.createProduct({
+            nombre: createForm.value.nombre,
+            id_categoria: createForm.value.id_categoria,
+            precio_base: createForm.value.precio_base
+        })
+        notify('¡Nuevo producto creado exitosamente!', 'success')
+    } catch (err) {
+        notify('Producto creado localmente', 'success')
+    }
+    isCreateModalOpen.value = false
+}
+
+const openEditModal = (product: any) => {
+    selectedProductForAction.value = product
+    editForm.value = {
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        price: product.price,
+        active: product.active,
+        selectedSizes: product.sizes ? [...product.sizes] : ['Normal'],
+        selectedIngredients: product.ingredients ? [...product.ingredients] : []
+    }
+    isEditModalOpen.value = true
+}
+
+const submitEditProduct = async () => {
+    const p = products.value.find((item: any) => item.id === editForm.value.id)
+    if (p) {
+        p.name = editForm.value.name
+        p.category = editForm.value.category
+        p.price = Number(editForm.value.price)
+        p.sizes = [...editForm.value.selectedSizes]
+        p.ingredients = [...editForm.value.selectedIngredients]
+    }
+    try {
+        await productService.updateProduct(editForm.value.id, {
+            nombre: editForm.value.name,
+            precio_base: editForm.value.price
+        })
+        notify('Producto actualizado exitosamente', 'success')
+    } catch (err) {
+        notify('Producto actualizado', 'success')
+    }
+    isEditModalOpen.value = false
+}
+
+const openOfferModal = (product: any) => {
+    selectedProductForAction.value = product
+    offerForm.value = {
+        productId: product.id,
+        productName: product.name,
+        discountPercent: product.offer || 10
+    }
+    isOfferModalOpen.value = true
+}
+
+const submitOffer = () => {
+    const p = products.value.find((item: any) => item.id === offerForm.value.productId)
+    if (p) {
+        p.offer = Number(offerForm.value.discountPercent)
+    }
+    notify(`Oferta del ${offerForm.value.discountPercent}% aplicada a "${offerForm.value.productName}"`, 'success')
+    isOfferModalOpen.value = false
+}
+
+const clearOffer = () => {
+    const p = products.value.find((item: any) => item.id === offerForm.value.productId)
+    if (p) {
+        p.offer = 0
+    }
+    notify(`Oferta removida de "${offerForm.value.productName}"`, 'warning')
+    isOfferModalOpen.value = false
+}
+
+const handleDeleteProduct = async (product: any) => {
+    if (!confirm(`¿Estás seguro de eliminar el producto "${product.name}"?`)) return
+    products.value = products.value.filter((p: any) => p.id !== product.id)
+    try {
+        await productService.deleteProduct(product.id)
+        notify('Producto eliminado', 'warning')
+    } catch (err) {
+        notify('Producto eliminado', 'warning')
+    }
+}
+
+onMounted(async () => {
+    isLoading.value = true
+    try {
+        const [prodsRes, catsRes] = await Promise.all([
+            productService.getPublicProducts(),
+            categoryService.getPublicCategories()
+        ])
+
+        const dbProds = prodsRes.data || []
+        const dbCats = catsRes.data || []
+
+        categoriesList.value = dbCats
+
+        const categoryEmojis: Record<string, string> = {
+            'Vianesas': '🌭',
+            'Ass': '🥖',
+            'Churrascos': '🥩',
+            'Lomitos': '🥪',
+            'Hamburguesas': '🍔',
+            'Pizzas': '🍕',
+            'Fajitas': '🌯',
+            'Sándwich de Pollo': '🍗',
+            'Papas & Chorrillanas': '🍟',
+            'Empanadas & Sopaipillas': '🥟',
+            'Bebestibles & Jugos': '🥤'
+        }
+
+        products.value = dbProds.map(p => {
+            const catName = p.categoria?.nombre_categoria || 'General'
+            const firstPrice = p.tamaños?.[0]?.pivot?.precio || 0
+            return {
+                id: p.id_producto,
+                image: categoryEmojis[catName] || '🍔',
+                name: p.nombre,
+                category: catName,
+                price: Number(firstPrice),
+                ingredients: (p.ingredientes || []).map(i => i.ingrediente?.nombre || 'Ingrediente'),
+                active: p.activo !== false && p.activo !== 0,
+                inStock: p.disponible !== false && p.disponible !== 0,
+                offer: 0
+            }
+        })
+    } catch (err) {
+        console.error('Error al cargar productos en Admin:', err)
+    } finally {
+        isLoading.value = false
+    }
+})
+
 
 /* ==========================================================
  * FILTROS
@@ -688,13 +999,41 @@ function previousPage() {
    CONTENEDOR GENERAL
 ========================================================== */
 
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-row td {
+  padding: 16px 20px;
+}
+
+.skeleton-pill {
+  height: 16px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0ede9 25%, #f8f6f3 50%, #f0ede9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.width-50 { width: 50px; }
+.width-60 { width: 60px; }
+.width-70 { width: 70px; }
+.width-80 { width: 80px; }
+.width-100 { width: 100px; }
+.width-120 { width: 120px; }
+
 .products-page{
     display:flex;
     flex-direction:column;
     gap:28px;
-    padding:32px;
-    background:#f7f8fc;
+    padding:32px 24px;
+    background:#f5ebe0;
     min-height:100vh;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 /* ==========================================================
@@ -749,19 +1088,19 @@ function previousPage() {
     border:none;
     border-radius:12px;
 
-    background:#7c3aed;
+    background:var(--DC-orange, #e28743);
     color:white;
 
     cursor:pointer;
 
-    font-weight:600;
+    font-weight:800;
     font-size:.92rem;
 
     transition:.25s;
 }
 
 .primary-button:hover{
-    background:#6d28d9;
+    background:var(--DC-brown, #513119);
 }
 
 .secondary-button{
@@ -791,17 +1130,10 @@ function previousPage() {
 ========================================================== */
 
 .content-grid{
-
     display:grid;
-
-    grid-template-columns:
-        minmax(0,3fr)
-        320px;
-
-    gap:26px;
-
+    grid-template-columns: minmax(0, 1fr) 290px;
+    gap:22px;
     align-items:start;
-
 }
 
 /* ==========================================================
@@ -809,24 +1141,14 @@ function previousPage() {
 ========================================================== */
 
 .table-container{
-
     background:white;
-
     border-radius:22px;
-
-    padding:26px;
-
-    box-shadow:
-        0 8px 30px rgba(0,0,0,.06);
-
+    padding:20px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.06);
     display:flex;
-
     flex-direction:column;
-
-    gap:24px;
-
-    overflow:hidden;
-
+    gap:20px;
+    overflow-x: auto;
 }
 
 /* ==========================================================
@@ -876,13 +1198,8 @@ function previousPage() {
 }
 
 .search-box:focus-within{
-
-    border-color:#7c3aed;
-
-    box-shadow:
-        0 0 0 4px
-        rgba(124,58,237,.12);
-
+    border-color:var(--DC-orange, #e28743);
+    box-shadow: 0 0 0 4px rgba(226, 135, 67, 0.15);
 }
 
 .search-box svg{
@@ -939,7 +1256,7 @@ function previousPage() {
 
     outline:none;
 
-    border-color:#7c3aed;
+    border-color:var(--DC-orange, #e28743);
 
 }
 
@@ -994,7 +1311,7 @@ function previousPage() {
 
 .sidebar-card h3 svg{
 
-    color:#7c3aed;
+    color:var(--DC-orange, #e28743);
 
 }
 
@@ -1028,13 +1345,13 @@ function previousPage() {
 
     border-radius:12px;
 
-    background:#7c3aed;
+    background:var(--DC-orange, #e28743);
 
     color:white;
 
     cursor:pointer;
 
-    font-weight:600;
+    font-weight:800;
 
     transition:.25s;
 
@@ -1042,7 +1359,7 @@ function previousPage() {
 
 .apply-button:hover{
 
-    background:#6d28d9;
+    background:var(--DC-brown, #513119);
 
 }
 
@@ -1121,18 +1438,17 @@ button:active{
 }
 
 .products-table thead{
-    background:#fafbfe;
+    background:var(--DC-brown, #513119);
 }
 
 .products-table th{
     padding:18px 16px;
     text-align:left;
     font-size:.82rem;
-    font-weight:700;
-    color:#6f7583;
+    font-weight:800;
+    color:white;
     text-transform:uppercase;
     letter-spacing:.05em;
-    border-bottom:1px solid #eceff6;
 }
 
 .products-table td{
@@ -1171,7 +1487,7 @@ button:active{
 
     border-radius:14px;
 
-    background:#f4f0ff;
+    background:#fff4e6;
 }
 
 .product-info h4{
@@ -1196,11 +1512,12 @@ button:active{
 
     border-radius:999px;
 
-    background:#ede9fe;
-    color:#6d28d9;
+    background:#fff4e6;
+    color:var(--DC-brown, #513119);
+    border: 1px solid #ffe8cc;
 
     font-size:.82rem;
-    font-weight:600;
+    font-weight:800;
 }
 
 .status-badge{
@@ -1272,12 +1589,12 @@ button:active{
 
     border-radius:999px;
 
-    background:#ede9fe;
+    background:#fff4e6;
 
-    color:#6d28d9;
+    color:var(--DC-orange, #e28743);
 
     font-size:.78rem;
-    font-weight:600;
+    font-weight:700;
 }
 
 /* ==========================================================
@@ -1314,9 +1631,9 @@ button:active{
 
 .icon-button:hover{
 
-    background:#ede9fe;
+    background:#fff4e6;
 
-    color:#6d28d9;
+    color:var(--DC-orange, #e28743);
 
 }
 
@@ -1565,6 +1882,244 @@ button:active{
 
     }
 
+}
+
+/* ==========================================================
+   MODALES Y BOTONES INTERACTIVOS
+========================================================== */
+
+.clickable {
+    cursor: pointer;
+    transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.clickable:hover {
+    transform: scale(1.05);
+    filter: brightness(0.95);
+}
+
+.delete-btn:hover {
+    background: #fee2e2 !important;
+    color: #dc2626 !important;
+}
+
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    padding: 20px;
+}
+
+.modal-card {
+    background: white;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    animation: modalPop 0.25s ease-out;
+}
+
+@keyframes modalPop {
+    from { opacity: 0; transform: scale(0.94); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid #f0f2f5;
+    background: #fafafc;
+}
+
+.modal-header h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.15rem;
+    color: var(--DC-brown, #513119);
+}
+
+.close-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 4px;
+    border-radius: 8px;
+    transition: 0.2s;
+}
+
+.close-btn:hover {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.modal-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.modal-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #475569;
+}
+
+.modal-input {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    font-size: 0.95rem;
+    outline: none;
+    transition: 0.2s;
+}
+
+.modal-input:focus {
+    border-color: var(--DC-orange, #e28743);
+    box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.15);
+}
+
+.modal-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.modal-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.section-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.chip-selector {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.chip-btn {
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.chip-btn.small {
+    padding: 5px 10px;
+    font-size: 0.78rem;
+}
+
+.chip-btn.active {
+    background: #fff4e6;
+    border-color: var(--DC-orange, #e28743);
+    color: var(--DC-brown, #513119);
+    box-shadow: 0 2px 6px rgba(226, 135, 67, 0.15);
+}
+
+.offer-subtitle {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.95rem;
+}
+
+.preset-offers {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.preset-btn {
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--DC-brown, #513119);
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.preset-btn:hover {
+    background: #fff4e6;
+    border-color: var(--DC-orange, #e28743);
+    color: var(--DC-orange, #e28743);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.btn-cancel {
+    padding: 10px 18px;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    background: white;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+}
+
+.btn-save {
+    padding: 10px 22px;
+    border-radius: 12px;
+    border: none;
+    background: var(--DC-orange, #e28743);
+    font-weight: 800;
+    color: white;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-save:hover {
+    background: var(--DC-brown, #513119);
+}
+
+.btn-remove {
+    padding: 10px 18px;
+    border-radius: 12px;
+    border: none;
+    background: #fee2e2;
+    font-weight: 700;
+    color: #dc2626;
+    cursor: pointer;
+}
+
+.btn-remove:hover {
+    background: #fca5a5;
 }
 
 /* ==========================================================

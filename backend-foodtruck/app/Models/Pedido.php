@@ -24,24 +24,31 @@ class Pedido extends Model
         'fecha_de_pago',
         'fecha',
         'total',
-        'notas'
+        'notas',
+        'inventario_descontado'
     ];
 
     protected $casts = [
         'fecha' => 'datetime',
         'fecha_de_pago' => 'datetime',
         'total'  => 'integer',
+        'inventario_descontado' => 'boolean',
     ];
+
+    protected function serializeDate(\DateTimeInterface $date)
+    {
+        return $date->format('Y-m-d H:i:s');
+    }
 
     // Un pedido pertenece a un estado
     public function estadoPedido()
     {
-        return $this->belongsTo(Estado_pedido::class, 'id_estado_pedido', 'id_pedido');
+        return $this->belongsTo(Estado_pedido::class, 'id_estado_pedido', 'id_estado_pedido');
     }
 
     public function estadoPago()
     {
-        return $this->belongsTo(Estado_pago::class, 'id_estado_pago', 'id_pedido');
+        return $this->belongsTo(Estado_pago::class, 'id_estado_pago', 'id_estado_pago');
     }
 
     // Un pedido pertenece a un usuario

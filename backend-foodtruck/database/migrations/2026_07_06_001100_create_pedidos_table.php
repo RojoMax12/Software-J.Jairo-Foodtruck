@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id('id_pedido');
             $table->unsignedBigInteger('id_estado_pedido');
             $table->unsignedBigInteger('id_estado_pago');
-            $table->unsignedBigInteger('id_usuario');
+            $table->unsignedBigInteger('id_usuario')->nullable();
             $table->integer('numero_pedido_dia');
             $table->string('nombre_persona');
             $table->string('numero_telefono');

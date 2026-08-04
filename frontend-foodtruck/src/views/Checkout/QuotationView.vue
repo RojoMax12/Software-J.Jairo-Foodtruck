@@ -132,11 +132,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import boxPlaceholderImage from '@/assets/caja_dicreme.jpg'
 import { AlertTriangle } from 'lucide-vue-next'
 import quoteService from '@/services/quoteService'
+import orderService from '@/services/orderService'
+import { useNotification } from '@/composables/useNotification'
 
 const router = useRouter()
+const { notify } = useNotification()
 
 // --- ESTADOS REACTIVOS ---
 const phone = ref('')
@@ -245,7 +247,7 @@ const totalEstimated = computed(() => {
   try {
     const response = await quoteService.createQuote(quotationPayload)
     const result = response.data
-    alert(`¡Pedido confirmado exitosamente! N°: ${result.id || result.ID || 'Generado'}`)
+    notify(`¡Pedido confirmado exitosamente! N°: ${result.id || result.ID || 'Generado'}`, 'success')
     
     localStorage.removeItem('dicreme_temp_cart')
     localStorage.removeItem('dicreme_temp_first_name')
@@ -280,43 +282,75 @@ const handleConfirmQuotation = async () => {
 
   isLoading.value = true;
 
-  // 2. Construir el objeto que se enviaría (El Payload)
-  const quotationPayload = {
-    persona_recibe: `${firstName.value.trim()} ${lastName.value.trim()}`,
-    telefono: phone.value.trim(),
+  const calculatedTotal = quotationItems.value.reduce((sum, item) => {
+    const cleanPrice = typeof item.price === 'string'
+      ? Number(item.price.replace(/[^0-9]/g, ''))
+      : Number(item.price || 0);
+    return sum + (cleanPrice * (item.quantity || 1));
+  }, 0);
+
+  const orderPayload = {
+    nombre_persona: `${firstName.value.trim()} ${lastName.value.trim()}`,
+    numero_telefono: phone.value.trim(),
     metodo_pago: selectedPaymentMethod.value,
-    items: quotationItems.value, // Tus productos
-    total: totalEstimated.value
+    total: calculatedTotal,
+    items: quotationItems.value.map(item => {
+      const rawProdId = item.id_producto ?? item.productId ?? 1;
+      const cleanProdId = (typeof rawProdId === 'number' && !isNaN(rawProdId)) 
+        ? rawProdId 
+        : (parseInt(String(rawProdId).split('_')[0]) || 1);
+
+      const rawTamanoId = item.id_tamaño ?? item.tamano_id ?? 1;
+      const cleanTamanoId = (typeof rawTamanoId === 'number' && !isNaN(rawTamanoId)) 
+        ? rawTamanoId 
+        : (parseInt(String(rawTamanoId)) || 1);
+
+      return {
+        id_producto: cleanProdId,
+        id_tamaño: cleanTamanoId,
+        cantidad: Number(item.quantity || 1),
+        precio_unitario: typeof item.price === 'string'
+          ? Number(item.price.replace(/[^0-9]/g, ''))
+          : Number(item.price || 0),
+        modificaciones: [
+          ...(item.excluidosDetails || []).map((ex: any) => ({
+            id_ingrediente: ex.id_ingrediente || null,
+            tipo: 'Exclusión',
+            precio: 0
+          })),
+          ...(item.agregadosDetails || []).map((ag: any) => ({
+            id_ingrediente: ag.id_ingrediente || null,
+            tipo: 'Agregado',
+            precio: 0
+          }))
+        ]
+      };
+    })
   };
 
-  // 3. Simular tiempo de espera
-  await new Promise(resolve => setTimeout(resolve, 1500));
+  try {
+    const res = await orderService.createPublicOrder(orderPayload);
+    const createdOrder = res.data;
 
-  // 4. Resultado Dummy
-  const dummyResult = {
-    id: Math.floor(Math.random() * 1000) + 1
-  };
+    localStorage.removeItem('dicreme_temp_cart');
+    localStorage.removeItem('dicreme_temp_first_name');
+    localStorage.removeItem('dicreme_temp_last_name');
 
-  console.log("--- [DUMMY] Payload que se enviaría ---");
-  console.log(JSON.stringify(quotationPayload, null, 2));
-
-  // 5. Limpiar caché
-  localStorage.removeItem('dicreme_temp_cart');
-  localStorage.removeItem('dicreme_temp_first_name');
-  localStorage.removeItem('dicreme_temp_last_name');
-
-  // 6. Redirigir
-  const now = new Date();
-  router.push({
-    path: '/cotizacion-exitosa',
-    query: {
-      id: dummyResult.id.toString(),
-      fecha: now.toLocaleDateString('es-CL'),
-      hora: now.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
-    }
-  });
-
-  isLoading.value = false;
+    const now = new Date();
+    router.push({
+      path: '/cotizacion-exitosa',
+      query: {
+        id: (createdOrder.numero_pedido_dia || createdOrder.id_pedido || createdOrder.id).toString(),
+        fecha: now.toLocaleDateString('es-CL'),
+        hora: now.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
+      }
+    });
+  } catch (err) {
+    console.error('Error enviando pedido:', err);
+    triggerAlert('Hubo un error al procesar el pedido con el servidor.');
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 

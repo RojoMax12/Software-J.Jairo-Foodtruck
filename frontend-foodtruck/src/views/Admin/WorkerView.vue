@@ -236,8 +236,17 @@
                     </tr>
                 </thead>
 
-                <tbody class="table-body">
+                <tbody v-if="isLoading" class="table-body">
+                    <tr v-for="n in 4" :key="'work-skel-' + n" class="skeleton-row">
+                        <td><div class="skeleton-pill width-50"></div></td>
+                        <td><div class="skeleton-pill width-120"></div></td>
+                        <td><div class="skeleton-pill width-80"></div></td>
+                        <td><div class="skeleton-pill width-70"></div></td>
+                        <td><div class="skeleton-pill width-60"></div></td>
+                    </tr>
+                </tbody>
 
+                <tbody v-else class="table-body">
                     <tr
                         v-if="paginatedWorkers.length === 0"
                         class="empty-row"
@@ -355,31 +364,28 @@ import type { Worker } from "@/views/Admin/worker"
 import CreateWorkerModal from '@/views/Admin/CreateWorkerModal.vue';
 import EditWorkerModal from '@/views/Admin/EditWorkerModal.vue';
 
-const workers: Worker[] = [
+import userService from '@/services/userService';
 
-    { id: 1, nombre: "Juan Pérez", rol: { id: 1, nombre: "Administrador" }, activo: true },
-    { id: 2, nombre: "María Soto", rol: { id: 2, nombre: "Trabajador" }, activo: false },
-    { id: 3, nombre: "Carlos Rojas", rol: { id: 2, nombre: "Trabajador" }, activo: true },
-    { id: 4, nombre: "Ana González", rol: { id: 2, nombre: "Trabajador" }, activo: true },
-    { id: 5, nombre: "Pedro Muñoz", rol: { id: 2, nombre: "Trabajador" }, activo: false },
-    { id: 6, nombre: "Camila Torres", rol: { id: 2, nombre: "Trabajador" }, activo: true },
-    { id: 7, nombre: "Diego Herrera", rol: { id: 2, nombre: "Trabajador" }, activo: false },
-    { id: 8, nombre: "Fernanda Díaz", rol: { id: 2, nombre: "Trabajador" }, activo: true },
-    { id: 9, nombre: "José Castillo", rol: { id: 2, nombre: "Trabajador" }, activo: true },
-    { id: 10, nombre: "Valentina Flores", rol: { id: 2, nombre: "Trabajador" }, activo: false },
+const isLoading = ref(true);
+const workers = ref<Worker[]>([]);
 
-    { id: 11, nombre: "Luis Pérez", rol: { id: 2, nombre: "Trabajador" }, activo: true },
-    { id: 12, nombre: "Daniela Soto", rol: { id: 2, nombre: "Trabajador" }, activo: true },
-    { id: 13, nombre: "Ignacio Morales", rol: { id: 2, nombre: "Trabajador" }, activo: false },
-    { id: 14, nombre: "Paula Rojas", rol: { id: 1, nombre: "Administrador" }, activo: true },
-    { id: 15, nombre: "Sebastián Vega", rol: { id: 2, nombre: "Trabajador" }, activo: true },
-    { id: 16, nombre: "Constanza Fuentes", rol: { id: 2, nombre: "Trabajador" }, activo: false },
-    { id: 17, nombre: "Ricardo Silva", rol: { id: 2, nombre: "Trabajador" }, activo: true },
-    { id: 18, nombre: "Patricia Núñez", rol: { id: 2, nombre: "Trabajador" }, activo: true },
-    { id: 19, nombre: "Tomás Pérez", rol: { id: 2, nombre: "Trabajador" }, activo: false },
-    { id: 20, nombre: "Francisca Herrera", rol: { id: 1, nombre: "Administrador" }, activo: true }
-
-]
+onMounted(async () => {
+    isLoading.value = true;
+    try {
+        const res = await userService.getUsers();
+        const rawUsers = res.data || [];
+        workers.value = rawUsers.map((u: any) => ({
+            id: u.id_usuario,
+            nombre: u.nombre || u.nombre_empresa || 'Usuario',
+            rol: { id: u.id_rol || 2, nombre: u.rol?.nombre || (u.id_rol === 1 ? 'Administrador' : 'Trabajador') },
+            activo: true
+        }));
+    } catch (err) {
+        console.error('Error al cargar trabajadores desde la API:', err);
+    } finally {
+        isLoading.value = false;
+    }
+});
 
 /* 1. Variables reactivas */
 const isRoleDropdownOpen = ref(false)
@@ -397,38 +403,36 @@ const pageSize = 10
 
 /* 2. Funciones para tarjetas estadisticas */
 const adminWorkers = computed(() => {
-    return workers.filter(
-        worker => worker.rol.nombre === 'Administrador'
+    return (workers.value || []).filter(
+        worker => worker.rol?.nombre === 'Administrador'
     ).length
 })
 
 const regularWorkers = computed(() => {
-    return workers.filter(
-        worker => worker.rol.nombre !== 'Administrador'
+    return (workers.value || []).filter(
+        worker => worker.rol?.nombre !== 'Administrador'
     ).length
 })
 
 const activeWorkers = computed(() =>
-    workers.filter(worker => worker.activo).length
+    (workers.value || []).filter(worker => worker.activo).length
 )
 
 const inactiveWorkers = computed(() =>
-    workers.filter(worker => !worker.activo).length
+    (workers.value || []).filter(worker => !worker.activo).length
 )
 
 /* 3. Funciones para filtros */
 const filteredWorkers = computed(() => {
-
-    return workers.filter(worker => {
-
+    return (workers.value || []).filter(worker => {
         const matchesName =
-            worker.nombre
+            (worker.nombre || '')
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase())
 
         const matchesRole =
             selectedRole.value === "all" ||
-            worker.rol.nombre === selectedRole.value
+            worker.rol?.nombre === selectedRole.value
 
         const matchesStatus =
             selectedStatus.value === "all" ||
@@ -439,9 +443,7 @@ const filteredWorkers = computed(() => {
             matchesRole &&
             matchesStatus
         )
-
     })
-
 })
 
 watch(
@@ -585,12 +587,39 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-row td {
+  padding: 16px 20px;
+}
+
+.skeleton-pill {
+  height: 16px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0ede9 25%, #f8f6f3 50%, #f0ede9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.width-50 { width: 50px; }
+.width-60 { width: 60px; }
+.width-70 { width: 70px; }
+.width-80 { width: 80px; }
+.width-120 { width: 120px; }
+
 /* 0. Contenedor principal */
 .dashboard{
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
     display:grid;
     grid-template-columns: 1fr;
     gap: 20px;
-    padding: 20px;
+    padding: 24px 20px;
+    box-sizing: border-box;
 }
 
 /* 1. Contenedor titulo */
@@ -800,12 +829,8 @@ onBeforeUnmount(() => {
 
 /* 3.2 Contenedor contenido tabla */
 .table-content {
-    flex: 6;
-
     width: 100%;
     overflow-x: auto;
-    max-height: 220px;
-    overflow-y: auto;
 }
 
 /* 3.2.1 Contenido tabla */
