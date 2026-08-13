@@ -1,110 +1,100 @@
 <template>
-
     <Transition name="fade">
-
         <div v-if="isOpen" class="modal-overlay" @click.self="emit('close')">
-
             <div class="modal">
-
                 <div class="modal-header">
-
                     <div class="modal-title">
-
                         <UserPlus :size="22" />
-
                         <h2>Nuevo trabajador</h2>
-
                     </div>
 
                     <button class="close-button" @click="emit('close')">
                         ×
                     </button>
-
                 </div>
 
                 <div class="modal-body">
-
                     <form class="worker-form">
-
                         <div class="form-group">
-
                             <label for="name">
                                 Nombre completo
                             </label>
 
                             <input v-model="fullName" type="text" placeholder="Ej. Juan Pérez">
-
                         </div>
 
                         <div class="form-group">
+                            <label for="email">
+                                Correo electrónico
+                            </label>
 
+                            <input
+                                v-model="email"
+                                type="email"
+                                placeholder="Ej. juan@test.cl"
+                            >
+                        </div>
+
+                        <div class="form-group">
                             <label for="role">
                                 Rol
                             </label>
 
                             <div class="select-wrapper">
-
                                 <select v-model="role">
-
                                     <option disabled value="">
                                         Seleccione un rol
                                     </option>
 
-                                    <option value="TRABAJADOR">
+                                    <option :value="3">
                                         Trabajador
                                     </option>
 
-                                    <option value="ADMINISTRADOR">
+                                    <option :value="1">
                                         Administrador
                                     </option>
-
                                 </select>
-
                                 <ChevronDown :size="18" class="select-icon" />
                             </div>
-
                         </div>
 
                         <div class="form-group">
-
                             <label for="password">
                                 Contraseña
                             </label>
 
                             <input v-model="password" type="password" placeholder="Ingrese una contraseña">
-
                         </div>
-
                     </form>
-
                 </div>
 
                 <div class="modal-footer">
-
                     <button class="btn-secondary" @click="emit('close')">
                         Cancelar
                     </button>
 
-                    <button class="btn-primary" :disabled="!isFormValid">
+                    <button
+                        class="btn-primary"
+                        :disabled="!isFormValid"
+                        @click="createWorker"
+                    >
                         Crear trabajador
                     </button>
-
                 </div>
-
             </div>
-
         </div>
-
     </Transition>
-
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ChevronDown, UserPlus } from 'lucide-vue-next'
+import userService from '@/services/userService'
+import type { CreateWorkerRequest } from '@/services/userService'
 
 const fullName = ref('')
-const role = ref('')
+const email = ref('')
+const role = ref<1 | 3 | ''>('')
 const password = ref('')
 
 defineProps<{
@@ -113,18 +103,46 @@ defineProps<{
 
 const emit = defineEmits<{
     (e: 'close'): void
+    (e: 'workerCreated'): void
 }>()
 
 const isFormValid = computed(() => {
-
     return (
         fullName.value.trim() !== '' &&
+        email.value.trim() !== '' &&
         role.value !== '' &&
         password.value.trim() !== ''
     )
-
 })
 
+const createWorker = async () => {
+    if (role.value === '') {
+        return
+    }
+
+    try {
+        const worker: CreateWorkerRequest = {
+            id_rol: role.value,
+            nombre: fullName.value,
+            correo: email.value,
+            estado: true,
+            contrasena: password.value
+        }
+
+        await userService.createWorker(worker)
+
+        fullName.value = ''
+        email.value = ''
+        role.value = ''
+        password.value = ''
+
+        emit('workerCreated')
+        emit('close')
+
+    } catch (error) {
+        console.error('Error al crear trabajador:', error)
+    }
+}
 </script>
 
 <style scoped>

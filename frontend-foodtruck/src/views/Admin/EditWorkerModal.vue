@@ -1,17 +1,12 @@
 <template>
-
     <Transition name="fade">
-
         <div
             v-if="isOpen && worker"
             class="modal-overlay"
             @click.self="emit('close')"
         >
-
             <div class="modal">
-
                 <div class="modal-header">
-
                     <div class="modal-title">
 
                         <Edit3 :size="22" />
@@ -26,17 +21,14 @@
                     >
                         ×
                     </button>
-
                 </div>
 
                 <div class="modal-body">
-
                     <form class="worker-form">
 
                         <!-- Nombre -->
 
                         <div class="form-group">
-
                             <label for="name">
                                 Nombre completo
                             </label>
@@ -47,13 +39,26 @@
                                 type="text"
                                 placeholder="Ej. Juan Pérez"
                             >
+                        </div>
 
+                        <!-- Correo -->
+
+                        <div class="form-group">
+                            <label for="email">
+                                Correo electrónico
+                            </label>
+
+                            <input
+                                id="email"
+                                v-model="email"
+                                type="email"
+                                placeholder="ejemplo@correo.com"
+                            >
                         </div>
 
                         <!-- Rol -->
 
                         <div class="form-group">
-
                             <label for="role">
                                 Rol
                             </label>
@@ -62,11 +67,11 @@
 
                                 <select v-model="roleId">
 
-                                    <option :value="1">
+                                    <option :value="3">
                                         Trabajador
                                     </option>
 
-                                    <option :value="2">
+                                    <option :value="1">
                                         Administrador
                                     </option>
 
@@ -78,13 +83,11 @@
                                 />
 
                             </div>
-
                         </div>
 
                         <!-- Contraseña -->
 
                         <div class="form-group">
-
                             <label for="password">
                                 Nueva contraseña (opcional)
                             </label>
@@ -95,15 +98,11 @@
                                 type="password"
                                 placeholder="Dejar vacío para mantener la actual"
                             >
-
                         </div>
-
                     </form>
-
                 </div>
 
                 <div class="modal-footer">
-
                     <button
                         class="btn-secondary"
                         @click="emit('close')"
@@ -114,56 +113,45 @@
                     <button 
                         class="btn-primary"
                         :disabled="!isFormValid || !hasChanges"
+                        @click="saveChanges"
                     >
-
                         Guardar cambios
-
                     </button>
-
                 </div>
-
             </div>
-
         </div>
-
     </Transition>
-
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import type { Worker } from '@/views/Admin/worker'
+import type { Worker, UpdateWorkerRequest } from '@/services/userService'
 import { ChevronDown, Edit3 } from 'lucide-vue-next'
 
 const fullName = ref('')
-const roleId = ref<number | null>(null)
+const email = ref('')
+const roleId = ref<1 | 3 | null>(null)
 const password = ref('')
 
 interface Props {
-
     isOpen: boolean
     worker: Worker | null
-
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-
     (e: 'close'): void
-
+    (e: 'save', data: UpdateWorkerRequest): void
 }>()
 
-watch(
-    () => props.worker,
+watch(() => props.worker,
     (worker) => {
-
         if (!worker) return
 
-        console.log(worker.rol.nombre)
-
         fullName.value = worker.nombre
-        roleId.value = worker.rol.id
+        email.value = worker.correo
+        roleId.value = worker.id_rol
         password.value = ''
 
     },
@@ -175,7 +163,8 @@ const hasChanges = computed(() => {
 
     return (
         fullName.value.trim() !== props.worker.nombre ||
-        roleId.value !== props.worker.rol.id ||
+        email.value.trim() !== props.worker.correo ||
+        roleId.value !== props.worker.id_rol ||
         password.value.trim() !== ''
     )
 })
@@ -184,9 +173,24 @@ const isFormValid = computed(() => {
 
     return (
         fullName.value.trim() !== '' &&
+        email.value.trim() !== '' &&
         roleId.value !== null
     )
 })
+
+const saveChanges = () => {
+    const payload: UpdateWorkerRequest = {
+        nombre: fullName.value.trim(),
+        correo: email.value.trim(),
+        id_rol: roleId.value!
+    }
+
+    if (password.value.trim() !== '') {
+        payload.contrasena = password.value.trim()
+    }
+
+    emit('save', payload)
+}
 
 </script>
 

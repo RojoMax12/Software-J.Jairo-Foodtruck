@@ -17,3 +17,5 @@ export default {
         return api.delete(`/usuarios/${id}`);
     }
 }
+
+export default workerService;

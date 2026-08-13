@@ -41,4 +41,11 @@ class UsuarioController extends Controller
         $this->usuarioService->deleteUsuarioById($id);
         return response()->json(null, 204);
     }
+
+    public function administrativos()
+    {
+        return response()->json(
+            $this->usuarioService->getUsuariosAdministrativos()
+        );
+    }
 }
