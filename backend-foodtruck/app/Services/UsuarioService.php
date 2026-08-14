@@ -2,7 +2,6 @@
 namespace App\Services;
 
 use App\Repositories\UsuarioRepository;
-use Illuminate\Support\Facades\Hash;
 
 class UsuarioService
 {
@@ -57,17 +56,8 @@ class UsuarioService
         return $this->usuarioRepository->getCajasByUsuarioId($id);
     }
 
-    public function getUsuariosAdministrativos()
-    {
-        return $this->usuarioRepository->getUsuariosAdministrativos();
-    }
-
     public function updateUsuario($id, $data)
     {
-        if (isset($data['contrasena']) && !empty($data['contrasena'])) {
-            $data['contrasena'] = Hash::make($data['contrasena']);
-        }
-
         return $this->usuarioRepository->updateUsuario($id, $data);
     }
 

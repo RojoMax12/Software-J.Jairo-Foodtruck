@@ -55,18 +55,6 @@ class UsuarioRepository
         return null;
     }
 
-    public function getUsuariosAdministrativos()
-    {
-        return Usuario::whereHas('rol', function ($query) {
-            $query->whereIn('nombre_rol', [
-                'Admin',
-                'Trabajador'
-            ]);
-        })
-        ->orderBy('id_usuario')
-        ->get();
-    }
-
     # Seters
     public function updateUsuario($id, $data)
     {

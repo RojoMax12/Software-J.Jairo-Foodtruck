@@ -1,6 +1,5 @@
 <template>
   <div class="dashboard">
-    <!-- Titulo -->
     <div class="header">
         <div class="header-icon">
             <UserRoundCogIcon />
@@ -12,7 +11,6 @@
         </div>
     </div>
 
-    <!-- Tarjetas estadisticas -->
     <div class="cards">
         <div class="card">
 
@@ -99,10 +97,11 @@
                     Suspendidos
                 </span>
             </div>
+
         </div>
+
     </div>
 
-    <!-- Tabla principal -->
     <div class="workers-container">
 
         <div class="table-toolbar">
@@ -219,7 +218,6 @@
             <CreateWorkerModal
                 :isOpen="isCreateWorkerModalOpen"
                 @close="closeCreateWorkerModal"
-                @workerCreated="loadWorkers"
             />
 
         </div>
@@ -261,31 +259,31 @@
                     <tr
                         v-else
                         v-for="worker in paginatedWorkers"
-                        :key="worker.id_usuario"
+                        :key="worker.id"
                         class="table-row"
                     >
 
-                        <td>{{ worker.id_usuario }}</td>
+                        <td>{{ worker.id }}</td>
 
                         <td>{{ worker.nombre }}</td>
 
-                        <td>{{ getRoleName(worker.id_rol) }}</td>
+                        <td>{{ worker.rol.nombre }}</td>
 
                         <td>
                             <label
                                 class="status-switch"
-                                :class="{ active: worker.estado, inactive: !worker.estado }"
+                                :class="{ active: worker.activo, inactive: !worker.activo }"
                             >
                                 <input
                                     type="checkbox"
-                                    :checked="worker.estado"
+                                    :checked="worker.activo"
                                     @change="toggleWorker(worker)"
                                 />
 
                                 <span class="slider"></span>
 
                                 <span class="status-text">
-                                    {{ worker.estado ? "Activo" : "Inactivo" }}
+                                    {{ worker.activo ? "Activo" : "Inactivo" }}
                                 </span>
                             </label>
                         </td>
@@ -294,13 +292,6 @@
 
                             <button class="action-icon" @click="openEditWorkerModal(worker)">
                                 <SquarePen :size="18" />
-                            </button>
-
-                            <button
-                                class="action-icon delete"
-                                @click="deleteWorker(worker)"
-                            >
-                                <Trash2 :size="18" />
                             </button>
 
                         </td>
@@ -315,7 +306,6 @@
                 :isOpen="isEditWorkerModalOpen"
                 :worker="selectedWorker"
                 @close="closeEditWorkerModal"
-                @save="updateWorker"
             />
 
         </div>
@@ -369,9 +359,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
-import { UserRoundCogIcon, SquarePen, Search, ShieldCheck, Users, UserCheck, UserX, Trash2, CircleDot, ChevronDown, Plus } from 'lucide-vue-next';
-import userService from '@/services/userService';
-import type { Worker, UpdateWorkerRequest } from '@/services/userService'
+import { UserRoundCogIcon, Eye, SquarePen, Search, ShieldCheck, Users, UserCheck, UserX, BriefcaseBusiness, CircleDot, ChevronDown, Plus } from 'lucide-vue-next';
+import type { Worker } from "@/views/Admin/worker"
 import CreateWorkerModal from '@/views/Admin/CreateWorkerModal.vue';
 import EditWorkerModal from '@/views/Admin/EditWorkerModal.vue';
 
@@ -406,21 +395,11 @@ const isEditWorkerModalOpen = ref(false)
 const searchQuery = ref("")
 const roleDropdownRef = ref<HTMLElement | null>(null)
 const statusDropdownRef = ref<HTMLElement | null>(null)
-const selectedRole = ref<RoleFilter>('all')
+const selectedRole = ref('all')
 const selectedStatus = ref<"all" | boolean>("all")
 const selectedWorker = ref<Worker | null>(null)
 const currentPage = ref(1)
 const pageSize = 10
-
-/* 1. Carga de usuarios */
-const loadWorkers = async () => {
-    try {
-        const response = await userService.getWorkers()
-        workers.value = response.data
-    } catch (error) {
-        console.error('Error cargando usuarios:', error)
-    }
-}
 
 /* 2. Funciones para tarjetas estadisticas */
 const adminWorkers = computed(() => {
@@ -457,7 +436,7 @@ const filteredWorkers = computed(() => {
 
         const matchesStatus =
             selectedStatus.value === "all" ||
-            worker.estado === selectedStatus.value
+            worker.activo === selectedStatus.value
 
         return (
             matchesName &&
@@ -504,7 +483,7 @@ const handleClickOutside = (event: MouseEvent) => {
     }
 }
 
-const selectRole = (role: RoleFilter) => {
+const selectRole = (role: string) => {
     selectedRole.value = role
     isRoleDropdownOpen.value = false
 }
@@ -526,12 +505,6 @@ const selectedStatusLabel = computed(() => {
 
 })
 
-const getRoleName = (idRol: number) => {
-    return idRol === 1
-        ? 'Administrador'
-        : 'Trabajador'
-}
-
 /* 4. Funciones para controlar el modal de creacion de trabajadores */
 const openCreateWorkerModal = () => {
     closeDropdowns()
@@ -543,22 +516,9 @@ const closeCreateWorkerModal = () => {
 }
 
 /* 5. Funciones para cambiar el estado de un trabajador */
-const toggleWorker = async (worker: Worker) => {
-    try {
-        await userService.updateWorker(
-            worker.id_usuario,
-            {
-                estado: !worker.estado
-            }
-        )
-        await loadWorkers()
-    } catch (error) {
-        console.error(
-            'Error cambiando estado:',
-            error
-        )
-    }
-}
+const toggleWorker = (worker: Worker) => {
+    console.log("Cambiar estado de:", worker.id);
+};
 
 /* 6. Funciones para controlar el modal de edicion de trabajadores */
 const openEditWorkerModal = (worker: Worker) => {
@@ -571,35 +531,7 @@ const closeEditWorkerModal = () => {
     selectedWorker.value = null
 }
 
-const updateWorker = async (workerData: UpdateWorkerRequest) => {
-    if (!selectedWorker.value) return
-    try {
-        await userService.updateWorker(
-            selectedWorker.value.id_usuario,
-            workerData
-        )
-        await loadWorkers()
-        closeEditWorkerModal()
-    } catch (error) {
-        console.error('Error al actualizar trabajador:', error)
-    }
-}
-
-/* 7. Funciones para eliminar un trabajador */
-const deleteWorker = async (worker: Worker) => {
-    const confirmed = confirm(
-        `¿Eliminar al trabajador ${worker.nombre}?`
-    )
-    if (!confirmed) return
-    try {
-        await userService.deleteWorker(worker.id_usuario)
-        await loadWorkers()
-    } catch (error) {
-        console.error('Error al eliminar trabajador:', error)
-    }
-}
-
-/* 8. Funciones para paginacion */
+/* 5. Funciones para paginacion */
 const totalWorkers = computed(() => filteredWorkers.value.length)
 
 const paginatedWorkers = computed(() => {
@@ -644,14 +576,14 @@ const totalPages = computed(() =>
     )
 )
 
-onMounted(async () => {
+onMounted(() => {
     document.addEventListener('click', handleClickOutside)
-    await loadWorkers()
 })
 
 onBeforeUnmount(() => {
     document.removeEventListener('click', handleClickOutside)
 })
+
 </script>
 
 <style scoped>
@@ -1100,19 +1032,6 @@ onBeforeUnmount(() => {
     box-shadow:
         0 0 0 3px rgba(79, 70, 229, 0.18),
         0 4px 10px rgba(79, 70, 229, 0.12);
-}
-
-/* 3.2.1.2.4.2 Botón de eliminar */
-
-.action-icon.delete {
-    color: #dc2626;
-}
-
-.action-icon.delete:hover {
-    background: #fef2f2;
-    border-color: #fecaca;
-    color: #b91c1c;
-    box-shadow: 0 4px 10px rgba(220, 38, 38, 0.12);
 }
 
 /* 3.3 Pie de tabla */
