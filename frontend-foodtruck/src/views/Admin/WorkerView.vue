@@ -1,16 +1,10 @@
 <template>
   <div class="dashboard">
     <!-- Titulo -->
-    <div class="header">
-        <div class="header-icon">
-            <UserRoundCogIcon />
-        </div>
-
-        <div class="header-text">
-            <h1>Gestión de trabajadores</h1>
-            <p>Administración trabajadores de Foodtruck J.Junior</p>
-        </div>
-    </div>
+    <header class="orders-header">
+      <h1 class="orders-title">Gestión de trabajadores</h1>
+      <p class="orders-description">Administración trabajadores de Foodtruck J.Junior</p>
+    </header>
 
     <!-- Tarjetas estadisticas -->
     <div class="cards">
@@ -28,9 +22,6 @@
             <div class="card-right">
                 <span class="card-count">
                     {{ adminWorkers }}
-                </span>
-                <span class="card-subtext">
-                    Registrados
                 </span>
             </div>
 
@@ -51,9 +42,6 @@
                 <span class="card-count">
                     {{ regularWorkers }}
                 </span>
-                <span class="card-subtext">
-                    Registrados
-                </span>
             </div>
 
         </div>
@@ -72,9 +60,6 @@
             <div class="card-right">
                 <span class="card-count">
                     {{ activeWorkers }}
-                </span>
-                <span class="card-subtext">
-                    Disponibles
                 </span>
             </div>
 
@@ -95,9 +80,6 @@
                 <span class="card-count">
                     {{ inactiveWorkers }}
                 </span>
-                <span class="card-subtext">
-                    Suspendidos
-                </span>
             </div>
         </div>
     </div>
@@ -115,10 +97,7 @@
             <!-- Filtro Rol -->
             <div ref="roleDropdownRef" class="dropdown-container">
 
-                <button
-                    class="btn-secondary"
-                    @click.stop="toggleRoleDropdown"
-                >
+                <button class="btn-secondary" @click.stop="toggleRoleDropdown">
                     <Users :size="18"/>
 
                     <span>
@@ -253,8 +232,12 @@
                         v-if="paginatedWorkers.length === 0"
                         class="empty-row"
                     >
-                        <td colspan="5">
-                            No se encontraron resultados
+                        <td colspan="5" class="text-center padding-large">
+                            <div class="empty-state">
+                                <UserRoundX :size="48" class="empty-icon" />
+                                <p>No se encontraron trabajadores</p>
+                                <button @click="loadWorkers" class="btn-retry">Actualizar datos</button>
+                            </div>
                         </td>
                     </tr>
 
@@ -292,15 +275,12 @@
 
                         <td class="actions-column">
 
-                            <button class="action-icon" @click="openEditWorkerModal(worker)">
-                                <SquarePen :size="18" />
+                            <button class="action-icon detail-action" @click="openWorkerDetail(worker)">
+                                <Eye :size="18" />
                             </button>
 
-                            <button
-                                class="action-icon delete"
-                                @click="deleteWorker(worker)"
-                            >
-                                <Trash2 :size="18" />
+                            <button class="action-icon edit-action" @click="openEditWorkerModal(worker)">
+                                <SquarePen :size="18" />
                             </button>
 
                         </td>
@@ -310,6 +290,12 @@
                 </tbody>
 
             </table>
+
+            <ViewDetailWorkerModal
+                :show="showDetailWorkerModal"
+                :worker="selectedWorker"
+                @close="closeWorkerDetail"
+            />
 
             <EditWorkerModal
                 :isOpen="isEditWorkerModalOpen"
@@ -369,101 +355,90 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
-import { UserRoundCogIcon, SquarePen, Search, ShieldCheck, Users, UserCheck, UserX, Trash2, CircleDot, ChevronDown, Plus } from 'lucide-vue-next';
+import { SquarePen, Search, ShieldCheck, Users, UserCheck, UserX, CircleDot, ChevronDown, Plus, Eye, UserRoundX } from 'lucide-vue-next';
 import userService from '@/services/userService';
-import type { Worker, UpdateWorkerRequest } from '@/services/userService'
+import type { Worker, UpdateWorkerRequest } from '@/services/userService';
 import CreateWorkerModal from '@/views/Admin/CreateWorkerModal.vue';
 import EditWorkerModal from '@/views/Admin/EditWorkerModal.vue';
+import ViewDetailWorkerModal from '@/views/Admin/ViewDetailWorkerModal.vue';
 
-import userService from '@/services/userService';
+type RoleFilter = 'all' | 'Administrador' | 'Trabajador'
+type StatusFilter = 'all' | true | false
 
 const isLoading = ref(true);
 const workers = ref<Worker[]>([]);
-
-onMounted(async () => {
-    isLoading.value = true;
-    try {
-        const res = await userService.getUsers();
-        const rawUsers = res.data || [];
-        workers.value = rawUsers.map((u: any) => ({
-            id: u.id_usuario,
-            nombre: u.nombre || u.nombre_empresa || 'Usuario',
-            rol: { id: u.id_rol || 2, nombre: u.rol?.nombre || (u.id_rol === 1 ? 'Administrador' : 'Trabajador') },
-            activo: true
-        }));
-    } catch (err) {
-        console.error('Error al cargar trabajadores desde la API:', err);
-    } finally {
-        isLoading.value = false;
-    }
-});
 
 /* 1. Variables reactivas */
 const isRoleDropdownOpen = ref(false)
 const isStatusDropdownOpen = ref(false)
 const isCreateWorkerModalOpen = ref(false)
 const isEditWorkerModalOpen = ref(false)
+const showDetailWorkerModal = ref(false)
 const searchQuery = ref("")
 const roleDropdownRef = ref<HTMLElement | null>(null)
 const statusDropdownRef = ref<HTMLElement | null>(null)
 const selectedRole = ref<RoleFilter>('all')
-const selectedStatus = ref<"all" | boolean>("all")
+const selectedStatus = ref<StatusFilter>('all')
 const selectedWorker = ref<Worker | null>(null)
 const currentPage = ref(1)
 const pageSize = 10
 
-/* 1. Carga de usuarios */
+/* 1. Carga de trabajadores + administradores */
 const loadWorkers = async () => {
+    isLoading.value = true
     try {
         const response = await userService.getWorkers()
         workers.value = response.data
     } catch (error) {
-        console.error('Error cargando usuarios:', error)
+        console.error('Error cargando trabajadores:', error)
+    } finally {
+        isLoading.value = false
     }
 }
 
 /* 2. Funciones para tarjetas estadisticas */
+
+/* Conteo de administradores */
 const adminWorkers = computed(() => {
     return (workers.value || []).filter(
-        worker => worker.rol?.nombre === 'Administrador'
+        worker => worker.id_rol === 1
     ).length
 })
 
+/* Conteo de trabajadores */
 const regularWorkers = computed(() => {
     return (workers.value || []).filter(
-        worker => worker.rol?.nombre !== 'Administrador'
+        worker => worker.id_rol !== 3
     ).length
 })
 
+/* Conteo de trabajadores activos */
 const activeWorkers = computed(() =>
-    (workers.value || []).filter(worker => worker.activo).length
+    workers.value.filter(worker => worker.estado).length
 )
 
+/* Conteo de trabajadores inactivos */
 const inactiveWorkers = computed(() =>
-    (workers.value || []).filter(worker => !worker.activo).length
+    workers.value.filter(worker => !worker.estado).length
 )
 
 /* 3. Funciones para filtros */
 const filteredWorkers = computed(() => {
-    return (workers.value || []).filter(worker => {
+    return workers.value.filter(worker => {
         const matchesName =
-            (worker.nombre || '')
+            worker.nombre
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase())
 
         const matchesRole =
-            selectedRole.value === "all" ||
-            worker.rol?.nombre === selectedRole.value
+            selectedRole.value === 'all' ||
+            getRoleName(worker.id_rol) === selectedRole.value
 
         const matchesStatus =
-            selectedStatus.value === "all" ||
+            selectedStatus.value === 'all' ||
             worker.estado === selectedStatus.value
 
-        return (
-            matchesName &&
-            matchesRole &&
-            matchesStatus
-        )
+        return matchesName && matchesRole && matchesStatus
     })
 })
 
@@ -509,7 +484,7 @@ const selectRole = (role: RoleFilter) => {
     isRoleDropdownOpen.value = false
 }
 
-const selectStatus = (status: typeof selectedStatus.value) => {
+const selectStatus = (status: StatusFilter) => {
     selectedStatus.value = status
     isStatusDropdownOpen.value = false
 }
@@ -532,7 +507,18 @@ const getRoleName = (idRol: number) => {
         : 'Trabajador'
 }
 
-/* 4. Funciones para controlar el modal de creacion de trabajadores */
+/* 4. Funciones para controlar el modal de ver detalle de trabajadores */
+const openWorkerDetail = (worker: Worker) => {
+    selectedWorker.value = worker
+    showDetailWorkerModal.value = true
+}
+
+const closeWorkerDetail = () => {
+    showDetailWorkerModal.value = false
+    selectedWorker.value = null
+}
+
+/* 5. Funciones para controlar el modal de creacion de trabajadores */
 const openCreateWorkerModal = () => {
     closeDropdowns()
     isCreateWorkerModalOpen.value = true
@@ -542,10 +528,10 @@ const closeCreateWorkerModal = () => {
     isCreateWorkerModalOpen.value = false
 }
 
-/* 5. Funciones para cambiar el estado de un trabajador */
+/* 6. Funciones para cambiar el estado de un trabajador */
 const toggleWorker = async (worker: Worker) => {
     try {
-        await userService.updateWorker(
+        await userService.updateUser(
             worker.id_usuario,
             {
                 estado: !worker.estado
@@ -560,7 +546,7 @@ const toggleWorker = async (worker: Worker) => {
     }
 }
 
-/* 6. Funciones para controlar el modal de edicion de trabajadores */
+/* 7. Funciones para controlar el modal de edicion de trabajadores */
 const openEditWorkerModal = (worker: Worker) => {
     selectedWorker.value = worker
     isEditWorkerModalOpen.value = true
@@ -574,7 +560,7 @@ const closeEditWorkerModal = () => {
 const updateWorker = async (workerData: UpdateWorkerRequest) => {
     if (!selectedWorker.value) return
     try {
-        await userService.updateWorker(
+        await userService.updateUser(
             selectedWorker.value.id_usuario,
             workerData
         )
@@ -582,20 +568,6 @@ const updateWorker = async (workerData: UpdateWorkerRequest) => {
         closeEditWorkerModal()
     } catch (error) {
         console.error('Error al actualizar trabajador:', error)
-    }
-}
-
-/* 7. Funciones para eliminar un trabajador */
-const deleteWorker = async (worker: Worker) => {
-    const confirmed = confirm(
-        `¿Eliminar al trabajador ${worker.nombre}?`
-    )
-    if (!confirmed) return
-    try {
-        await userService.deleteWorker(worker.id_usuario)
-        await loadWorkers()
-    } catch (error) {
-        console.error('Error al eliminar trabajador:', error)
     }
 }
 
@@ -644,9 +616,9 @@ const totalPages = computed(() =>
     )
 )
 
-onMounted(async () => {
+onMounted(() => {
     document.addEventListener('click', handleClickOutside)
-    await loadWorkers()
+    loadWorkers()
 })
 
 onBeforeUnmount(() => {
@@ -686,27 +658,30 @@ onBeforeUnmount(() => {
     display:grid;
     grid-template-columns: 1fr;
     gap: 20px;
-    padding: 24px 20px;
+    padding: 40px 20px;
     box-sizing: border-box;
 }
 
 /* 1. Contenedor titulo */
-.header{
-    background:#ffffff;
-    min-height:50px;
-
-    display:flex;
-    align-items: center;
-    gap: 20px;
-    padding: 20px;
-    border: 2px solid lightgrey;
-    border-radius: 20px;
+.orders-header {
+  width: 100%;
+  margin: 0 0 30px 0;
 }
 
 /* 1.1 Texto titulo */
-.header-text{
-    display:flex;
-    flex-direction:column;
+.orders-title {
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--DC-gray);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.orders-description {
+  font-size: 1rem;
+  color: var(--DC-text-gray);
+  margin-top: 4px;
+  font-weight: 600;
 }
 
 /* 2. Contenedor de tarjetas */
@@ -782,15 +757,6 @@ onBeforeUnmount(() => {
     font-weight: 900;
     color: var(--DC-brown);
     line-height: 1;
-}
-
-/* 2.1.2.2 Descripcion contador */
-.card-subtext {
-    font-size: .75rem;
-    font-weight:700;
-    color:var(--DC-text-gray);
-    margin-top:4px;
-    text-transform:uppercase;
 }
 
 /* 2.1.3 Colores fondo iconos */
@@ -939,6 +905,45 @@ onBeforeUnmount(() => {
     background-color: white;
 }
 
+.text-center { 
+    text-align: center; 
+}
+
+.padding-large { 
+    padding: 60px !important; 
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  color: var(--DC-text-gray);
+  font-weight: 700;
+  min-height: 240px;
+  padding: 24px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.empty-icon { 
+    color: var(--DC-brown); opacity: 0.5; 
+}
+
+.btn-retry { 
+    padding: 10px 24px; 
+    background-color: var(--DC-orange); 
+    color: white; border: none; 
+    border-radius: 8px; font-weight: 900; 
+    cursor: pointer; 
+    transition: background-color 0.2s; 
+}
+
+.btn-retry:hover { 
+    background-color: var(--DC-brown); 
+}
+
 /* 3.2.1.2.1 Filas de la tabla */
 .table-row {
     transition: background-color 0.2s ease;
@@ -1060,7 +1065,7 @@ onBeforeUnmount(() => {
     gap: .5rem;
 }
 
-/* 3.2.1.2.4.1 Boton de editar */
+/* 3.2.1.2.4.1 Botones de acciones */
 .action-icon {
     display: flex;
     align-items: center;
@@ -1073,7 +1078,6 @@ onBeforeUnmount(() => {
     border: 1px solid #e5e7eb;
     border-radius: 10px;
 
-    color: #4f46e5;
     cursor: pointer;
 
     transition:
@@ -1084,35 +1088,50 @@ onBeforeUnmount(() => {
         box-shadow 0.2s ease;
 }
 
-.action-icon:hover {
+
+/* 3.2.1.2.4.1.1 Botón de detalle */
+.detail-action {
+    color: #2563eb;
+}
+
+.detail-action:hover {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.12);
+}
+
+.detail-action:focus-visible {
+    outline: none;
+    box-shadow:
+        0 0 0 3px rgba(37, 99, 235, 0.18),
+        0 4px 10px rgba(37, 99, 235, 0.12);
+}
+
+
+/* 3.2.1.2.4.1.2 Botón de editar */
+.edit-action {
+    color: #ff9500;
+}
+
+.edit-action:hover {
     background: #eef2ff;
     border-color: #c7d2fe;
-    color: #4338ca;
+    color: #bc5e00;
     box-shadow: 0 4px 10px rgba(79, 70, 229, 0.12);
 }
 
-.action-icon:active {
-    transform: scale(0.95);
-}
-
-.action-icon:focus-visible {
+.edit-action:focus-visible {
     outline: none;
     box-shadow:
         0 0 0 3px rgba(79, 70, 229, 0.18),
         0 4px 10px rgba(79, 70, 229, 0.12);
 }
 
-/* 3.2.1.2.4.2 Botón de eliminar */
 
-.action-icon.delete {
-    color: #dc2626;
-}
-
-.action-icon.delete:hover {
-    background: #fef2f2;
-    border-color: #fecaca;
-    color: #b91c1c;
-    box-shadow: 0 4px 10px rgba(220, 38, 38, 0.12);
+/* Estado al presionar cualquier botón */
+.action-icon:active {
+    transform: scale(0.95);
 }
 
 /* 3.3 Pie de tabla */
@@ -1184,6 +1203,10 @@ onBeforeUnmount(() => {
         grid-template-columns:1fr;
         padding: 15px;
     }
+
+    .orders-header { margin-bottom: 20px; }
+    .orders-title { font-size: 1.5rem; }
+    .orders-description { font-size: 0.85rem; }
 
     .header{
         grid-column:1;

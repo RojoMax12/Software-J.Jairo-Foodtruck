@@ -48,12 +48,6 @@ Route::prefix('public')->group(function () {
     Route::get('/pedidos/{id}', [PedidoController::class, 'show']);
 });
 
-// ==========================================
-// Endpoint temporal para desarrollo
-// ==========================================
-Route::apiResource('usuarios', UsuarioController::class);
-Route::get('usuarios-administrativos', [UsuarioController::class, 'administrativos']);
-
 
 // ==========================================
 // 3. ENTORNO PROTEGIDO - REQUIERE INICIO DE SESIÓN JWT
@@ -70,7 +64,8 @@ Route::middleware('jwt.auth')->group(function () {
     Route::apiResource('productos', ProductoController::class);
     Route::apiResource('producto_ingredientes', ProductoIngredienteController::class);
     Route::apiResource('roles', RolController::class);
-
+    Route::apiResource('usuarios', UsuarioController::class);
+    Route::get('usuarios-administrativos', [UsuarioController::class, 'administrativos']);
     Route::apiResource('ventas', VentaController::class);
     Route::apiResource('estado_pagos', EstadoPagoController::class);
     Route::apiResource('horario_atenciones', HorarioAtencionController::class);

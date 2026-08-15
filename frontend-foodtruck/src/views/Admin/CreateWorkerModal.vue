@@ -129,7 +129,7 @@ const createWorker = async () => {
             contrasena: password.value
         }
 
-        await userService.createWorker(worker)
+        await userService.createUser(worker)
 
         fullName.value = ''
         email.value = ''
