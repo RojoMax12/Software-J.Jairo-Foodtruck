@@ -291,6 +291,13 @@
 
             </table>
 
+            <ConfirmStatusWorkerModal
+                :isOpen="isConfirmStatusModalOpen"
+                :isActivating="workerToToggle?.estado === false"
+                @close="closeConfirmStatusModal"
+                @confirm="confirmToggleWorker"
+            />
+
             <ViewDetailWorkerModal
                 :show="showDetailWorkerModal"
                 :worker="selectedWorker"
@@ -355,16 +362,19 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { useNotification } from '@/composables/useNotification'
 import { SquarePen, Search, ShieldCheck, Users, UserCheck, UserX, CircleDot, ChevronDown, Plus, Eye, UserRoundX } from 'lucide-vue-next';
 import userService from '@/services/userService';
 import type { Worker, UpdateWorkerRequest } from '@/services/userService';
 import CreateWorkerModal from '@/views/Admin/CreateWorkerModal.vue';
 import EditWorkerModal from '@/views/Admin/EditWorkerModal.vue';
 import ViewDetailWorkerModal from '@/views/Admin/ViewDetailWorkerModal.vue';
+import ConfirmStatusWorkerModal from '@/views/Admin/ConfirmStatusWorkerModal.vue';
 
 type RoleFilter = 'all' | 'Administrador' | 'Trabajador'
 type StatusFilter = 'all' | true | false
 
+const { notify } = useNotification()
 const isLoading = ref(true);
 const workers = ref<Worker[]>([]);
 
@@ -374,6 +384,8 @@ const isStatusDropdownOpen = ref(false)
 const isCreateWorkerModalOpen = ref(false)
 const isEditWorkerModalOpen = ref(false)
 const showDetailWorkerModal = ref(false)
+const isConfirmStatusModalOpen = ref(false)
+const workerToToggle = ref<Worker | null>(null)
 const searchQuery = ref("")
 const roleDropdownRef = ref<HTMLElement | null>(null)
 const statusDropdownRef = ref<HTMLElement | null>(null)
@@ -408,7 +420,7 @@ const adminWorkers = computed(() => {
 /* Conteo de trabajadores */
 const regularWorkers = computed(() => {
     return (workers.value || []).filter(
-        worker => worker.id_rol !== 3
+        worker => worker.id_rol === 3
     ).length
 })
 
@@ -529,16 +541,52 @@ const closeCreateWorkerModal = () => {
 }
 
 /* 6. Funciones para cambiar el estado de un trabajador */
-const toggleWorker = async (worker: Worker) => {
+const toggleWorker = (worker: Worker) => {
+    workerToToggle.value = worker
+    isConfirmStatusModalOpen.value = true
+}
+
+const closeConfirmStatusModal = () => {
+    isConfirmStatusModalOpen.value = false
+    workerToToggle.value = null
+}
+
+const confirmToggleWorker = async () => {
+    if (!workerToToggle.value) return
+
+    const worker = workerToToggle.value
+    const newStatus = !worker.estado
+
+    const previousStatus = worker.estado
+
+    worker.estado = newStatus
+
+    closeConfirmStatusModal()
+
     try {
         await userService.updateUser(
             worker.id_usuario,
             {
-                estado: !worker.estado
+                estado: newStatus
             }
         )
-        await loadWorkers()
+
+        notify(
+            newStatus
+                ? 'El trabajador fue activado correctamente.'
+                : 'El trabajador fue desactivado correctamente.',
+            'success'
+        )
+
     } catch (error) {
+
+        worker.estado = previousStatus
+
+        notify(
+            'No se pudo actualizar el estado del trabajador.',
+            'error'
+        )
+
         console.error(
             'Error cambiando estado:',
             error
@@ -565,9 +613,25 @@ const updateWorker = async (workerData: UpdateWorkerRequest) => {
             workerData
         )
         await loadWorkers()
+        notify(
+            'El trabajador fue actualizado correctamente.',
+            'success'
+        )
         closeEditWorkerModal()
-    } catch (error) {
+    } catch (error:any) {
         console.error('Error al actualizar trabajador:', error)
+
+        if (error.response?.status === 409) {
+            notify(
+                error.response.data.message,
+                'error'
+            )
+        } else {
+            notify(
+                'No se pudo actualizar el trabajador.',
+                'error'
+            )
+        }
     }
 }
 

@@ -11,6 +11,11 @@ class UsuarioRepository
         return Usuario::create($data);
     }
 
+    public function existsByEmail($correo)
+    {
+        return Usuario::where('correo', $correo)->exists();
+    }
+
     # Geters
     public function getAllUsuarios()
     {
@@ -76,6 +81,13 @@ class UsuarioRepository
             return $usuario;
         }
         return null;
+    }
+
+    public function existsByEmailExceptUser($correo, $id)
+    {
+        return Usuario::where('correo', $correo)
+            ->where('id_usuario', '!=', $id)
+            ->exists();
     }
 
     # Delete

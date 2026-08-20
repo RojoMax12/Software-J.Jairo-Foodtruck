@@ -3,6 +3,7 @@ namespace App\Services;
 
 use App\Repositories\UsuarioRepository;
 use Illuminate\Support\Facades\Hash;
+use App\Exceptions\DuplicateEmailException;
 
 class UsuarioService
 {
@@ -15,10 +16,13 @@ class UsuarioService
 
     public function createUsuario($data)
     {
-        if (empty($data['nombre'])) {
-            throw new \InvalidArgumentException('El nombre del usuario es obligatorio.');
+
+        if ($this->usuarioRepository->existsByEmail($data['correo'])) {
+            throw new DuplicateEmailException('El correo electrónico ya está registrado.');
         }
 
+        $data['contrasena'] = Hash::make($data['contrasena']);
+        
         return $this->usuarioRepository->createUsuario($data);
     }
 
@@ -64,8 +68,22 @@ class UsuarioService
 
     public function updateUsuario($id, $data)
     {
-        if (isset($data['contrasena']) && !empty($data['contrasena'])) {
+        if (
+            isset($data['correo']) &&
+            $this->usuarioRepository->existsByEmailExceptUser(
+                $data['correo'],
+                $id
+            )
+        ) {
+            throw new DuplicateEmailException(
+                'El correo electrónico ya está registrado.'
+            );
+        }
+
+        if (!empty($data['contrasena'])) {
             $data['contrasena'] = Hash::make($data['contrasena']);
+        } else {
+            unset($data['contrasena']);
         }
 
         return $this->usuarioRepository->updateUsuario($id, $data);

@@ -3,7 +3,6 @@
         <div
             v-if="isOpen && worker"
             class="modal-overlay"
-            @click.self="emit('close')"
         >
             <div class="modal">
                 <div class="modal-header">
@@ -38,7 +37,15 @@
                                 v-model="fullName"
                                 type="text"
                                 placeholder="Ej. Juan Pérez"
+                                @blur="touchedName = true"
                             >
+
+                            <p
+                                v-if="touchedName && fullName.trim() === ''"
+                                class="field-error"
+                            >
+                                El nombre es obligatorio
+                            </p>
                         </div>
 
                         <!-- Correo -->
@@ -53,7 +60,22 @@
                                 v-model="email"
                                 type="email"
                                 placeholder="ejemplo@correo.com"
+                                @blur="touchedEmail = true"
                             >
+
+                            <p
+                                v-if="touchedEmail && email.trim() === ''"
+                                class="field-error"
+                            >
+                                El correo electrónico es obligatorio
+                            </p>
+
+                            <p
+                                v-else-if="email.length > 0 && !isEmailValid"
+                                class="field-error"
+                            >
+                                El correo electrónico no es válido
+                            </p>
                         </div>
 
                         <!-- Rol -->
@@ -65,7 +87,14 @@
 
                             <div class="select-wrapper">
 
-                                <select v-model="roleId">
+                                <select
+                                    id="role"
+                                    v-model="roleId"
+                                    @blur="touchedRole = true"
+                                >
+                                    <option disabled :value="null">
+                                        Seleccione un rol
+                                    </option>
 
                                     <option :value="3">
                                         Trabajador
@@ -74,7 +103,6 @@
                                     <option :value="1">
                                         Administrador
                                     </option>
-
                                 </select>
 
                                 <ChevronDown
@@ -83,6 +111,13 @@
                                 />
 
                             </div>
+
+                            <p
+                                v-if="touchedRole && roleId === null"
+                                class="field-error"
+                            >
+                                Debes seleccionar un rol
+                            </p>
                         </div>
 
                         <!-- Contraseña -->
@@ -91,6 +126,28 @@
                             <label for="password">
                                 Nueva contraseña (opcional)
                             </label>
+
+                            <div v-if="password.length > 0" class="password-requirements">
+                                <p :class="{ valid: passwordRequirements.minLength }">
+                                    {{ passwordRequirements.minLength ? '✓' : '✗' }}
+                                    Mínimo 8 caracteres
+                                </p>
+
+                                <p :class="{ valid: passwordRequirements.upperCase }">
+                                    {{ passwordRequirements.upperCase ? '✓' : '✗' }}
+                                    Una letra mayúscula
+                                </p>
+
+                                <p :class="{ valid: passwordRequirements.lowerCase }">
+                                    {{ passwordRequirements.lowerCase ? '✓' : '✗' }}
+                                    Una letra minúscula
+                                </p>
+
+                                <p :class="{ valid: passwordRequirements.number }">
+                                    {{ passwordRequirements.number ? '✓' : '✗' }}
+                                    Un número
+                                </p>
+                            </div>
 
                             <input
                                 id="password"
@@ -125,13 +182,21 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { useNotification } from '@/composables/useNotification'
 import type { Worker, UpdateWorkerRequest } from '@/services/userService'
 import { ChevronDown, Edit3 } from 'lucide-vue-next'
+
+const { notify } = useNotification()
 
 const fullName = ref('')
 const email = ref('')
 const roleId = ref<1 | 3 | null>(null)
 const password = ref('')
+
+const touchedName = ref(false)
+const touchedEmail = ref(false)
+const touchedRole = ref(false)
+const touchedPassword = ref(false)
 
 interface Props {
     isOpen: boolean
@@ -154,6 +219,10 @@ watch(() => props.worker,
         roleId.value = worker.id_rol
         password.value = ''
 
+        touchedName.value = false
+        touchedEmail.value = false
+        touchedRole.value = false
+        touchedPassword.value = false
     },
     { immediate: true }
 )
@@ -169,12 +238,36 @@ const hasChanges = computed(() => {
     )
 })
 
-const isFormValid = computed(() => {
+const isEmailValid = computed(() => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)
+})
+
+const passwordRequirements = computed(() => ({
+    minLength: password.value.length >= 8,
+    upperCase: /[A-Z]/.test(password.value),
+    lowerCase: /[a-z]/.test(password.value),
+    number: /[0-9]/.test(password.value),
+}))
+
+const isPasswordValid = computed(() => {
+    if (password.value === '') {
+        return true
+    }
 
     return (
+        passwordRequirements.value.minLength &&
+        passwordRequirements.value.upperCase &&
+        passwordRequirements.value.lowerCase &&
+        passwordRequirements.value.number
+    )
+})
+
+const isFormValid = computed(() => {
+    return (
         fullName.value.trim() !== '' &&
-        email.value.trim() !== '' &&
-        roleId.value !== null
+        isEmailValid.value &&
+        roleId.value !== null &&
+        isPasswordValid.value
     )
 })
 
@@ -210,7 +303,6 @@ const saveChanges = () => {
     background:rgba(0,0,0,.45);
 
     z-index:1000;
-
 }
 
 /* Modal */
@@ -219,6 +311,10 @@ const saveChanges = () => {
 
     width:100%;
     max-width:520px;
+    max-height: 90vh;
+
+    display:flex;
+    flex-direction:column;
 
     background:white;
 
@@ -276,11 +372,14 @@ const saveChanges = () => {
 
 .modal-body{
     padding:24px;
-}
 
+    flex:1;
+    min-height:0;
+
+    overflow-y:auto;
+}
 .modal-body p{
     margin-top:0;
-    color:var(--DC-gray);
 }
 
 /* 3.1 Formulario de creacion */
@@ -339,6 +438,27 @@ const saveChanges = () => {
     transform:translateY(-50%);
     pointer-events:none;
     color:#6b7280;
+}
+
+.field-error {
+    margin: 5px 0 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #dc3545;
+}
+
+.password-requirements {
+    margin-top: 8px;
+}
+
+.password-requirements p {
+    margin: 3px 0;
+    font-size: 0.78rem;
+    color: #dc3545;
+}
+
+.password-requirements p.valid {
+    color: #198754;
 }
 
 /* Footer */

@@ -1,5 +1,5 @@
 <template>
-    <div v-if="show && worker" class="modal-overlay" @click.self="closeModal">
+    <div v-if="show && worker" class="modal-overlay">
         <div class="modal-container">
 
             <!-- Header -->
@@ -150,11 +150,17 @@ const getRoleName = (idRol: number) => {
 .modal-container {
     width: 500px;
     max-width: 90%;
+    max-height: 90vh;
 
     background: white;
     border-radius: 12px;
 
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
 }
 
 .modal-header {
@@ -164,6 +170,8 @@ const getRoleName = (idRol: number) => {
 
     padding: 20px;
     border-bottom: 1px solid #eee;
+
+    flex-shrink: 0;
 }
 
 .modal-header h2 {
@@ -180,15 +188,25 @@ const getRoleName = (idRol: number) => {
 }
 
 .close-button {
+    width: 36px;
+    height: 36px;
     border: none;
+    border-radius: 10px;
     background: transparent;
-
-    font-size: 24px;
+    font-size: 1.4rem;
     cursor: pointer;
+    transition: .2s;
+}
+
+.close-button:hover{
+    background:var(--DC-bg-gray);
 }
 
 .modal-body {
     padding: 20px;
+
+    overflow-y: auto;
+    flex: 1;
 }
 
 .worker-info {
@@ -237,6 +255,8 @@ const getRoleName = (idRol: number) => {
 
     padding: 16px 20px;
     border-top: 1px solid #eee;
+
+    flex-shrink: 0;
 }
 
 .btn-secondary {
