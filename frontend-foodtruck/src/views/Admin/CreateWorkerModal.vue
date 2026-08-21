@@ -152,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useNotification } from '@/composables/useNotification'
 import { ChevronDown, UserPlus } from 'lucide-vue-next'
 import userService from '@/services/userService'
@@ -172,13 +172,6 @@ const password = ref('')
 const props = defineProps<{
     isOpen: boolean
 }>()
-
-watch(
-    () => props.isOpen,
-    (isOpen) => {
-        document.body.style.overflow = isOpen ? 'hidden' : ''
-    }
-)
 
 const emit = defineEmits<{
     (e: 'close'): void
@@ -354,7 +347,7 @@ const closeModal = () => {
     padding: 24px;
     min-height: 150px;
     overflow-y: auto;
-    padding: 24px;
+    overscroll-behavior: contain;
 }
 
 /* 3.1 Formulario de creacion */

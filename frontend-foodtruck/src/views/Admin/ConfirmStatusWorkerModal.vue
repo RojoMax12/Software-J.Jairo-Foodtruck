@@ -100,7 +100,7 @@ interface Props {
     isActivating: boolean
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
     (e: 'close'): void
@@ -201,6 +201,7 @@ const emit = defineEmits<{
 
 .modal-body {
     padding: 24px;
+    overscroll-behavior: contain;
 }
 
 .modal-body p {

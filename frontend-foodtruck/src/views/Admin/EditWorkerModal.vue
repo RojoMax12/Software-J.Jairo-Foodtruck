@@ -377,6 +377,7 @@ const saveChanges = () => {
     min-height:0;
 
     overflow-y:auto;
+    overscroll-behavior: contain;
 }
 .modal-body p{
     margin-top:0;

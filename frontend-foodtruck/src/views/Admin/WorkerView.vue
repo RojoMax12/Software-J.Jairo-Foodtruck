@@ -370,6 +370,7 @@ import CreateWorkerModal from '@/views/Admin/CreateWorkerModal.vue';
 import EditWorkerModal from '@/views/Admin/EditWorkerModal.vue';
 import ViewDetailWorkerModal from '@/views/Admin/ViewDetailWorkerModal.vue';
 import ConfirmStatusWorkerModal from '@/views/Admin/ConfirmStatusWorkerModal.vue';
+import { useModalScrollLock } from '@/composables/useModalScrollLock'
 
 type RoleFilter = 'all' | 'Administrador' | 'Trabajador'
 type StatusFilter = 'all' | true | false
@@ -394,6 +395,16 @@ const selectedStatus = ref<StatusFilter>('all')
 const selectedWorker = ref<Worker | null>(null)
 const currentPage = ref(1)
 const pageSize = 10
+
+/* Manejo de modales para restricción de scroll */
+const isAnyModalOpen = computed(() =>
+    isCreateWorkerModalOpen.value ||
+    isEditWorkerModalOpen.value ||
+    showDetailWorkerModal.value ||
+    isConfirmStatusModalOpen.value
+)
+
+useModalScrollLock(isAnyModalOpen)
 
 /* 1. Carga de trabajadores + administradores */
 const loadWorkers = async () => {
@@ -732,7 +743,7 @@ onBeforeUnmount(() => {
   margin: 0 0 30px 0;
 }
 
-/* 1.1 Texto titulo */
+/* 1.1 Estilo título */
 .orders-title {
   font-size: 2rem;
   font-weight: 900;
@@ -741,6 +752,7 @@ onBeforeUnmount(() => {
   text-transform: uppercase;
 }
 
+/* 1.2 Estilo descripción */
 .orders-description {
   font-size: 1rem;
   color: var(--DC-text-gray);
@@ -751,7 +763,7 @@ onBeforeUnmount(() => {
 /* 2. Contenedor de tarjetas */
 .cards{
     display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
     gap:20px;
 }
 
@@ -877,7 +889,7 @@ onBeforeUnmount(() => {
 
 /* 3.1.2 Filtros de busqueda */
 .dropdown-container { position: relative; }
-.btn-secondary { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background-color: white; border: 2px solid #eeedee; border-radius: 10px; color: var(--DC-gray); font-size: 0.9rem; font-weight: 800; cursor: pointer; transition: border-color .2s, background-color .2s, color .2s; }
+.btn-secondary { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background-color: white; border: 2px solid #eeedee; border-radius: 10px; color: var(--DC-gray); font-size: 0.9rem; font-weight: 800; cursor: pointer; transition: border-color .2s, background-color .2s, color .2s; white-space: nowrap;}
 .btn-secondary:hover { border-color: var(--DC-brown); }
 
 .dropdown-menu { position: absolute; top: calc(100% + 8px); left: 0; background-color: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); border: 2px solid var(--DC-brown); width: 100%; min-width: 220px; z-index: 100; padding: 8px; }
@@ -936,7 +948,7 @@ onBeforeUnmount(() => {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    table-layout: fixed;
+    min-width: 700px;
 }
 
 .workers-table th:last-child,
@@ -1261,33 +1273,64 @@ onBeforeUnmount(() => {
     cursor:not-allowed;
 }
 
-@media (max-width:768px){
+/* Tablet */
+@media (max-width: 1024px) {
+    .orders-title { font-size: 1.75rem; }
+}
 
+/* Mobile */
+@media (max-width: 768px) {
     .dashboard{
-        grid-template-columns:1fr;
         padding: 15px;
     }
 
-    .orders-header { margin-bottom: 20px; }
     .orders-title { font-size: 1.5rem; }
     .orders-description { font-size: 0.85rem; }
-
-    .header{
-        grid-column:1;
-    }
-
-    .cards{
-        grid-column:1;
-    }
+    .orders-header { margin-bottom: 5px; }
 
     .table-toolbar {
         flex-direction: column;
         align-items: stretch;
     }
 
-    .new-worker {
-        margin-left: 0;
+    .search-worker {
+        max-width: none;
     }
 
+    .dropdown-container {
+        width: 100%;
+    }
+
+    .btn-secondary {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .new-worker {
+        width: 100%;
+        margin-left: 0;
+        justify-content: center;
+    }
+
+    .table-footer {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+        padding: 15px;
+    }
+
+    .footer-info {
+        text-align: center;
+    }
+
+    .footer-actions {
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .footer-actions button {
+        min-width: 0;
+        padding: 10px 12px;
+    }
 }
 </style>

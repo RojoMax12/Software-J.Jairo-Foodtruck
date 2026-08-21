@@ -97,7 +97,7 @@
 import type { Worker } from '@/services/userService';
 import { Eye } from 'lucide-vue-next';
 
-defineProps<{
+const props = defineProps<{
     show: boolean
     worker: Worker | null
 }>()
@@ -204,8 +204,9 @@ const getRoleName = (idRol: number) => {
 
 .modal-body {
     padding: 20px;
-
     overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
     flex: 1;
 }
 
