@@ -1,130 +1,267 @@
 <template>
-
     <Transition name="fade">
-
-        <div v-if="isOpen" class="modal-overlay" @click.self="emit('close')">
-
+        <div v-if="isOpen" class="modal-overlay">
             <div class="modal">
-
                 <div class="modal-header">
-
                     <div class="modal-title">
-
                         <UserPlus :size="22" />
-
                         <h2>Nuevo trabajador</h2>
-
                     </div>
 
-                    <button class="close-button" @click="emit('close')">
+                    <button type="button" class="close-button" @click="closeModal">
                         ×
                     </button>
-
                 </div>
 
                 <div class="modal-body">
-
                     <form class="worker-form">
 
+                        <!-- Nombre completo -->
                         <div class="form-group">
-
                             <label for="name">
                                 Nombre completo
                             </label>
 
-                            <input v-model="fullName" type="text" placeholder="Ej. Juan Pérez">
+                            <input
+                                id="name"
+                                v-model="fullName"
+                                type="text"
+                                placeholder="Ej. Juan Pérez"
+                                @blur="touchedName = true"
+                            >
 
+                            <p 
+                                v-if="touchedName && fullName.trim() === ''"
+                                class="field-error"
+                            >
+                                El nombre es obligatorio
+                            </p>
                         </div>
 
                         <div class="form-group">
+                            <label for="email">
+                                Correo electrónico
+                            </label>
 
+                            <input
+                                id="email"
+                                v-model="email"
+                                type="email"
+                                placeholder="Ej. juan@test.cl"
+                                @blur="touchedEmail = true"
+                            >
+
+                            <p
+                                v-if="touchedEmail && email.trim() === ''"
+                                class="field-error"
+                            >
+                                El correo electrónico es obligatorio
+                            </p>
+
+                            <p 
+                                v-if="email.length > 0 && !isEmailValid"
+                                class="field-error"
+                            >
+                                El correo electrónico no es válido
+                            </p>
+                        </div>
+
+                        <div class="form-group">
                             <label for="role">
                                 Rol
                             </label>
 
                             <div class="select-wrapper">
-
-                                <select v-model="role">
-
-                                    <option disabled value="">
+                                <select id="role" v-model="role" @blur="touchedRole = true">
+                                    <option disabled :value="null">
                                         Seleccione un rol
                                     </option>
 
-                                    <option value="TRABAJADOR">
+                                    <option :value="3">
                                         Trabajador
                                     </option>
 
-                                    <option value="ADMINISTRADOR">
+                                    <option :value="1">
                                         Administrador
                                     </option>
-
                                 </select>
-
                                 <ChevronDown :size="18" class="select-icon" />
                             </div>
 
+                            <p
+                                v-if="touchedRole && role === null"
+                                class="field-error"
+                            >
+                                Debes seleccionar un rol
+                            </p>
                         </div>
 
                         <div class="form-group">
-
                             <label for="password">
                                 Contraseña
                             </label>
 
-                            <input v-model="password" type="password" placeholder="Ingrese una contraseña">
+                            <div v-if="password.length > 0" class="password-requirements">
+                                <p :class="{ valid: passwordRequirements.minLength }">
+                                    {{ passwordRequirements.minLength ? '✓' : '✗' }}
+                                    Mínimo 8 caracteres
+                                </p>
 
+                                <p :class="{ valid: passwordRequirements.upperCase }">
+                                    {{ passwordRequirements.upperCase ? '✓' : '✗' }}
+                                    Una letra mayúscula
+                                </p>
+
+                                <p :class="{ valid: passwordRequirements.lowerCase }">
+                                    {{ passwordRequirements.lowerCase ? '✓' : '✗' }}
+                                    Una letra minúscula
+                                </p>
+
+                                <p :class="{ valid: passwordRequirements.number }">
+                                    {{ passwordRequirements.number ? '✓' : '✗' }}
+                                    Un número
+                                </p>
+                            </div>
+
+                            <input 
+                                id="password" 
+                                v-model="password" 
+                                type="password" 
+                                placeholder="Ingrese una contraseña"
+                            />
                         </div>
-
                     </form>
-
                 </div>
 
                 <div class="modal-footer">
-
-                    <button class="btn-secondary" @click="emit('close')">
+                    <button type="button" class="btn-secondary" @click="closeModal">
                         Cancelar
                     </button>
 
-                    <button class="btn-primary" :disabled="!isFormValid">
+                    <button
+                        class="btn-primary"
+                        :disabled="!isFormValid"
+                        @click="createWorker"
+                    >
                         Crear trabajador
                     </button>
-
                 </div>
-
             </div>
-
         </div>
-
     </Transition>
-
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useNotification } from '@/composables/useNotification'
 import { ChevronDown, UserPlus } from 'lucide-vue-next'
+import userService from '@/services/userService'
+import type { CreateWorkerRequest } from '@/services/userService'
+
+const { notify } = useNotification()
+
+const touchedName = ref(false)
+const touchedEmail = ref(false)
+const touchedRole = ref(false)
 
 const fullName = ref('')
-const role = ref('')
+const email = ref('')
+const role = ref<1 | 3 | null>(null)
 const password = ref('')
 
-defineProps<{
+const props = defineProps<{
     isOpen: boolean
 }>()
 
 const emit = defineEmits<{
     (e: 'close'): void
+    (e: 'workerCreated'): void
 }>()
 
 const isFormValid = computed(() => {
-
     return (
         fullName.value.trim() !== '' &&
-        role.value !== '' &&
-        password.value.trim() !== ''
+        isEmailValid.value &&
+        role.value !== null &&
+        isPasswordValid.value
     )
-
 })
 
+const isEmailValid = computed(() => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)
+})
+
+const passwordRequirements = computed(() => ({
+    minLength: password.value.length >= 8,
+    upperCase: /[A-Z]/.test(password.value),
+    lowerCase: /[a-z]/.test(password.value),
+    number: /[0-9]/.test(password.value),
+}))
+
+const isPasswordValid = computed(() => {
+    return (
+        passwordRequirements.value.minLength &&
+        passwordRequirements.value.upperCase &&
+        passwordRequirements.value.lowerCase &&
+        passwordRequirements.value.number
+    )
+})
+
+const createWorker = async () => {
+    if (role.value === null) {
+        return
+    }
+
+    try {
+        const worker: CreateWorkerRequest = {
+            id_rol: role.value,
+            nombre: fullName.value,
+            correo: email.value,
+            estado: true,
+            contrasena: password.value
+        }
+
+        await userService.createUser(worker)
+
+        notify(
+            'El trabajador fue creado correctamente.',
+            'success'
+        )
+
+        closeModal()
+
+        emit('workerCreated')
+
+    } catch (error: any) {
+        if (error.response?.status === 409) {
+            notify(
+                error.response.data.message,
+                'error'
+            )
+        } else {
+            notify(
+                'No se pudo crear el trabajador.',
+                'error'
+            )
+        }
+    }
+}
+
+const resetForm = () => {
+    fullName.value = ''
+    email.value = ''
+    role.value = null
+    password.value = ''
+
+    touchedName.value = false
+    touchedEmail.value = false
+    touchedRole.value = false
+}
+
+const closeModal = () => {
+    resetForm()
+    emit('close')
+}
 </script>
 
 <style scoped>
@@ -140,12 +277,14 @@ const isFormValid = computed(() => {
     background: rgba(0, 0, 0, .45);
 
     z-index: 1000;
+    overflow:hidden;
 }
 
 /* 1. Contenedor interno */
 .modal {
     width: 500px;
     max-width: 90vw;
+    max-height: 90vh;
 
     background: white;
 
@@ -154,6 +293,9 @@ const isFormValid = computed(() => {
     overflow: hidden;
 
     box-shadow: 0 20px 50px rgba(0, 0, 0, .2);
+
+    display: flex;
+    flex-direction: column;
 }
 
 /* 2. Encabezado modal */
@@ -204,6 +346,8 @@ const isFormValid = computed(() => {
 .modal-body {
     padding: 24px;
     min-height: 150px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 /* 3.1 Formulario de creacion */
@@ -241,6 +385,27 @@ const isFormValid = computed(() => {
     box-shadow: 0 0 0 3px rgba(79, 70, 229, .15);
 }
 
+.field-error {
+    margin: 5px 0 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #dc3545;
+}
+
+.password-requirements {
+    margin-top: 8px;
+}
+
+.password-requirements p {
+    margin: 3px 0;
+    font-size: 0.78rem;
+    color: #dc3545;
+}
+
+.password-requirements p.valid {
+    color: #198754;
+}
+
 /* 3.1.1 Boton de despliegue roles */
 .select-wrapper {
     position: relative;
@@ -266,11 +431,12 @@ const isFormValid = computed(() => {
 
 /* 4. Pie modal */
 .modal-footer {
+    flex-shrink: 0;
+    padding: 16px 24px;
+    border-top: 2px solid #ececec;
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
-    padding: 20px 24px;
-    border-top: 2px solid #ececec;
+    gap: 10px;
 }
 
 /* 4.1 Boton cancelar */

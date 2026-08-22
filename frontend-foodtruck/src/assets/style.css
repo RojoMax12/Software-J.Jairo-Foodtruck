@@ -137,3 +137,8 @@ img, picture, svg, video {
     border-radius: 4px;
 }
 
+/* 5. Evitar scroll cuando un modal está abierto */
+html.modal-open,
+body.modal-open {
+    overflow: hidden;
+}

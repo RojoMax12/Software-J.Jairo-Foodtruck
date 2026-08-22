@@ -1,5 +1,31 @@
 import api from './api';
 
+export interface Worker {
+    id_usuario: number
+    id_rol: 1 | 3
+    nombre: string
+    correo: string
+    estado: boolean
+    created_at: string
+    updated_at: string
+}
+
+export interface CreateWorkerRequest {
+    id_rol: 1 | 3
+    nombre: string
+    correo: string
+    estado: boolean
+    contrasena: string
+}
+
+export interface UpdateWorkerRequest {
+    id_rol?: 1 | 3
+    nombre?: string
+    correo?: string
+    estado?: boolean
+    contrasena?: string
+}
+
 export default {
     getUsers() {
         return api.get('/usuarios');
@@ -15,5 +41,8 @@ export default {
     },
     deleteUser(id: number | string) {
         return api.delete(`/usuarios/${id}`);
+    },
+    getWorkers() {
+        return api.get('/usuarios-administrativos');
     }
-}
+};

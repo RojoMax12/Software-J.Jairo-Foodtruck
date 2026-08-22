@@ -1,17 +1,11 @@
 <template>
-
     <Transition name="fade">
-
         <div
             v-if="isOpen && worker"
             class="modal-overlay"
-            @click.self="emit('close')"
         >
-
             <div class="modal">
-
                 <div class="modal-header">
-
                     <div class="modal-title">
 
                         <Edit3 :size="22" />
@@ -26,17 +20,14 @@
                     >
                         ×
                     </button>
-
                 </div>
 
                 <div class="modal-body">
-
                     <form class="worker-form">
 
                         <!-- Nombre -->
 
                         <div class="form-group">
-
                             <label for="name">
                                 Nombre completo
                             </label>
@@ -46,30 +37,72 @@
                                 v-model="fullName"
                                 type="text"
                                 placeholder="Ej. Juan Pérez"
+                                @blur="touchedName = true"
                             >
 
+                            <p
+                                v-if="touchedName && fullName.trim() === ''"
+                                class="field-error"
+                            >
+                                El nombre es obligatorio
+                            </p>
+                        </div>
+
+                        <!-- Correo -->
+
+                        <div class="form-group">
+                            <label for="email">
+                                Correo electrónico
+                            </label>
+
+                            <input
+                                id="email"
+                                v-model="email"
+                                type="email"
+                                placeholder="ejemplo@correo.com"
+                                @blur="touchedEmail = true"
+                            >
+
+                            <p
+                                v-if="touchedEmail && email.trim() === ''"
+                                class="field-error"
+                            >
+                                El correo electrónico es obligatorio
+                            </p>
+
+                            <p
+                                v-else-if="email.length > 0 && !isEmailValid"
+                                class="field-error"
+                            >
+                                El correo electrónico no es válido
+                            </p>
                         </div>
 
                         <!-- Rol -->
 
                         <div class="form-group">
-
                             <label for="role">
                                 Rol
                             </label>
 
                             <div class="select-wrapper">
 
-                                <select v-model="roleId">
+                                <select
+                                    id="role"
+                                    v-model="roleId"
+                                    @blur="touchedRole = true"
+                                >
+                                    <option disabled :value="null">
+                                        Seleccione un rol
+                                    </option>
 
-                                    <option :value="1">
+                                    <option :value="3">
                                         Trabajador
                                     </option>
 
-                                    <option :value="2">
+                                    <option :value="1">
                                         Administrador
                                     </option>
-
                                 </select>
 
                                 <ChevronDown
@@ -79,15 +112,42 @@
 
                             </div>
 
+                            <p
+                                v-if="touchedRole && roleId === null"
+                                class="field-error"
+                            >
+                                Debes seleccionar un rol
+                            </p>
                         </div>
 
                         <!-- Contraseña -->
 
                         <div class="form-group">
-
                             <label for="password">
                                 Nueva contraseña (opcional)
                             </label>
+
+                            <div v-if="password.length > 0" class="password-requirements">
+                                <p :class="{ valid: passwordRequirements.minLength }">
+                                    {{ passwordRequirements.minLength ? '✓' : '✗' }}
+                                    Mínimo 8 caracteres
+                                </p>
+
+                                <p :class="{ valid: passwordRequirements.upperCase }">
+                                    {{ passwordRequirements.upperCase ? '✓' : '✗' }}
+                                    Una letra mayúscula
+                                </p>
+
+                                <p :class="{ valid: passwordRequirements.lowerCase }">
+                                    {{ passwordRequirements.lowerCase ? '✓' : '✗' }}
+                                    Una letra minúscula
+                                </p>
+
+                                <p :class="{ valid: passwordRequirements.number }">
+                                    {{ passwordRequirements.number ? '✓' : '✗' }}
+                                    Un número
+                                </p>
+                            </div>
 
                             <input
                                 id="password"
@@ -95,15 +155,11 @@
                                 type="password"
                                 placeholder="Dejar vacío para mantener la actual"
                             >
-
                         </div>
-
                     </form>
-
                 </div>
 
                 <div class="modal-footer">
-
                     <button
                         class="btn-secondary"
                         @click="emit('close')"
@@ -114,58 +170,59 @@
                     <button 
                         class="btn-primary"
                         :disabled="!isFormValid || !hasChanges"
+                        @click="saveChanges"
                     >
-
                         Guardar cambios
-
                     </button>
-
                 </div>
-
             </div>
-
         </div>
-
     </Transition>
-
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import type { Worker } from '@/views/Admin/worker'
+import { useNotification } from '@/composables/useNotification'
+import type { Worker, UpdateWorkerRequest } from '@/services/userService'
 import { ChevronDown, Edit3 } from 'lucide-vue-next'
 
+const { notify } = useNotification()
+
 const fullName = ref('')
-const roleId = ref<number | null>(null)
+const email = ref('')
+const roleId = ref<1 | 3 | null>(null)
 const password = ref('')
 
-interface Props {
+const touchedName = ref(false)
+const touchedEmail = ref(false)
+const touchedRole = ref(false)
+const touchedPassword = ref(false)
 
+interface Props {
     isOpen: boolean
     worker: Worker | null
-
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-
     (e: 'close'): void
-
+    (e: 'save', data: UpdateWorkerRequest): void
 }>()
 
-watch(
-    () => props.worker,
+watch(() => props.worker,
     (worker) => {
-
         if (!worker) return
 
-        console.log(worker.rol.nombre)
-
         fullName.value = worker.nombre
-        roleId.value = worker.rol.id
+        email.value = worker.correo
+        roleId.value = worker.id_rol
         password.value = ''
 
+        touchedName.value = false
+        touchedEmail.value = false
+        touchedRole.value = false
+        touchedPassword.value = false
     },
     { immediate: true }
 )
@@ -175,18 +232,58 @@ const hasChanges = computed(() => {
 
     return (
         fullName.value.trim() !== props.worker.nombre ||
-        roleId.value !== props.worker.rol.id ||
+        email.value.trim() !== props.worker.correo ||
+        roleId.value !== props.worker.id_rol ||
         password.value.trim() !== ''
     )
 })
 
-const isFormValid = computed(() => {
+const isEmailValid = computed(() => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)
+})
+
+const passwordRequirements = computed(() => ({
+    minLength: password.value.length >= 8,
+    upperCase: /[A-Z]/.test(password.value),
+    lowerCase: /[a-z]/.test(password.value),
+    number: /[0-9]/.test(password.value),
+}))
+
+const isPasswordValid = computed(() => {
+    if (password.value === '') {
+        return true
+    }
 
     return (
-        fullName.value.trim() !== '' &&
-        roleId.value !== null
+        passwordRequirements.value.minLength &&
+        passwordRequirements.value.upperCase &&
+        passwordRequirements.value.lowerCase &&
+        passwordRequirements.value.number
     )
 })
+
+const isFormValid = computed(() => {
+    return (
+        fullName.value.trim() !== '' &&
+        isEmailValid.value &&
+        roleId.value !== null &&
+        isPasswordValid.value
+    )
+})
+
+const saveChanges = () => {
+    const payload: UpdateWorkerRequest = {
+        nombre: fullName.value.trim(),
+        correo: email.value.trim(),
+        id_rol: roleId.value!
+    }
+
+    if (password.value.trim() !== '') {
+        payload.contrasena = password.value.trim()
+    }
+
+    emit('save', payload)
+}
 
 </script>
 
@@ -206,7 +303,6 @@ const isFormValid = computed(() => {
     background:rgba(0,0,0,.45);
 
     z-index:1000;
-
 }
 
 /* Modal */
@@ -215,6 +311,10 @@ const isFormValid = computed(() => {
 
     width:100%;
     max-width:520px;
+    max-height: 90vh;
+
+    display:flex;
+    flex-direction:column;
 
     background:white;
 
@@ -272,11 +372,15 @@ const isFormValid = computed(() => {
 
 .modal-body{
     padding:24px;
-}
 
+    flex:1;
+    min-height:0;
+
+    overflow-y:auto;
+    overscroll-behavior: contain;
+}
 .modal-body p{
     margin-top:0;
-    color:var(--DC-gray);
 }
 
 /* 3.1 Formulario de creacion */
@@ -335,6 +439,27 @@ const isFormValid = computed(() => {
     transform:translateY(-50%);
     pointer-events:none;
     color:#6b7280;
+}
+
+.field-error {
+    margin: 5px 0 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #dc3545;
+}
+
+.password-requirements {
+    margin-top: 8px;
+}
+
+.password-requirements p {
+    margin: 3px 0;
+    font-size: 0.78rem;
+    color: #dc3545;
+}
+
+.password-requirements p.valid {
+    color: #198754;
 }
 
 /* Footer */
