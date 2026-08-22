@@ -50,18 +50,18 @@ class IngredienteService
 
     public function updateIngrediente($id, $data)
     {
-        if (isset($data['cantidad']) && $data['cantidad'] < 0) {
+        if (isset($data['cantidad_actual']) && $data['cantidad_actual'] < 0) {
             throw new \InvalidArgumentException('La cantidad no puede ser negativa.');
         }
 
-        $ingrediente = $this->ingredienteRepository->updateIngrediente($id, $data);
-
-        // Si la cantidad llega a 0, se marca automáticamente como no disponible
-        if ($ingrediente && $ingrediente->cantidad <= 0 && $ingrediente->disponible) {
-            $ingrediente = $this->ingredienteRepository->updateIngrediente($id, ['disponible' => false]);
+        if (isset($data['cantidad_actual'])) {
+            $qty = (int)$data['cantidad_actual'];
+            if ($qty <= 0) {
+                $data['disponible'] = false;
+            }
         }
 
-        return $ingrediente;
+        return $this->ingredienteRepository->updateIngrediente($id, $data);
     }
 
     public function deleteIngredienteById($id)

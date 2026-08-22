@@ -1,9 +1,14 @@
 <template>
   <Transition name="fade">
     <div v-if="globalLoading" class="loading-overlay">
-      <div class="loading-content">
-        <div class="fast-food-icon">🌭</div>
-        <h2 class="loading-text">Preparando tu bajón...</h2>
+      <div class="loading-card">
+        <div class="icon-ring">
+          <span class="fast-food-icon">🍔</span>
+        </div>
+        <h2 class="loading-text">Cargando la experiencia...</h2>
+        <div class="loading-bar-track">
+          <div class="loading-bar-fill"></div>
+        </div>
       </div>
     </div>
   </Transition>
@@ -16,51 +21,92 @@ import { globalLoading } from '@/composables/useLoading';
 <style scoped>
 .loading-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100vw;
   height: 100vh;
-  background-color: var(--DC-bg-gray, #fcf8f2); 
+  background: rgba(252, 248, 242, 0.88); 
+  backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: 99999;
 }
 
-.loading-content {
+.loading-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 15px;
+  gap: 18px;
+  background: white;
+  padding: 36px 44px;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-/* 🌟 Animación de latido (pulse) para el completo */
+.icon-ring {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: #fff4e6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 0 0 8px rgba(226, 135, 67, 0.1);
+  animation: pulseRing 1.8s ease-in-out infinite;
+}
+
 .fast-food-icon {
-  font-size: 80px; /* Tamaño del completo */
-  animation: pulse 0.8s infinite alternate;
-  filter: drop-shadow(0px 10px 10px rgba(0,0,0,0.1)); /* Sombra para darle estilo */
+  font-size: 42px;
+  animation: floatBounce 1.2s ease-in-out infinite alternate;
 }
 
 .loading-text {
-  font-size: 1.4rem;
-  font-weight: 900;
+  font-size: 1.15rem;
+  font-weight: 800;
   color: var(--DC-gray, #322c44);
-  letter-spacing: 1px;
+  margin: 0;
+  letter-spacing: 0.3px;
 }
 
-/* Keyframes para que el completo palpite como un corazón */
-@keyframes pulse {
-  0% { 
-    transform: scale(1) translateY(0); 
-  }
-  100% { 
-    transform: scale(1.15) translateY(-10px); 
-  }
+.loading-bar-track {
+  width: 160px;
+  height: 4px;
+  background-color: #f1f3f5;
+  border-radius: 99px;
+  overflow: hidden;
+  position: relative;
 }
 
-/* Transición suave al entrar y salir */
+.loading-bar-fill {
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--DC-orange, #e28743), #f59f00);
+  border-radius: 99px;
+  position: absolute;
+  left: -50%;
+  animation: loadingSlide 1.4s ease-in-out infinite;
+}
+
+@keyframes floatBounce {
+  0% { transform: translateY(2px) scale(1); }
+  100% { transform: translateY(-6px) scale(1.08); }
+}
+
+@keyframes pulseRing {
+  0% { box-shadow: 0 0 0 0px rgba(226, 135, 67, 0.25); }
+  70% { box-shadow: 0 0 0 16px rgba(226, 135, 67, 0); }
+  100% { box-shadow: 0 0 0 0px rgba(226, 135, 67, 0); }
+}
+
+@keyframes loadingSlide {
+  0% { left: -50%; }
+  100% { left: 100%; }
+}
+
 .fade-enter-active, .fade-leave-active {
-  transition: opacity 0.4s ease;
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .fade-enter-from, .fade-leave-to {
   opacity: 0;

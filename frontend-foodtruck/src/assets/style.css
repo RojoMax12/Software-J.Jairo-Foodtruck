@@ -1,17 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;600;700;800;900&display=swap');
+
 :root {
-    /* 🌟 Colores Principales (Estilo Bajón / Comida Rápida) */
+    /* 🌟 Colores Principales Foodtruck J.Jairo */
     --DC-pink: #d80056;        /* Fucsia/Rosado intenso dominante de las insignias */
-    --DC-orange: #e28743;      /* Tu naranja icónico usado en el carrito flotante */
-    --DC-brown: #513119;       /* El café oscuro de tus líneas divisorias y bordes de input */
+    --DC-orange: #e28743;      /* Naranja icónico J.Jairo */
+    --DC-brown: #513119;       /* Café cálido distintivo */
     
     /* 🏛️ Colores de Fondo y Estructura */
-    --DC-gray: #1e1b24;        /* Un tono casi negro muy oscuro para textos principales y títulos */
-    --DC-text-gray: #6e6a75;   /* Gris intermedio, ideal para placeholders y textos secundarios */
-    --DC-bg-gray: #f5ebe0;     /* Fondo sutilmente crema/cálido para que resalten las comidas */
+    --DC-gray: #322c44;        /* Tono oscuro elegante para textos y títulos */
+    --DC-text-gray: #6e6a75;   /* Gris intermedio para deshabilitados y descripciones */
+    --DC-bg-gray: #f5ebe0;     /* Fondo cálido apetitoso */
     
-    /* ✒️ Tipografías */
-    --font-main: 'Open Sans', sans-serif;
-    --font-badge: 'Impact', 'Arial Black', sans-serif; /* Para los textos dentro de las insignias */
+    /* ✒️ Tipografías Unificadas */
+    --font-main: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+    --font-badge: 'Impact', 'Arial Black', sans-serif;
 
     --button-color: #F4E1D2;
     --button-text: #513119;
@@ -48,6 +50,7 @@ html, body {
   overflow-x: hidden; 
   width: 100%;
   position: relative; 
+  
 }
 
 /* 3. Las imágenes nunca deben salirse de su contenedor (Esto reemplaza tu antigua regla) */
@@ -70,3 +73,72 @@ img, picture, svg, video {
   }
 }
 
+/* ==========================================================
+ * 📱 UTILIDADES Y REGLAS DE RESPONSIVIDAD GLOBAL (MOBILE FIRST)
+ * ========================================================== */
+
+/* 1. Envolvedor responsivo de tablas */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 1rem;
+}
+
+/* 2. Modales adaptativos para pantallas pequeñas */
+.modal-overlay {
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.modal-container, .modal-wrapper {
+    max-width: 96vw !important;
+    max-height: 92vh !important;
+    overflow-y: auto !important;
+    border-radius: 16px !important;
+}
+
+/* 3. Media queries universales para móviles (< 768px) */
+@media (max-width: 768px) {
+    /* Ajuste de tipografía y espaciados generales */
+    h1 { font-size: 1.6rem !important; }
+    h2 { font-size: 1.3rem !important; }
+    h3 { font-size: 1.1rem !important; }
+
+    /* Grillas automáticas de 1 columna */
+    .content-grid, .summary-grid, .product-layout, .status-cards {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    /* Formularios en tarjetas apiladas */
+    .input-row, .header-actions, .table-toolbar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+
+    /* Botones touch amigables */
+    button, input, select {
+        min-height: 42px;
+    }
+}
+
+/* 4. Scrollbar estilizado touch */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.04);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--DC-orange);
+    border-radius: 4px;
+}
+
+/* 5. Evitar scroll cuando un modal está abierto */
+html.modal-open,
+body.modal-open {
+    overflow: hidden;
+}

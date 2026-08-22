@@ -26,10 +26,21 @@ api.interceptors.request.use(
   }
 );
 
-// Interceptor para manejar errores globales
+// Interceptor para manejar errores globales y expiración de token
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error.response && (error.response.status === 401 || error.response.status === 419)) {
+      // 🚨 TOKEN EXPIRADO O SESIÓN INVÁLIDA
+      const hadToken = !!localStorage.getItem('token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      
+      const currentPath = window.location.pathname;
+      if (hadToken && currentPath !== '/login' && currentPath !== '/') {
+        window.location.href = '/login?expired=1';
+      }
+    }
     console.error('API Error:', error.response?.data || error.message);
     return Promise.reject(error);
   }

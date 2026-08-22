@@ -2,8 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Usuario_dicreme;
-use App\Models\Usuario_distribuidores;
+use App\Models\Usuario;
 use App\Services\JwtService;
 use Closure;
 use Illuminate\Http\JsonResponse;
@@ -55,19 +54,14 @@ class AuthenticateJwt
         ], 401);
     }
 
-    private function resolveUserFromClaims(object $claims): Usuario_dicreme|Usuario_distribuidores|null
+    private function resolveUserFromClaims(object $claims): ?\App\Models\Usuario
     {
         $userId = $claims->sub ?? null;
-        $userType = strtolower((string) ($claims->user_type ?? ''));
 
-        if (! $userId || $userType === '') {
+        if (! $userId) {
             return null;
         }
 
-        return match (true) {
-            str_contains($userType, 'dicreme') => Usuario_dicreme::find($userId),
-            str_contains($userType, 'distribuidor') => Usuario_distribuidores::find($userId),
-            default => null,
-        };
+        return \App\Models\Usuario::find($userId);
     }
 }

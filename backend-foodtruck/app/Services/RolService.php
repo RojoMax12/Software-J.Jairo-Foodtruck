@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Repositories\RolRepository;
-use App\Models\Rol;
 
 
 class RolService

@@ -23,19 +23,45 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'nombre' => 'required|string',
-            'contrasena' => 'required|string',
-        ]);
+        $loginInput = $request->input('correo_electronico') 
+            ?? $request->input('correo') 
+            ?? $request->input('nombre') 
+            ?? $request->input('login');
 
-        $user = $this->usuarioService->getUsuarioByNombre($credentials['nombre']);
+        $contrasena = $request->input('contrasena') ?? $request->input('password');
 
-        if (!$user || !Hash::check($credentials['contrasena'], $user->contrasena)) {
-            return response()->json(['message' => 'Credenciales inválidas.'], 401);
+        if (!$loginInput || !$contrasena) {
+            return response()->json(['error' => 'Por favor, ingresa tu correo/usuario y contraseña.'], 422);
+        }
+
+        $user = \App\Models\Usuario::where('correo', $loginInput)
+            ->orWhere('nombre', $loginInput)
+            ->first();
+
+        if (!$user || !Hash::check($contrasena, $user->contrasena)) {
+            return response()->json(['error' => 'Credenciales inválidas. Revisa tu usuario/correo y contraseña.'], 401);
+        }
+
+        if (isset($user->estado) && !$user->estado) {
+            return response()->json(['error' => 'Tu usuario se encuentra inactivo.'], 403);
         }
 
         $tokenPayload = $this->jwtService->issueForUser($user);
-        return response()->json($tokenPayload);
+        $token = is_array($tokenPayload) ? ($tokenPayload['access_token'] ?? $tokenPayload['token'] ?? null) : $tokenPayload;
+
+        return response()->json([
+            'access_token' => $token,
+            'token' => $token,
+            'token_type' => 'bearer',
+            'expires_in' => is_array($tokenPayload) ? ($tokenPayload['expires_in'] ?? 3600) : 3600,
+            'user' => [
+                'id' => $user->id_usuario,
+                'id_usuario' => $user->id_usuario,
+                'nombre' => $user->nombre,
+                'correo' => $user->correo,
+                'id_rol' => $user->id_rol,
+            ]
+        ]);
     }
 
     public function me(Request $request)

@@ -1,13 +1,13 @@
 <template>
   <div class="admin-home-container">
     <div class="admin-home-header">
-      <h1>Panel de Administración</h1>
-      <p>Seleccione el módulo que desea gestionar</p>
+      <h1>Panel de {{ userRoleName }}</h1>
+      <p>Hola{{ userName ? ' ' + userName : '' }}, seleccione el módulo que desea gestionar</p>
     </div>
     
     <div class="admin-options-grid">
 
-      <router-link `v-role="[1,3]"` to="/general-home/orders" class="admin-option-card">
+      <router-link v-role="[1,3]" to="/general-home/orders" class="admin-option-card">
         <div class="icon-container">
           <ShoppingBag :size="48" />
         </div>
@@ -15,42 +15,42 @@
         <p>Administra los pedidos</p>
       </router-link>
 
-      <router-link `v-role="[1,3]"` to="/general-home/generate-quote" class="admin-option-card">
+      <router-link v-role="[1,3]" to="/general-home/generate-quote" class="admin-option-card">
         <div class="icon-container">
-          <FilePlus :size="48" />
+          <Store :size="48" />
         </div>
         <h2>Generar Pedido</h2>
         <p>Crear una nueva Pedido para un cliente (existente o nuevo)</p>
       </router-link>
 
-      <router-link `v-role="[1,3]"` to="/general-home/inventory" class="admin-option-card">
+      <router-link v-role="[1,3]" to="/general-home/inventory" class="admin-option-card">
         <div class="icon-container">
-          <FileText :size="48" />
+          <Package :size="48" />
         </div>
         <h2>Inventario</h2>
         <p>Gestiona y revisa los insumos disponibles </p>
       </router-link>
 
-      <router-link `v-role="[1]"` to="/general-home/admin/cash-flow" class="admin-option-card">
+      <router-link v-role="[1]" to="/general-home/admin/cash-flow" class="admin-option-card">
         <div class="icon-container">
-          <FileText :size="48" />
+          <BadgeDollarSign :size="48" />
         </div>
         <h2>Caja</h2>
         <p>Gestiona y revisa tu flujo de dinero</p>
       </router-link>
 
 
-      <router-link `v-role="[1]"` to="/general-home/admin/worker" class="admin-option-card">
+      <router-link v-role="[1]" to="/general-home/admin/worker" class="admin-option-card">
         <div class="icon-container">
-          <FileText :size="48" />
+          <Users :size="48" />
         </div>
         <h2>Trabajadores</h2>
         <p>Gestiona y revisa el estado de tus trabajadores</p>
       </router-link>
 
-      <router-link `v-role="[1]"` to="/general-home/admin/product" class="admin-option-card">
+      <router-link v-role="[1]" to="/general-home/admin/product" class="admin-option-card">
         <div class="icon-container">
-          <FileText :size="48" />
+          <PackageSearch :size="48" />
         </div>
         <h2>Productos</h2>
         <p>Gestiona, revisa y pon los productos disponible en oferta</p>
@@ -60,7 +60,33 @@
 </template>
 
 <script setup lang="ts">
-import { FileText, ShoppingBag, FilePlus } from 'lucide-vue-next';
+import { ref, onMounted } from 'vue';
+import { BadgeDollarSign, ShoppingBag, Package, Store, Users, PackageSearch } from 'lucide-vue-next';
+
+const userRoleName = ref('Administración');
+const userName = ref('');
+
+onMounted(() => {
+  const userParsed = localStorage.getItem('user');
+  if (userParsed) {
+    try {
+      const u = JSON.parse(userParsed);
+      userName.value = u.nombre || u.nombre_usuario || u.name || '';
+      const rId = Number(u.id_rol || 1);
+      if (rId === 1) {
+        userRoleName.value = 'Administración';
+      } else if (rId === 3) {
+        userRoleName.value = 'Trabajador';
+      } else if (rId === 2) {
+        userRoleName.value = 'Cliente';
+      } else {
+        userRoleName.value = u.rol?.nombre_rol || 'Operaciones';
+      }
+    } catch (e) {
+      console.error('Error al leer sesión de usuario:', e);
+    }
+  }
+});
 </script>
 
 <style scoped>

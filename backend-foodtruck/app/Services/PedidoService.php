@@ -1,11 +1,14 @@
 <?php
+
 namespace App\Services;
+
+use App\Models\Ingrediente;
+use App\Models\Movimientos;
+use App\Models\Pedido;
+use App\Models\Producto_ingrediente;
 use App\Repositories\PedidoRepository;
+
 # Servicio Pedido
-// TODO: El modelo Pedido define producto_pedido() apuntando a ProductoPedido::class,
-// clase que no existe entre los modelos provistos (probablemente debería ser
-// Pedido_producto::class). Por eso este servicio no expone un getter basado en esa
-// relación; usar PedidoProductoService->getPedidoProductosByPedidoId() como alternativa.
 class PedidoService
 {
     protected $pedidoRepository;
@@ -21,7 +24,104 @@ class PedidoService
             throw new \InvalidArgumentException('El total del pedido no puede ser negativo.');
         }
 
-        return $this->pedidoRepository->createPedido($data);
+        $pedido = $this->pedidoRepository->createPedido($data);
+
+        // Descontar inventario al crear el pedido
+        if ($pedido && $pedido->id_pedido) {
+            $this->descontarInventario($pedido->id_pedido);
+        }
+
+        return $pedido;
+    }
+
+    public function descontarInventario($pedidoId)
+    {
+        $pedido = Pedido::with(['detalles'])->find($pedidoId);
+        if (!$pedido || $pedido->inventario_descontado) {
+            return;
+        }
+
+        foreach ($pedido->detalles as $detalle) {
+            $productoId = $detalle->id_producto;
+            $tamanoId = $detalle->id_tamaño;
+            $cantComprada = $detalle->cantidad;
+
+            // Receta: ingredientes por tamaño o globales para el producto
+            $receta = Producto_ingrediente::where('id_producto', $productoId)
+                ->where(function ($query) use ($tamanoId) {
+                    $query->where('id_tamaño', $tamanoId)
+                        ->orWhereNull('id_tamaño');
+                })
+                ->where('incluido_por_defecto', true)
+                ->get();
+
+            foreach ($receta as $itemReceta) {
+                $ingrediente = Ingrediente::find($itemReceta->id_ingrediente);
+                if ($ingrediente) {
+                    $descuentoTotal = $itemReceta->cantidad * $cantComprada;
+                    $ingrediente->cantidad_actual = max(0, $ingrediente->cantidad_actual - $descuentoTotal);
+                    if ($ingrediente->cantidad_actual <= 0) {
+                        $ingrediente->disponible = false;
+                    }
+                    $ingrediente->save();
+
+                    // Registrar movimiento de salida
+                    Movimientos::create([
+                        'id_ingrediente' => $ingrediente->id_ingrediente,
+                        'cantidad' => $descuentoTotal,
+                        'tipo_movimiento' => 'Salida',
+                        'fecha_movimiento' => now()->toDateString(),
+                    ]);
+                }
+            }
+        }
+
+        $pedido->inventario_descontado = true;
+        $pedido->save();
+    }
+
+    public function revertirInventario($pedidoId)
+    {
+        $pedido = Pedido::with(['detalles'])->find($pedidoId);
+        if (!$pedido || !$pedido->inventario_descontado) {
+            return;
+        }
+
+        foreach ($pedido->detalles as $detalle) {
+            $productoId = $detalle->id_producto;
+            $tamanoId = $detalle->id_tamaño;
+            $cantComprada = $detalle->cantidad;
+
+            $receta = Producto_ingrediente::where('id_producto', $productoId)
+                ->where(function ($query) use ($tamanoId) {
+                    $query->where('id_tamaño', $tamanoId)
+                        ->orWhereNull('id_tamaño');
+                })
+                ->where('incluido_por_defecto', true)
+                ->get();
+
+            foreach ($receta as $itemReceta) {
+                $ingrediente = Ingrediente::find($itemReceta->id_ingrediente);
+                if ($ingrediente) {
+                    $reversionTotal = $itemReceta->cantidad * $cantComprada;
+                    $ingrediente->cantidad_actual = $ingrediente->cantidad_actual + $reversionTotal;
+                    if ($ingrediente->cantidad_actual > 0) {
+                        $ingrediente->disponible = true;
+                    }
+                    $ingrediente->save();
+
+                    Movimientos::create([
+                        'id_ingrediente' => $ingrediente->id_ingrediente,
+                        'cantidad' => $reversionTotal,
+                        'tipo_movimiento' => 'Entrada',
+                        'fecha_movimiento' => now()->toDateString(),
+                    ]);
+                }
+            }
+        }
+
+        $pedido->inventario_descontado = false;
+        $pedido->save();
     }
 
     public function getAllPedidos()
@@ -60,7 +160,22 @@ class PedidoService
             throw new \InvalidArgumentException('El total del pedido no puede ser negativo.');
         }
 
-        return $this->pedidoRepository->updatePedido($id, $data);
+        $pedidoAnterior = $this->getPedidoById($id);
+        $nuevoPedido = $this->pedidoRepository->updatePedido($id, $data);
+
+        $nuevoEstado = isset($data['id_estado_pedido']) ? (int)$data['id_estado_pedido'] : null;
+
+        // Descontar inventario 1 sola vez si avanza a En preparación (2), Listo (3) o Entregado (4)
+        if ($nuevoPedido && in_array($nuevoEstado, [2, 3, 4])) {
+            $this->descontarInventario($id);
+        }
+
+        // Revertir inventario si el pedido es Cancelado (5)
+        if ($nuevoPedido && $nuevoEstado === 5) {
+            $this->revertirInventario($id);
+        }
+
+        return $nuevoPedido;
     }
 
     public function deletePedidoById($id)

@@ -19,6 +19,7 @@
             </div>
             
             <div class="scrollable-config">
+              <!-- 1. Elige el Tamaño con Precios -->
               <div v-if="product.sizes && product.sizes.length > 1" class="config-section">
                 <p class="section-subtitle">1. Elige el tamaño:</p>
                 <div class="size-pills">
@@ -29,19 +30,24 @@
                     :class="{ 'active': selectedSize === size }"
                     @click="selectedSize = size"
                   >
-                    {{ size }}
+                    <span>{{ size }}</span>
+                    <span v-if="getSizePrice(size)" class="pill-price">(${{ getSizePrice(size) }})</span>
                   </button>
                 </div>
               </div>
 
+              <!-- 2. Variedad / Producto de la Categoría -->
               <div v-if="product.types && product.types.length > 0" class="config-section">
-                <p class="section-subtitle">{{ product.sizes?.length > 1 ? '2.' : '1.' }} Variedad:</p>
+                <p class="section-subtitle">{{ product.sizes?.length > 1 ? '2.' : '1.' }} Variedad / Producto:</p>
                 <div class="types-list">
                   <div 
                     v-for="tipo in product.types" 
                     :key="tipo.id"
                     class="type-row"
-                    :class="{ 'active': selectedType?.id === tipo.id }"
+                    :class="{ 
+                      'active': selectedType?.id === tipo.id,
+                      'disabled': !isTypeAvailable(tipo)
+                    }"
                     @click="selectType(tipo)"
                   >
                     <div class="type-info">
@@ -53,37 +59,77 @@
                         <span class="t-desc">{{ tipo.desc }}</span>
                       </div>
                     </div>
-                    <span class="t-price">${{ tipo.prices[selectedSize] }}</span>
+                    <div class="type-price-box">
+                      <span v-if="!isTypeAvailable(tipo)" class="status-badge no-stock">🚫 Desactivado</span>
+                      <span v-else class="t-price">${{ Number(tipo.prices[selectedSize] || 0).toLocaleString('es-CL') }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div v-if="selectedType && selectedType.producto_ingrediente?.length > 0" class="config-section">
-                <p class="section-subtitle">Ingredientes (Desmarca para quitar):</p>
+              <!-- 3. Ingredientes de la Receta (Desmarca para quitar) -->
+              <div v-if="visibleRecipeIngredients.length > 0" class="config-section">
+                <p class="section-subtitle">Ingredientes de la receta (Desmarca para quitar):</p>
                 <div class="ingredients-list">
                   <label 
-                    v-for="pi in selectedType.producto_ingrediente" 
+                    v-for="pi in visibleRecipeIngredients" 
                     :key="pi.id" 
                     class="ingredient-item"
-                    :class="{ 'removed': excludedIngredients.includes(pi.ingrediente.nombre) }"
+                    :class="{ 'removed': excludedIngredients.includes(pi.ingrediente.nombre), 'out-of-stock': !isIngredientAvailable(pi) }"
                   >
                     <div class="ing-left">
                       <input 
                         type="checkbox" 
-                        :checked="!excludedIngredients.includes(pi.ingrediente.nombre)"
-                        @change="toggleIngredient(pi.ingrediente.nombre)"
-                        :disabled="!pi.ingrediente.disponible"
+                        :checked="!excludedIngredients.includes(pi.ingrediente.nombre) && isIngredientAvailable(pi)"
+                        @change="toggleIngredient(pi)"
+                        :disabled="!isIngredientAvailable(pi)"
                         class="custom-checkbox"
                       />
                       <span class="ing-name">{{ pi.ingrediente.nombre }}</span>
                     </div>
-                    <span v-if="!pi.ingrediente.disponible" class="status-badge no-stock">Sin Stock</span>
+                    <span v-if="!isIngredientAvailable(pi)" class="status-badge no-stock">🚫 Sin Stock</span>
                     <span v-else-if="excludedIngredients.includes(pi.ingrediente.nombre)" class="status-badge removed">Quitado</span>
                   </label>
                 </div>
               </div>
+
+              <!-- 4. Agregados Extra / Opcionales (Solo para productos personalizables) -->
+              <div v-if="optionalExtraIngredients.length > 0" class="config-section">
+                <p class="section-subtitle">
+                  Agregados opcionales 
+                  <span v-if="product.cantidad_incluida > 0" class="subtitle-hint">
+                    (Incluye {{ product.cantidad_incluida }} gratis, extra +${{ Number(product.precio_ingrediente_extra).toLocaleString('es-CL') }})
+                  </span>
+                  <span v-else-if="product.precio_ingrediente_extra > 0" class="subtitle-hint">
+                    (+$${{ Number(product.precio_ingrediente_extra).toLocaleString('es-CL') }} c/u)
+                  </span>:
+                </p>
+                <div class="ingredients-list">
+                  <label 
+                    v-for="pi in optionalExtraIngredients" 
+                    :key="pi.id" 
+                    class="ingredient-item"
+                    :class="{ 'added': addedExtraIngredients.includes(pi.ingrediente.nombre), 'out-of-stock': !isIngredientAvailable(pi) }"
+                  >
+                    <div class="ing-left">
+                      <input 
+                        type="checkbox" 
+                        :checked="addedExtraIngredients.includes(pi.ingrediente.nombre) && isIngredientAvailable(pi)"
+                        @change="toggleExtraIngredient(pi)"
+                        :disabled="!isIngredientAvailable(pi)"
+                        class="custom-checkbox"
+                      />
+                      <span class="ing-name">{{ pi.ingrediente.nombre }}</span>
+                    </div>
+                    <span v-if="!isIngredientAvailable(pi)" class="status-badge no-stock">🚫 Sin Stock</span>
+                    <span v-else-if="addedExtraIngredients.includes(pi.ingrediente.nombre)" class="status-badge added">Agregado</span>
+                  </label>
+                </div>
+              </div>
+
             </div>
 
+            <!-- Footer con Selector de Cantidad y Botón de Añadir -->
             <div class="purchase-actions">
               <div class="quantity-selector">
                 <button class="quantity-btn" @click="decreaseQuantity">
@@ -95,8 +141,12 @@
                 </button>
               </div>
 
-              <button class="add-to-cart-btn" @click="handleAddToCart">
-                <span class="btn-text">AÑADIR</span>
+              <button 
+                class="add-to-cart-btn" 
+                :disabled="!selectedType || !isTypeAvailable(selectedType)"
+                @click="handleAddToCart"
+              >
+                <span class="btn-text">{{ isTypeAvailable(selectedType) ? 'AÑADIR' : 'DESACTIVADO' }}</span>
                 <span class="btn-total">${{ totalPriceFormatted }}</span>
               </button>
             </div>
@@ -123,67 +173,220 @@ const emit = defineEmits(['close', 'add-to-cart']);
 const selectedSize = ref('');
 const selectedType = ref<any>(null);
 const excludedIngredients = ref<string[]>([]);
+const addedExtraIngredients = ref<string[]>([]);
 const quantity = ref(1);
 
-// Cuando se abre el modal o cambia el producto, reseteamos los valores
+const activeTypes = computed(() => {
+  if (!props.product || !props.product.types) return [];
+  return props.product.types.filter((t: any) => {
+    if (t.active === false || t.activo === false || t.estado === 0 || t.activo === 0) return false;
+    return true;
+  });
+});
+
+const isTypeAvailable = (tipo: any) => {
+  if (!tipo) return false;
+  if (tipo.active === false || tipo.activo === false || tipo.estado === 0 || tipo.activo === 0) return false;
+  return true;
+};
+
+// Al cambiar el producto reseteamos estados
 watch(() => props.product, (newProduct) => {
-  if (newProduct) {
+  if (newProduct && newProduct.types) {
+    const firstAvailable = newProduct.types.find((t: any) => isTypeAvailable(t));
     selectedSize.value = newProduct.sizes?.[0] || '';
-    selectedType.value = newProduct.types?.[0] || null;
+    selectedType.value = firstAvailable || newProduct.types[0] || null;
     excludedIngredients.value = [];
+    addedExtraIngredients.value = [];
     quantity.value = 1;
   }
 }, { immediate: true });
 
-// Cambiar de variedad (ej: de Italiano a Luco)
-const selectType = (tipo: any) => {
-  selectedType.value = tipo;
-  excludedIngredients.value = []; // Si cambia de variedad, reseteamos los ingredientes quitados
+const getSizePrice = (sizeName: string) => {
+  if (!selectedType.value || !selectedType.value.prices) return '';
+  const val = selectedType.value.prices[sizeName];
+  if (val == null) return '';
+  return Number(val).toLocaleString('es-CL');
 };
 
-// Marcar/Desmarcar ingredientes
-const toggleIngredient = (nombre: string) => {
+const selectType = (tipo: any) => {
+  if (!isTypeAvailable(tipo)) return;
+  selectedType.value = tipo;
+  excludedIngredients.value = [];
+  addedExtraIngredients.value = [];
+};
+
+const isIngredientAvailable = (pi: any) => {
+  if (!pi || !pi.ingrediente) return true;
+  const ing = pi.ingrediente;
+  if (ing.disponible === false || ing.disponible === 0) return false;
+  if (ing.cantidad_actual !== undefined && Number(ing.cantidad_actual) <= 0) return false;
+  return true;
+};
+
+const toggleIngredient = (piOrName: any) => {
+  if (typeof piOrName === 'object' && !isIngredientAvailable(piOrName)) return;
+  const nombre = typeof piOrName === 'object' ? piOrName.ingrediente?.nombre : piOrName;
+  if (!nombre) return;
   const index = excludedIngredients.value.indexOf(nombre);
   if (index > -1) {
-    excludedIngredients.value.splice(index, 1); // Lo vuelve a agregar
+    excludedIngredients.value.splice(index, 1);
   } else {
-    excludedIngredients.value.push(nombre); // Lo quita
+    excludedIngredients.value.push(nombre);
   }
 };
 
-// Controles de cantidad
+const toggleExtraIngredient = (piOrName: any) => {
+  if (typeof piOrName === 'object' && !isIngredientAvailable(piOrName)) return;
+  const nombre = typeof piOrName === 'object' ? piOrName.ingrediente?.nombre : piOrName;
+  if (!nombre) return;
+  const index = addedExtraIngredients.value.indexOf(nombre);
+  if (index > -1) {
+    addedExtraIngredients.value.splice(index, 1);
+  } else {
+    addedExtraIngredients.value.push(nombre);
+  }
+};
+
+const isBaseIngredient = (name: string) => {
+  if (!name) return false;
+  const lower = name.toLowerCase();
+  return lower.startsWith('pan ') ||
+         lower === 'vianesa' ||
+         lower === 'carne' ||
+         lower === 'lomito' ||
+         lower === 'pollo' ||
+         lower === 'hamburguesa' ||
+         lower === 'masa pizza' ||
+         lower === 'sopaipilla' ||
+         lower === 'empanada';
+};
+
+// 1. Ingredientes de Receta Base (incluido_por_defecto !== false)
+const visibleRecipeIngredients = computed(() => {
+  if (!selectedType.value || !selectedType.value.producto_ingrediente) return [];
+
+  const currentSizeObj = props.product.tamaños_obj?.find((t: any) => t.nombre === selectedSize.value);
+  const currentSizeId = currentSizeObj ? currentSizeObj.id_tamaño : null;
+
+  const seenNames = new Set<string>();
+  const result: any[] = [];
+
+  for (const pi of selectedType.value.producto_ingrediente) {
+    // Solo receta base
+    if (pi.incluido_por_defecto === false || pi.incluido_por_defecto === 0) continue;
+
+    const ingName = pi.ingrediente?.nombre || '';
+    if (isBaseIngredient(ingName)) continue;
+
+    if (pi.id_tamaño && currentSizeId && pi.id_tamaño !== currentSizeId) {
+      continue;
+    }
+
+    if (!seenNames.has(ingName)) {
+      seenNames.add(ingName);
+      result.push(pi);
+    }
+  }
+
+  return result;
+});
+
+// 2. Ingredientes Extra Opcionales (incluido_por_defecto === false)
+const optionalExtraIngredients = computed(() => {
+  if (!selectedType.value || !selectedType.value.producto_ingrediente) return [];
+
+  const seenNames = new Set<string>();
+  const result: any[] = [];
+
+  for (const pi of selectedType.value.producto_ingrediente) {
+    if (pi.incluido_por_defecto !== false && pi.incluido_por_defecto !== 0) continue;
+
+    const ingName = pi.ingrediente?.nombre || '';
+
+    if (!seenNames.has(ingName)) {
+      seenNames.add(ingName);
+      result.push(pi);
+    }
+  }
+
+  return result;
+});
+
 const increaseQuantity = () => quantity.value++;
 const decreaseQuantity = () => { if (quantity.value > 1) quantity.value--; };
 
-// Cálculos de precio en tiempo real
+// Cálculo del costo adicional por agregados opcionales
+const extraIngredientsCost = computed(() => {
+  const extraCount = addedExtraIngredients.value.length;
+  const includedCount = props.product?.cantidad_incluida || 0;
+  const billableExtras = Math.max(0, extraCount - includedCount);
+  const extraPrice = Number(props.product?.precio_ingrediente_extra || 0);
+  return billableExtras * extraPrice;
+});
+
 const currentPrice = computed(() => {
   if (!selectedType.value || !selectedSize.value) return 0;
-  return selectedType.value.prices[selectedSize.value] || 0;
+  const basePrice = Number(selectedType.value.prices[selectedSize.value] || 0);
+  return basePrice + extraIngredientsCost.value;
 });
 
 const totalPriceFormatted = computed(() => {
   return (currentPrice.value * quantity.value).toLocaleString('es-CL');
 });
 
-// Enviar al carrito
-const handleAddToCart = () => {
-  if (!selectedType.value) return;
+const selectedSizeId = computed(() => {
+  if (!selectedType.value) return 1;
+  const list = selectedType.value.tamaños_obj || props.product?.tamaños_obj || [];
+  const found = list.find((t: any) => t.nombre === selectedSize.value);
+  return found?.id_tamaño || found?.id || 1;
+});
 
-  // Creamos un ID único para el carrito basado en lo que excluyó para que no se mezclen
+const handleAddToCart = () => {
+  if (!selectedType.value || !isTypeAvailable(selectedType.value)) return;
+
   const exclusionKey = [...excludedIngredients.value].sort().join('-');
-  const cartItemId = `${selectedType.value.id}_${selectedSize.value}_${exclusionKey}`;
+  const additionKey = [...addedExtraIngredients.value].sort().join('-');
+  const cartItemId = `${selectedType.value.id}_${selectedSize.value}_${exclusionKey}_${additionKey}`;
+
+  const excluidosDetails = excludedIngredients.value.map((name: string) => {
+    const found = selectedType.value?.producto_ingrediente?.find(
+      (pi: any) => pi.ingrediente?.nombre === name
+    );
+    return {
+      nombre: name,
+      id_ingrediente: found?.id_ingrediente || found?.ingrediente?.id_ingrediente || null
+    };
+  });
+
+  const agregadosDetails = addedExtraIngredients.value.map((name: string) => {
+    const found = selectedType.value?.producto_ingrediente?.find(
+      (pi: any) => pi.ingrediente?.nombre === name
+    );
+    return {
+      nombre: name,
+      id_ingrediente: found?.id_ingrediente || found?.ingrediente?.id_ingrediente || null
+    };
+  });
 
   emit('add-to-cart', {
     id: cartItemId,
-    productId: selectedType.value.id,
+    id_producto: Number(selectedType.value.id),
+    id_tamaño: Number(selectedSizeId.value),
+    productId: Number(selectedType.value.id),
     name: selectedType.value.name,
-    fullName: `${props.product.name} ${selectedType.value.name}`, // Ej: Completo Italiano
+    fullName: props.product.types.length > 1 
+      ? `${props.product.name} ${selectedType.value.name}`
+      : props.product.name,
     category: props.product.category,
     image: props.product.image,
     size: selectedSize.value,
     quantity: quantity.value,
     price: currentPrice.value,
-    excluidos: [...excludedIngredients.value]
+    excluidos: [...excludedIngredients.value],
+    agregados: [...addedExtraIngredients.value],
+    excluidosDetails,
+    agregadosDetails
   });
 
   emit('close');
@@ -195,17 +398,17 @@ const handleAddToCart = () => {
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; width: 100vw; height: 100vh;
-  background-color: rgba(30, 27, 36, 0.7); /* Gris oscuro de tu paleta con transparencia */
+  background-color: rgba(30, 27, 36, 0.7);
   display: flex; align-items: center; justify-content: center;
   z-index: 2500;
   backdrop-filter: blur(4px);
 }
 
 .modal-wrapper {
-  background-color: #f5ebe0; /* Fondo cálido DiCreme/J.Junior */
+  background-color: #f5ebe0;
   width: 850px;
   max-width: 95%;
-  height: 85vh; /* Altura máxima para no salir de pantalla */
+  height: 85vh;
   max-height: 700px;
   border-radius: 20px;
   position: relative;
@@ -246,18 +449,14 @@ const handleAddToCart = () => {
 }
 
 /* PANEL DERECHO (CONFIGURADOR) */
-/* PANEL DERECHO (CONFIGURADOR) */
 .product-info-box {
   padding: 30px;
   display: flex;
   flex-direction: column;
   height: 100%;
   background-color: white;
-  overflow: hidden; /* 🌟 CLAVE 1: Evita que la caja crezca infinitamente */
+  overflow: hidden;
 }
-
-/* SCROLL INTERNO PARA OPCIONES */
-
 
 .header-info { margin-bottom: 20px; border-bottom: 2px solid #eeedee; padding-bottom: 15px;}
 .tag { font-size: 0.85rem; font-weight: 900; color: var(--DC-orange); text-transform: uppercase; letter-spacing: 1px;}
@@ -271,24 +470,25 @@ const handleAddToCart = () => {
   display: flex;
   flex-direction: column;
   gap: 25px;
-  min-height: 0; /* 🌟 CLAVE 2: Le avisa a Flexbox que aquí debe empezar el scroll */
+  min-height: 0;
 }
 
-/* Custom Scrollbar */
 .scrollable-config::-webkit-scrollbar { width: 6px; }
 .scrollable-config::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
 .scrollable-config::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
 
 .section-subtitle { font-size: 1rem; font-weight: 800; color: var(--DC-gray); margin-bottom: 12px; }
+.subtitle-hint { font-size: 0.8rem; font-weight: 600; color: var(--DC-orange); }
 
 /* 1. TAMAÑOS (PILLS) */
 .size-pills { display: flex; flex-wrap: wrap; gap: 10px; }
 .size-pill {
   padding: 8px 16px; border-radius: 20px; font-weight: 800; font-size: 0.9rem;
   background: white; border: 2px solid #eeedee; color: var(--DC-text-gray);
-  cursor: pointer; transition: all 0.2s;
+  cursor: pointer; transition: all 0.2s; display: flex; gap: 6px; align-items: center;
 }
 .size-pill.active { background: var(--DC-orange); border-color: var(--DC-orange); color: white; }
+.pill-price { opacity: 0.9; font-weight: 700; font-size: 0.85rem; }
 
 /* 2. TIPOS (RADIOS) */
 .types-list { display: flex; flex-direction: column; gap: 10px; }
@@ -299,6 +499,14 @@ const handleAddToCart = () => {
 }
 .type-row:hover { border-color: #ccc; }
 .type-row.active { border-color: var(--DC-orange); background-color: rgba(226, 135, 67, 0.05); }
+.type-row.disabled {
+  opacity: 0.55;
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  cursor: not-allowed !important;
+}
+.type-row.disabled .t-name { color: #94a3b8; }
+.type-price-box { display: flex; align-items: center; gap: 8px; }
 
 .type-info { display: flex; align-items: center; gap: 12px; }
 .radio-circle { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #ccc; display: flex; align-items: center; justify-content: center; }
@@ -317,15 +525,28 @@ const handleAddToCart = () => {
   border: 1px solid #eeedee; cursor: pointer; transition: all 0.2s;
 }
 .ingredient-item:hover { background: #f1f3f5; }
-.ingredient-item.removed { opacity: 0.6; background-color: #fff0f3; border-color: #ffc9c9; }
+.ingredient-item.removed { opacity: 0.7; background-color: #fff0f3; border-color: #ffc9c9; }
+.ingredient-item.added { background-color: #ebfbee; border-color: #b2f2bb; }
+.ingredient-item.out-of-stock {
+  opacity: 0.55;
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  cursor: not-allowed !important;
+}
+.ingredient-item.out-of-stock .ing-name {
+  color: #94a3b8;
+  text-decoration: line-through;
+}
 .ing-left { display: flex; align-items: center; gap: 12px; }
 .custom-checkbox { width: 18px; height: 18px; accent-color: var(--DC-orange); cursor: pointer; }
+.custom-checkbox:disabled { cursor: not-allowed; }
 .ingredient-item.removed .ing-name { text-decoration: line-through; color: var(--DC-text-gray); }
 .ing-name { font-weight: 700; color: var(--DC-gray); font-size: 0.9rem; }
 
-.status-badge { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; }
+.status-badge { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; }
 .status-badge.removed { background: #ffc9c9; color: #c92a2a; }
-.status-badge.no-stock { background: #e9ecef; color: #868e96; }
+.status-badge.added { background: #b2f2bb; color: #2b8a3e; }
+.status-badge.no-stock { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
 
 /* FOOTER COMPRAS */
 .purchase-actions {
@@ -356,6 +577,13 @@ const handleAddToCart = () => {
 }
 .add-to-cart-btn:hover { background-color: var(--DC-orange); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(226, 135, 67, 0.3); }
 .add-to-cart-btn:active { transform: translateY(0); }
+.add-to-cart-btn:disabled {
+  background-color: #cbd5e1 !important;
+  color: #94a3b8 !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
 .btn-text { font-weight: 900; font-size: 1rem; letter-spacing: 1px;}
 .btn-total { font-weight: 900; font-size: 1.2rem; }
 
@@ -364,7 +592,7 @@ const handleAddToCart = () => {
 .pop-enter-from, .pop-leave-to { opacity: 0; }
 .pop-enter-from .modal-wrapper, .pop-leave-to .modal-wrapper { transform: scale(0.95) translateY(20px); }
 
-/* 📱 RESPONSIVIDAD */
+/* RESPONSIVIDAD */
 @media (max-width: 768px) {
   .modal-wrapper { 
     height: 95vh; 
@@ -374,13 +602,11 @@ const handleAddToCart = () => {
 
   .modal-grid { 
     grid-template-columns: 1fr; 
-    /* 🌟 CLAVE: Usamos 'auto' para la imagen para que solo ocupe lo que necesita,
-       y '1fr' para que la info ocupe todo el resto del espacio disponible */
     grid-template-rows: auto 1fr; 
   }
 
   .product-img-box {
-    height: 180px; /* 🌟 AJUSTE: Reducimos de 250px a 180px */
+    height: 180px;
     width: 100%;
   }
 
@@ -391,12 +617,11 @@ const handleAddToCart = () => {
 
   .product-info-box { 
     padding: 20px; 
-    overflow-y: auto; /* 🌟 Esto permite que el contenido scrollée dentro de la caja */
+    overflow-y: auto;
   }
 
-  /* Aseguramos que la sección scrollable no empuje los botones fuera de la pantalla */
   .scrollable-config {
-    gap: 15px; /* Un poco más compacto en móvil */
+    gap: 15px;
   }
 
   .purchase-actions { 

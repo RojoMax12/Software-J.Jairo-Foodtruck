@@ -11,6 +11,11 @@ class UsuarioRepository
         return Usuario::create($data);
     }
 
+    public function existsByEmail($correo)
+    {
+        return Usuario::where('correo', $correo)->exists();
+    }
+
     # Geters
     public function getAllUsuarios()
     {
@@ -55,6 +60,18 @@ class UsuarioRepository
         return null;
     }
 
+    public function getUsuariosAdministrativos()
+    {
+        return Usuario::whereHas('rol', function ($query) {
+            $query->whereIn('nombre_rol', [
+                'Admin',
+                'Trabajador'
+            ]);
+        })
+        ->orderBy('id_usuario')
+        ->get();
+    }
+
     # Seters
     public function updateUsuario($id, $data)
     {
@@ -64,6 +81,13 @@ class UsuarioRepository
             return $usuario;
         }
         return null;
+    }
+
+    public function existsByEmailExceptUser($correo, $id)
+    {
+        return Usuario::where('correo', $correo)
+            ->where('id_usuario', '!=', $id)
+            ->exists();
     }
 
     # Delete

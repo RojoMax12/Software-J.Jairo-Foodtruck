@@ -6,7 +6,7 @@
       </button>
       
       <div class="brand-group" @click="goToHome">
-        <img src="@/assets/logo_jairo.png" alt="J.jairo logo" class="brand-logo" />
+        <img src="@/assets/logo_jairo.webp" alt="J.Jairo Logo" class="brand-logo" />
         <div class="brand-info">
           <span class="brand-text">J.Junior</span>
         </div>
@@ -16,7 +16,7 @@
     <div class="nav-right">
       <div class="session-display">
         <div class="user-avatar">
-          <UserIcon :size="20" />
+          <UserIcon :size="18" />
         </div>
         <div class="user-details">
           <span class="user-role">Sesión {{ userRoleName }}</span>
@@ -25,35 +25,38 @@
       </div>
 
       <button class="btn-logout-icon" @click="handleLogout" title="Cerrar Sesión">
-        <LogOut :size="20" />
+        <LogOut :size="18" />
       </button>
     </div>
   </nav>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { LogOut, User as UserIcon, Menu } from 'lucide-vue-next'
 
 const router = useRouter()
-const username = ref('')
-const userRoleName = ref('Administrador') // Variable para el texto del rol
-const roleId = ref<number | null>(null)   // Para guardar el ID y enrutar
+const route = useRoute()
+const username = ref('Usuario')
+const userRoleName = ref('Administrador') 
+const roleId = ref<number | null>(null)   
 
 const checkAuth = () => {
   const userParsed = localStorage.getItem('user')
   if (userParsed) {
     try {
       const userObj = JSON.parse(userParsed)
-      username.value = userObj.nombre_usuario || userObj.nombre || 'Usuario'
-      roleId.value = userObj.id_rol
+      username.value = userObj.nombre || userObj.nombre_usuario || userObj.nombre_empresa || userObj.name || userObj.correo || 'Usuario'
+      const rId = Number(userObj.id_rol || 1)
+      roleId.value = rId
       
-      // Asignamos el nombre del rol visualmente según el ID
-      if (userObj.id_rol == 1) {
+      if (rId === 1) {
         userRoleName.value = 'Administrador'
-      } else if (userObj.id_rol == 2) {
-        userRoleName.value = 'Trabajador' // O "Cajero", según prefieras
+      } else if (rId === 2) {
+        userRoleName.value = 'Trabajador'
+      } else if (rId === 3) {
+        userRoleName.value = 'Cliente'
       } else {
         userRoleName.value = 'Staff'
       }
@@ -65,6 +68,11 @@ const checkAuth = () => {
 
 onMounted(() => {
   checkAuth()
+  window.addEventListener('storage', checkAuth)
+})
+
+watch(() => route.path, () => {
+  checkAuth()
 })
 
 const emit = defineEmits(['toggleSidebar'])
@@ -74,15 +82,8 @@ const handleLogout = () => {
   router.push('/')
 }
 
-// Enrutamiento dinámico al presionar el logo
 const goToHome = () => {
-  if (roleId.value == 1) {
-    router.push('/admin')
-  } else if (roleId.value == 2) {
-    router.push('/trabajador') // Cambia esto por la ruta real de tu panel de trabajadores
-  } else {
-    router.push('/')
-  }
+  router.push('/general-home')
 }
 
 const toggleSidebar = () => {
@@ -92,9 +93,9 @@ const toggleSidebar = () => {
 
 <style scoped>
 .admin-navbar {
-  background-color: var(--DC-brown);
-  height: 80px;
-  padding: 0 40px;
+  background-color: var(--DC-brown, #513119);
+  height: 75px;
+  padding: 0 30px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -102,46 +103,45 @@ const toggleSidebar = () => {
   position: sticky;
   top: 0;
   z-index: 1000;
-  width: 100%; /* Asegura que no sobrepase el ancho */
-  box-sizing: border-box; /* Previene el desbordamiento horizontal */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .nav-left {
   display: flex;
   align-items: center;
-  gap: 20px;
-  overflow: hidden; /* Evita que el logo estire el contenedor */
+  gap: 15px;
+  flex-shrink: 0;
 }
 
 .btn-menu {
   background: none;
   border: none;
-  color: var(--button-color);
+  color: #ffffff;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
+  padding: 6px;
   border-radius: 8px;
   transition: background-color 0.2s ease;
-  flex-shrink: 0; /* Evita que el botón se aplaste */
+  flex-shrink: 0;
 }
 
 .btn-menu:hover {
-  background-color: var(--button-hover);
-  color: var(--DC-brown);
+  background-color: rgba(255, 255, 255, 0.15);
 }
 
 .brand-group {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 10px;
   cursor: pointer;
-  flex-shrink: 1; /* Permite que se comprima si es necesario */
+  flex-shrink: 0;
 }
 
 .brand-logo {
-  height: 55px;
+  height: 48px;
   object-fit: contain;
   flex-shrink: 0;
 }
@@ -155,38 +155,39 @@ const toggleSidebar = () => {
   color: #ffffff;
   font-family: 'Arial Black', Impact, sans-serif;
   font-style: italic;
-  font-size: clamp(1.2rem, 3vw, 2.5rem); /* Ajustado para que en celular no se desborde */
+  font-size: clamp(1.2rem, 3vw, 2.2rem); 
   font-weight: 900;
   letter-spacing: 1px;
   text-transform: uppercase;
   margin: 0;
   white-space: nowrap;
+
   text-shadow: 
     -2px -2px 0 #000,  2px -2px 0 #000, -2px  2px 0 #000,  2px  2px 0 #000,
-    5px  5px 0px rgba(0, 0, 0, 0.4);
+    4px  4px 0px rgba(0, 0, 0, 0.4);
 }
 
 .nav-right {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 12px;
   flex-shrink: 0;
 }
 
 .session-display {
   display: flex;
   align-items: center;
-  gap: 12px;
-  background-color: var(--button-color);
-  padding: 8px 16px;
+  gap: 10px;
+  background-color: #F4E1D2;
+  padding: 6px 14px;
   border-radius: 50px;
-  border: 1px solid #000000;
+  border: 1px solid #513119;
 }
 
 .user-avatar {
-  width: 36px;
-  height: 36px;
-  background-color: black;
+  width: 32px;
+  height: 32px;
+  background-color: var(--DC-brown, #513119);
   color: white;
   border-radius: 50%;
   display: flex;
@@ -200,15 +201,15 @@ const toggleSidebar = () => {
   flex-direction: column;
 }
 
-.user-role { font-size: 0.7rem; color: var(--DC-brown); font-weight: 600; text-transform: uppercase; }
-.user-name { font-size: 0.95rem; font-weight: 700; color: #322c44; white-space: nowrap; }
+.user-role { font-size: 0.65rem; color: #7a410f; font-weight: 800; text-transform: uppercase; }
+.user-name { font-size: 0.88rem; font-weight: 800; color: #513119; white-space: nowrap; }
 
 .btn-logout-icon {
-  background-color: var(--button-color);
-  color: var(--DC-brown);
-  border: none;
-  width: 40px;
-  height: 40px;
+  background-color: #F4E1D2;
+  color: var(--DC-brown, #513119);
+  border: 1px solid #513119;
+  width: 36px;
+  height: 36px;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -219,40 +220,48 @@ const toggleSidebar = () => {
 }
 
 .btn-logout-icon:hover {
-  background-color: var(--button-hover);
+  background-color: var(--DC-orange, #e28743);
+  color: white;
   transform: scale(1.05);
 }
 
 @media (max-width: 768px) {
   .admin-navbar {
     padding: 0 10px;
-    height: 70px;
+    height: 65px;
   }
   
-  .nav-left { gap: 8px; }
-  .brand-group { gap: 6px; }
-  .brand-logo { height: 35px; } /* Un poquito más chico para asegurar espacio */
-  
-  .nav-right { gap: 8px; }
-  
-  .user-details { display: none; } 
-  
-  /* 🌟 CORRECCIÓN AQUÍ: El contenedor de sesión en móvil */
-  .session-display {
-    padding: 6px; /* Padding uniforme */
-    border-radius: 50%;
-    width: 40px;  /* Forzamos tamaño cuadrado/circular */
-    height: 40px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border: 1px solid #000;
+  .nav-left { 
+    gap: 6px;
+  } 
+
+  .brand-logo { 
+    height: 36px; 
   }
 
-  .user-avatar {
-    width: 100%; /* Ocupa el espacio del círculo */
-    height: 100%;
-    margin: 0;
+  .brand-text {
+    font-size: 1.1rem;
+  }
+  
+  .session-display {
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  .user-role {
+    font-size: 0.55rem;
+  }
+
+  .user-name {
+    font-size: 0.75rem;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .btn-logout-icon {
+    width: 34px;
+    height: 34px;
   }
 }
 </style>

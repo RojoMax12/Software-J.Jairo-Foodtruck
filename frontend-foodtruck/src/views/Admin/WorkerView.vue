@@ -1,3 +1,1336 @@
 <template>
-    
+  <div class="dashboard">
+    <!-- Titulo -->
+    <header class="orders-header">
+      <h1 class="orders-title">Gestión de trabajadores</h1>
+      <p class="orders-description">Administración trabajadores de Foodtruck J.Junior</p>
+    </header>
+
+    <!-- Tarjetas estadisticas -->
+    <div class="cards">
+        <div class="card">
+
+            <div class="card-left">
+                <div class="icon-box bg-admin">
+                    <ShieldCheck :size="24"/>
+                </div>
+                <span class="card-label">
+                    Administradores
+                </span>
+            </div>
+
+            <div class="card-right">
+                <span class="card-count">
+                    {{ adminWorkers }}
+                </span>
+            </div>
+
+        </div>
+
+        <div class="card">
+
+            <div class="card-left">
+                <div class="icon-box bg-workers">
+                    <Users :size="24"/>
+                </div>
+                <span class="card-label">
+                    Trabajadores
+                </span>
+            </div>
+
+            <div class="card-right">
+                <span class="card-count">
+                    {{ regularWorkers }}
+                </span>
+            </div>
+
+        </div>
+
+        <div class="card">
+
+            <div class="card-left">
+                <div class="icon-box bg-active">
+                    <UserCheck :size="24"/>
+                </div>
+                <span class="card-label">
+                    Activos
+                </span>
+            </div>
+
+            <div class="card-right">
+                <span class="card-count">
+                    {{ activeWorkers }}
+                </span>
+            </div>
+
+        </div>
+
+        <div class="card">
+
+            <div class="card-left">
+                <div class="icon-box bg-inactive">
+                    <UserX :size="24"/>
+                </div>
+                <span class="card-label">
+                    Inactivos
+                </span>
+            </div>
+
+            <div class="card-right">
+                <span class="card-count">
+                    {{ inactiveWorkers }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla principal -->
+    <div class="workers-container">
+
+        <div class="table-toolbar">
+
+            <div class="search-worker">
+                <Search :size="18" class="search-icon" />
+                <input v-model="searchQuery" placeholder="Buscar trabajador">
+            </div>
+
+            <!-- Filtro Rol -->
+            <div ref="roleDropdownRef" class="dropdown-container">
+
+                <button class="btn-secondary" @click.stop="toggleRoleDropdown">
+                    <Users :size="18"/>
+
+                    <span>
+                        {{
+                            selectedRole === 'all'
+                                ? 'Todos los roles'
+                                : selectedRole
+                        }}
+                    </span>
+
+                    <ChevronDown :size="16"/>
+                </button>
+
+                <div
+                    class="dropdown-menu"
+                    v-if="isRoleDropdownOpen"
+                >
+                    <div
+                        class="dropdown-item"
+                        @click="selectRole('all')"
+                    >
+                        Todos
+                    </div>
+
+                    <div class="dropdown-divider"></div>
+
+                    <div
+                        class="dropdown-item"
+                        @click="selectRole('Administrador')"
+                    >
+                        Administrador
+                    </div>
+
+                    <div
+                        class="dropdown-item"
+                        @click="selectRole('Trabajador')"
+                    >
+                        Trabajador
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Filtro Estado -->
+            <div ref="statusDropdownRef" class="dropdown-container">
+
+                <button
+                    class="btn-secondary"
+                    @click.stop="toggleStatusDropdown"
+                >
+                    <CircleDot :size="18"/>
+
+                    <span>{{ selectedStatusLabel }}</span>
+
+                    <ChevronDown :size="16"/>
+                </button>
+
+                <div
+                    class="dropdown-menu"
+                    v-if="isStatusDropdownOpen"
+                >
+                    <div
+                        class="dropdown-item"
+                        @click="selectStatus('all')"
+                    >
+                        Todos
+                    </div>
+
+                    <div class="dropdown-divider"></div>
+
+                    <div
+                        class="dropdown-item"
+                        @click="selectStatus(true)"
+                    >
+                        Activo
+                    </div>
+
+                    <div
+                        class="dropdown-item"
+                        @click="selectStatus(false)"
+                    >
+                        Inactivo
+                    </div>
+
+                </div>
+
+            </div>
+
+            <button
+                class="new-worker"
+                @click="openCreateWorkerModal"
+            >
+                <Plus :size="18" />
+                <span>Nuevo trabajador</span>
+            </button>
+
+            <CreateWorkerModal
+                :isOpen="isCreateWorkerModalOpen"
+                @close="closeCreateWorkerModal"
+                @workerCreated="loadWorkers"
+            />
+
+        </div>
+
+        <div class="table-content">
+
+            <table class="workers-table">
+
+                <thead class="table-header">
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody v-if="isLoading" class="table-body">
+                    <tr v-for="n in 4" :key="'work-skel-' + n" class="skeleton-row">
+                        <td><div class="skeleton-pill width-50"></div></td>
+                        <td><div class="skeleton-pill width-120"></div></td>
+                        <td><div class="skeleton-pill width-80"></div></td>
+                        <td><div class="skeleton-pill width-70"></div></td>
+                        <td><div class="skeleton-pill width-60"></div></td>
+                    </tr>
+                </tbody>
+
+                <tbody v-else class="table-body">
+                    <tr
+                        v-if="paginatedWorkers.length === 0"
+                        class="empty-row"
+                    >
+                        <td colspan="5" class="text-center padding-large">
+                            <div class="empty-state">
+                                <UserRoundX :size="48" class="empty-icon" />
+                                <p>No se encontraron trabajadores</p>
+                                <button @click="loadWorkers" class="btn-retry">Actualizar datos</button>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <tr
+                        v-else
+                        v-for="worker in paginatedWorkers"
+                        :key="worker.id_usuario"
+                        class="table-row"
+                    >
+
+                        <td>{{ worker.id_usuario }}</td>
+
+                        <td>{{ worker.nombre }}</td>
+
+                        <td>{{ getRoleName(worker.id_rol) }}</td>
+
+                        <td>
+                            <label
+                                class="status-switch"
+                                :class="{ active: worker.estado, inactive: !worker.estado }"
+                            >
+                                <input
+                                    type="checkbox"
+                                    :checked="worker.estado"
+                                    @change="toggleWorker(worker)"
+                                />
+
+                                <span class="slider"></span>
+
+                                <span class="status-text">
+                                    {{ worker.estado ? "Activo" : "Inactivo" }}
+                                </span>
+                            </label>
+                        </td>
+
+                        <td class="actions-column">
+
+                            <button class="action-icon detail-action" @click="openWorkerDetail(worker)">
+                                <Eye :size="18" />
+                            </button>
+
+                            <button class="action-icon edit-action" @click="openEditWorkerModal(worker)">
+                                <SquarePen :size="18" />
+                            </button>
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+            <ConfirmStatusWorkerModal
+                :isOpen="isConfirmStatusModalOpen"
+                :isActivating="workerToToggle?.estado === false"
+                @close="closeConfirmStatusModal"
+                @confirm="confirmToggleWorker"
+            />
+
+            <ViewDetailWorkerModal
+                :show="showDetailWorkerModal"
+                :worker="selectedWorker"
+                @close="closeWorkerDetail"
+            />
+
+            <EditWorkerModal
+                :isOpen="isEditWorkerModalOpen"
+                :worker="selectedWorker"
+                @close="closeEditWorkerModal"
+                @save="updateWorker"
+            />
+
+        </div>
+
+        <div class="table-footer">
+
+            <div class="footer-info">
+
+                <span v-if="totalWorkers > 0">
+                    {{ startIndex }}–{{ endIndex }}
+                    de
+                    {{ totalWorkers }}
+                    trabajadores
+                </span>
+
+                <span v-else>
+                    0 trabajadores
+                </span>
+
+            </div>
+
+            <div class="footer-actions">
+
+                <button
+                    class="btn secondary"
+                    :disabled="totalWorkers === 0 || currentPage === 1"
+                    @click="previousPage"
+                >
+                    Anterior
+                </button>
+
+                <span>{{ currentPage }} / {{ totalPages }}</span>
+
+                <button
+                    class="btn secondary"
+                    :disabled="totalWorkers === 0 || currentPage === totalPages"
+                    @click="nextPage"
+                >
+                    Siguiente
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+  </div>
+
 </template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { useNotification } from '@/composables/useNotification'
+import { SquarePen, Search, ShieldCheck, Users, UserCheck, UserX, CircleDot, ChevronDown, Plus, Eye, UserRoundX } from 'lucide-vue-next';
+import userService from '@/services/userService';
+import type { Worker, UpdateWorkerRequest } from '@/services/userService';
+import CreateWorkerModal from '@/views/Admin/CreateWorkerModal.vue';
+import EditWorkerModal from '@/views/Admin/EditWorkerModal.vue';
+import ViewDetailWorkerModal from '@/views/Admin/ViewDetailWorkerModal.vue';
+import ConfirmStatusWorkerModal from '@/views/Admin/ConfirmStatusWorkerModal.vue';
+import { useModalScrollLock } from '@/composables/useModalScrollLock'
+
+type RoleFilter = 'all' | 'Administrador' | 'Trabajador'
+type StatusFilter = 'all' | true | false
+
+const { notify } = useNotification()
+const isLoading = ref(true);
+const workers = ref<Worker[]>([]);
+
+/* 1. Variables reactivas */
+const isRoleDropdownOpen = ref(false)
+const isStatusDropdownOpen = ref(false)
+const isCreateWorkerModalOpen = ref(false)
+const isEditWorkerModalOpen = ref(false)
+const showDetailWorkerModal = ref(false)
+const isConfirmStatusModalOpen = ref(false)
+const workerToToggle = ref<Worker | null>(null)
+const searchQuery = ref("")
+const roleDropdownRef = ref<HTMLElement | null>(null)
+const statusDropdownRef = ref<HTMLElement | null>(null)
+const selectedRole = ref<RoleFilter>('all')
+const selectedStatus = ref<StatusFilter>('all')
+const selectedWorker = ref<Worker | null>(null)
+const currentPage = ref(1)
+const pageSize = 10
+
+/* Manejo de modales para restricción de scroll */
+const isAnyModalOpen = computed(() =>
+    isCreateWorkerModalOpen.value ||
+    isEditWorkerModalOpen.value ||
+    showDetailWorkerModal.value ||
+    isConfirmStatusModalOpen.value
+)
+
+useModalScrollLock(isAnyModalOpen)
+
+/* 1. Carga de trabajadores + administradores */
+const loadWorkers = async () => {
+    isLoading.value = true
+    try {
+        const response = await userService.getWorkers()
+        workers.value = response.data
+    } catch (error) {
+        console.error('Error cargando trabajadores:', error)
+    } finally {
+        isLoading.value = false
+    }
+}
+
+/* 2. Funciones para tarjetas estadisticas */
+
+/* Conteo de administradores */
+const adminWorkers = computed(() => {
+    return (workers.value || []).filter(
+        worker => worker.id_rol === 1
+    ).length
+})
+
+/* Conteo de trabajadores */
+const regularWorkers = computed(() => {
+    return (workers.value || []).filter(
+        worker => worker.id_rol === 3
+    ).length
+})
+
+/* Conteo de trabajadores activos */
+const activeWorkers = computed(() =>
+    workers.value.filter(worker => worker.estado).length
+)
+
+/* Conteo de trabajadores inactivos */
+const inactiveWorkers = computed(() =>
+    workers.value.filter(worker => !worker.estado).length
+)
+
+/* 3. Funciones para filtros */
+const filteredWorkers = computed(() => {
+    return workers.value.filter(worker => {
+        const matchesName =
+            worker.nombre
+                .toLowerCase()
+                .includes(searchQuery.value.toLowerCase())
+
+        const matchesRole =
+            selectedRole.value === 'all' ||
+            getRoleName(worker.id_rol) === selectedRole.value
+
+        const matchesStatus =
+            selectedStatus.value === 'all' ||
+            worker.estado === selectedStatus.value
+
+        return matchesName && matchesRole && matchesStatus
+    })
+})
+
+watch(
+    [searchQuery, selectedRole, selectedStatus],
+    () => {
+        currentPage.value = 1
+    }
+)
+
+const toggleRoleDropdown = () => {
+    isStatusDropdownOpen.value = false
+    isRoleDropdownOpen.value = !isRoleDropdownOpen.value
+}
+
+const toggleStatusDropdown = () => {
+    isRoleDropdownOpen.value = false
+    isStatusDropdownOpen.value = !isStatusDropdownOpen.value
+}
+
+const closeDropdowns = () => {
+    isRoleDropdownOpen.value = false
+    isStatusDropdownOpen.value = false
+}
+
+const handleClickOutside = (event: MouseEvent) => {
+
+    const target = event.target as Node
+
+    const clickedRole =
+        roleDropdownRef.value?.contains(target)
+
+    const clickedStatus =
+        statusDropdownRef.value?.contains(target)
+
+    if (!clickedRole && !clickedStatus) {
+        closeDropdowns()
+    }
+}
+
+const selectRole = (role: RoleFilter) => {
+    selectedRole.value = role
+    isRoleDropdownOpen.value = false
+}
+
+const selectStatus = (status: StatusFilter) => {
+    selectedStatus.value = status
+    isStatusDropdownOpen.value = false
+}
+
+const selectedStatusLabel = computed(() => {
+
+    if (selectedStatus.value === "all") {
+        return "Todos los estados"
+    }
+
+    return selectedStatus.value
+        ? "Activo"
+        : "Inactivo"
+
+})
+
+const getRoleName = (idRol: number) => {
+    return idRol === 1
+        ? 'Administrador'
+        : 'Trabajador'
+}
+
+/* 4. Funciones para controlar el modal de ver detalle de trabajadores */
+const openWorkerDetail = (worker: Worker) => {
+    selectedWorker.value = worker
+    showDetailWorkerModal.value = true
+}
+
+const closeWorkerDetail = () => {
+    showDetailWorkerModal.value = false
+    selectedWorker.value = null
+}
+
+/* 5. Funciones para controlar el modal de creacion de trabajadores */
+const openCreateWorkerModal = () => {
+    closeDropdowns()
+    isCreateWorkerModalOpen.value = true
+}
+
+const closeCreateWorkerModal = () => {
+    isCreateWorkerModalOpen.value = false
+}
+
+/* 6. Funciones para cambiar el estado de un trabajador */
+const toggleWorker = (worker: Worker) => {
+    workerToToggle.value = worker
+    isConfirmStatusModalOpen.value = true
+}
+
+const closeConfirmStatusModal = () => {
+    isConfirmStatusModalOpen.value = false
+    workerToToggle.value = null
+}
+
+const confirmToggleWorker = async () => {
+    if (!workerToToggle.value) return
+
+    const worker = workerToToggle.value
+    const newStatus = !worker.estado
+
+    const previousStatus = worker.estado
+
+    worker.estado = newStatus
+
+    closeConfirmStatusModal()
+
+    try {
+        await userService.updateUser(
+            worker.id_usuario,
+            {
+                estado: newStatus
+            }
+        )
+
+        notify(
+            newStatus
+                ? 'El trabajador fue activado correctamente.'
+                : 'El trabajador fue desactivado correctamente.',
+            'success'
+        )
+
+    } catch (error) {
+
+        worker.estado = previousStatus
+
+        notify(
+            'No se pudo actualizar el estado del trabajador.',
+            'error'
+        )
+
+        console.error(
+            'Error cambiando estado:',
+            error
+        )
+    }
+}
+
+/* 7. Funciones para controlar el modal de edicion de trabajadores */
+const openEditWorkerModal = (worker: Worker) => {
+    selectedWorker.value = worker
+    isEditWorkerModalOpen.value = true
+}
+
+const closeEditWorkerModal = () => {
+    isEditWorkerModalOpen.value = false
+    selectedWorker.value = null
+}
+
+const updateWorker = async (workerData: UpdateWorkerRequest) => {
+    if (!selectedWorker.value) return
+    try {
+        await userService.updateUser(
+            selectedWorker.value.id_usuario,
+            workerData
+        )
+        await loadWorkers()
+        notify(
+            'El trabajador fue actualizado correctamente.',
+            'success'
+        )
+        closeEditWorkerModal()
+    } catch (error:any) {
+        console.error('Error al actualizar trabajador:', error)
+
+        if (error.response?.status === 409) {
+            notify(
+                error.response.data.message,
+                'error'
+            )
+        } else {
+            notify(
+                'No se pudo actualizar el trabajador.',
+                'error'
+            )
+        }
+    }
+}
+
+/* 8. Funciones para paginacion */
+const totalWorkers = computed(() => filteredWorkers.value.length)
+
+const paginatedWorkers = computed(() => {
+
+    const start = (currentPage.value - 1) * pageSize
+    const end = start + pageSize
+
+    return filteredWorkers.value.slice(start, end)
+
+})
+
+const startIndex = computed(() => {
+    if (totalWorkers.value === 0)
+        return 0
+
+    return (currentPage.value - 1) * pageSize + 1
+})
+
+const endIndex = computed(() => {
+    return Math.min(
+        currentPage.value * pageSize,
+        totalWorkers.value
+    )
+})
+
+const previousPage = () => {
+    if (currentPage.value > 1) {
+        currentPage.value--
+    }
+}
+
+const nextPage = () => {
+    if (currentPage.value < totalPages.value) {
+        currentPage.value++
+    }
+}
+
+const totalPages = computed(() =>
+    Math.max(
+        1,
+        Math.ceil(totalWorkers.value / pageSize)
+    )
+)
+
+onMounted(() => {
+    document.addEventListener('click', handleClickOutside)
+    loadWorkers()
+})
+
+onBeforeUnmount(() => {
+    document.removeEventListener('click', handleClickOutside)
+})
+</script>
+
+<style scoped>
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-row td {
+  padding: 16px 20px;
+}
+
+.skeleton-pill {
+  height: 16px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0ede9 25%, #f8f6f3 50%, #f0ede9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.width-50 { width: 50px; }
+.width-60 { width: 60px; }
+.width-70 { width: 70px; }
+.width-80 { width: 80px; }
+.width-120 { width: 120px; }
+
+/* 0. Contenedor principal */
+.dashboard{
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+    display:grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 40px 20px;
+    box-sizing: border-box;
+}
+
+/* 1. Contenedor titulo */
+.orders-header {
+  width: 100%;
+  margin: 0 0 30px 0;
+}
+
+/* 1.1 Estilo título */
+.orders-title {
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--DC-gray);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+/* 1.2 Estilo descripción */
+.orders-description {
+  font-size: 1rem;
+  color: var(--DC-text-gray);
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+/* 2. Contenedor de tarjetas */
+.cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    gap:20px;
+}
+
+/* 2.1 Tarjetas */
+.card{
+    background:white;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:16px;
+    border-radius:16px;
+    box-shadow:0 4px 15px rgba(0,0,0,.05);
+    border:2px solid lightgray;
+    transition:
+        transform .2s ease,
+        border-color .2s ease;
+}
+
+.card:hover{
+    transform:translateY(-4px);
+    border-color:var(--DC-orange);
+}
+
+/* 2.1.1 Tarjeta seccion izquierda */
+.card-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    flex:1;
+    min-width: 0;
+}
+
+/* 2.1.1.1 Icono tarjeta */
+.icon-box {
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
+
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 2.1.1.2 Nombre tarjeta */
+.card-label {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--DC-gray);
+    text-transform: uppercase;
+}
+
+/* 2.1.2 Tarjeta seccion derecha */
+.card-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+
+    flex-shrink: 0;
+}
+
+/* 2.1.2.1 Contador tarjeta */
+.card-count {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--DC-brown);
+    line-height: 1;
+}
+
+/* 2.1.3 Colores fondo iconos */
+.bg-admin{
+    background:rgba(59,130,246,.10);
+    color:#2563eb;
+}
+
+.bg-workers{
+    background:rgba(168,85,247,.10);
+    color:#9333ea;
+}
+
+.bg-active{
+    background:rgba(46,196,182,.10);
+    color:#2ec4b6;
+}
+
+.bg-inactive{
+    background:rgba(216,0,86,.10);
+    color:var(--DC-pink);
+}
+
+/* 3. Contenedor tabla */
+.workers-container{
+    display:flex;
+    flex-direction: column;
+    background:#ffffff;
+    min-height:350px;
+    border: 2px solid lightgray;
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+/* 3.1 Barra de herramientas */
+.table-toolbar{
+    flex:1;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    padding: 15px;
+    background: #ffffff;
+}
+
+/* 3.1.1 Barra de busqueda */
+.search-worker { position: relative; width: 100%; max-width: 400px; }
+.search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--DC-brown); }
+.search-worker input {
+  width: 100%; padding: 12px 12px 12px 42px; border-radius: 10px;
+  border: 2px solid #eeedee; font-size: 0.95rem; color: var(--DC-gray); font-weight: 600; outline: none; transition: all 0.2s;
+}
+.search-worker input:focus { border-color: var(--DC-orange); }
+
+/* 3.1.2 Filtros de busqueda */
+.dropdown-container { position: relative; }
+.btn-secondary { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background-color: white; border: 2px solid #eeedee; border-radius: 10px; color: var(--DC-gray); font-size: 0.9rem; font-weight: 800; cursor: pointer; transition: border-color .2s, background-color .2s, color .2s; white-space: nowrap;}
+.btn-secondary:hover { border-color: var(--DC-brown); }
+
+.dropdown-menu { position: absolute; top: calc(100% + 8px); left: 0; background-color: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); border: 2px solid var(--DC-brown); width: 100%; min-width: 220px; z-index: 100; padding: 8px; }
+.dropdown-item { padding: 10px 16px; font-size: 0.85rem; font-weight: 700; color: var(--DC-gray); cursor: pointer; border-radius: 8px; transition: background-color .2s, color .2s; }
+.dropdown-item:hover { background-color: var(--DC-bg-gray); color: var(--DC-orange); }
+.dropdown-divider { height: 1px; background-color: #eeedee; margin: 6px 0; }
+
+/* 3.1.3 Boton de nuevo trabajador */
+.new-worker{
+    margin-left:auto;
+
+    display:flex;
+    align-items:center;
+    gap:10px;
+
+    padding:12px 18px;
+
+    border:none;
+    border-radius:10px;
+
+    background:var(--DC-orange);
+    color:white;
+
+    font-size:.9rem;
+    font-weight:800;
+
+    cursor:pointer;
+
+    transition:
+        background-color .2s,
+        transform .15s,
+        box-shadow .2s;
+}
+
+.new-worker:hover{
+    background:var(--DC-brown);
+    box-shadow:0 6px 16px rgba(0,0,0,.12);
+}
+
+.new-worker:active{
+    transform:scale(.98);
+}
+
+.new-worker svg{
+    flex-shrink:0;
+}
+
+/* 3.2 Contenedor contenido tabla */
+.table-content {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* 3.2.1 Contenido tabla */
+.workers-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 700px;
+}
+
+.workers-table th:last-child,
+.workers-table td:last-child {
+    text-align: center;
+}
+
+/* 3.2.1.1 Encabezado de tabla */
+.table-header {
+    background-color: var(--DC-brown);
+}
+
+/* 3.2.1.1.1 Bloques de header */
+.table-header th {
+    padding: 1rem;
+    text-align: left;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: white;
+
+    position: sticky;
+    top: 0;
+    z-index: 2;
+
+    background-color: var(--DC-brown);
+}
+
+/* 3.2.1.2 Cuerpo de tabla */
+.table-body {
+    background-color: white;
+}
+
+.text-center { 
+    text-align: center; 
+}
+
+.padding-large { 
+    padding: 60px !important; 
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  color: var(--DC-text-gray);
+  font-weight: 700;
+  min-height: 240px;
+  padding: 24px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.empty-icon { 
+    color: var(--DC-brown); opacity: 0.5; 
+}
+
+.btn-retry { 
+    padding: 10px 24px; 
+    background-color: var(--DC-orange); 
+    color: white; border: none; 
+    border-radius: 8px; font-weight: 900; 
+    cursor: pointer; 
+    transition: background-color 0.2s; 
+}
+
+.btn-retry:hover { 
+    background-color: var(--DC-brown); 
+}
+
+/* 3.2.1.2.1 Filas de la tabla */
+.table-row {
+    transition: background-color 0.2s ease;
+}
+
+.table-row:hover td{
+    background-color: #f8f9fa;
+}
+
+/* 3.2.1.2.2 Bloques de las filas */
+.table-row td {
+    padding:1rem;
+    border-bottom: 1px solid #e9ecef;
+    color: #343a40;
+}
+
+/* 3.2.1.2.3 Seccion de switch de estado */
+.status-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    padding: 0.35rem 0.8rem;
+
+    border-radius: 999px;
+
+    font-size: 0.85rem;
+    font-weight: 600;
+
+    cursor: pointer;
+    user-select: none;
+
+    transition: all 0.2s ease;
+}
+
+.status-switch input {
+    display: none;
+}
+
+/* 3.2.1.2.3.1 Texto */
+.status-text {
+    min-width: 60px;
+}
+
+/* 3.2.1.2.3.2 Switch */
+.slider {
+    position: relative;
+
+    width: 40px;
+    height: 22px;
+
+    border-radius: 999px;
+
+    transition: all 0.25s ease;
+}
+
+/* 3.2.1.2.3.3 Círculo del switch */
+.slider::before {
+    content: "";
+
+    position: absolute;
+    top: 3px;
+    left: 3px;
+
+    width: 16px;
+    height: 16px;
+
+    border-radius: 50%;
+    background: white;
+
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+
+    transition: transform 0.25s ease;
+}
+
+/* 3.2.1.2.3.4 Color activo */
+.status-switch.active {
+    color: #198754;
+    background: #d1e7dd;
+}
+
+.status-switch.active .slider {
+    background: #198754;
+}
+
+.status-switch.active .slider::before {
+    transform: translateX(18px);
+}
+
+/* 3.2.1.2.3.5 Color inactivo */
+.status-switch.inactive {
+    color: #dc3545;
+    background: #f8d7da;
+}
+
+.status-switch.inactive .slider {
+    background: #dc3545;
+}
+
+.status-switch.inactive .slider::before {
+    transform: translateX(0);
+}
+
+/* 3.2.1.2.3.6 Hover */
+.status-switch:hover {
+    filter: brightness(0.98);
+}
+
+.status-switch input:focus-visible + .slider {
+    outline: 3px solid rgba(79, 70, 229, 0.2);
+    outline-offset: 2px;
+}
+
+/* 3.2.1.2.4 Acciones */
+.actions-column{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: .5rem;
+}
+
+/* 3.2.1.2.4.1 Botones de acciones */
+.action-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 36px;
+    height: 36px;
+
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+
+    cursor: pointer;
+
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease,
+        transform 0.15s ease,
+        box-shadow 0.2s ease;
+}
+
+
+/* 3.2.1.2.4.1.1 Botón de detalle */
+.detail-action {
+    color: #2563eb;
+}
+
+.detail-action:hover {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.12);
+}
+
+.detail-action:focus-visible {
+    outline: none;
+    box-shadow:
+        0 0 0 3px rgba(37, 99, 235, 0.18),
+        0 4px 10px rgba(37, 99, 235, 0.12);
+}
+
+
+/* 3.2.1.2.4.1.2 Botón de editar */
+.edit-action {
+    color: #ff9500;
+}
+
+.edit-action:hover {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+    color: #bc5e00;
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.12);
+}
+
+.edit-action:focus-visible {
+    outline: none;
+    box-shadow:
+        0 0 0 3px rgba(79, 70, 229, 0.18),
+        0 4px 10px rgba(79, 70, 229, 0.12);
+}
+
+
+/* Estado al presionar cualquier botón */
+.action-icon:active {
+    transform: scale(0.95);
+}
+
+/* 3.3 Pie de tabla */
+.table-footer{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:20px 24px;
+    border-top:2px solid #eeedee;
+}
+
+/* 3.3.1 Informacion (total trabajadores) */
+.footer-info{
+    font-size:.9rem;
+    font-weight:700;
+    color:var(--DC-gray);
+}
+
+/* 3.3.2 Acciones de paginacion */
+.footer-actions{
+    display:flex;
+    align-items:center;
+    gap:14px;
+}
+
+.footer-actions span{
+    min-width:72px;
+    padding:10px 14px;
+    text-align:center;
+    border:2px solid #eeedee;
+    border-radius:10px;
+    background:white;
+    color:var(--DC-gray);
+    font-size:.9rem;
+    font-weight:800;
+}
+
+.footer-actions button{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-width:110px;
+    padding:12px 18px;
+    border:2px solid #eeedee;
+    border-radius:10px;
+    background:white;
+    color:var(--DC-gray);
+    font-size:.9rem;
+    font-weight:800;
+    cursor:pointer;
+    transition:
+        border-color .2s,
+        background-color .2s,
+        color .2s;
+}
+
+.footer-actions button:hover:not(:disabled){
+    border-color:var(--DC-brown);
+}
+
+.footer-actions button:disabled{
+    opacity:.45;
+    cursor:not-allowed;
+}
+
+/* Tablet */
+@media (max-width: 1024px) {
+    .orders-title { font-size: 1.75rem; }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .dashboard{
+        padding: 15px;
+    }
+
+    .orders-title { font-size: 1.5rem; }
+    .orders-description { font-size: 0.85rem; }
+    .orders-header { margin-bottom: 5px; }
+
+    .table-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-worker {
+        max-width: none;
+    }
+
+    .dropdown-container {
+        width: 100%;
+    }
+
+    .btn-secondary {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .new-worker {
+        width: 100%;
+        margin-left: 0;
+        justify-content: center;
+    }
+
+    .table-footer {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+        padding: 15px;
+    }
+
+    .footer-info {
+        text-align: center;
+    }
+
+    .footer-actions {
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .footer-actions button {
+        min-width: 0;
+        padding: 10px 12px;
+    }
+}
+</style>

@@ -2,21 +2,29 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Ingrediente extends Model
 {
+    use HasFactory;
+
     protected $table = 'ingredientes';
+
+    protected $primaryKey = 'id_ingrediente';
 
     protected $fillable = [
         'nombre',
-        'cantidad',
+        'descripcion',
+        'cantidad_actual',
+        'cantidad_minima',
         'fecha_de_ingreso',
         'disponible',
     ];
 
     protected $casts = [
-        'cantidad'         => 'integer',
+        'cantidad_actual'   => 'integer',
+        'cantidad_minima'   => 'integer',
         'fecha_de_ingreso' => 'datetime',
         'disponible'       => 'boolean',
     ];

@@ -2,22 +2,49 @@
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-container">
       <header class="modal-header">
-        <div>
+        <div class="header-titles">
           <h2 class="modal-title">Pedido #{{ orderId }}</h2>
-          <span class="status-badge" :class="getStatusClass(localStatusId)">{{ localStatus }}</span>
+          <div class="badges-row">
+            <span class="status-badge" :class="getStatusClass(localStatusId)">{{ localStatus }}</span>
+            <span class="status-badge" :class="localPaymentStatusId === 2 ? 'status-paid' : 'status-unpaid'">
+              {{ localPaymentStatusId === 2 ? 'PAGADO' : 'POR PAGAR' }}
+            </span>
+          </div>
         </div>
         <div class="header-actions">
-          <button class="btn-secondary btn-contact" @click="contactClient">
-            <Phone :size="16" /> Contactar
-          </button>
           <button class="btn-close" @click="handleClose"><X /></button>
         </div>
       </header>
 
       <div class="modal-content">
+
         <div class="client-card">
-          <div class="client-row"><User :size="16" /> <strong>{{ distributor }}</strong></div>
-          <div class="client-row"><Phone :size="16" /> {{ phone || 'Sin teléfono' }}</div>
+          <div class="client-row main-client-row">
+            <div><User :size="16" /> <strong>{{ distributor || rawOrder?.nombre_persona || 'Cliente' }}</strong></div>
+            <a v-if="whatsappUrl" :href="whatsappUrl" target="_blank" class="btn-whatsapp" title="Enviar WhatsApp al cliente">
+              <MessageCircle :size="16" /> <span>WhatsApp</span>
+            </a>
+          </div>
+          <div class="client-row"><Phone :size="16" /> {{ customerPhone || 'Sin teléfono' }}</div>
+          <div class="client-row payment-select-row">
+            <DollarSign :size="16" /> 
+            <span>Método de pago:</span>
+            <select v-model="currentPaymentMethod" class="payment-method-select" @change="updatePaymentMethod">
+              <option value="Efectivo">Efectivo</option>
+              <option value="Tarjeta de Débito">Tarjeta de Débito</option>
+              <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
+              <option value="Transferencia">Transferencia</option>
+            </select>
+          </div>
+          <div class="client-notes-section">
+            <label><FileText :size="14" /> <strong>Notas / Instrucciones especiales:</strong></label>
+            <textarea 
+              v-model="orderNotes" 
+              placeholder="Ej: Sin mayonesa en las papas, sin servilletas, retiro 21:30..." 
+              class="order-notes-textarea"
+              rows="2"
+            ></textarea>
+          </div>
         </div>
 
         <div class="products-list">
@@ -43,16 +70,82 @@
               <button class="btn-trash" @click="removeProduct(product.id)"><Trash2 :size="16" /></button>
             </div>
 
-            <div v-if="(product.removedIngredients || []).length" class="product-ingredients">
+            <div v-if="(product.removedIngredients || []).length || (product.addedExtras || []).length" class="product-ingredients">
               <span v-for="ing in product.removedIngredients || []" :key="ing" class="chip chip-removed">
                 Sin: {{ ing }}
                 <button @click="toggleRemovedIngredient(product.id, ing)"><X :size="10" /></button>
+              </span>
+              <span v-for="extra in product.addedExtras || []" :key="extra.name" class="chip chip-extra">
+                + {{ extra.name }} (x{{ extra.quantity }})
+                <button @click="removeExtraFromProduct(product.id, extra.name)"><X :size="10" /></button>
               </span>
             </div>
             <div v-else class="product-ingredients-empty">Sin ajustes de ingredientes</div>
           </div>
         </div>
+        <div class="timeline-container">
+          <div class="timeline-steps">
+            <div 
+              v-for="step in orderSteps" 
+              :key="step.id"
+              class="timeline-step"
+              :class="{ 
+                'active': localStatusId === step.id, 
+                'completed': localStatusId > step.id 
+              }"
+              @click="setOrderStatus(step.id)"
+            >
+              <div class="step-circle">
+                <Check v-if="localStatusId > step.id" :size="14" />
+                <span v-else>{{ step.id }}</span>
+              </div>
+              <span class="step-label">{{ step.name }}</span>
+            </div>
+          </div>
+
+          <!-- BOTONES DE NAVEGACIÓN, PAGO Y CANCELACIÓN -->
+          <div class="status-navigation">
+            <button 
+              class="btn-step" 
+              :disabled="localStatusId <= 1" 
+              @click="stepStatus(-1)"
+            >
+              <ChevronLeft :size="16" /> Anterior
+            </button>
+
+            <button 
+              v-if="localPaymentStatusId !== 2" 
+              class="btn-pay" 
+              @click="markAsPaid"
+            >
+              <DollarSign :size="16" /> Marcar como Pagado
+            </button>
+            <span v-else class="badge-paid-confirmed">
+              <CheckCircle :size="16" /> Pagado
+            </span>
+
+            <button 
+              v-if="localStatusId !== 5"
+              class="btn-cancel-order"
+              @click="cancelOrder"
+            >
+              <XCircle :size="16" /> Cancelar Pedido
+            </button>
+            <span v-else class="badge-cancelled-confirmed">
+              <XCircle :size="16" /> Cancelado
+            </span>
+
+            <button 
+              class="btn-step" 
+              :disabled="localStatusId >= 4" 
+              @click="stepStatus(1)"
+            >
+              Siguiente <ChevronRight :size="16" />
+            </button>
+          </div>
+        </div>
       </div>
+
 
       <footer class="modal-footer">
         <div class="footer-total">
@@ -61,7 +154,6 @@
         </div>
         <div class="footer-actions">
           <button class="btn-secondary" @click="printOrder"><Printer /></button>
-          <button class="btn-primary" @click="changeStatus">Cambiar Estado</button>
         </div>
       </footer>
     </div>
@@ -98,11 +190,17 @@
                 {{ category === 'all' ? 'Todos' : category }}
               </button>
             </div>
-            <div v-if="filteredCatalogProducts.length" class="product-options">
+            <div v-if="isLoadingCatalog" class="product-options">
+              <div v-for="n in 4" :key="'cat-skel-' + n" class="product-option-skeleton">
+                <div class="skeleton-pill width-120"></div>
+                <div class="skeleton-pill width-70 margin-top-4"></div>
+              </div>
+            </div>
+            <div v-else-if="filteredCatalogProducts.length" class="product-options">
               <button
                 v-for="item in filteredCatalogProducts"
                 :key="item.id"
-                class="product-option"
+                class="product-option animate-fade-in"
                 :class="{ active: selectedCatalogProduct?.id === item.id }"
                 @click="selectCatalogProduct(item)"
               >
@@ -113,39 +211,94 @@
             <div v-else class="empty-products">No se encontraron productos con esos filtros.</div>
           </div>
 
-          <div v-if="selectedCatalogProduct" class="picker-section">
+          <div v-if="selectedCatalogProduct && selectedCatalogProduct.sizes?.length" class="picker-section">
             <p class="section-title">Tamaño</p>
             <div class="pill-group">
               <button
                 v-for="size in selectedCatalogProduct.sizes"
-                :key="size"
-                class="pill"
-                :class="{ active: selectedSize === size }"
-                @click="selectedSize = size"
+                :key="typeof size === 'object' ? size.id || size.name : size"
+                class="pill size-pill"
+                :class="{ active: selectedSize === (typeof size === 'object' ? size.name : size) }"
+                @click="selectedSize = typeof size === 'object' ? size.name : size"
               >
-                {{ size }}
+                <span class="size-name">{{ typeof size === 'object' ? size.name : size }}</span>
+                <span v-if="typeof size === 'object' && size.price" class="size-price">${{ formatNumber(size.price) }}</span>
               </button>
             </div>
           </div>
 
-          <div v-if="selectedCatalogProduct" class="picker-section">
-            <p class="section-title">Ingredientes</p>
-            <div class="ingredients-list">
+          <!-- RECETA BASE (SOLO PARA PRODUCTOS ESTÁNDAR: VIANESAS, ASS, CHURRASCOS, LOMITOS, ETC.) -->
+          <div v-if="selectedCatalogProduct && selectedCatalogProduct.tipo_armado !== 'Personalizable' && customizableBaseIngredients.length" class="picker-section">
+            <div class="section-header-row">
+              <p class="section-title">Ingredientes de la receta base</p>
+              <span class="section-subtitle">
+                Desmarca los ingredientes que el cliente desea excluir de este producto
+              </span>
+            </div>
+            <div class="ingredients-grid">
               <label
-                v-for="ingredient in selectedCatalogProduct.ingredients"
-                :key="ingredient.name"
-                class="ingredient-item"
+                v-for="ingredient in customizableBaseIngredients"
+                :key="ingredient.id || ingredient.name"
+                class="ingredient-card"
+                :class="{ removed: excludedIngredients.includes(ingredient.name) }"
               >
-                <div class="ingredient-left">
+                <div class="ingredient-info">
                   <input
                     type="checkbox"
+                    class="ingredient-checkbox"
                     :checked="!excludedIngredients.includes(ingredient.name)"
                     @change="toggleIngredient(ingredient.name)"
                   />
-                  <span>{{ ingredient.name }}</span>
+                  <span class="ingredient-name">{{ ingredient.name }}</span>
                 </div>
-                <span class="ingredient-badge" :class="{ removed: excludedIngredients.includes(ingredient.name) }">
+                <span
+                  class="ingredient-status-badge"
+                  :class="excludedIngredients.includes(ingredient.name) ? 'status-removed' : 'status-included'"
+                >
                   {{ excludedIngredients.includes(ingredient.name) ? 'Quitado' : 'Incluido' }}
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- INGREDIENTES A ELECCIÓN (SOLO PARA PRODUCTOS PERSONALIZABLES: HAMBURGUESAS, PIZZAS Y FAJITAS) -->
+          <div v-if="selectedCatalogProduct && selectedCatalogProduct.tipo_armado === 'Personalizable' && displayOptionalIngredients.length" class="picker-section">
+            <div class="section-header-row">
+              <p class="section-title">
+                Ingredientes a elección
+                <span v-if="selectedCatalogProduct.cantidad_incluida > 0" class="badge-included-info">
+                  ({{ selectedCatalogProduct.cantidad_incluida }} incluidos gratis)
+                </span>
+              </p>
+              <span class="section-subtitle">
+                Has seleccionado {{ selectedOptionalIngredients.length }} ingrediente(s).
+                <template v-if="extraChargeableCount > 0">
+                  ({{ extraChargeableCount }} extra a +${{ formatNumber(selectedCatalogProduct.precio_ingrediente_extra) }} c/u)
+                </template>
+              </span>
+            </div>
+
+            <div class="ingredients-grid">
+              <label
+                v-for="ingredient in displayOptionalIngredients"
+                :key="ingredient.id || ingredient.name"
+                class="ingredient-card"
+                :class="{ selected: selectedOptionalIngredients.includes(ingredient.name) }"
+              >
+                <div class="ingredient-info">
+                  <input
+                    type="checkbox"
+                    class="ingredient-checkbox"
+                    :checked="selectedOptionalIngredients.includes(ingredient.name)"
+                    @change="toggleOptionalIngredient(ingredient.name)"
+                  />
+                  <span class="ingredient-name">{{ ingredient.name }}</span>
+                </div>
+                <span
+                  class="ingredient-status-badge"
+                  :class="selectedOptionalIngredients.includes(ingredient.name) ? 'status-included' : 'status-optional'"
+                >
+                  {{ selectedOptionalIngredients.includes(ingredient.name) ? 'Seleccionado' : 'Opcional' }}
                 </span>
               </label>
             </div>
@@ -175,7 +328,7 @@
   <div class="print-only" aria-hidden="true">
     <div class="print-header">
       <div class="print-title">J.Jairo FoodTruck</div>
-      <div class="print-order-id">Pedido #{{ orderId }}</div>
+      <div class="print-order-id">Comanda Pedido #{{ orderId }}</div>
       <div class="print-time">{{ date || '-' }} · {{ time || new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) }}</div>
     </div>
 
@@ -184,14 +337,21 @@
         <div class="print-product-line">
           <div class="print-product-name">
             <span class="print-qty">{{ p.quantity }}x</span>
-            <span>{{ p.name }}</span>
+            <strong>{{ p.name }}</strong> ({{ p.format }})
           </div>
           <span class="print-price">${{ formatNumber(p.subtotal) }}</span>
         </div>
-        <div v-if="(p.removedIngredients || []).length > 0" class="print-ingredients">
+        <div v-if="(p.removedIngredients || []).length > 0" class="print-ingredients print-removed">
           <strong>SIN:</strong> {{ (p.removedIngredients || []).join(', ') }}
         </div>
+        <div v-if="(p.addedExtras || []).length > 0" class="print-ingredients print-extras">
+          <strong>EXTRA:</strong> {{ p.addedExtras.map((e: any) => `${e.name} (x${e.quantity})`).join(', ') }}
+        </div>
       </div>
+    </div>
+
+    <div v-if="orderNotes" class="print-notes">
+      <strong>NOTAS DE COCINA:</strong> {{ orderNotes }}
     </div>
 
     <div class="print-total">
@@ -199,78 +359,198 @@
     </div>
 
     <div class="print-client">
-      <strong>Cliente:</strong> {{ distributor || 'Sin nombre' }}
+      <strong>Cliente:</strong> {{ distributor || 'Sin nombre' }} · Tel: {{ customerPhone || 'Sin tel' }}
     </div>
 
     <div class="print-footer">
-      Gracias por tu preferencia
+      ¡Gracias por tu preferencia!
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { X, Phone, Printer, Plus, Trash2, User } from 'lucide-vue-next';
+import { X, Phone, Printer, Plus, Trash2, User, Check, CheckCircle, ChevronLeft, ChevronRight, DollarSign, XCircle, MessageCircle, FileText } from 'lucide-vue-next';
 import { useNotification } from '@/composables/useNotification';
+import orderService from '@/services/orderService';
+import productService from '@/services/productService';
+import stockService from '@/services/stockService';
 
 const { notify } = useNotification();
 const props = defineProps<{
-  orderId: number | string; distributor?: string; status?: string;
-  statusId?: number; date?: string; time?: string;
-  total?: number; phone?: string;
+  orderId: number | string; 
+  realId?: number | string;
+  distributor?: string; 
+  status?: string;
+  statusId?: number; 
+  date?: string; 
+  time?: string;
+  total?: number; 
+  phone?: string;
+  rawOrder?: any;
 }>();
 
-const emit = defineEmits(['close', 'statusChanged']);
-const localStatus = ref(props.status || 'En preparación');
-const localStatusId = ref(props.statusId ? Number(props.statusId) : 2);
-const products = ref([
-  { id: 101, catalogId: 1, name: 'Completo Italiano', format: 'Normal', quantity: 2, subtotal: 3000, removedIngredients: ['Palta', 'Tomate'] },
-  { id: 102, catalogId: 2, name: 'Churrasco Luco', format: 'Normal', quantity: 1, subtotal: 4500, removedIngredients: ['Churrasco', 'Queso'] }
-]);
+const emit = defineEmits(['close', 'statusChanged', 'status-changed']);
+const localStatus = ref(props.status || 'Pendiente');
+const localStatusId = ref(props.statusId ? Number(props.statusId) : 1);
+const localPaymentStatusId = ref(props.rawOrder?.id_estado_pago ? Number(props.rawOrder.id_estado_pago) : 1);
+const currentPaymentMethod = ref(props.rawOrder?.metodo_pago || 'Efectivo');
+const orderNotes = ref(props.rawOrder?.notas || '');
+const products = ref<any[]>([]);
+const orderStorageKey = computed(() => `order-${props.orderId}`);
+
+const customerPhone = computed(() => {
+  return props.phone || props.rawOrder?.numero_telefono || props.rawOrder?.telefono || '';
+});
+
+const whatsappUrl = computed(() => {
+  if (!customerPhone.value) return '';
+  const cleanPhone = customerPhone.value.replace(/\D/g, '');
+  if (!cleanPhone) return '';
+
+  let formatted = cleanPhone;
+  if (cleanPhone.length === 9 && cleanPhone.startsWith('9')) {
+    formatted = `56${cleanPhone}`;
+  } else if (cleanPhone.length === 8) {
+    formatted = `569${cleanPhone}`;
+  }
+
+  const text = encodeURIComponent(`Hola ${props.distributor || 'cliente'}, tu pedido #${props.orderId} en J.Jairo Foodtruck está listo! 🍔`);
+  return `https://wa.me/${formatted}?text=${text}`;
+});
+
+const orderSteps = [
+  { id: 1, name: 'Pendiente' },
+  { id: 2, name: 'En preparación' },
+  { id: 3, name: 'Listo' },
+  { id: 4, name: 'Entregado' }
+];
+
+const isInitializing = ref(true);
+
+watch(() => props.rawOrder, (newOrder) => {
+  if (newOrder) {
+    isInitializing.value = true;
+    if (newOrder.rawStatusId) localStatusId.value = Number(newOrder.rawStatusId);
+    if (newOrder.status) localStatus.value = newOrder.status;
+    if (newOrder.id_estado_pago) localPaymentStatusId.value = Number(newOrder.id_estado_pago);
+    if (newOrder.notas !== undefined) orderNotes.value = newOrder.notas || '';
+
+    // Preservar productos añadidos/modificados localmente en localStorage si existen
+    const saved = localStorage.getItem(orderStorageKey.value);
+    let loadedFromStorage = false;
+
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed.products) && parsed.products.length > 0) {
+          products.value = parsed.products;
+          loadedFromStorage = true;
+        }
+      } catch (e) {
+        console.error('Error cargando snapshot local del pedido:', e);
+      }
+    }
+
+    // Si no había guardado local, cargamos desde detalles de la base de datos
+    if (!loadedFromStorage && Array.isArray(newOrder.detalles)) {
+      products.value = newOrder.detalles.map((det: any, idx: number) => {
+        const prodName = det.producto?.nombre || 'Producto';
+        const formatName = det.tamaño?.nombre || 'Único';
+        const qty = Number(det.cantidad || 1);
+        const unitPrice = Number(det.precio_unitario || 0);
+
+        const excluidos = (det.ingredientes || [])
+          .filter((ing: any) => ing.tipo_modificacion === 'Exclusión')
+          .map((ing: any) => ing.ingrediente?.nombre || 'Ingrediente');
+
+        const agregados = (det.ingredientes || [])
+          .filter((ing: any) => ing.tipo_modificacion === 'Agregado')
+          .map((ing: any) => ({
+            name: ing.ingrediente?.nombre || 'Extra',
+            quantity: 1,
+            price: 0
+          }));
+
+        return {
+          id: det.id_detalle_pedido || idx + 1,
+          name: prodName,
+          format: formatName,
+          quantity: qty,
+          subtotal: qty * unitPrice,
+          removedIngredients: excluidos,
+          addedExtras: agregados
+        };
+      });
+    }
+
+    setTimeout(() => {
+      isInitializing.value = false;
+    }, 200);
+  }
+}, { immediate: true });
 
 const isAddModalOpen = ref(false);
 const hasPendingChanges = ref(false);
-const orderStorageKey = computed(() => `order-${props.orderId}`);
-const catalogProducts = ref([
-  {
-    id: 1,
-    name: 'Completo Italiano',
-    category: 'Clásico',
-    sizes: ['Normal', 'Doble'],
-    basePrice: 2600,
-    ingredients: [
-      { name: 'Palta' },
-      { name: 'Tomate' },
-      { name: 'Mayonesa' },
-      { name: 'Chucrut' }
-    ]
-  },
-  {
-    id: 2,
-    name: 'Churrasco Luco',
-    category: 'Especial',
-    sizes: ['Normal'],
-    basePrice: 4200,
-    ingredients: [
-      { name: 'Churrasco' },
-      { name: 'Queso' },
-      { name: 'Tomate' },
-      { name: 'Cebolla' }
-    ]
-  },
-  {
-    id: 3,
-    name: 'Barros Luco',
-    category: 'Caliente',
-    sizes: ['Normal', 'Grande'],
-    basePrice: 3800,
-    ingredients: [
-      { name: 'Carne' },
-      { name: 'Queso' },
-      { name: 'Tomate' }
-    ]
+const isLoadingCatalog = ref(false);
+const catalogProducts = ref([]);
+
+// Cargar productos del catálogo
+const loadCatalogProducts = async () => {
+  isLoadingCatalog.value = true;
+  try {
+    const response = await productService.getPublicProducts();
+    const rawProducts = Array.isArray(response?.data) ? response.data : (response?.data?.data || []);
+    
+    catalogProducts.value = rawProducts.map((product: any) => {
+      const catName = product.categoria?.nombre_categoria || product.categoria?.nombre || product.id_categoria || 'Varios';
+
+      const sizesArray = Array.isArray(product.tamaños) ? product.tamaños : (product.sizes || []);
+      const sizesFormatted = sizesArray.length > 0
+        ? sizesArray.map((size: any) => ({
+            id: size.id_tamaño || size.pivot?.id_tamaño || size.id || 1,
+            name: size.nombre || 'Normal',
+            price: Number(size.pivot?.precio || size.pivot?.precio_venta || size.precio_venta || size.precio || 0)
+          }))
+        : [{ id: 1, name: 'Normal', price: Number(product.precio_base || product.precio || 0) }];
+
+      const rawIngredients = Array.isArray(product.ingredientes) 
+        ? product.ingredientes 
+        : (product.producto_ingrediente || []);
+
+      const ingredientsFormatted = rawIngredients.map((item: any) => {
+        const ingObj = item.ingrediente || item;
+        return {
+          id: ingObj.id_ingrediente || item.id_ingrediente || item.id,
+          name: ingObj.nombre || item.nombre || (typeof item === 'string' ? item : 'Ingrediente'),
+          cantidad: item.cantidad || 1,
+          incluido_por_defecto: item.incluido_por_defecto === true || item.incluido_por_defecto === 1 || item.incluido_por_defecto === '1'
+        };
+      });
+
+      return {
+        id: product.id_producto || product.id,
+        name: product.nombre || 'Producto',
+        category: catName,
+        tipo_armado: product.tipo_armado || 'Estandar',
+        cantidad_incluida: Number(product.cantidad_incluida || 0),
+        precio_ingrediente_extra: Number(product.precio_ingrediente_extra || 500),
+        sizes: sizesFormatted,
+        ingredients: ingredientsFormatted,
+        basePrice: sizesFormatted[0]?.price || 0
+      };
+    });
+
+    if (catalogProducts.value.length > 0 && !selectedCatalogProduct.value) {
+      selectCatalogProduct(catalogProducts.value[0]);
+    }
+  } catch (error) {
+    console.error('Error al cargar productos:', error);
+  } finally {
+    isLoadingCatalog.value = false;
   }
-]);
+};
+
 const selectedCatalogProduct = ref<any>(catalogProducts.value[0]);
 const selectedSize = ref('Normal');
 const excludedIngredients = ref<string[]>([]);
@@ -303,9 +583,15 @@ const formatNumber = (n: number) => n.toLocaleString('es-CL');
 const formato = (f: string) => f;
 
 const saveOrder = (showNotification = true) => {
+  if (isInitializing.value) return;
+
+  const currentTotal = totalAmount.value;
+
   const snapshot = {
     status: localStatus.value,
     statusId: localStatusId.value,
+    total: currentTotal,
+    notas: orderNotes.value,
     products: products.value.map((p: any) => ({
       ...p,
       removedIngredients: [...(p.removedIngredients || [])]
@@ -313,6 +599,28 @@ const saveOrder = (showNotification = true) => {
   };
 
   localStorage.setItem(orderStorageKey.value, JSON.stringify(snapshot));
+
+  const targetId = props.realId || props.orderId;
+  if (targetId) {
+    orderService.updateOrder(targetId, {
+      total: currentTotal,
+      id_estado_pedido: localStatusId.value,
+      id_estado_pago: localPaymentStatusId.value,
+      metodo_pago: currentPaymentMethod.value,
+      notas: orderNotes.value,
+      items: products.value.map((p: any) => ({
+        id_producto: p.catalogId || p.id,
+        format: p.format,
+        cantidad: p.quantity,
+        precio_unitario: p.quantity ? Math.round(p.subtotal / p.quantity) : p.subtotal,
+        removedIngredients: p.removedIngredients || [],
+        addedExtras: p.addedExtras || []
+      }))
+    }).catch(err => {
+      console.error('Error al actualizar total de pedido en backend:', err);
+    });
+  }
+
   hasPendingChanges.value = false;
   if (showNotification) {
     notify('Pedido guardado', 'success');
@@ -336,22 +644,133 @@ const loadSavedOrder = () => {
   }
 };
 
-onMounted(() => {
-  loadSavedOrder();
+const stockIngredients = ref<any[]>([]);
+const extraIngredients = ref<Array<{ name: string, quantity: number, unitPrice: number }>>([]);
+
+const defaultExtras = [
+  { name: 'Extra queso', precio: 500 },
+  { name: 'Tocino', precio: 600 },
+  { name: 'Palta extra', precio: 500 },
+  { name: 'Papas hilo', precio: 400 },
+  { name: 'Huevo frito', precio: 500 },
+  { name: 'Salsa BBQ', precio: 300 },
+  { name: 'Cebolla caramelizada', precio: 400 },
+  { name: 'Champiñón', precio: 500 }
+];
+
+const BASE_INGREDIENT_NAMES = [
+  'pan', 'pan completo', 'pan frica', 'pan marraqueta', 'pan chico', 'pan grande', 'pan xl', 'pan mediano',
+  'vianesa', 'carne', 'hamburguesa', 'pollo', 'lomo', 'lomito',
+  'churrasco', 'masa', 'masa pizza'
+];
+
+const isBaseIngredient = (nombre: string) => {
+  if (!nombre) return false;
+  const lower = nombre.toLowerCase().trim();
+  return lower.startsWith('pan ') ||
+         lower === 'pan' ||
+         lower === 'vianesa' ||
+         lower === 'carne' ||
+         lower === 'lomito' ||
+         lower === 'pollo' ||
+         lower === 'hamburguesa' ||
+         lower === 'masa pizza' ||
+         lower === 'sopaipilla' ||
+         lower === 'empanada' ||
+         BASE_INGREDIENT_NAMES.some(b => lower.includes(b));
+};
+
+const isProtectedIngredient = (name: string) => isBaseIngredient(name);
+
+const customizableBaseIngredients = computed(() => {
+  if (!selectedCatalogProduct.value) return [];
+  const base = selectedCatalogProduct.value.baseIngredients || selectedCatalogProduct.value.ingredients || [];
+  return base.filter((ing: any) => {
+    const name = typeof ing === 'object' ? ing.name : ing;
+    return !isBaseIngredient(name);
+  });
 });
 
-const handleClose = () => {
-  if (hasPendingChanges.value) {
-    notify('Guarda el pedido antes de cerrar', 'success');
-    return;
+const displayOptionalIngredients = computed(() => {
+  if (!selectedCatalogProduct.value) return [];
+  const optionals = selectedCatalogProduct.value.optionalIngredients || [];
+  if (optionals.length > 0) {
+    return optionals.filter((ing: any) => !isBaseIngredient(ing.name));
   }
+  if (stockIngredients.value.length > 0) {
+    const baseNames = (selectedCatalogProduct.value.baseIngredients || []).map((b: any) => b.name);
+    return stockIngredients.value
+      .filter((s: any) => {
+        const name = s.nombre || s.name;
+        return !isBaseIngredient(name) && !baseNames.includes(name);
+      })
+      .map((s: any) => ({
+        id: s.id_ingrediente || s.id,
+        name: s.nombre || s.name
+      }));
+  }
+  return defaultExtras
+    .filter(e => !isBaseIngredient(e.name))
+    .map(e => ({ id: e.name, name: e.name }));
+});
+
+const selectedOptionalIngredients = ref<string[]>([]);
+
+const toggleOptionalIngredient = (name: string) => {
+  const index = selectedOptionalIngredients.value.indexOf(name);
+  if (index > -1) {
+    selectedOptionalIngredients.value.splice(index, 1);
+  } else {
+    selectedOptionalIngredients.value.push(name);
+  }
+};
+
+const extraChargeableCount = computed(() => {
+  if (!selectedCatalogProduct.value) return 0;
+  const includedCount = selectedCatalogProduct.value.cantidad_incluida || 0;
+  const selectedCount = selectedOptionalIngredients.value.length;
+  return Math.max(0, selectedCount - includedCount);
+});
+
+const extrasTotalPrice = computed(() => {
+  if (!selectedCatalogProduct.value) return 0;
+  const pricePerExtra = selectedCatalogProduct.value.precio_ingrediente_extra || 0;
+  return extraChargeableCount.value * pricePerExtra;
+});
+
+const loadStockIngredients = async () => {
+  try {
+    const res = await stockService.getStocks();
+    const list = Array.isArray(res?.data) ? res.data : (res?.data?.data || []);
+    stockIngredients.value = list;
+  } catch (e) {
+    console.error('Error al cargar lista de stock para opcionales:', e);
+  }
+};
+
+onMounted(() => {
+  loadSavedOrder();
+  loadCatalogProducts();
+  loadStockIngredients();
+});
+
+watch([products, localStatus, localStatusId, localPaymentStatusId, currentPaymentMethod, orderNotes], () => {
+  if (!isInitializing.value) {
+    saveOrder(false);
+  }
+}, { deep: true });
+
+const handleClose = () => {
+  saveOrder(false);
+  emit('statusChanged');
+  emit('status-changed');
   emit('close');
 };
 
 const changeQty = (p: any, delta: number) => {
   p.quantity = Math.max(1, p.quantity + delta);
   p.subtotal = p.quantity * (p.subtotal / (p.quantity - delta || 1));
-  hasPendingChanges.value = true;
+  saveOrder(false);
 };
 
 const openAddModal = () => {
@@ -361,6 +780,7 @@ const openAddModal = () => {
   selectedCatalogProduct.value = catalogProducts.value[0];
   selectedSize.value = selectedCatalogProduct.value?.sizes?.[0] || 'Normal';
   excludedIngredients.value = [];
+  selectedOptionalIngredients.value = [];
   addQuantity.value = 1;
 };
 
@@ -368,10 +788,20 @@ const closeAddModal = () => {
   isAddModalOpen.value = false;
 };
 
+const currentSizeObj = computed(() => {
+  if (!selectedCatalogProduct.value?.sizes) return null;
+  return selectedCatalogProduct.value.sizes.find((s: any) => {
+    const sName = typeof s === 'object' ? s.name : s;
+    return sName === selectedSize.value;
+  }) || selectedCatalogProduct.value.sizes[0];
+});
+
 const selectCatalogProduct = (product: any) => {
   selectedCatalogProduct.value = product;
-  selectedSize.value = product.sizes?.[0] || 'Normal';
+  const firstSize = product.sizes?.[0];
+  selectedSize.value = typeof firstSize === 'object' ? firstSize.name : (firstSize || 'Normal');
   excludedIngredients.value = [];
+  selectedOptionalIngredients.value = [];
   addQuantity.value = 1;
 };
 
@@ -391,8 +821,10 @@ const decreaseAddQuantity = () => {
 
 const previewPrice = computed(() => {
   if (!selectedCatalogProduct.value) return 0;
-  const basePrice = selectedCatalogProduct.value.basePrice || 0;
-  return basePrice * addQuantity.value;
+  const sizeObj = currentSizeObj.value;
+  const baseUnitPrice = typeof sizeObj === 'object' ? (sizeObj.price || 0) : (selectedCatalogProduct.value.basePrice || 0);
+  const singleUnitPrice = baseUnitPrice + extrasTotalPrice.value;
+  return singleUnitPrice * addQuantity.value;
 });
 
 const normalizeRemovedIngredients = (items: string[] = []) => [...new Set(items)].sort();
@@ -400,44 +832,58 @@ const normalizeRemovedIngredients = (items: string[] = []) => [...new Set(items)
 const confirmAddProduct = () => {
   if (!selectedCatalogProduct.value) return;
 
+  const sizeObj = currentSizeObj.value;
+  const sizeName = typeof sizeObj === 'object' ? sizeObj.name : (selectedSize.value || 'Normal');
+  const baseUnitPrice = typeof sizeObj === 'object' ? (sizeObj.price || 0) : (selectedCatalogProduct.value.basePrice || 0);
+  const singleUnitPrice = baseUnitPrice + extrasTotalPrice.value;
   const normalizedRemoved = normalizeRemovedIngredients(excludedIngredients.value);
+  const selectedExtrasList = [...selectedOptionalIngredients.value];
+
   const existingProduct = products.value.find((p: any) => {
     const sameCatalog = Number(p.catalogId ?? p.id) === Number(selectedCatalogProduct.value.id);
-    const sameFormat = p.format === `${selectedSize.value}`;
+    const sameFormat = p.format === `${sizeName}`;
     const sameRemoved = JSON.stringify(normalizeRemovedIngredients(p.removedIngredients || [])) === JSON.stringify(normalizedRemoved);
-    return sameCatalog && sameFormat && sameRemoved;
+    const sameExtras = JSON.stringify(p.addedExtras || []) === JSON.stringify(selectedExtrasList.map(name => ({ name, quantity: 1, price: 0 })));
+    return sameCatalog && sameFormat && sameRemoved && sameExtras;
   });
 
   if (existingProduct) {
-    const previousQuantity = existingProduct.quantity;
-    const unitPrice = existingProduct.subtotal / previousQuantity;
     existingProduct.quantity += addQuantity.value;
-    existingProduct.subtotal = Number((existingProduct.quantity * unitPrice).toFixed(0));
+    existingProduct.subtotal = Number((existingProduct.quantity * singleUnitPrice).toFixed(0));
   } else {
-    products.value = [
-      ...products.value,
-      {
-        id: Date.now(),
-        catalogId: selectedCatalogProduct.value.id,
-        name: selectedCatalogProduct.value.name,
-        format: `${selectedSize.value}`,
-        quantity: addQuantity.value,
-        subtotal: previewPrice.value,
-        removedIngredients: normalizedRemoved
-      }
-    ];
+    products.value.push({
+      id: Date.now(),
+      catalogId: selectedCatalogProduct.value.id,
+      name: selectedCatalogProduct.value.name,
+      format: `${sizeName}`,
+      quantity: addQuantity.value,
+      subtotal: Number((addQuantity.value * singleUnitPrice).toFixed(0)),
+      removedIngredients: normalizedRemoved,
+      addedExtras: selectedExtrasList.map(name => ({ name, quantity: 1, price: 0 }))
+    });
   }
 
-  hasPendingChanges.value = true;
+  hasPendingChanges.value = false;
   saveOrder(false);
-  notify('Producto agregado y pedido guardado', 'success');
   closeAddModal();
+};
+
+const removeExtraFromProduct = (productId: number | string, extraName: string) => {
+  const prod = products.value.find((p: any) => p.id === productId);
+  if (prod && prod.addedExtras) {
+    const idx = prod.addedExtras.findIndex((e: any) => e.name === extraName);
+    if (idx > -1) {
+      prod.addedExtras.splice(idx, 1);
+      saveOrder(false);
+    }
+  }
 };
 
 const removeProduct = (id: any) => {
   products.value = products.value.filter(p => p.id !== id);
-  hasPendingChanges.value = true;
+  saveOrder(false);
 };
+
 const toggleRemovedIngredient = (pid: any, ing: string) => {
   const p = products.value.find(x => x.id === pid);
   if (!p) return;
@@ -447,7 +893,7 @@ const toggleRemovedIngredient = (pid: any, ing: string) => {
     ? removed.filter(i => i !== ing)
     : [...removed, ing];
 
-  hasPendingChanges.value = true;
+  saveOrder(false);
 };
 
 const totalAmount = computed(() => products.value.reduce((acc, p) => acc + p.subtotal, 0));
@@ -457,10 +903,83 @@ const getStatusClass = (id: number) => {
   return map[id] || 'status-generic';
 };
 
-const changeStatus = async () => {
-  localStatusId.value = (localStatusId.value % 3) + 1;
-  hasPendingChanges.value = true;
-  notify('Estado actualizado', 'success');
+const markAsPaid = async () => {
+  try {
+    const targetId = props.realId || props.orderId;
+    await orderService.updateOrder(targetId, { id_estado_pago: 2 });
+    localPaymentStatusId.value = 2;
+    notify('¡Pedido marcado como PAGADO exitosamente!', 'success');
+    emit('statusChanged');
+    emit('status-changed');
+  } catch (err) {
+    console.error('Error al actualizar estado de pago:', err);
+    notify('Error al marcar como pagado', 'error');
+  }
+};
+
+const updatePaymentMethod = async () => {
+  try {
+    const targetId = props.realId || props.orderId;
+    await orderService.updateOrder(targetId, { metodo_pago: currentPaymentMethod.value });
+    notify(`Método de pago cambiado a: ${currentPaymentMethod.value}`, 'success');
+    emit('statusChanged');
+    emit('status-changed');
+  } catch (err) {
+    console.error('Error al actualizar método de pago:', err);
+    notify('Error al cambiar método de pago', 'error');
+  }
+};
+
+const cancelOrder = async () => {
+  if (!confirm('¿Estás seguro de cancelar este pedido?')) return;
+  try {
+    saveOrder(false);
+    const targetId = props.realId || props.orderId;
+    await orderService.updateOrder(targetId, { id_estado_pedido: 5, total: totalAmount.value });
+    localStatusId.value = 5;
+    localStatus.value = 'Cancelado';
+    notify('Pedido marcado como CANCELADO', 'success');
+    emit('statusChanged');
+    emit('status-changed');
+  } catch (err) {
+    console.error('Error al cancelar pedido:', err);
+    notify('Error al cancelar el pedido', 'error');
+  }
+};
+
+const setOrderStatus = async (newStatusId: number) => {
+  if (newStatusId === localStatusId.value) return;
+
+  const statusNames: Record<number, string> = {
+    1: 'Pendiente',
+    2: 'En preparación',
+    3: 'Listo',
+    4: 'Entregado',
+    5: 'Cancelado'
+  };
+
+  try {
+    saveOrder(false);
+    const targetId = props.realId || props.orderId;
+    await orderService.updateOrder(targetId, { id_estado_pedido: newStatusId, total: totalAmount.value });
+
+    localStatusId.value = newStatusId;
+    localStatus.value = statusNames[newStatusId] || 'Pendiente';
+
+    notify(`Estado actualizado a: ${localStatus.value}`, 'success');
+    emit('statusChanged');
+    emit('status-changed');
+  } catch (err) {
+    console.error('Error al actualizar estado:', err);
+    notify('Error al cambiar el estado del pedido', 'error');
+  }
+};
+
+const stepStatus = (delta: number) => {
+  const nextId = localStatusId.value + delta;
+  if (nextId >= 1 && nextId <= 4) {
+    setOrderStatus(nextId);
+  }
 };
 
 const printOrder = () => {
@@ -596,10 +1115,106 @@ const contactClient = () => window.open(`tel:${props.phone}`);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
 }
 
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+.product-option-skeleton {
+  padding: 12px 16px;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #eeedee;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skeleton-pill {
+  height: 16px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0ede9 25%, #f8f6f3 50%, #f0ede9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.width-70 { width: 70px; }
+.width-120 { width: 120px; }
+.margin-top-4 { margin-top: 4px; }
+
 .client-card {
   padding: 14px 16px;
   display: grid;
   gap: 6px;
+}
+
+.main-client-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-whatsapp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background-color: #25d366;
+  color: white;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform 0.2s, background-color 0.2s;
+}
+
+.btn-whatsapp:hover {
+  background-color: #128c7e;
+  transform: translateY(-1px);
+}
+
+.client-notes-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #e9ecef;
+}
+
+.client-notes-section label {
+  font-size: 0.85rem;
+  color: var(--DC-gray);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.order-notes-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #dee2e6;
+  font-size: 0.85rem;
+  font-family: inherit;
+  color: var(--DC-gray);
+  box-sizing: border-box;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.order-notes-textarea:focus {
+  border-color: var(--DC-orange);
 }
 
 .client-row {
@@ -1136,5 +1751,490 @@ const contactClient = () => window.open(`tel:${props.phone}`);
     border-top: 1px solid #000;
     padding-top: 6px;
   }
+}
+
+/* BADGES Y TITULOS HEADER */
+.header-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.badges-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-paid {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.status-unpaid {
+  background-color: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffcc80;
+}
+
+/* TIMELINE Y STEPPER DE ESTADOS */
+.timeline-container {
+  background-color: #fcfbf9;
+  border: 1px solid #eeedee;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.timeline-steps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.timeline-steps::before {
+  content: '';
+  position: absolute;
+  top: 15px;
+  left: 30px;
+  right: 30px;
+  height: 3px;
+  background-color: #e0dce4;
+  z-index: 1;
+}
+
+.timeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  z-index: 2;
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+.timeline-step:hover {
+  transform: translateY(-2px);
+}
+
+.step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: white;
+  border: 3px solid #cbd5e1;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+  transition: all 0.3s ease;
+}
+
+.timeline-step.completed .step-circle {
+  background-color: var(--DC-orange);
+  border-color: var(--DC-orange);
+  color: white;
+}
+
+.timeline-step.active .step-circle {
+  background-color: white;
+  border-color: var(--DC-orange);
+  color: var(--DC-orange);
+  box-shadow: 0 0 0 4px rgba(226, 135, 67, 0.25);
+}
+
+.step-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.timeline-step.active .step-label,
+.timeline-step.completed .step-label {
+  color: var(--DC-gray);
+  font-weight: 900;
+}
+
+/* NAVEGACIÓN Y BOTÓN PAGAR */
+.status-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #e0dce4;
+}
+
+.btn-step {
+  background-color: white;
+  border: 2px solid #eeedee;
+  color: var(--DC-gray);
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-step:hover:not(:disabled) {
+  border-color: var(--DC-orange);
+  color: var(--DC-orange);
+}
+
+.btn-step:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-pay {
+  background-color: #2e7d32;
+  color: white;
+  font-weight: 900;
+  font-size: 0.85rem;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.25);
+  transition: all 0.2s ease;
+}
+
+.btn-pay:hover {
+  background-color: #1b5e20;
+  transform: translateY(-1px);
+}
+
+.badge-paid-confirmed {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  font-weight: 900;
+  font-size: 0.85rem;
+  padding: 6px 12px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-cancelled {
+  background-color: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
+}
+
+.payment-select-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payment-method-select {
+  padding: 4px 10px;
+  border: 1.5px solid var(--DC-orange);
+  border-radius: 8px;
+  background: white;
+  color: var(--DC-brown);
+  font-weight: 800;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.btn-cancel-order {
+  background-color: #d32f2f;
+  color: white;
+  font-weight: 900;
+  font-size: 0.85rem;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.25);
+  transition: all 0.2s ease;
+}
+
+.btn-cancel-order:hover {
+  background-color: #b71c1c;
+  transform: translateY(-1px);
+}
+
+.badge-cancelled-confirmed {
+  background-color: #ffebee;
+  color: #c62828;
+  font-weight: 900;
+  font-size: 0.85rem;
+  padding: 6px 12px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ESTILOS DE MEJORA DE TAMAÑOS E INGREDIENTES */
+.size-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px !important;
+}
+
+.size-price {
+  font-size: 0.78rem;
+  background: rgba(0, 0, 0, 0.07);
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-weight: 800;
+}
+
+.pill.active .size-price {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.section-header-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.section-subtitle {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.ingredients-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.ingredient-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: white;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.ingredient-card:hover {
+  border-color: var(--DC-orange);
+  transform: translateY(-1px);
+}
+
+.ingredient-card.removed {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.ingredient-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ingredient-checkbox {
+  accent-color: var(--DC-orange);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.ingredient-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.ingredient-card.removed .ingredient-name {
+  color: #991b1b;
+  text-decoration: line-through;
+}
+
+.ingredient-status-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.status-included {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-removed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.empty-ingredients-info {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-style: italic;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.ingredient-card.protected {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
+.status-protected {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.chip-extra {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.extras-picker-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.extras-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 110px;
+  overflow-y: auto;
+}
+
+.extra-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.extra-chip-btn:hover {
+  background: #e2e8f0;
+  border-color: var(--DC-orange);
+  color: var(--DC-orange);
+}
+
+.extra-price-tag {
+  color: #059669;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: #d1fae5;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.selected-extras-list {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.selected-extras-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #475569;
+  margin: 0;
+}
+
+.extra-selected-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.extra-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.extra-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-extra-qty {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-extra-qty:hover {
+  background: #f1f5f9;
+  border-color: var(--DC-orange);
+}
+
+.extra-qty-num {
+  font-size: 0.82rem;
+  font-weight: 800;
+  min-width: 16px;
+  text-align: center;
+}
+
+.extra-cost {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #059669;
+  min-width: 45px;
+  text-align: right;
 }
 </style>

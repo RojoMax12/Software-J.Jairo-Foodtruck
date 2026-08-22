@@ -8,21 +8,21 @@
           <span>Volver</span>
         </div>
         <div class="logo-section">
-          <img src="../assets/logo_jairo.png" alt="J.Jairo Logo" class="logo" />
+          <img src="../assets/logo_jairo.webp" alt="J.Jairo Logo" class="logo" />
         </div>
 
         <div class="divider"></div>
 
         <div class="form-section">
-          <!-- Mensaje de Error -->
+
           <div v-if="errorMessage" class="error-banner">
             {{ errorMessage }}
           </div>
 
           <div class="input-group">
             <input 
-              v-model="username" 
-              placeholder="Usuario" 
+              v-model="correo" 
+              placeholder="Correo" 
               class="custom-input"
               :disabled="isLoading"
             />
@@ -51,6 +51,14 @@
           >
             {{ isLoading ? 'INGRESANDO...' : 'INGRESAR' }}
           </button>
+
+          <router-link to="/forgot-password" class="forgot-password">
+            ¿Olvidaste tu contraseña?
+          </router-link>
+
+          <router-link to="/register" style="width: 100%;">
+            <button class="btn btn-secondary" :disabled="isLoading">CREA TU CUENTA</button>
+          </router-link>
         </div>
       </div>
     </div>
@@ -60,25 +68,34 @@
 
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { User, Eye, EyeOff, ArrowLeft } from 'lucide-vue-next'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { authService } from '../services/authService'
+import { useNotification } from '@/composables/useNotification'
 
 const router = useRouter()
-const username = ref('')
+const route = useRoute()
+const { notify } = useNotification()
+const correo = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const isLoading = ref(false)
 const errorMessage = ref('')
+
+onMounted(() => {
+  if (route.query.expired === '1') {
+    notify('Tu sesión ha expirado. Por favor, ingresa nuevamente.', 'warning')
+  }
+})
 
 const goBack = () => {
   router.back()
 }
 
 const handleLogin = async () => {
-  if (!username.value || !password.value) {
-    errorMessage.value = 'Por favor, ingresa tu usuario y contraseña.'
+  if (!correo.value.trim() || !password.value.trim()) {
+    errorMessage.value = 'Por favor, ingresa tu correo/usuario y contraseña.'
     return
   }
 
@@ -86,25 +103,27 @@ const handleLogin = async () => {
   errorMessage.value = ''
 
   try {
-    const data = await authService.login(username.value, password.value)
+    const data = await authService.login(correo.value.trim(), password.value.trim())
 
-    // Guardamos el token y la info del usuario
-    localStorage.setItem('token', data.access_token || data.token)
-    localStorage.setItem('user', JSON.stringify(data.user))
+    const token = data.access_token || data.token
+    const user = data.user || {}
 
-    if(data.user.id_rol == 1){
-      router.push('/admin')
-    }
-    else if(data.user.id_rol == 2){
+    localStorage.setItem('token', token)
+    localStorage.setItem('user', JSON.stringify(user))
 
-    }
-    else{
+    const rolId = Number(user.id_rol)
+    if (rolId === 1) {
+      router.push('/general-home')
+    } else if (rolId === 3) {
+      router.push('/general-home')
+    } else {
       router.push('/')
     }
-    
   } catch (error: any) {
     console.error('Login error:', error)
-    errorMessage.value = error.response?.data?.error || error.response?.data?.message || 'Credenciales incorrectas o error de conexión.'
+    errorMessage.value = error.response?.data?.error 
+      || error.response?.data?.message 
+      || 'Credenciales incorrectas o error de conexión.'
   } finally {
     isLoading.value = false
   }
