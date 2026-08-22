@@ -1288,6 +1288,11 @@ onBeforeUnmount(() => {
     .orders-description { font-size: 0.85rem; }
     .orders-header { margin-bottom: 5px; }
 
+    .cards {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
     .table-toolbar {
         flex-direction: column;
         align-items: stretch;
@@ -1310,6 +1315,11 @@ onBeforeUnmount(() => {
         width: 100%;
         margin-left: 0;
         justify-content: center;
+    }
+
+    .table-content {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .table-footer {

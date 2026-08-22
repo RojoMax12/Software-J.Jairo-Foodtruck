@@ -26,7 +26,7 @@ export default {
     },
 
     getOrderDetails(id: number | string) {
-        return api.get(`/pedidos/${id}/details`);
+        return api.get(`/public/pedidos/${id}`).catch(() => api.get(`/pedidos/${id}`));
     },
 
     changeOrderStatus(id_pedido: number | string) {

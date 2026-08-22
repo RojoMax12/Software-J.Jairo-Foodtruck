@@ -214,16 +214,59 @@ const toggleCategory = (category: string) => {
 }
 
 @media (max-width: 768px) {
+  .search-controls {
+    flex-direction: column;
+    padding: 10px 0;
+    gap: 12px;
+  }
+
   .search-input-wrapper {
     width: 100%;
     margin-left: 0;
-    margin-top: 10px;
+    order: 1; /* Buscador primero arriba */
   }
+
   .search-input {
     width: 100%;
+    padding: 12px 42px 12px 16px;
+    font-size: 0.95rem;
+    border-radius: 14px;
+    box-sizing: border-box;
   }
+
   .inputs-group {
-    justify-content: center;
+    order: 2;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 10px;
+    padding: 6px 4px 12px 4px;
+    width: 100%;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+
+  .inputs-group::-webkit-scrollbar {
+    display: none;
+  }
+
+  .badge-button {
+    width: 82px;
+    height: 82px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+
+  .badge-text {
+    font-size: 0.68rem;
+    padding: 6px;
+    line-height: 1.05;
+  }
+
+  .divider {
+    margin: 8px 0;
   }
 }
 </style>

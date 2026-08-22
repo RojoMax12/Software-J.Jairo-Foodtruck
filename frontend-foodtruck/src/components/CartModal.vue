@@ -128,6 +128,7 @@ const cartTotal = computed(() => {
 
 .modal-content {
   width: 380px;
+  max-width: 100vw;
   height: 100%;
   background-color: var(--DC-bg-gray); 
   display: flex;
@@ -342,7 +343,9 @@ const cartTotal = computed(() => {
 .slide-enter-active, .slide-leave-active { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
 .slide-enter-from, .slide-leave-to { transform: translateX(-100%); }
 
-@media (max-width: 400px) {
-  .modal-content { width: 100%; }
+@media (max-width: 480px) {
+  .modal-content { width: 100vw; }
+  .cart-body { padding: 12px; }
+  .cart-footer { padding: 14px; }
 }
 </style>

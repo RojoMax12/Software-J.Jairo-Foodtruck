@@ -84,6 +84,9 @@
                   <div v-if="item.excluidos && item.excluidos.length > 0" class="product-exclusions">
                     <span v-for="ex in item.excluidos" :key="ex" class="exclusion-tag">Sin {{ ex }}</span>
                   </div>
+                  <div v-if="item.agregados && item.agregados.length > 0" class="product-exclusions">
+                    <span v-for="ag in item.agregados" :key="ag" class="extra-tag">+ {{ ag }}</span>
+                  </div>
                 </div>
               </li>
             </ul>
@@ -167,16 +170,44 @@ const handleSearch = async () => {
     };
 
     const itemsMapped = (data.detalles || []).map((det: any) => {
-      const prodName = det.producto?.nombre || 'Producto';
+      const prodName = det.producto?.nombre || det.nombre || 'Producto';
       const sizeName = det.tamaño?.nombre ? ` (${det.tamaño.nombre})` : '';
-      const excluidosList = (det.ingredientes || [])
-        .filter((ing: any) => ing.tipo_modificacion === 'Exclusión')
-        .map((ing: any) => ing.ingrediente?.nombre || 'Ingrediente');
+
+      let excluidosList: string[] = [];
+      if (Array.isArray(det.ingredientes)) {
+        excluidosList = det.ingredientes
+          .filter((ing: any) => {
+            const tipo = String(ing.tipo_modificacion || ing.tipo || '').toLowerCase();
+            return tipo.includes('exclu') || tipo.includes('quit');
+          })
+          .map((ing: any) => ing.ingrediente?.nombre || ing.nombre || (typeof ing === 'string' ? ing : ''))
+          .filter(Boolean);
+      } else if (Array.isArray(det.excluidos)) {
+        excluidosList = det.excluidos.map((i: any) => typeof i === 'string' ? i : (i.nombre || i.name)).filter(Boolean);
+      } else if (Array.isArray(det.ingredientes_excluidos)) {
+        excluidosList = det.ingredientes_excluidos.map((i: any) => typeof i === 'string' ? i : (i.nombre || i.name)).filter(Boolean);
+      } else if (Array.isArray(det.removedIngredients)) {
+        excluidosList = det.removedIngredients.map((i: any) => typeof i === 'string' ? i : (i.nombre || i.name)).filter(Boolean);
+      }
+
+      let agregadosList: string[] = [];
+      if (Array.isArray(det.ingredientes)) {
+        agregadosList = det.ingredientes
+          .filter((ing: any) => {
+            const tipo = String(ing.tipo_modificacion || ing.tipo || '').toLowerCase();
+            return tipo.includes('agre') || tipo.includes('extra');
+          })
+          .map((ing: any) => ing.ingrediente?.nombre || ing.nombre || (typeof ing === 'string' ? ing : ''))
+          .filter(Boolean);
+      } else if (Array.isArray(det.agregados)) {
+        agregadosList = det.agregados.map((i: any) => typeof i === 'string' ? i : (i.nombre || i.name)).filter(Boolean);
+      }
 
       return {
         quantity: det.cantidad,
         name: `${prodName}${sizeName}`,
-        excluidos: excluidosList
+        excluidos: [...new Set(excluidosList)],
+        agregados: [...new Set(agregadosList)]
       };
     });
 
@@ -353,6 +384,7 @@ const handleSearch = async () => {
 
 .product-exclusions { display: flex; flex-wrap: wrap; gap: 4px; }
 .exclusion-tag { background-color: #fff0f3; color: #c92a2a; border: 1px solid #ffc9c9; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+.extra-tag { background-color: #e6fcf5; color: #0ca678; border: 1px solid #96f2d7; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
 
 /* Responsividad */
 @media (max-width: 480px) {

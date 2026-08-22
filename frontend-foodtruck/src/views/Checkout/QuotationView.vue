@@ -312,17 +312,31 @@ const handleConfirmQuotation = async () => {
         precio_unitario: typeof item.price === 'string'
           ? Number(item.price.replace(/[^0-9]/g, ''))
           : Number(item.price || 0),
+        excluidos: item.excluidos || [],
+        agregados: item.agregados || [],
         modificaciones: [
           ...(item.excluidosDetails || []).map((ex: any) => ({
             id_ingrediente: ex.id_ingrediente || null,
             tipo: 'Exclusión',
-            precio: 0
+            precio: 0,
+            ingrediente: ex.nombre || ex.name || (typeof ex === 'string' ? ex : '')
           })),
+          ...((item.excluidos && (!item.excluidosDetails || !item.excluidosDetails.length)) ? item.excluidos.map((ex: string) => ({
+            tipo: 'Exclusión',
+            precio: 0,
+            ingrediente: ex
+          })) : []),
           ...(item.agregadosDetails || []).map((ag: any) => ({
             id_ingrediente: ag.id_ingrediente || null,
             tipo: 'Agregado',
-            precio: 0
-          }))
+            precio: 0,
+            ingrediente: ag.nombre || ag.name || (typeof ag === 'string' ? ag : '')
+          })),
+          ...((item.agregados && (!item.agregadosDetails || !item.agregadosDetails.length)) ? item.agregados.map((ag: string) => ({
+            tipo: 'Agregado',
+            precio: 0,
+            ingrediente: ag
+          })) : [])
         ]
       };
     })
@@ -439,7 +453,54 @@ select.dc-input {
 
 /* RESPONSIVE */
 @media (max-width: 768px) {
-  .quotation-grid { grid-template-columns: 1fr; gap: 30px; }
-  .cart-box-container { height: auto; max-height: 400px; }
+  .quotation-page {
+    padding: 20px 0 40px 0;
+  }
+
+  .quotation-container {
+    padding: 0 14px;
+  }
+
+  .quotation-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .cart-box-container {
+    height: auto;
+    max-height: 360px;
+  }
+
+  .checkout-item-card {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .item-thumb {
+    width: 60px;
+    height: 60px;
+  }
+
+  .item-name {
+    font-size: 0.92rem;
+  }
+
+  .total-display-box {
+    padding: 12px 16px;
+  }
+
+  .total-label {
+    font-size: 1rem;
+  }
+
+  .total-value {
+    font-size: 1.25rem;
+  }
+
+  .btn-confirm-cotizacion,
+  .btn-cancel-cotizacion {
+    padding: 14px;
+    font-size: 1rem;
+  }
 }
 </style>

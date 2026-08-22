@@ -28,7 +28,8 @@ onMounted(async () => {
 
       // Llamada al servicio centralizado con el ID del distribuidor
       const response = await quoteService.getQuotesByDistributor(userId.value)
-      quotations.value = response.data || []
+      const rawList = response.data?.data || response.data || []
+      quotations.value = Array.isArray(rawList) ? rawList : []
       
     } catch (error) {
       console.error('Error fetching historical quotations:', error)
@@ -288,5 +289,25 @@ const handleGoBack = () => {
 
 @keyframes rotate {
   100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .quotations-container {
+    margin: 15px auto;
+    padding: 0 12px;
+  }
+
+  .quotations-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .card-header, .card-footer {
+    padding: 12px 14px;
+  }
+
+  .card-body {
+    padding: 14px;
+  }
 }
 </style>

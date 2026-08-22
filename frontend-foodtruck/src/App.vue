@@ -5,6 +5,7 @@
       <AdminSideMenu :isOpen="isAdminSidebarOpen" @close="isAdminSidebarOpen = false" />
     </template>
     <Navbar v-else />
+    <AnnouncementBar v-if="route.path === '/'" />
   </template>
 
   <GlobalLoader />
@@ -37,6 +38,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRoute } from 'vue-router';
+import AnnouncementBar from './components/AnnouncementBar.vue';
 import Navbar from './components/Navbar.vue';
 import AdminNavbar from './components/GeneralNavbar.vue';
 import AdminSideMenu from './components/GeneralSideMenu.vue';

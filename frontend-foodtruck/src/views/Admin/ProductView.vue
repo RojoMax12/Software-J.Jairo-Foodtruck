@@ -2123,7 +2123,63 @@ button:active{
 }
 
 /* ==========================================================
-   FIN
+   RESPONSIVIDAD MÓVIL Y TABLET
 ========================================================== */
+@media (max-width: 1024px) {
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+}
 
+@media (max-width: 768px) {
+    .products-page {
+        padding: 15px;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+    }
+
+    .header-actions {
+        width: 100%;
+        gap: 10px;
+    }
+
+    .header-actions button {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .table-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .search-box {
+        max-width: 100%;
+    }
+
+    .table-container {
+        padding: 14px;
+        border-radius: 16px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .modal-box {
+        max-width: 95vw !important;
+        width: 100% !important;
+        max-height: 90vh !important;
+        padding: 18px !important;
+        overflow-y: auto !important;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+}
 </style>

@@ -233,6 +233,10 @@ import {
   Wallet, TrendingUp, TrendingDown, ArrowRightLeft, 
   RefreshCw, Search, Filter, FileText, Clock3, ChevronDown 
 } from 'lucide-vue-next';
+import cashFlowService, { type CashTransaction } from '@/services/cashFlowService';
+import { useNotification } from '@/composables/useNotification';
+
+const { notify } = useNotification();
 
 // Tipos adaptados para Flujo de Caja
 type TransactionType = 'ingreso' | 'egreso';
@@ -266,20 +270,15 @@ const form = ref({
   description: ''
 });
 
-// Simulación de carga de datos (Reemplazar con llamada real)
+// Carga real de movimientos y ventas
 const fetchTransactions = async () => {
   isLoading.value = true;
   try {
-    // Aquí iría tu servicio: await cashFlowService.getTransactions()
-    await new Promise(resolve => setTimeout(resolve, 800)); 
-    transactions.value = [
-      { id: '1', date: '01 jul 2026 - 14:30', type: 'ingreso', category: 'Ventas', amount: 45000, paymentMethod: 'Débito', description: 'Mesa 4 - Almuerzo', status: 'completado' },
-      { id: '2', date: '01 jul 2026 - 10:15', type: 'egreso', category: 'Proveedores', amount: 120000, paymentMethod: 'Transferencia', description: 'Pago de carnes y embutidos', status: 'completado' },
-      { id: '3', date: '01 jul 2026 - 09:00', type: 'ingreso', category: 'Caja Inicial', amount: 50000, paymentMethod: 'Efectivo', description: 'Apertura de turno mañana', status: 'completado' },
-      { id: '4', date: '30 jun 2026 - 18:45', type: 'egreso', category: 'Mantenimiento', amount: 35000, paymentMethod: 'Efectivo', description: 'Reparación llave lavaplatos', status: 'pendiente' },
-    ];
+    const combined = await cashFlowService.getCombinedTransactions();
+    transactions.value = combined;
   } catch (error) {
-    console.error('Error al cargar transacciones:', error);
+    console.error('Error al cargar movimientos de caja:', error);
+    notify('Error al cargar los datos de caja', 'warning');
   } finally {
     isLoading.value = false;
   }
@@ -287,6 +286,7 @@ const fetchTransactions = async () => {
 
 const reloadTransactions = () => {
   fetchTransactions();
+  notify('Datos de caja actualizados', 'info');
 };
 
 const toggleNewTransactionMenu = () => {
@@ -307,28 +307,24 @@ const submitTransaction = async () => {
 
   isSaving.value = true;
   try {
-    // Aquí iría el post a tu backend: await cashFlowService.create(form.value)
-    await new Promise(resolve => setTimeout(resolve, 600));
-    
-    // Agregamos al listado local simulando la respuesta
-    const newTrx: Transaction = {
-      id: Math.random().toString(36).substr(2, 9),
-      date: 'Ahora', // En un caso real vendría del backend
+    const newTrx = cashFlowService.saveCustomTransaction({
       type: form.value.type,
       category: form.value.category,
-      amount: form.value.amount || 0,
+      amount: Number(form.value.amount || 0),
       paymentMethod: form.value.paymentMethod,
-      description: form.value.description,
+      description: form.value.description || 'Movimiento manual',
       status: 'completado'
-    };
-    
+    });
+
     transactions.value.unshift(newTrx);
+    notify(`¡${form.value.type === 'ingreso' ? 'Ingreso' : 'Egreso'} registrado correctamente!`, 'success');
     
     // Reset formulario
     form.value.amount = null;
     form.value.description = '';
   } catch (error) {
     console.error('Error al guardar movimiento:', error);
+    notify('Error al guardar el movimiento', 'warning');
   } finally {
     isSaving.value = false;
   }
@@ -694,4 +690,73 @@ onMounted(() => {
 
 .spinning { animation: spin 0.9s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ==========================================================
+   RESPONSIVIDAD MÓVIL Y TABLET
+========================================================== */
+@media (max-width: 1024px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .inventory-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .cashflow-view {
+    padding: 15px;
+  }
+
+  .inventory-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .toolbar-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .toolbar-left {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .search-box, .select-box {
+    width: 100%;
+  }
+
+  .search-box input, .select-box select {
+    width: 100%;
+  }
+
+  .table-card {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 10px;
+  }
+
+  .grid-2-cols {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

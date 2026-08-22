@@ -148,6 +148,7 @@ class DatabaseSeeder extends Seeder
             ['nombre' => 'Pan Grande', 'descripcion' => 'Pan grande', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
             ['nombre' => 'Pan XL', 'descripcion' => 'Pan XL', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
             ['nombre' => 'Chucrut', 'descripcion' => 'Chucrut tradicional', 'cantidad_actual' => 50, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Salsa verde', 'descripcion' => 'Salsa verde tradicional', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
         ];
 
         foreach ($ingredientes as $ingredienteData) {

@@ -595,19 +595,30 @@ const handleAddToCart = () => {
 /* RESPONSIVIDAD */
 @media (max-width: 768px) {
   .modal-wrapper { 
-    height: 95vh; 
-    max-height: none; 
-    border-radius: 15px; 
+    width: 95vw;
+    height: 92vh; 
+    max-height: 92vh; 
+    border-radius: 18px; 
+  }
+
+  .close-btn {
+    top: 10px;
+    right: 10px;
+    width: 34px;
+    height: 34px;
   }
 
   .modal-grid { 
-    grid-template-columns: 1fr; 
-    grid-template-rows: auto 1fr; 
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
   }
 
   .product-img-box {
-    height: 180px;
+    height: 130px;
     width: 100%;
+    flex-shrink: 0;
   }
 
   .main-product-img {
@@ -616,19 +627,21 @@ const handleAddToCart = () => {
   }
 
   .product-info-box { 
-    padding: 20px; 
+    padding: 14px 12px; 
     overflow-y: auto;
+    flex: 1;
   }
 
   .scrollable-config {
-    gap: 15px;
+    gap: 12px;
   }
 
   .purchase-actions { 
     flex-direction: column; 
-    margin-top: 10px;
+    margin-top: 8px;
+    gap: 8px;
   }
-  .quantity-selector { width: 100%; padding: 8px; }
-  .add-to-cart-btn { width: 100%; padding: 12px; }
+  .quantity-selector { width: 100%; padding: 8px; box-sizing: border-box; }
+  .add-to-cart-btn { width: 100%; padding: 12px; box-sizing: border-box; }
 }
 </style>

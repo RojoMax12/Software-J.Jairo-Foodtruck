@@ -1,61 +1,96 @@
 <template>
-  <div class="admin-quote-wizard">
-    <div class="wizard-header">
-      <h1>Generar Nuevo Pedido</h1>
+  <div class="pos-quote-wizard">
+    <!-- HEADER & STEPS INDICATOR -->
+    <header class="wizard-header">
+      <div class="header-brand">
+        <div class="brand-title-row">
+          <Utensils :size="22" class="brand-icon" />
+          <h1>Generar Pedido</h1>
+        </div>
+        <p class="header-subtitle">Punto de Venta · J.Jairo Foodtruck</p>
+      </div>
+
       <div class="steps-indicator">
-        <div :class="['step', { active: currentStep >= 1 }]">1. Productos</div>
-        <div class="line"></div>
-        <div :class="['step', { active: currentStep >= 2 }]">2. Cliente</div>
-        <div class="line"></div>
-        <div :class="['step', { active: currentStep >= 3 }]">3. Resumen</div>
+        <div 
+          class="step-pill" 
+          :class="{ active: currentStep === 1, completed: currentStep > 1 }" 
+          @click="currentStep > 1 && (currentStep = 1)"
+        >
+          <div class="step-num">
+            <Check v-if="currentStep > 1" :size="13" />
+            <span v-else>1</span>
+          </div>
+          <span class="step-text">Menú</span>
+        </div>
+        
+        <div class="step-line" :class="{ active: currentStep >= 2 }"></div>
+        
+        <div 
+          class="step-pill" 
+          :class="{ active: currentStep === 2, completed: currentStep > 2 }" 
+          @click="currentStep > 2 && (currentStep = 2)"
+        >
+          <div class="step-num">
+            <Check v-if="currentStep > 2" :size="13" />
+            <span v-else>2</span>
+          </div>
+          <span class="step-text">Cliente & Pago</span>
+        </div>
+        
+        <div class="step-line" :class="{ active: currentStep >= 3 }"></div>
+        
+        <div class="step-pill" :class="{ active: currentStep === 3 }">
+          <div class="step-num">3</div>
+          <span class="step-text">Confirmar</span>
+        </div>
       </div>
-    </div>
+    </header>
 
+    <!-- STEP 1: PRODUCT SELECTION, RECIPE CUSTOMIZATION & CART -->
     <div v-if="currentStep === 1" class="step-container product-step">
-      <!-- BARRA DE PESTAÑAS MÓVIL -->
-      <div class="mobile-tabs-bar">
-        <button 
-          class="mobile-tab-btn" 
-          :class="{ 'active': mobileTab === 'catalog' }" 
-          @click="mobileTab = 'catalog'"
-        >
-          <Utensils :size="16" /> Catálogo
-        </button>
+      <div class="product-layout">
         
-        <button 
-          class="mobile-tab-btn" 
-          :class="{ 'active': mobileTab === 'recipe' }" 
-          @click="mobileTab = 'recipe'"
-        >
-          <FileText :size="16" /> Receta
-        </button>
-
-        <button 
-          class="mobile-tab-btn" 
-          :class="{ 'active': mobileTab === 'cart' }" 
-          @click="mobileTab = 'cart'"
-        >
-          <ShoppingCart :size="16" /> Comanda ({{ totalUnits }})
-        </button>
-      </div>
-
-      <div class="product-layout" :class="`show-tab-${mobileTab}`">
-        
+        <!-- COLUMNA 1: CATÁLOGO DE PRODUCTOS (VISIBLE EN ESCRITORIO Y MÓVIL) -->
         <div class="catalog-section">
-          <div class="catalog-header">
-            <h3>Selección de Productos</h3>
-            <div class="filters">
-              <select v-model="selectedCategory" class="dc-select">
-                <option value="Todas">Todas las categorías</option>
-                <option v-for="cat in categoriesList" :key="cat.id" :value="cat.nombre_categoria">
-                  {{ cat.nombre_categoria }}
-                </option>
-              </select>
+          <div class="catalog-toolbar">
+            <!-- BUSCADOR -->
+            <div class="search-input-box">
+              <Search :size="17" class="search-icon" />
+              <input
+                v-model="productSearch"
+                type="text"
+                placeholder="Buscar completo, hamburguesa, bebida..."
+                class="input-search-product"
+              />
+              <button v-if="productSearch" class="btn-clear-search" @click="productSearch = ''">
+                <X :size="14" />
+              </button>
+            </div>
+
+            <!-- CATEGORY CHIPS (SCROLL HORIZONTAL) -->
+            <div class="categories-scroll-row">
+              <button
+                class="category-chip"
+                :class="{ active: selectedCategory === 'Todas' }"
+                @click="selectedCategory = 'Todas'"
+              >
+                ✨ Todas
+              </button>
+              <button
+                v-for="cat in categoriesList"
+                :key="cat.id"
+                class="category-chip"
+                :class="{ active: selectedCategory === cat.nombre_categoria }"
+                @click="selectedCategory = cat.nombre_categoria"
+              >
+                {{ getCategoryEmoji(cat.nombre_categoria) }} {{ cat.nombre_categoria }}
+              </button>
             </div>
           </div>
 
+          <!-- SKELETON / PRODUCTS GRID -->
           <div v-if="isLoadingProducts" class="products-grid-admin">
-            <div v-for="n in 6" :key="'gen-skel-' + n" class="brown-menu-card-skeleton">
+            <div v-for="n in 6" :key="'gen-skel-' + n" class="pos-card-skeleton">
               <div class="skeleton-img"></div>
               <div class="skeleton-body">
                 <div class="skeleton-pill width-120"></div>
@@ -63,292 +98,623 @@
               </div>
             </div>
           </div>
+
+          <div v-else-if="filteredProducts.length === 0" class="empty-products-box">
+            <Utensils :size="36" class="empty-icon" />
+            <p>No se encontraron productos con estos filtros.</p>
+            <button class="btn-reset-filters" @click="selectedCategory = 'Todas'; productSearch = ''">
+              Ver todos los productos
+            </button>
+          </div>
+
           <div v-else class="products-grid-admin">
             <div 
               v-for="p in filteredProducts" 
               :key="p.id" 
-              class="brown-menu-card"
+              class="pos-product-card"
+              :class="{ 'is-selected': activeVariant?.baseProduct?.id === p.id && activeVariant?.size === p.activeSize }"
+              @click="openProductCustomizer(p, p.types[0])"
             >
-              <img :src="p.image" :alt="p.name" />
+              <div class="card-image-wrap">
+                <img :src="p.image" :alt="p.name" loading="lazy" />
+                <span class="category-badge">{{ p.category }}</span>
+              </div>
               
-              <div class="brown-card-body">
-                <h3 class="card-main-title">{{ p.name }}</h3>
-                
-                <div v-if="p.sizes.length > 1" class="size-pills-container">
+              <div class="pos-card-body">
+                <h3 class="pos-product-title">{{ p.name }}</h3>
+
+                <!-- SELECTOR DE TAMAÑO / FORMATO EN TARJETA (Desktop) -->
+                <div v-if="p.sizes.length > 1" class="sizes-chips-row desktop-only-sizes" @click.stop>
                   <button 
                     v-for="size in p.sizes" 
                     :key="size"
-                    class="size-pill"
-                    :class="{ 'active-pill': p.activeSize === size }"
-                    @click="p.activeSize = size"
+                    class="size-btn"
+                    :class="{ 'active-size': p.activeSize === size }"
+                    @click="p.activeSize = size; selectVariant(p, p.types[0], false)"
                   >
                     {{ size }}
                   </button>
                 </div>
-                <div v-else class="single-size-spacer"></div>
-
-                <div class="type-section-title">Tipo / Variedad</div>
-
-                <div class="variants-list">
-                  <div 
-                    v-for="tipo in p.types" 
-                    :key="tipo.id"
-                    class="variant-row"
-                    :class="{ 'active-row': activeVariant?.type.id === tipo.id && activeVariant?.size === p.activeSize }"
-                    @click="selectVariant(p, tipo)"
-                  >
-                    <div class="variant-left">
-                      <div class="radio-circle">
-                        <div class="radio-inner" v-if="activeVariant?.type.id === tipo.id && activeVariant?.size === p.activeSize"></div>
-                      </div>
-                      <div class="variant-texts">
-                        <span class="v-name">{{ tipo.name }}</span>
-                        <span class="v-desc">{{ tipo.desc }}</span>
-                      </div>
-                    </div>
-                    <span class="v-price">${{ tipo.prices[p.activeSize] }}</span>
-                  </div>
+                <div v-else class="single-size-tag desktop-only-sizes">
+                  Formato {{ p.activeSize || 'Normal' }}
                 </div>
 
+                <!-- INDICADOR COMPACTO DE FORMATOS (Móvil) -->
+                <div class="mobile-size-badge-indicator">
+                  <span v-if="p.sizes.length > 1" class="multi-sizes-tag">
+                    {{ p.sizes.length }} tamaños
+                  </span>
+                  <span v-else class="single-format-tag">
+                    {{ p.activeSize || 'Normal' }}
+                  </span>
+                </div>
+
+                <div class="card-footer-row">
+                  <span class="product-card-price">
+                    ${{ formatNumber(p.types[0]?.prices[p.activeSize] || 0) }}
+                  </span>
+                  
+                  <button class="btn-select-product" @click.stop="openProductCustomizer(p, p.types[0])">
+                    <span>Elegir</span>
+                    <Plus :size="14" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="box-ingredient-card">
-          <div class="card-header">
-            <FileText :size="20" />
-            <span>Personalizar Receta</span>
+        <!-- ============================================== -->
+        <!-- COLUMNA 2 (SOLO ESCRITORIO): RECETA            -->
+        <!-- ============================================== -->
+        <div class="recipe-customizer-card desktop-only-pane">
+          <div class="customizer-header">
+            <div class="header-left-title">
+              <FileText :size="18" />
+              <span>Personalizar Receta</span>
+            </div>
           </div>
           
-          <div class="ingredient-content">
+          <div class="customizer-body">
             <template v-if="activeVariant">
-              <h2 class="product-name-highlight">
-                {{ activeVariant.baseName }} ({{ activeVariant.size }})
-              </h2>
+              <div class="selected-product-banner">
+                <div class="product-banner-info">
+                  <h3 class="banner-title">{{ activeVariant.baseName }}</h3>
+                  <span class="banner-size-badge">{{ activeVariant.size }}</span>
+                </div>
+                <span class="banner-base-price">${{ formatNumber(currentVariantUnitPrice) }}</span>
+              </div>
 
-              <!-- MODO PERSONALIZABLE (Pizzas, Hamburguesas, Fajitas) -->
-              <div v-if="isPersonalizableProduct" class="ingredient-list">
-                <h4>
-                  Ingredientes opcionales a elección 
-                  <span class="subtitle-hint">
-                    (Incluye {{ activeVariant.cantidad_incluida || 3 }} gratis, extra +${{ activeVariant.precio_ingrediente_extra || 500 }} c/u)
+              <!-- MODO PERSONALIZABLE -->
+              <div v-if="isPersonalizableProduct" class="ingredients-section">
+                <div class="ingredients-section-header">
+                  <h4>Ingredientes a elección</h4>
+                  <span class="section-hint">
+                    {{ activeVariant.cantidad_incluida || 3 }} incluidos gratis
+                    <template v-if="extraIngredientsCost > 0">
+                      · (+${{ formatNumber(extraIngredientsCost) }} extras)
+                    </template>
                   </span>
-                </h4>
+                </div>
                 
-                <div class="ingredients-wrapper">
-                  <label 
+                <div class="ingredients-chips-grid">
+                  <button 
                     v-for="pi in optionalExtraIngredients" 
                     :key="pi.id" 
-                    class="ingredient-item-row"
+                    class="ingredient-chip-toggle"
                     :class="{ 
-                      'ingredient-added': addedExtraIngredients.includes(pi.ingrediente?.nombre),
-                      'ingredient-disabled': !pi.ingrediente?.disponible
+                      'is-added': addedExtraIngredients.includes(pi.ingrediente?.nombre),
+                      'is-disabled': !pi.ingrediente?.disponible
                     }"
+                    :disabled="!pi.ingrediente?.disponible"
+                    @click="toggleExtraIngredient(pi.ingrediente?.nombre)"
                   >
-                    <div class="ing-left">
-                      <input 
-                        type="checkbox" 
-                        :checked="addedExtraIngredients.includes(pi.ingrediente?.nombre)"
-                        @change="toggleExtraIngredient(pi.ingrediente?.nombre)"
-                        :disabled="!pi.ingrediente?.disponible"
-                        class="custom-checkbox"
-                      />
-                      <span class="ing-name">{{ pi.ingrediente?.nombre }}</span>
+                    <div class="chip-status-icon">
+                      <Check v-if="addedExtraIngredients.includes(pi.ingrediente?.nombre)" :size="13" />
+                      <Plus v-else :size="13" />
                     </div>
-
-                    <span v-if="!pi.ingrediente?.disponible" class="ing-status no-stock">Sin Stock</span>
-                    <span v-else-if="addedExtraIngredients.includes(pi.ingrediente?.nombre)" class="ing-status added">AGREGADO</span>
-                    <span v-else class="ing-status ok">Opcional</span>
-                  </label>
+                    <span class="chip-label">{{ pi.ingrediente?.nombre }}</span>
+                  </button>
                 </div>
               </div>
 
-              <!-- MODO ESTANDAR (Vianesas, Churrascos, Ass, Lomitos) -->
-              <div v-else class="ingredient-list">
-                <h4>Ingredientes incluidos (Desmarca para quitar)</h4>
+              <!-- MODO ESTÁNDAR -->
+              <div v-else class="ingredients-section">
+                <div class="ingredients-section-header">
+                  <h4>Ingredientes de la receta</h4>
+                  <span class="section-hint">Toca para quitar ingredientes</span>
+                </div>
                 
-                <div class="ingredients-wrapper">
-                  <label 
+                <div class="ingredients-chips-grid">
+                  <button 
                     v-for="pi in customizableRecipeIngredients" 
                     :key="pi.id" 
-                    class="ingredient-item-row"
+                    class="ingredient-chip-toggle standard-chip"
                     :class="{ 
-                      'ingredient-removed': excludedIngredients.includes(pi.ingrediente?.nombre),
-                      'ingredient-disabled': !pi.ingrediente?.disponible
+                      'is-removed': excludedIngredients.includes(pi.ingrediente?.nombre),
+                      'is-disabled': !pi.ingrediente?.disponible
                     }"
+                    :disabled="!pi.ingrediente?.disponible"
+                    @click="toggleIngredient(pi.ingrediente?.nombre)"
                   >
-                    <div class="ing-left">
-                      <input 
-                        type="checkbox" 
-                        :checked="!excludedIngredients.includes(pi.ingrediente?.nombre)"
-                        @change="toggleIngredient(pi.ingrediente?.nombre)"
-                        :disabled="!pi.ingrediente?.disponible"
-                        class="custom-checkbox"
-                      />
-                      <span class="ing-name">{{ pi.ingrediente?.nombre }}</span>
+                    <div class="chip-status-icon">
+                      <X v-if="excludedIngredients.includes(pi.ingrediente?.nombre)" :size="13" />
+                      <Check v-else :size="13" />
                     </div>
-
-                    <span v-if="!pi.ingrediente?.disponible" class="ing-status no-stock">Sin Stock</span>
-                    <span v-else-if="excludedIngredients.includes(pi.ingrediente?.nombre)" class="ing-status removed">QUITADO</span>
-                    <span v-else class="ing-status ok">Lleva</span>
-                  </label>
+                    <span class="chip-label">
+                      {{ excludedIngredients.includes(pi.ingrediente?.nombre) ? 'Sin ' : '' }}{{ pi.ingrediente?.nombre }}
+                    </span>
+                  </button>
                 </div>
               </div>
 
-              <button class="btn-add-to-cart-large" @click="addActiveVariantToCart">
-                AÑADIR A COMANDA - ${{ currentVariantUnitPrice }}
-              </button>
+              <div class="customizer-actions">
+                <button class="btn-add-to-cart-pos" @click="addActiveVariantToCart">
+                  <Plus :size="18" />
+                  <span>Añadir a Comanda • ${{ formatNumber(currentVariantUnitPrice) }}</span>
+                </button>
+              </div>
             </template>
             
-            <p v-else class="no-selection-text">
-              Selecciona una variedad en las tarjetas de la izquierda para ver sus ingredientes.
-            </p>
+            <div v-else class="empty-selection-placeholder">
+              <div class="placeholder-icon-box">
+                <Utensils :size="32" />
+              </div>
+              <h4>Ningún producto seleccionado</h4>
+              <p>Selecciona un producto del catálogo para ver y ajustar su receta.</p>
+            </div>
           </div>
         </div>
 
-        <aside class="cart-summary-admin">
-          <div class="cart-header">
-            <ShoppingCart :size="20" />
-            <span>Comanda Actual ({{ totalUnits }} {{ totalUnits === 1 ? 'unidad' : 'unidades' }})</span>
+        <!-- ============================================== -->
+        <!-- COLUMNA 3 (SOLO ESCRITORIO): COMANDA           -->
+        <!-- ============================================== -->
+        <aside class="pos-cart-sidebar desktop-only-pane">
+          <div class="pos-cart-header">
+            <div class="cart-title-row">
+              <ShoppingCart :size="18" />
+              <span>Comanda Actual</span>
+            </div>
+            <span class="cart-units-pill">{{ totalUnits }} {{ totalUnits === 1 ? 'ítem' : 'ítems' }}</span>
           </div>
-          <div class="cart-items-list">
-            <div v-if="cartItems.length === 0" class="empty-cart">No hay productos en la orden</div>
-            <div v-for="(item, idx) in cartItems" :key="item.id" class="cart-item-admin">
-              <div class="item-main">
-                <div class="item-title-block">
-                  <span class="item-name">{{ item.fullName }} ({{ item.size }})</span>
-                  <span v-if="item.excluidos && item.excluidos.length > 0" class="badge-removed-items">
-                    SIN: {{ item.excluidos.join(', ') }}
-                  </span>
-                  <span v-if="item.agregados && item.agregados.length > 0" class="badge-added-items">
-                    CON: {{ item.agregados.join(', ') }}
+
+          <div class="cart-items-scroll">
+            <div v-if="cartItems.length === 0" class="empty-cart-state">
+              <ShoppingCart :size="38" class="empty-cart-icon" />
+              <p>Comanda vacía</p>
+              <small>Agrega productos del catálogo para comenzar la orden.</small>
+            </div>
+
+            <div v-for="(item, idx) in cartItems" :key="item.id" class="pos-cart-item">
+              <div class="cart-item-info">
+                <span class="cart-item-title">{{ item.fullName }} ({{ item.size }})</span>
+                
+                <div v-if="item.excluidos && item.excluidos.length > 0" class="cart-badges-wrap">
+                  <span v-for="ex in item.excluidos" :key="ex" class="badge-tag-removed">
+                    Sin {{ ex }}
                   </span>
                 </div>
-                <span class="item-price">${{ item.price * item.quantity }}</span>
+
+                <div v-if="item.agregados && item.agregados.length > 0" class="cart-badges-wrap">
+                  <span v-for="ag in item.agregados" :key="ag" class="badge-tag-added">
+                    + {{ ag }}
+                  </span>
+                </div>
+
+                <div class="cart-item-pricing">
+                  <span class="cart-item-unit-price">${{ formatNumber(item.price) }} c/u</span>
+                  <span class="cart-item-subtotal">${{ formatNumber(item.price * item.quantity) }}</span>
+                </div>
               </div>
-              <div class="item-controls">
-                <div class="qty-btn" @click="updateQuantity(idx, -1)"><Minus :size="12" /></div>
-                <span>{{ item.quantity }}</span>
-                <div class="qty-btn" @click="updateQuantity(idx, 1)"><Plus :size="12" /></div>
-                <button class="btn-delete" @click="removeFromCart(idx)"><Trash2 :size="14" /></button>
+
+              <div class="cart-item-stepper">
+                <button class="btn-stepper" @click="updateQuantity(idx, -1)" title="Reducir">
+                  <Minus :size="13" />
+                </button>
+                <span class="stepper-count">{{ item.quantity }}</span>
+                <button class="btn-stepper" @click="updateQuantity(idx, 1)" title="Aumentar">
+                  <Plus :size="13" />
+                </button>
+                <button class="btn-trash-item" @click="removeFromCart(idx)" title="Eliminar">
+                  <Trash2 :size="15" />
+                </button>
               </div>
             </div>
           </div>
-          <div class="cart-total">
-            <span>Total:</span>
-            <strong>{{ totalQuote }}</strong>
+
+          <div class="pos-cart-footer">
+            <div class="total-breakdown-row">
+              <span>Total a Cobrar</span>
+              <strong>{{ totalQuote }}</strong>
+            </div>
+
+            <button 
+              class="btn-continue-checkout" 
+              :disabled="cartItems.length === 0" 
+              @click="goToStep2"
+            >
+              <span>Continuar a Cliente</span>
+              <ArrowRight :size="18" />
+            </button>
           </div>
         </aside>
 
       </div>
 
-      <!-- BARRA FLOTANTE MÓVIL EN LA PARTE INFERIOR -->
-      <div v-if="cartItems.length > 0 && currentStep === 1" class="mobile-floating-cart-bar" @click="mobileTab = 'cart'">
-        <div class="cart-bar-info">
-          <span class="badge-count">{{ cartItems.reduce((acc, i) => acc + i.quantity, 0) }}</span>
-          <span class="cart-bar-total">{{ totalQuote }}</span>
-        </div>
-        <button class="btn-checkout-mobile" @click.stop="nextStep">
-          Ir a Cobrar <ArrowRight :size="16" />
-        </button>
-      </div>
+      <!-- ============================================================== -->
+      <!-- MODAL / BOTTOM SHEET FLOTANTE: PERSONALIZAR RECETA EN MÓVIL    -->
+      <!-- ============================================================== -->
+      <Transition name="modal-fade">
+        <div v-if="isMobileRecipeOpen && activeVariant" class="mobile-modal-overlay">
+          <div class="mobile-modal-backdrop" @click="isMobileRecipeOpen = false"></div>
+          
+          <div class="mobile-sheet-card">
+            <div class="sheet-drag-pill"></div>
+            
+            <!-- HEADER MODAL -->
+            <div class="sheet-header">
+              <div class="sheet-title-left">
+                <FileText :size="18" />
+                <span>Personalizar Receta</span>
+              </div>
+              <button class="btn-close-modal" @click="isMobileRecipeOpen = false">
+                <X :size="18" />
+              </button>
+            </div>
 
-      <div class="actions">
-        <button class="btn btn-secondary" @click="router.push('/general-home')">Cancelar</button>
-        <button class="btn btn-primary" @click="nextStep">
-          Continuar a Cliente <ArrowRight :size="18" />
+            <!-- CUERPO CON SCROLL -->
+            <div class="sheet-scroll-body">
+              <div class="selected-product-banner">
+                <div class="product-banner-info">
+                  <h3 class="banner-title">{{ activeVariant.baseName }}</h3>
+                  <span class="banner-size-badge">{{ activeVariant.size }}</span>
+                </div>
+                <span class="banner-base-price">${{ formatNumber(currentVariantUnitPrice) }}</span>
+              </div>
+
+              <!-- SELECTOR DE TAMAÑO EN MODAL -->
+              <div v-if="activeVariant.baseProduct?.sizes?.length > 1" class="modal-sizes-section">
+                <label class="sizes-label">Seleccionar Tamaño:</label>
+                <div class="modal-sizes-row">
+                  <button 
+                    v-for="s in activeVariant.baseProduct.sizes" 
+                    :key="s"
+                    class="modal-size-pill"
+                    :class="{ 'active': activeVariant.size === s }"
+                    @click="changeActiveSize(s)"
+                  >
+                    {{ s }} · ${{ formatNumber(activeVariant.type.prices[s] || 0) }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- MODO PERSONALIZABLE -->
+              <div v-if="isPersonalizableProduct" class="ingredients-section">
+                <div class="ingredients-section-header">
+                  <h4>Ingredientes a elección</h4>
+                  <span class="section-hint">
+                    {{ activeVariant.cantidad_incluida || 3 }} incluidos gratis
+                    <template v-if="extraIngredientsCost > 0">
+                      · (+${{ formatNumber(extraIngredientsCost) }} extras)
+                    </template>
+                  </span>
+                </div>
+                
+                <div class="ingredients-chips-grid">
+                  <button 
+                    v-for="pi in optionalExtraIngredients" 
+                    :key="pi.id" 
+                    class="ingredient-chip-toggle"
+                    :class="{ 
+                      'is-added': addedExtraIngredients.includes(pi.ingrediente?.nombre),
+                      'is-disabled': !pi.ingrediente?.disponible
+                    }"
+                    :disabled="!pi.ingrediente?.disponible"
+                    @click="toggleExtraIngredient(pi.ingrediente?.nombre)"
+                  >
+                    <div class="chip-status-icon">
+                      <Check v-if="addedExtraIngredients.includes(pi.ingrediente?.nombre)" :size="13" />
+                      <Plus v-else :size="13" />
+                    </div>
+                    <span class="chip-label">{{ pi.ingrediente?.nombre }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- MODO ESTÁNDAR -->
+              <div v-else class="ingredients-section">
+                <div class="ingredients-section-header">
+                  <h4>Ingredientes de la receta</h4>
+                  <span class="section-hint">Toca para quitar ingredientes</span>
+                </div>
+                
+                <div class="ingredients-chips-grid">
+                  <button 
+                    v-for="pi in customizableRecipeIngredients" 
+                    :key="pi.id" 
+                    class="ingredient-chip-toggle standard-chip"
+                    :class="{ 
+                      'is-removed': excludedIngredients.includes(pi.ingrediente?.nombre),
+                      'is-disabled': !pi.ingrediente?.disponible
+                    }"
+                    :disabled="!pi.ingrediente?.disponible"
+                    @click="toggleIngredient(pi.ingrediente?.nombre)"
+                  >
+                    <div class="chip-status-icon">
+                      <X v-if="excludedIngredients.includes(pi.ingrediente?.nombre)" :size="13" />
+                      <Check v-else :size="13" />
+                    </div>
+                    <span class="chip-label">
+                      {{ excludedIngredients.includes(pi.ingrediente?.nombre) ? 'Sin ' : '' }}{{ pi.ingrediente?.nombre }}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- BOTÓN FIJO INFERIOR EN EL MODAL -->
+            <div class="sheet-sticky-bottom-bar">
+              <button class="btn-add-to-cart-pos" @click="addActiveVariantToCart">
+                <Plus :size="18" />
+                <span>Añadir a Comanda • ${{ formatNumber(currentVariantUnitPrice) }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
+      <!-- ============================================================== -->
+      <!-- MODAL / BOTTOM SHEET FLOTANTE: COMANDA (CARRITO) EN MÓVIL      -->
+      <!-- ============================================================== -->
+      <Transition name="modal-fade">
+        <div v-if="isMobileCartOpen" class="mobile-modal-overlay">
+          <div class="mobile-modal-backdrop" @click="isMobileCartOpen = false"></div>
+          
+          <div class="mobile-sheet-card">
+            <div class="sheet-drag-pill"></div>
+
+            <div class="sheet-header">
+              <div class="sheet-title-left">
+                <ShoppingCart :size="18" />
+                <span>Comanda Actual</span>
+              </div>
+              <div class="header-cart-right">
+                <span class="cart-units-pill">{{ totalUnits }} {{ totalUnits === 1 ? 'ítem' : 'ítems' }}</span>
+                <button class="btn-close-modal" @click="isMobileCartOpen = false">
+                  <X :size="18" />
+                </button>
+              </div>
+            </div>
+
+            <div class="sheet-scroll-body">
+              <div v-if="cartItems.length === 0" class="empty-cart-state">
+                <ShoppingCart :size="38" class="empty-cart-icon" />
+                <p>Comanda vacía</p>
+                <small>Agrega productos del catálogo para comenzar la orden.</small>
+              </div>
+
+              <div v-for="(item, idx) in cartItems" :key="item.id" class="pos-cart-item">
+                <div class="cart-item-info">
+                  <span class="cart-item-title">{{ item.fullName }} ({{ item.size }})</span>
+                  
+                  <div v-if="item.excluidos && item.excluidos.length > 0" class="cart-badges-wrap">
+                    <span v-for="ex in item.excluidos" :key="ex" class="badge-tag-removed">
+                      Sin {{ ex }}
+                    </span>
+                  </div>
+
+                  <div v-if="item.agregados && item.agregados.length > 0" class="cart-badges-wrap">
+                    <span v-for="ag in item.agregados" :key="ag" class="badge-tag-added">
+                      + {{ ag }}
+                    </span>
+                  </div>
+
+                  <div class="cart-item-pricing">
+                    <span class="cart-item-unit-price">${{ formatNumber(item.price) }} c/u</span>
+                    <span class="cart-item-subtotal">${{ formatNumber(item.price * item.quantity) }}</span>
+                  </div>
+                </div>
+
+                <div class="cart-item-stepper">
+                  <button class="btn-stepper" @click="updateQuantity(idx, -1)" title="Reducir">
+                    <Minus :size="13" />
+                  </button>
+                  <span class="stepper-count">{{ item.quantity }}</span>
+                  <button class="btn-stepper" @click="updateQuantity(idx, 1)" title="Aumentar">
+                    <Plus :size="13" />
+                  </button>
+                  <button class="btn-trash-item" @click="removeFromCart(idx)" title="Eliminar">
+                    <Trash2 :size="15" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="sheet-sticky-bottom-bar pos-cart-footer">
+              <div class="total-breakdown-row">
+                <span>Total a Cobrar</span>
+                <strong>{{ totalQuote }}</strong>
+              </div>
+
+              <button 
+                class="btn-continue-checkout" 
+                :disabled="cartItems.length === 0" 
+                @click="goToStep2"
+              >
+                <span>Continuar a Cliente y Pago</span>
+                <ArrowRight :size="18" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
+      <!-- BARRA FLOTANTE MÓVIL EN LA PARTE INFERIOR (SOLO CUANDO NO HAY MODAL ABIERTO) -->
+      <div 
+        v-if="cartItems.length > 0 && !isMobileRecipeOpen && !isMobileCartOpen" 
+        class="mobile-floating-cart-bar" 
+        @click="isMobileCartOpen = true"
+      >
+        <div class="cart-bar-info">
+          <div class="cart-bubble-icon">
+            <ShoppingCart :size="18" />
+            <span class="badge-count">{{ totalUnits }}</span>
+          </div>
+          <div class="cart-bar-text-group">
+            <span class="cart-bar-sub">Comanda</span>
+            <strong class="cart-bar-total">{{ totalQuote }}</strong>
+          </div>
+        </div>
+        <button class="btn-checkout-mobile" @click.stop="isMobileCartOpen = true">
+          Ver Comanda <ArrowRight :size="16" />
         </button>
       </div>
     </div>
 
+    <!-- STEP 2: CLIENT & PAYMENT METHOD -->
     <div v-if="currentStep === 2" class="step-container client-step">
-      <div class="selection-mode">
+      <div class="client-step-card">
         <div class="section-intro">
-          <h3>Datos del cliente y Pago</h3>
-          <p>Completa la información para confirmar la comanda con mayor claridad.</p>
+          <h2>Datos del Cliente y Pago</h2>
+          <p>Indica el nombre del cliente y el método de pago acordado.</p>
         </div>
-        <form class="distributor-form">
-          <div class="input-row">
-            <div class="input-group">
-              <label>Nombre y Apellido Cliente</label>
-              <input v-model="customerForm.nombre" type="text" placeholder="Ej: Johan Neira" class="dc-input" />
+
+        <form class="client-data-form" @submit.prevent="nextStep">
+          <div class="form-grid">
+            <div class="form-field-group">
+              <label><User :size="15" /> Nombre del Cliente *</label>
+              <input 
+                v-model="customerForm.nombre" 
+                type="text" 
+                placeholder="Ej: Juan Pérez" 
+                class="pos-form-input" 
+                required
+                autofocus
+              />
+            </div>
+
+            <div class="form-field-group">
+              <label><Phone :size="15" /> Teléfono WhatsApp (Opcional)</label>
+              <input 
+                v-model="customerForm.telefono" 
+                type="tel" 
+                placeholder="+569..." 
+                class="pos-form-input" 
+                @input="handlePhoneInput"
+              />
             </div>
           </div>
-          <div class="input-row">
-            <div class="input-group">
-              <label>Teléfono (Opcional)</label>
-              <input v-model="customerForm.telefono" type="text" placeholder="+569..." class="dc-input" @input="handlePhoneInput"/>
+
+          <div class="payment-method-selector-section">
+            <label class="section-label"><DollarSign :size="16" /> Método de Pago *</label>
+            <div class="payment-methods-grid">
+              <button
+                v-for="m in metodosdepago"
+                :key="m.id"
+                type="button"
+                class="payment-method-btn"
+                :class="{ active: selectedPaymentMethod === m.nombre }"
+                @click="selectedPaymentMethod = m.nombre"
+              >
+                <div class="payment-icon-box">
+                  <Banknote v-if="m.nombre === 'Efectivo'" :size="22" />
+                  <CreditCard v-else-if="m.nombre.includes('Débito')" :size="22" />
+                  <CreditCard v-else-if="m.nombre.includes('Crédito')" :size="22" />
+                  <Smartphone v-else :size="22" />
+                </div>
+                <span class="payment-btn-label">{{ m.nombre }}</span>
+                <Check v-if="selectedPaymentMethod === m.nombre" class="payment-check-icon" :size="16" />
+              </button>
             </div>
           </div>
-          <div class="input-row">
-            <div class="input-group">
-              <label>Método de Pago</label>
-              <select v-model="selectedPaymentMethod" class="dc-input">
-                <option value="" disabled>Seleccione método de pago</option>
-                <option v-for="m in metodosdepago" :key="m.id" :value="m.nombre">{{ m.nombre }}</option>
-              </select>
-            </div>
+
+          <div class="step-nav-actions">
+            <button type="button" class="btn-pos-secondary" @click="currentStep = 1">
+              <ArrowLeft :size="18" /> Volver al Menú
+            </button>
+            <button type="submit" class="btn-pos-primary">
+              Revisar Resumen <ArrowRight :size="18" />
+            </button>
           </div>
         </form>
       </div>
-      <div class="actions">
-        <button class="btn btn-secondary" @click="currentStep = 1"><ArrowLeft :size="18" /> Volver a Productos</button>
-        <button class="btn btn-primary" @click="nextStep">Revisar Resumen <ArrowRight :size="18" /></button>
-      </div>
     </div>
 
+    <!-- STEP 3: ORDER SUMMARY & CONFIRMATION -->
     <div v-if="currentStep === 3" class="step-container summary-step">
-      <div class="section-intro">
-        <h3>Resumen Final del pedido</h3>
-        <p>Revisa el pedido antes de enviarlo a cocina.</p>
-      </div>
-      <div class="summary-grid">
-        <div class="summary-section">
-          <h4>Datos del cliente</h4>
-          <div class="summary-card">
-            <p><strong>Cliente:</strong> {{ customerForm.nombre || 'Cliente Presencial' }}</p>
-            <p><strong>Teléfono:</strong> {{ customerForm.telefono || 'No registrado' }}</p>
-            <p><strong>Método de Pago:</strong> {{ selectedPaymentMethod }}</p>
-          </div>
+      <div class="summary-receipt-card">
+        <div class="receipt-header">
+          <CheckCircle :size="36" class="receipt-icon" />
+          <h2>Confirmar Comanda</h2>
+          <p>Verifica los detalles antes de enviar el pedido a cocina.</p>
         </div>
-        <div class="summary-section">
-          <h4>Productos Seleccionados</h4>
-          <div class="summary-card products-list-final">
-            <div v-for="item in cartItems" :key="item.id" class="final-item">
-              <div class="final-item-meta">
-                <span class="final-item-name">{{ item.quantity }}x {{ item.fullName }} ({{ item.size }})</span>
-                <div v-if="item.excluidos && item.excluidos.length > 0" class="final-exclusions-box">
-                  <span v-for="ing in item.excluidos" :key="ing" class="exclusion-badge-item">❌ SIN: {{ ing }}</span>
+
+        <div class="receipt-grid">
+          <div class="receipt-section client-info-box">
+            <h3>Datos de Atención</h3>
+            <div class="client-meta-row">
+              <span>Cliente:</span>
+              <strong>{{ customerForm.nombre || 'Cliente Presencial' }}</strong>
+            </div>
+            <div class="client-meta-row">
+              <span>Teléfono:</span>
+              <strong>{{ customerForm.telefono || 'Sin teléfono' }}</strong>
+            </div>
+            <div class="client-meta-row">
+              <span>Método de Pago:</span>
+              <strong class="payment-badge-highlight">{{ selectedPaymentMethod }}</strong>
+            </div>
+          </div>
+
+          <div class="receipt-section products-summary-box">
+            <h3>Productos ({{ totalUnits }})</h3>
+            <div class="receipt-products-list">
+              <div v-for="item in cartItems" :key="item.id" class="receipt-item-row">
+                <div class="receipt-item-left">
+                  <span class="receipt-qty">{{ item.quantity }}x</span>
+                  <div class="receipt-item-names">
+                    <strong>{{ item.fullName }} ({{ item.size }})</strong>
+                    <div v-if="item.excluidos && item.excluidos.length > 0" class="receipt-tags">
+                      <span class="tag-red">Sin {{ item.excluidos.join(', ') }}</span>
+                    </div>
+                    <div v-if="item.agregados && item.agregados.length > 0" class="receipt-tags">
+                      <span class="tag-blue">+ {{ item.agregados.join(', ') }}</span>
+                    </div>
+                  </div>
                 </div>
-                <div v-if="item.agregados && item.agregados.length > 0" class="final-exclusions-box">
-                  <span v-for="ing in item.agregados" :key="ing" class="exclusion-badge-item added">✅ CON: {{ ing }}</span>
-                </div>
+                <span class="receipt-price">${{ formatNumber(item.price * item.quantity) }}</span>
               </div>
-              <span class="final-item-price">${{ item.price * item.quantity }}</span>
-            </div>
-            <div class="final-total">
-              <span>Total a Pagar</span>
-              <strong>{{ totalQuote }}</strong>
             </div>
           </div>
         </div>
-      </div>
-      <div class="actions">
-        <button class="btn btn-secondary" @click="currentStep = 2"><ArrowLeft :size="18" /> Editar Cliente</button>
-        <button class="btn btn-primary" @click="confirmQuote" :disabled="isSubmitting">
-          {{ isSubmitting ? 'Procesando...' : 'Confirmar y Enviar a Cocina' }}
-        </button>
+
+        <div class="receipt-total-banner">
+          <span>Total a Pagar</span>
+          <strong>{{ totalQuote }}</strong>
+        </div>
+
+        <div class="receipt-actions">
+          <button type="button" class="btn-pos-secondary" :disabled="isSubmitting" @click="currentStep = 2">
+            <ArrowLeft :size="18" /> Modificar Datos
+          </button>
+          <button type="button" class="btn-pos-primary btn-confirm-order" :disabled="isSubmitting" @click="confirmQuote">
+            <CheckCircle :size="18" />
+            <span>{{ isSubmitting ? 'Enviando a Cocina...' : 'Enviar Pedido a Cocina' }}</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
-
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { Search, ArrowRight, ArrowLeft, ShoppingCart, Trash2, Plus, Minus, FileText, Utensils } from 'lucide-vue-next';
+import { 
+  Search, ArrowRight, ArrowLeft, ShoppingCart, Trash2, Plus, Minus, 
+  FileText, Utensils, Check, X, CreditCard, Banknote, Smartphone, 
+  DollarSign, User, Phone, CheckCircle 
+} from 'lucide-vue-next';
 import productService from '@/services/productService';
 import categoryService from '@/services/categoryService';
 import orderService from '@/services/orderService';
@@ -359,11 +725,13 @@ const { notify } = useNotification();
 const currentStep = ref(1);
 const isSubmitting = ref(false);
 
-const mobileTab = ref<'catalog' | 'recipe' | 'cart'>('catalog');
+const isMobileRecipeOpen = ref(false);
+const isMobileCartOpen = ref(false);
+
 const activeVariant = ref<any>(null);
 const excludedIngredients = ref<string[]>([]);
 const addedExtraIngredients = ref<string[]>([]);
-const selectedPaymentMethod = ref('');
+const selectedPaymentMethod = ref('Efectivo');
 
 const customerForm = ref({ nombre: '', telefono: '+56' });
 
@@ -374,9 +742,31 @@ const selectedCategory = ref('Todas');
 const productSearch = ref('');
 const metodosdepago = ref<any[]>([]);
 
+const formatNumber = (num: any) => {
+  const n = Number(num || 0);
+  return isNaN(n) ? '0' : n.toLocaleString('es-CL');
+};
+
+const getCategoryEmoji = (categoryName: string) => {
+  const cat = (categoryName || '').toLowerCase();
+  if (cat.includes('completo') || cat.includes('vianesa')) return '🌭';
+  if (cat.includes('hamburguesa')) return '🍔';
+  if (cat.includes('churrasco') || cat.includes('lomito')) return '🥪';
+  if (cat.includes('ass')) return '🥩';
+  if (cat.includes('pizza')) return '🍕';
+  if (cat.includes('fajita')) return '🌮';
+  if (cat.includes('papa') || cat.includes('chorrillana')) return '🍟';
+  if (cat.includes('empanada') || cat.includes('sopaipilla')) return '🥟';
+  if (cat.includes('bebestible') || cat.includes('jugo') || cat.includes('bebida')) return '🥤';
+  return '🍽️';
+};
+
 const cargarMetodosSimulados = () => {
   metodosdepago.value = [
-    { id: 1, nombre: 'Efectivo' }, { id: 2, nombre: 'Tarjeta de Débito' }, { id: 3, nombre: 'Tarjeta de Crédito' }, { id: 4, nombre: 'Transferencia' }
+    { id: 1, nombre: 'Efectivo' }, 
+    { id: 2, nombre: 'Tarjeta de Débito' }, 
+    { id: 3, nombre: 'Tarjeta de Crédito' }, 
+    { id: 4, nombre: 'Transferencia' }
   ];
 };
 
@@ -431,8 +821,8 @@ const fetchProducts = async () => {
         tipo_armado: prod.tipo_armado || 'Estandar',
         cantidad_incluida: prod.cantidad_incluida ?? 0,
         precio_ingrediente_extra: Number(prod.precio_ingrediente_extra || 0),
-        sizes: sizesArray,
-        activeSize: sizesArray[0] || 'Único',
+        sizes: sizesArray.length ? sizesArray : ['Normal'],
+        activeSize: sizesArray[0] || 'Normal',
         tamano_id: prod.tamaños?.[0]?.id_tamaño || 1,
         sizesMap: sizesMap,
         types: [
@@ -446,6 +836,10 @@ const fetchProducts = async () => {
         ]
       };
     });
+
+    if (foodProducts.value.length > 0 && !activeVariant.value) {
+      selectVariant(foodProducts.value[0], foodProducts.value[0].types[0], false);
+    }
   } catch (error) {
     console.error('Error cargando productos en Generar Pedido:', error);
   } finally {
@@ -515,10 +909,10 @@ const optionalExtraIngredients = computed(() => {
 
 const extraIngredientsCost = computed(() => {
   if (!activeVariant.value || !isPersonalizableProduct.value) return 0;
-  const count = addedExtraIngredients.value.length;
-  const included = activeVariant.value.cantidad_incluida || 3;
-  const extraCount = Math.max(0, count - included);
-  const extraPrice = activeVariant.value.precio_ingrediente_extra || 0;
+  const includedCount = activeVariant.value.cantidad_incluida || 3;
+  const selectedCount = addedExtraIngredients.value.length;
+  const extraCount = Math.max(0, selectedCount - includedCount);
+  const extraPrice = activeVariant.value.precio_ingrediente_extra || 500;
   return extraCount * extraPrice;
 });
 
@@ -533,14 +927,14 @@ const filteredProducts = computed(() => {
   if (selectedCategory.value !== 'Todas') {
     results = results.filter(item => item.category === selectedCategory.value);
   }
-  if (productSearch.value.trim() !== '') {
+  if (productSearch.value.trim()) {
     const s = productSearch.value.toLowerCase();
     results = results.filter(item => item.name.toLowerCase().includes(s));
   }
   return results;
 });
 
-const selectVariant = (baseProduct: any, type: any) => {
+const selectVariant = (baseProduct: any, type: any, openMobile = false) => {
   const sizeName = baseProduct.activeSize;
   const tamanoId = baseProduct.sizesMap?.[sizeName] || baseProduct.tamano_id || 1;
 
@@ -557,31 +951,53 @@ const selectVariant = (baseProduct: any, type: any) => {
   };
   excludedIngredients.value = [];
   addedExtraIngredients.value = [];
-  mobileTab.value = 'recipe';
+
+  if (openMobile && typeof window !== 'undefined' && window.innerWidth <= 1024) {
+    isMobileRecipeOpen.value = true;
+  }
+};
+
+const openProductCustomizer = (baseProduct: any, type: any) => {
+  selectVariant(baseProduct, type, true);
+};
+
+const changeActiveSize = (sizeName: string) => {
+  if (!activeVariant.value || !activeVariant.value.baseProduct) return;
+  activeVariant.value.baseProduct.activeSize = sizeName;
+  const tamanoId = activeVariant.value.baseProduct.sizesMap?.[sizeName] || activeVariant.value.baseProduct.tamano_id || 1;
+  activeVariant.value.size = sizeName;
+  activeVariant.value.tamano_id = tamanoId;
+  activeVariant.value.price = activeVariant.value.type.prices[sizeName] || 0;
 };
 
 const toggleIngredient = (nombreIngrediente: string) => {
   if (!nombreIngrediente || isBaseIngredient(nombreIngrediente)) return;
 
   const index = excludedIngredients.value.indexOf(nombreIngrediente);
-  if (index > -1) { excludedIngredients.value.splice(index, 1); } 
-  else { excludedIngredients.value.push(nombreIngrediente); }
+  if (index > -1) { 
+    excludedIngredients.value.splice(index, 1); 
+  } else { 
+    excludedIngredients.value.push(nombreIngrediente); 
+  }
 };
 
 const toggleExtraIngredient = (nombreIngrediente: string) => {
   if (!nombreIngrediente) return;
 
   const index = addedExtraIngredients.value.indexOf(nombreIngrediente);
-  if (index > -1) { addedExtraIngredients.value.splice(index, 1); } 
-  else { addedExtraIngredients.value.push(nombreIngrediente); }
+  if (index > -1) { 
+    addedExtraIngredients.value.splice(index, 1); 
+  } else { 
+    addedExtraIngredients.value.push(nombreIngrediente); 
+  }
 };
 
 const addActiveVariantToCart = () => {
   if (!activeVariant.value) return;
 
   const isPersonalizable = isPersonalizableProduct.value;
-  const exclusionKey = [...excludedIngredients.value].sort().join('-');
-  const additionKey = [...addedExtraIngredients.value].sort().join('-');
+  const exclusionKey = [...new Set(excludedIngredients.value)].sort().join('-');
+  const additionKey = [...new Set(addedExtraIngredients.value)].sort().join('-');
   const cartItemId = `${activeVariant.value.type.id}_${activeVariant.value.size}_${exclusionKey}_${additionKey}`;
 
   const fullProductName = `${activeVariant.value.baseName}`;
@@ -600,11 +1016,13 @@ const addActiveVariantToCart = () => {
       tamano_id: activeVariant.value.tamano_id,
       price: finalUnitPrice,
       quantity: 1,
-      excluidos: isPersonalizable ? [] : [...excludedIngredients.value],
-      agregados: isPersonalizable ? [...addedExtraIngredients.value] : []
+      excluidos: isPersonalizable ? [] : [...new Set(excludedIngredients.value)],
+      agregados: isPersonalizable ? [...new Set(addedExtraIngredients.value)] : []
     });
   }
-  mobileTab.value = 'catalog';
+
+  notify(`¡${fullProductName} añadido a la comanda!`, 'success');
+  isMobileRecipeOpen.value = false;
 };
 
 const removeFromCart = (index: number) => { cartItems.value.splice(index, 1); };
@@ -617,38 +1035,58 @@ const windowQuote = computed(() => cartItems.value.reduce((sum, item) => sum + (
 const totalQuote = computed(() => `$${windowQuote.value.toLocaleString('es-CL')}`);
 const totalUnits = computed(() => cartItems.value.reduce((acc, item) => acc + item.quantity, 0));
 
+const goToStep2 = () => {
+  isMobileCartOpen.value = false;
+  currentStep.value = 2;
+};
+
 const nextStep = () => {
   if (currentStep.value === 1) {
     if (cartItems.value.length === 0) return notify('Debe añadir al menos un producto a la comanda.', 'warning');
     currentStep.value = 2;
   } else if (currentStep.value === 2) {
-    if (!customerForm.value.nombre) return notify('Por favor, ingrese el Nombre del cliente.', 'warning');
+    if (!customerForm.value.nombre.trim()) return notify('Por favor, ingrese el Nombre del cliente.', 'warning');
     if (!selectedPaymentMethod.value) return notify('Por favor, seleccione un Método de Pago.', 'warning');
     currentStep.value = 3;
   }
 };
 
-const handlePhoneInput = () => { if (!customerForm.value.telefono.startsWith('+56')) customerForm.value.telefono = '+56'; };
+const handlePhoneInput = () => { 
+  if (!customerForm.value.telefono.startsWith('+56')) customerForm.value.telefono = '+56'; 
+};
 
 const confirmQuote = async () => {
   if (isSubmitting.value) return;
   isSubmitting.value = true;
   try {
     const payload = {
-      nombre_persona: customerForm.value.nombre || 'Cliente Presencial',
+      nombre_persona: customerForm.value.nombre.trim() || 'Cliente Presencial',
       numero_telefono: customerForm.value.telefono || '',
       metodo_pago: selectedPaymentMethod.value || 'Efectivo',
       total: windowQuote.value,
       items: cartItems.value.map(item => ({
         id_producto: item.productId || 1,
         id_tamaño: item.tamano_id || 1,
-        cantidad: item.quantity || 1,
+        cantidad: Number(item.quantity || 1),
         precio_unitario: Number(item.price || 0),
-        modificaciones: (item.excluidos || []).map((ex: string) => ({
-          tipo: 'Exclusión',
-          precio: 0,
-          ingrediente: ex
-        }))
+        precio: Number(item.price || 0),
+        subtotal: Number(item.price || 0) * Number(item.quantity || 1),
+        format: item.size || 'Normal',
+        nombre: item.fullName || item.name,
+        excluidos: item.excluidos || [],
+        agregados: item.agregados || [],
+        modificaciones: [
+          ...(item.excluidos || []).map((ex: string) => ({
+            tipo: 'Exclusión',
+            precio: 0,
+            ingrediente: ex
+          })),
+          ...(item.agregados || []).map((ag: string) => ({
+            tipo: 'Agregado',
+            precio: 0,
+            ingrediente: ag
+          }))
+        ]
       }))
     };
 
@@ -666,207 +1104,1471 @@ const confirmQuote = async () => {
   }
 };
 
-onMounted(() => { cargarMetodosSimulados(); fetchProducts(); });
+onMounted(() => { 
+  cargarMetodosSimulados(); 
+  fetchProducts(); 
+});
 </script>
 
 <style scoped>
 /* ----------------------------------------------------
-   1. CONTENEDOR PRINCIPAL
+   1. CONTENEDOR PRINCIPAL POS
 ---------------------------------------------------- */
-/* ----------------------------------------------------
-   1. CONTENEDOR PRINCIPAL
----------------------------------------------------- */
-.admin-quote-wizard { 
-  width: 98%; 
-  max-width: 1600px; 
-  margin: 10px auto; 
-  padding: 15px 20px; 
-  background: white; 
-  border-radius: 20px; 
-  box-shadow: 0 10px 30px rgba(0,0,0,0.05); 
-}
-
-.wizard-header { text-align: center; margin-bottom: 0.8rem; }
-.wizard-header h1 { color: #1a1624; margin-bottom: 0.4rem; font-size: 1.6rem; font-weight: 900; }
-.steps-indicator { display: flex; align-items: center; justify-content: center; gap: 0.8rem; flex-wrap: wrap; }
-.step { padding: 0.4rem 1rem; border-radius: 20px; background: #f0f0f0; color: #888; font-weight: 800; font-size: 0.85rem; transition: all 0.3s; }
-.step.active { background: #965314; color: white; box-shadow: 0 4px 10px rgba(150, 83, 20, 0.3); }
-.line { height: 3px; width: 40px; background: #eee; border-radius: 2px; }
-
-/* ----------------------------------------------------
-   2. LAYOUT DE COLUMNAS (PC: 3 Columnas compactas)
----------------------------------------------------- */
-.product-layout { 
-  display: grid; 
-  grid-template-columns: minmax(400px, 1.8fr) 300px 320px; 
-  gap: 1rem; 
-  align-items: stretch; 
-  width: 100%; 
-  max-height: calc(100vh - 140px);
-}
-
-/* ----------------------------------------------------
-   3. CATÁLOGO Y TARJETAS (Marrón POS)
----------------------------------------------------- */
-.catalog-section { background: #ffffff; border-radius: 16px; width: 100%; }
-.catalog-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.8rem; }
-.catalog-header h3 { font-size: 1.15rem; margin: 0; color: #333; font-weight: 900; }
-.filters { display: flex; gap: 0.8rem; flex-wrap: wrap; flex: 1; justify-content: flex-end; }
-.dc-select { padding: 0.5rem 0.8rem; border: 2px solid #965314; border-radius: 10px; font-size: 0.85rem; font-weight: 700; color: #333; background: white; cursor: pointer; }
-.product-search { position: relative; display: flex; align-items: center; min-width: 180px; }
-.product-search input { padding: 0.5rem 0.8rem 0.5rem 2.2rem; border: 2px solid #965314; border-radius: 10px; font-size: 0.85rem; width: 100%; font-weight: 600; }
-.product-search svg { position: absolute; left: 0.6rem; color: #965314; }
-
-.products-grid-admin { 
-  display: grid; 
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
-  gap: 1rem; 
-  max-height: calc(100vh - 230px); 
-  overflow-y: auto; 
-  padding-right: 5px; 
-}
-
-/* Diseño de la Tarjeta */
-.brown-menu-card { 
-  background: #a05a2c; 
-  border-radius: 14px; 
-  overflow: hidden; 
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
-  display: flex; 
-  flex-direction: column; 
-  transition: transform 0.2s, box-shadow 0.2s;
-  border: 2px solid transparent;
-}
-.brown-menu-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(160, 90, 44, 0.25); }
-.brown-menu-card img { width: 100%; height: 85px; object-fit: cover; }
-.brown-card-body { padding: 0.8rem; display: flex; flex-direction: column; color: white; flex: 1; }
-.card-main-title { margin: 0; text-align: center; font-size: 1.1rem; font-weight: 900; text-shadow: 1px 1px 3px rgba(0,0,0,0.4); letter-spacing: 0.5px; }
-
-/* Botones de Tamaño (Pills) */
-.size-pills-container { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
-.size-pill { 
-  background: #cba342; border: 2px solid #e1b958; color: #111; font-weight: 900; 
-  border-radius: 20px; padding: 4px 12px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;
-}
-.size-pill:hover { background: #dfb755; }
-.active-pill { background: #ffce44; border-color: #fff; transform: scale(1.05); box-shadow: 0 3px 8px rgba(0,0,0,0.3); }
-
-/* Radios de Variedades */
-.type-section-title { text-align: center; font-weight: 900; margin-bottom: 8px; font-size: 0.95rem; color: #f2c75c; text-transform: uppercase; }
-.variants-list { display: flex; flex-direction: column; gap: 6px; }
-.variant-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
-.variant-row:hover { background: rgba(255,255,255,0.1); }
-.active-row { background: rgba(255,255,255,0.15); border-left: 4px solid #ffce44; }
-
-.variant-left { display: flex; align-items: center; gap: 8px; overflow: hidden; }
-.radio-circle { width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.radio-inner { width: 8px; height: 8px; border-radius: 50%; background: #ffce44; }
-.variant-texts { display: flex; flex-direction: column; overflow: hidden; }
-.v-name { font-weight: 900; font-size: 0.9rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
-.v-desc { font-size: 0.65rem; color: #eee; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.v-price { font-weight: 900; font-size: 0.95rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); flex-shrink: 0; color: #ffce44; }
-
-/* ----------------------------------------------------
-   4. RECETA (COLUMNA CENTRAL)
----------------------------------------------------- */
-.box-ingredient-card { 
-  background: #fdfdfd; 
-  padding: 1.2rem; 
-  border-radius: 16px; 
-  border: 2px solid #a05a2c; 
-  display: flex; 
-  flex-direction: column; 
-  max-height: calc(100vh - 160px); 
-  overflow: hidden; 
-}
-.card-header { display: flex; align-items: center; gap: 0.5rem; font-weight: 900; color: #a05a2c; border-bottom: 2px dashed rgba(160, 90, 44, 0.2); padding-bottom: 0.8rem; margin-bottom: 0.8rem; text-transform: uppercase; font-size: 0.9rem; }
-.product-name-highlight { font-size: 1.2rem; color: #222; margin-bottom: 0.8rem; font-weight: 900; line-height: 1.2; text-transform: capitalize; }
-.ingredient-list { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-.ingredient-list h4 { font-size: 0.75rem; color: #777; text-transform: uppercase; margin-bottom: 0.8rem; font-weight: 800; }
-.ingredients-wrapper { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; max-height: 300px; overflow-y: auto; flex: 1; padding-right: 6px; }
-.ingredient-item-row { display: flex; justify-content: space-between; align-items: center; background: #f4f4f4; padding: 10px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; color: #333; cursor: pointer; border: 1px solid #eaeaea; transition: all 0.2s; }
-.ingredient-item-row:hover { background: #f0edea; border-color: #a05a2c; }
-.ing-left { display: flex; align-items: center; gap: 12px; }
-.custom-checkbox { width: 18px; height: 18px; accent-color: #a05a2c; cursor: pointer; }
-
-/* ----------------------------------------------------
-   5. CARRITO Y COMANDA (COLUMNA DERECHA)
----------------------------------------------------- */
-.cart-summary-admin { 
-  background: #faf9f7; 
-  border-radius: 16px; 
-  padding: 1.2rem; 
-  border: 2px solid #eee; 
-  display: flex; 
-  flex-direction: column; 
-  max-height: calc(100vh - 160px); 
-  overflow-y: auto; 
-}
-.ingredient-removed { opacity: 0.6; background-color: #fceceb; border-color: #f5c2c7; text-decoration: line-through; }
-.ingredient-added { background-color: #e6fcf5; border-color: #96f2d7; }
-.ingredient-disabled { opacity: 0.5; background-color: #f1f5f9; cursor: not-allowed; }
-.ing-status { font-size: 0.75rem; font-weight: 900; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; }
-.ing-status.ok { background: #e0f8f5; color: #0f9d8a; }
-.ing-status.added { background: #d3f9d8; color: #2b8a3e; }
-.ing-status.removed { background: #ffe5e8; color: #d62839; }
-.ing-status.no-stock { background: #fee2e2; color: #dc2626; }
-
-.btn-add-to-cart-large { width: 100%; background: #965314; color: white; border: none; padding: 14px; border-radius: 12px; font-weight: 900; font-size: 1.1rem; cursor: pointer; margin-top: auto; box-shadow: 0 6px 15px rgba(150, 83, 20, 0.3); transition: all 0.2s; }
-.btn-add-to-cart-large:hover { background: #7a410f; transform: translateY(-2px); }
-.btn-add-to-cart-large:active { transform: scale(0.98); }
-
-/* ----------------------------------------------------
-   5. CARRITO Y COMANDA (COLUMNA DERECHA)
----------------------------------------------------- */
-.cart-summary-admin { background: #faf9f7; border-radius: 16px; padding: 1.5rem; border: 2px solid #eee; position: sticky; top: 20px; display: flex; flex-direction: column; max-height: calc(100vh - 40px); }
-.cart-header { display: flex; align-items: center; gap: 0.5rem; font-weight: 900; color: #333; margin-bottom: 1.5rem; text-transform: uppercase; }
-.cart-items-list { overflow-y: auto; flex: 1; padding-right: 5px; }
-.cart-item-admin { background: white; padding: 1rem; border-radius: 12px; margin-bottom: 0.8rem; border: 1px solid #eaeaea; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
-.item-main { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.6rem; gap: 10px; }
-.item-title-block { display: flex; flex-direction: column; gap: 4px; }
-.item-name { font-weight: 900; font-size: 0.95rem; color: #222; line-height: 1.2; }
-.item-price { font-size: 1rem; color: #965314; font-weight: 900; }
-.badge-removed-items { font-size: 0.7rem; background-color: #ffe5e8; color: #d62839; padding: 3px 8px; border-radius: 6px; font-weight: 900; display: inline-block; width: fit-content; margin-top: 2px; }
-.badge-added-items { font-size: 0.7rem; background-color: #d3f9d8; color: #2b8a3e; padding: 3px 8px; border-radius: 6px; font-weight: 900; display: inline-block; width: fit-content; margin-top: 2px; }
-.exclusion-badge-item.added { background-color: #ebfbee; color: #2b8a3e; border: 1px solid #b2f2bb; }
-.item-controls { display: flex; align-items: center; gap: 0.8rem; font-weight: 900; color: #333; background: #f4f4f4; padding: 4px; border-radius: 8px; width: fit-content; }
-.qty-btn { width: 26px; height: 26px; border-radius: 6px; background: white; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #965314; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-.btn-delete { margin-left: auto; background: none; border: none; color: #d62839; cursor: pointer; padding: 6px; }
-.cart-total { border-top: 2px dashed #ccc; padding-top: 1.2rem; display: flex; justify-content: space-between; font-size: 1.3rem; color: #111; font-weight: 900; margin-top: 1rem; }
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.brown-menu-card-skeleton {
-  background: white;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 2px solid #e0d8d0;
+.pos-quote-wizard {
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 18px 24px;
   display: flex;
   flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
 }
 
-.brown-menu-card-skeleton .skeleton-img {
-  width: 100%;
-  height: 160px;
-  background: linear-gradient(90deg, #f0ede9 25%, #f8f6f3 50%, #f0ede9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+/* ----------------------------------------------------
+   2. HEADER & PASOS
+---------------------------------------------------- */
+.wizard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: white;
+  padding: 16px 24px;
+  border-radius: 16px;
+  border: 1px solid #f1ece7;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
 }
 
-.brown-menu-card-skeleton .skeleton-body {
-  padding: 16px;
+.brand-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-icon {
+  color: #ff6b00;
+}
+
+.header-brand h1 {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #1e293b;
+  margin: 0;
+}
+
+.header-subtitle {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+
+.steps-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.step-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.step-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.step-pill.active {
+  background: #fff7ed;
+  border-color: #ff6b00;
+  color: #ea580c;
+  box-shadow: 0 2px 8px rgba(255, 107, 0, 0.18);
+}
+
+.step-pill.active .step-num {
+  background: #ff6b00;
+  color: white;
+}
+
+.step-pill.completed {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #16a34a;
+}
+
+.step-pill.completed .step-num {
+  background: #22c55e;
+  color: white;
+}
+
+.step-line {
+  width: 24px;
+  height: 2px;
+  background: #e2e8f0;
+  border-radius: 2px;
+}
+
+.step-line.active {
+  background: #ff6b00;
+}
+
+/* ----------------------------------------------------
+   3. LAYOUT 3 COLUMNAS POS (ESCRITORIO)
+---------------------------------------------------- */
+.product-layout {
+  display: grid;
+  grid-template-columns: minmax(500px, 2.6fr) minmax(320px, 1.2fr) minmax(310px, 1.1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+/* ----------------------------------------------------
+   4. COLUMNA 1: CATÁLOGO
+---------------------------------------------------- */
+.catalog-section {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #f1ece7;
+  padding: 18px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+
+  /* MUY IMPORTANTE */
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+
+.catalog-toolbar {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
+.search-input-box {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.input-search-product {
+  width: 100%;
+  padding: 10px 38px 10px 40px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  color: #1e293b;
+  background: #f8fafc;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.input-search-product:focus {
+  border-color: #ff6b00;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.1);
+}
+
+.btn-clear-search {
+  position: absolute;
+  right: 12px;
+  background: #e2e8f0;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  cursor: pointer;
+}
+
+.categories-scroll-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.category-chip {
+  white-space: nowrap;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  border: 1.5px solid #e2e8f0;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.category-chip:hover {
+  border-color: #ff6b00;
+  color: #ff6b00;
+  background: #fff7ed;
+}
+
+.category-chip.active {
+  background: #ff6b00;
+  border-color: #ff6b00;
+  color: white;
+  box-shadow: 0 2px 8px rgba(255, 107, 0, 0.25);
+}
+
+.products-grid-admin {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+
+  flex: 1;
+  min-height: 0;
+
+  overflow-y: auto;
+
+  padding: 4px 6px 10px 0;
+  align-content: start;
+}
+
+.products-grid-admin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.products-grid-admin::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.products-grid-admin::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.products-grid-admin::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Tarjetas de Producto */
+.pos-product-card {
+  background: white;
+  border-radius: 14px;
+  border: 1.5px solid #e2e8f0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.pos-product-card:hover {
+  transform: translateY(-2px);
+  border-color: #ff9800;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+}
+
+.pos-product-card.is-selected {
+  border-color: #ff6b00;
+  background: #fffaf5;
+  box-shadow: 0 0 0 2px #ff6b00, 0 8px 22px rgba(255, 107, 0, 0.14);
+}
+
+.card-image-wrap {
+  position: relative;
+  width: 100%;
+  height: 130px;
+  overflow: hidden;
+  background: #f1f5f9;
+  display: block;
+}
+
+.card-image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.pos-product-card:hover .card-image-wrap img {
+  transform: scale(1.05);
+}
+
+.category-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.pos-card-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.pos-product-title {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.sizes-chips-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.size-btn {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.size-btn.active-size {
+  background: #ff6b00;
+  border-color: #ff6b00;
+  color: white;
+}
+
+.single-size-tag {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.desktop-only-sizes {
+  display: flex;
+}
+
+.mobile-size-badge-indicator {
+  display: none;
+}
+
+.card-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.product-card-price {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #059669;
+}
+
+.btn-select-product {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1.5px solid #ff6b00;
+  background: white;
+  color: #ff6b00;
+  font-size: 0.78rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pos-product-card:hover .btn-select-product,
+.pos-product-card.is-selected .btn-select-product {
+  background: #ff6b00;
+  color: white;
+}
+
+/* ----------------------------------------------------
+   5. COLUMNA 2 (DESKTOP): RECETA
+---------------------------------------------------- */
+.recipe-customizer-card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #f1ece7;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+.customizer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1ece7;
+  padding-bottom: 12px;
+}
+
+.header-left-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 900;
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+
+.customizer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.selected-product-banner {
+  background: #fff7ed;
+  border: 1.5px solid #ffedd5;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.banner-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #c2410c;
+}
+
+.banner-size-badge {
+  display: inline-block;
+  background: #ffedd5;
+  color: #9a3412;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 2px;
+}
+
+.banner-base-price {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #ea580c;
+}
+
+.modal-sizes-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sizes-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+}
+
+.modal-sizes-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.modal-size-pill {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1.5px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-size-pill.active {
+  background: #ff6b00;
+  border-color: #ff6b00;
+  color: white;
+}
+
+.ingredients-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ingredients-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ingredients-section-header h4 {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 900;
+  color: #1e293b;
+}
+
+.section-hint {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.ingredients-chips-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ingredient-chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1.5px solid #cbd5e1;
+  background: white;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.chip-status-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* MODO ESTÁNDAR */
+.standard-chip {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+.standard-chip .chip-status-icon {
+  background: #22c55e;
+  color: white;
+}
+
+.standard-chip.is-removed {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+
+.standard-chip.is-removed .chip-status-icon {
+  background: #ef4444;
+  color: white;
+}
+
+/* MODO PERSONALIZABLE */
+.ingredient-chip-toggle.is-added {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.ingredient-chip-toggle.is-added .chip-status-icon {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-add-to-cart-pos {
+  width: 100%;
+  padding: 13px;
+  background: #ff6b00;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(255, 107, 0, 0.3);
+}
+
+.btn-add-to-cart-pos:hover {
+  background: #e8590c;
+  transform: translateY(-1px);
+}
+
+.empty-selection-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 30px 10px;
+  color: #94a3b8;
+}
+
+.placeholder-icon-box {
+  width: 55px;
+  height: 55px;
+  border-radius: 50%;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  color: #cbd5e1;
+}
+
+.empty-selection-placeholder h4 {
+  margin: 0 0 4px;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.empty-selection-placeholder p {
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+/* ----------------------------------------------------
+   6. COLUMNA 3 (DESKTOP): COMANDA
+---------------------------------------------------- */
+.pos-cart-sidebar {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #f1ece7;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+  position: sticky;
+  top: 16px;
+}
+
+.pos-cart-header {
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1ece7;
+}
+
+.header-cart-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cart-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 900;
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+
+.cart-units-pill {
+  background: #fff7ed;
+  color: #ea580c;
+  border: 1px solid #ffedd5;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.cart-items-scroll {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100vh - 350px);
+  overflow-y: auto;
+}
+
+.empty-cart-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 35px 15px;
+  color: #94a3b8;
+}
+
+.empty-cart-icon {
+  margin-bottom: 8px;
+  color: #cbd5e1;
+}
+
+.empty-cart-state p {
+  margin: 0;
+  font-weight: 800;
+  color: #475569;
+}
+
+.empty-cart-state small {
+  font-size: 0.75rem;
+  margin-top: 4px;
+}
+
+.pos-cart-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cart-item-title {
+  font-size: 0.88rem;
+  font-weight: 900;
+  color: #1e293b;
+}
+
+.cart-badges-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.badge-tag-removed {
+  font-size: 0.7rem;
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 800;
+}
+
+.badge-tag-added {
+  font-size: 0.7rem;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 800;
+}
+
+.cart-item-pricing {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.cart-item-unit-price {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.cart-item-subtotal {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #059669;
+}
+
+.cart-item-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 8px;
+}
+
+.btn-stepper {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-stepper:hover {
+  background: #f1f5f9;
+  border-color: #ff6b00;
+  color: #ff6b00;
+}
+
+.stepper-count {
+  font-size: 0.88rem;
+  font-weight: 900;
+  min-width: 20px;
+  text-align: center;
+  color: #1e293b;
+}
+
+.btn-trash-item {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.btn-trash-item:hover {
+  background: #fee2e2;
+}
+
+.pos-cart-footer {
+  padding: 14px 16px;
+  border-top: 1px solid #f1ece7;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #faf7f4;
+  border-radius: 0 0 16px 16px;
+}
+
+.total-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.total-breakdown-row span {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #475569;
+}
+
+.total-breakdown-row strong {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #059669;
+}
+
+.btn-continue-checkout {
+  width: 100%;
+  padding: 12px;
+  background: #ff6b00;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(255, 107, 0, 0.25);
+}
+
+.btn-continue-checkout:hover:not(:disabled) {
+  background: #e8590c;
+  transform: translateY(-1px);
+}
+
+.btn-continue-checkout:disabled {
+  background: #cbd5e1;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* ----------------------------------------------------
+   7. MODALES / BOTTOM SHEETS PARA MÓVIL
+---------------------------------------------------- */
+.mobile-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.mobile-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+}
+
+.mobile-sheet-card {
+  position: relative;
+  background: white;
+  width: 100%;
+  max-height: 86vh;
+  border-radius: 22px 22px 0 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
+  z-index: 10001;
+  overflow: hidden;
+}
+
+.sheet-drag-pill {
+  width: 38px;
+  height: 4px;
+  background: #cbd5e1;
+  border-radius: 999px;
+  margin: 10px auto 4px auto;
+  flex-shrink: 0;
+}
+
+.sheet-header {
+  padding: 10px 16px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1ece7;
+  flex-shrink: 0;
+}
+
+.sheet-title-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 900;
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+
+.btn-close-modal {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.sheet-scroll-body {
+  padding: 14px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+.sheet-sticky-bottom-bar {
+  padding: 12px 16px;
+  background: white;
+  border-top: 1px solid #f1ece7;
+  box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+}
+
+.sheet-sticky-bottom-bar.pos-cart-footer {
+  border-radius: 0;
+}
+
+/* Animaciones del Modal Móvil */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.modal-fade-enter-active .mobile-sheet-card,
+.modal-fade-leave-active .mobile-sheet-card {
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+.modal-fade-enter-from .mobile-sheet-card,
+.modal-fade-leave-to .mobile-sheet-card {
+  transform: translateY(100%);
+}
+
+.mobile-floating-cart-bar {
+  display: none;
+}
+
+/* ----------------------------------------------------
+   8. PASO 2: CLIENTE Y MÉTODO DE PAGO
+---------------------------------------------------- */
+.client-step-card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #f1ece7;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+  max-width: 750px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.section-intro {
+  margin-bottom: 20px;
+  border-bottom: 1px solid #f1ece7;
+  padding-bottom: 14px;
+}
+
+.section-intro h2 {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #1e293b;
+  margin: 0 0 4px;
+}
+
+.section-intro p {
+  color: #64748b;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.client-data-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #334155;
+}
+
+.pos-form-input {
+  padding: 12px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  color: #1e293b;
+  background: #f8fafc;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.pos-form-input:focus {
+  border-color: #ff6b00;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.12);
+}
+
+.payment-method-selector-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 900;
+  color: #1e293b;
+}
+
+.payment-methods-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.payment-method-btn {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  user-select: none;
+}
+
+.payment-icon-box {
+  color: #475569;
+  transition: transform 0.2s;
+}
+
+.payment-btn-label {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #334155;
+}
+
+.payment-method-btn:hover {
+  border-color: #ff6b00;
+  background: #fffaf5;
+}
+
+.payment-method-btn.active {
+  background: #fff7ed;
+  border-color: #ff6b00;
+  box-shadow: 0 4px 14px rgba(255, 107, 0, 0.2);
+}
+
+.payment-method-btn.active .payment-icon-box,
+.payment-method-btn.active .payment-btn-label {
+  color: #ea580c;
+}
+
+.payment-check-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: #ff6b00;
+}
+
+.step-nav-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid #f1ece7;
+  padding-top: 18px;
+  margin-top: 6px;
+}
+
+.btn-pos-primary {
+  padding: 12px 22px;
+  border-radius: 12px;
+  border: none;
+  background: #ff6b00;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 900;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(255, 107, 0, 0.25);
+}
+
+.btn-pos-primary:hover {
+  background: #e8590c;
+  transform: translateY(-1px);
+}
+
+.btn-pos-secondary {
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1.5px solid #cbd5e1;
+  background: white;
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-pos-secondary:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+/* ----------------------------------------------------
+   9. PASO 3: CONFIRMACIÓN DE COMANDA
+---------------------------------------------------- */
+.summary-receipt-card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #f1ece7;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+  max-width: 750px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.receipt-header {
+  text-align: center;
+  border-bottom: 1px solid #f1ece7;
+  padding-bottom: 14px;
+}
+
+.receipt-icon {
+  color: #16a34a;
+  margin-bottom: 6px;
+}
+
+.receipt-header h2 {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #1e293b;
+  margin: 0 0 4px;
+}
+
+.receipt-header p {
+  color: #64748b;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.receipt-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.receipt-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.receipt-section h3 {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 900;
+  color: #1e293b;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 6px;
+}
+
+.client-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.client-meta-row span {
+  color: #64748b;
+}
+
+.client-meta-row strong {
+  color: #1e293b;
+}
+
+.payment-badge-highlight {
+  background: #ffedd5;
+  color: #c2410c;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.receipt-products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.receipt-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-size: 0.85rem;
+  gap: 8px;
+}
+
+.receipt-item-left {
+  display: flex;
+  gap: 8px;
+}
+
+.receipt-qty {
+  font-weight: 900;
+  color: #ff6b00;
+}
+
+.receipt-item-names {
+  display: flex;
+  flex-direction: column;
+}
+
+.receipt-tags {
+  margin-top: 2px;
+}
+
+.tag-red {
+  color: #dc2626;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.tag-blue {
+  color: #2563eb;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.receipt-price {
+  font-weight: 900;
+  color: #059669;
+}
+
+.receipt-total-banner {
+  background: #f0fdf4;
+  border: 1.5px solid #bbf7d0;
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.receipt-total-banner span {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #166534;
+}
+
+.receipt-total-banner strong {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #15803d;
+}
+
+.receipt-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-confirm-order {
+  flex: 1;
+  justify-content: center;
+  font-size: 1rem;
+  padding: 14px;
+}
+
+/* Skeletons y utilidades */
+.pos-card-skeleton {
+  background: white;
+  border-radius: 14px;
+  border: 1.5px solid #e2e8f0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.skeleton-img {
+  height: 110px;
+  background: linear-gradient(90deg, #f1ece7 25%, #f8f6f3 50%, #f1ece7 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .skeleton-pill {
   height: 16px;
   border-radius: 6px;
-  background: linear-gradient(90deg, #f0ede9 25%, #f8f6f3 50%, #f0ede9 75%);
+  background: linear-gradient(90deg, #f1ece7 25%, #f8f6f3 50%, #f1ece7 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -875,358 +2577,326 @@ onMounted(() => { cargarMetodosSimulados(); fetchProducts(); });
 .width-120 { width: 120px; }
 .margin-top-4 { margin-top: 4px; }
 
-/* ----------------------------------------------------
-   4. DETALLE DE RECETA
----------------------------------------------------- */
-.client-step,
-.summary-step {
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.empty-products-box {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-}
-
-.selection-mode {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.section-intro {
-  background: linear-gradient(135deg, #fff8f1 0%, #fff 100%);
-  border: 1px solid #f0dfc8;
-  border-radius: 16px;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
-}
-
-.section-intro h3 {
-  margin: 0 0 0.35rem;
-  color: #2f2a2a;
-  font-size: 1.2rem;
-  font-weight: 900;
-}
-
-.section-intro p {
-  margin: 0;
-  color: #7e7575;
-  font-size: 0.95rem;
-}
-
-.actions { display: flex; justify-content: space-between; margin-top: 2.5rem; width: 100%; border-top: 2px solid #eee; padding-top: 1.5rem; }
-.btn { padding: 0.8rem 1.8rem; border-radius: 12px; font-weight: 900; cursor: pointer; border: none; display: flex; align-items: center; gap: 0.5rem; font-size: 1rem; transition: all 0.2s; }
-.btn-primary { background: #965314; color: white; box-shadow: 0 4px 12px rgba(150, 83, 20, 0.2); }
-.btn-primary:hover { background: #7a410f; }
-.btn-secondary { background: #e0e0e0; color: #555; }
-.btn-secondary:hover { background: #d0d0d0; }
-
-.distributor-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  background: linear-gradient(135deg, #fffdfb 0%, #fcf7f1 100%);
-  padding: 2rem;
-  border-radius: 18px;
-  border: 1px solid #efe1cf;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.04);
-}
-
-.input-row { display: flex; gap: 2rem; flex-wrap: wrap; }
-.input-group { flex: 1; display: flex; flex-direction: column; gap: 0.5rem; min-width: 250px; }
-.input-group label { font-weight: 900; font-size: 0.85rem; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
-.input-group .dc-input,
-.input-group .dc-select {
-  width: 100%;
-  border: 1px solid #e5d6c0;
-  border-radius: 999px;
-  padding: 0.9rem 1rem;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #2f2a2a;
-  background: #fff;
-  outline: none;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-.input-group .dc-input:focus,
-.input-group .dc-select:focus {
-  border-color: #965314;
-  box-shadow: 0 0 0 3px rgba(150, 83, 20, 0.15);
-}
-.input-group .dc-select {
-  appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, #965314 50%), linear-gradient(135deg, #965314 50%, transparent 50%);
-  background-position: calc(100% - 18px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
-  background-size: 6px 6px, 6px 6px;
-  background-repeat: no-repeat;
-}
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.25rem;
-}
-
-.summary-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.summary-section h4 {
-  margin: 0;
-  color: #965314;
-  font-size: 0.95rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.summary-card {
-  background: #fff;
-  border: 1px solid #efe1cf;
-  border-radius: 16px;
-  padding: 1.1rem 1.2rem;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
-}
-
-.summary-card p {
-  margin: 0.35rem 0;
-  color: #4c4646;
-  line-height: 1.5;
-}
-
-.products-list-final {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.final-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.7rem 0;
-  border-bottom: 1px solid #f2ebdf;
-}
-
-.final-item:last-child {
-  border-bottom: none;
-}
-
-.final-item-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.final-item-name {
-  font-weight: 800;
-  color: #2f2a2a;
-}
-
-.final-exclusions-box {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.exclusion-badge-item {
-  padding: 0.24rem 0.5rem;
-  border-radius: 999px;
-  background: #fdecec;
-  color: #b94f4f;
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
-.final-item-price {
-  font-weight: 900;
-  color: #965314;
-  white-space: nowrap;
-}
-
-.final-total {
-  margin-top: 0.4rem;
-  padding-top: 0.8rem;
-  border-top: 1px solid #f2ebdf;
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  font-weight: 900;
-  color: #2f2a2a;
+  justify-content: center;
+  padding: 40px 16px;
+  color: #94a3b8;
+  text-align: center;
+  gap: 8px;
 }
 
-/* ----------------------------------------------------
-   7. RESPONSIVIDAD: TABLETS Y LAPTOPS (Hasta 1200px)
----------------------------------------------------- */
-@media (max-width: 1200px) {
-  .product-layout {
-    /* 2 Columnas: Catálogo+Receta a la izquierda, Carrito a la derecha */
-    grid-template-columns: 1fr 340px; 
-  }
-  .catalog-section { order: 1; }
-  .box-ingredient-card { order: 2; position: relative; top: 0; min-height: auto; }
-  .cart-summary-admin { order: 3; grid-row: span 2; }
+.empty-icon {
+  color: #cbd5e1;
 }
 
-/* ----------------------------------------------------
-   8. RESPONSIVIDAD: CELULARES (Hasta 768px)
----------------------------------------------------- */
-@media (max-width: 768px) {
-  .admin-quote-wizard { 
-    box-sizing: border-box;
-    width: 100%;
-    max-width: 100vw;
-    overflow-x: hidden; 
-    
-    padding: 1.5rem 1rem 2rem 1rem; 
-    margin: 0; 
-    border-radius: 0; 
-  }
-  
-  .wizard-header h1 { font-size: 1.8rem; margin-bottom: 1.5rem; }
-  
-  .steps-indicator { gap: 0.5rem; justify-content: space-between; width: 100%; box-sizing: border-box; }
-  .line { display: none; }
-  .step { padding: 0.6rem 0.2rem; font-size: 0.8rem; flex: 1; text-align: center; white-space: nowrap; }
-  
-  .product-layout { 
-    grid-template-columns: 1fr; 
-    width: 100%;
-    box-sizing: border-box;
-  }
-  
-  .cart-summary-admin { position: relative; top: 0; max-height: none; margin-top: 1rem; box-sizing: border-box; }
-  
-  .catalog-header { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 1rem; }
-  .filters { width: 100%; justify-content: stretch; }
-  .product-search { width: 100%; }
-
-  /* Ajustamos la grilla para que sus padding no sumen ancho extra */
-  .products-grid-admin { 
-    grid-template-columns: 1fr; 
-    max-height: none; 
-    overflow-y: visible;
-    box-sizing: border-box;
-    width: 100%;
-    padding: 0.5rem 0; /* Quitamos el padding-right original que empujaba la pantalla */
-    gap: 1.5rem;
-  }
-
-  .input-row { flex-direction: column; gap: 1rem; width: 100%; }
-  .summary-grid { grid-template-columns: 1fr; }
-  .distributor-form { padding: 1.25rem; }
-  
-  .actions { flex-direction: column-reverse; gap: 1rem; margin-top: 1.5rem; }
-  .btn { width: 100%; justify-content: center; padding: 1rem; font-size: 1.1rem; }
-  .summary-grid { grid-template-columns: 1fr; }
-}
-
-/* Custom Scrollbar */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #aaa; }
-
-.ing-status.base {
-  background-color: #e2e8f0;
-  color: #475569;
+.btn-reset-filters {
+  margin-top: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1.5px solid #ff6b00;
+  background: white;
+  color: #ff6b00;
   font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 0.75rem;
-}
-
-.ingredient-disabled {
-  opacity: 0.85;
+  font-size: 0.85rem;
+  cursor: pointer;
 }
 
 /* ----------------------------------------------------
-   PESTAÑAS Y CARRITO FLOTANTE EN MÓVILES (< 900px)
+   10. RESPONSIVO MÓVIL & TABLET
 ---------------------------------------------------- */
-.mobile-tabs-bar {
-  display: none;
-}
-
-.mobile-floating-cart-bar {
-  display: none;
-}
-
-@media (max-width: 900px) {
-  .product-step .actions {
-    display: none !important;
+@media (max-width: 1024px) {
+  .pos-quote-wizard {
+    padding: 8px 10px 90px 10px;
+    gap: 10px;
+    max-width: 100vw;
   }
 
-  .mobile-tabs-bar {
+  .wizard-header {
+    padding: 10px 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    border-radius: 14px;
+  }
+
+  .header-brand {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 6px;
-    background: #f4efe9;
-    padding: 6px;
-    border-radius: 12px;
-    margin-bottom: 12px;
+    width: 100%;
   }
 
-  .mobile-tab-btn {
+  .header-brand h1 {
+    font-size: 1.15rem;
+  }
+
+  .header-subtitle {
+    display: none;
+  }
+
+  .steps-indicator {
+    justify-content: space-between;
+    width: 100%;
+    gap: 4px;
+  }
+
+  .step-pill {
+    padding: 5px 8px;
+    font-size: 0.74rem;
+    gap: 4px;
     flex: 1;
-    display: flex;
-    align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 8px 6px;
-    border-radius: 8px;
-    border: none;
-    background: transparent;
-    color: #6e6a75;
-    font-weight: 800;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
   }
 
-  .mobile-tab-btn.active {
-    background: #965314;
-    color: white;
-    box-shadow: 0 2px 8px rgba(150, 83, 20, 0.25);
+  .step-pill .step-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .step-line {
+    width: 8px;
+    flex-shrink: 0;
   }
 
   .product-layout {
-    grid-template-columns: 1fr !important;
+    display: block;
+    width: 100%;
   }
 
-  .product-layout.show-tab-catalog .box-ingredient-card,
-  .product-layout.show-tab-catalog .cart-summary-admin {
+  /* Ocultamos las columnas fijas de escritorio en móvil */
+  .desktop-only-pane {
     display: none !important;
   }
 
-  .product-layout.show-tab-recipe .catalog-section,
-  .product-layout.show-tab-recipe .cart-summary-admin {
+  .catalog-section {
+    min-height: 0;
+  }
+
+  .catalog-toolbar {
+    position: relative;
+    padding: 0;
+    gap: 8px;
+  }
+
+  .search-input-box {
+    background: white;
+    border-radius: 12px;
+    border: 1.5px solid #e2e8f0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  }
+
+  .input-search-product {
+    background: transparent;
+    border: none;
+    padding: 10px 34px 10px 38px;
+    font-size: 0.88rem;
+  }
+
+  .categories-scroll-row {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 2px 0 4px 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .categories-scroll-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-chip {
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    flex-shrink: 0;
+    background: white;
+    border: 1.5px solid #e2e8f0;
+    color: #475569;
+    border-radius: 999px;
+  }
+
+  .category-chip.active {
+    background: #ff6b00;
+    border-color: #ff6b00;
+    color: white;
+    box-shadow: 0 3px 10px rgba(255, 107, 0, 0.35);
+  }
+
+  .desktop-only-sizes {
     display: none !important;
   }
 
-  .product-layout.show-tab-cart .catalog-section,
-  .product-layout.show-tab-cart .box-ingredient-card {
-    display: none !important;
+  .mobile-size-badge-indicator {
+    display: block;
+    margin: 2px 0;
   }
 
+  .multi-sizes-tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    color: #ea580c;
+    background: #fff7ed;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 800;
+  }
+
+  .single-format-tag {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    font-weight: 700;
+  }
+
+  .products-grid-admin {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    max-height: none;
+    overflow-y: visible;
+    padding: 0 0 20px 0;
+  }
+
+  .pos-product-card {
+    border-radius: 14px;
+    border: 1.5px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  .card-image-wrap {
+    height: 100px;
+  }
+
+  .pos-card-body {
+    padding: 8px 10px;
+    gap: 4px;
+  }
+
+  .pos-product-title {
+    font-size: 0.85rem;
+    font-weight: 900;
+    color: #1e293b;
+    line-height: 1.2;
+  }
+
+  .card-footer-row {
+    margin-top: auto;
+    padding-top: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .product-card-price {
+    font-size: 0.92rem;
+    font-weight: 900;
+    color: #059669;
+  }
+
+  .btn-select-product {
+    padding: 5px 10px;
+    font-size: 0.74rem;
+    font-weight: 900;
+    background: #ff6b00;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  /* MODALES Y BOTTOM SHEETS EN MÓVIL */
+  .mobile-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+
+  .mobile-sheet-card {
+    max-height: 90vh;
+    border-radius: 22px 22px 0 0;
+    background: white;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
+  }
+
+  .sheet-header {
+    padding: 12px 16px;
+  }
+
+  .sheet-scroll-body {
+    padding: 12px 14px;
+    gap: 12px;
+    overflow-y: auto;
+  }
+
+  .ingredients-chips-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  .ingredient-chip-toggle {
+    padding: 8px 10px;
+    font-size: 0.78rem;
+    border-radius: 10px;
+    min-height: 38px;
+  }
+
+  .modal-sizes-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .modal-size-pill {
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 800;
+  }
+
+  .sheet-sticky-bottom-bar {
+    padding: 12px 14px;
+    background: white;
+    border-top: 1px solid #f1f5f9;
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.05);
+  }
+
+  .btn-add-to-cart-pos {
+    padding: 14px;
+    font-size: 0.95rem;
+    font-weight: 900;
+    border-radius: 12px;
+  }
+
+  /* BARRA FLOTANTE MÓVIL INFERIOR */
   .mobile-floating-cart-bar {
     position: fixed;
-    bottom: 15px;
-    left: 15px;
-    right: 15px;
-    background: #513119;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    background: #1e293b;
     color: white;
-    padding: 10px 16px;
-    border-radius: 14px;
+    padding: 10px 14px;
+    border-radius: 16px;
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-    z-index: 999;
+    align-items: center;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+    z-index: 990;
     cursor: pointer;
-    animation: slideUp 0.3s ease;
   }
 
   .cart-bar-info {
@@ -1235,41 +2905,145 @@ onMounted(() => { cargarMetodosSimulados(); fetchProducts(); });
     gap: 10px;
   }
 
-  .badge-count {
-    background: #e28743;
-    color: white;
-    font-weight: 900;
-    font-size: 0.85rem;
-    width: 24px;
-    height: 24px;
+  .cart-bubble-icon {
+    position: relative;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
+    color: #ffb076;
+  }
+
+  .cart-bubble-icon .badge-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #ff6b00;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 900;
+    padding: 1px 5px;
+    border-radius: 999px;
+  }
+
+  .cart-bar-text-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cart-bar-sub {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-weight: 700;
   }
 
   .cart-bar-total {
+    font-size: 1.05rem;
     font-weight: 900;
-    font-size: 1.1rem;
+    color: #ffffff;
   }
 
   .btn-checkout-mobile {
-    background: #e28743;
-    color: white;
+    padding: 9px 14px;
+    background: #ff6b00;
     border: none;
-    padding: 8px 14px;
-    border-radius: 8px;
+    border-radius: 10px;
+    color: white;
     font-weight: 900;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     cursor: pointer;
   }
 
-  @keyframes slideUp {
-    from { transform: translateY(50px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+  /* Paso 2 */
+  .client-step-card {
+    padding: 16px 14px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .pos-form-input {
+    font-size: 16px;
+    padding: 12px;
+  }
+
+  .payment-methods-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .payment-method-btn {
+    padding: 12px 8px;
+  }
+
+  .step-nav-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .btn-pos-primary,
+  .btn-pos-secondary {
+    width: 100%;
+    justify-content: center;
+    padding: 14px;
+    box-sizing: border-box;
+  }
+
+  /* Paso 3 */
+  .summary-receipt-card {
+    padding: 16px 14px;
+  }
+
+  .receipt-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .receipt-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .btn-confirm-order {
+    width: 100%;
+    justify-content: center;
+    padding: 14px;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 420px) {
+  .step-pill .step-text {
+    display: none;
+  }
+
+  .step-pill {
+    padding: 6px 10px;
+    flex: 0 0 auto;
+  }
+
+  .step-line {
+    flex: 1;
+    min-width: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  .products-grid-admin {
+    grid-template-columns: 1fr;
+  }
+
+  .ingredients-chips-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

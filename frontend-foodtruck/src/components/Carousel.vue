@@ -85,7 +85,7 @@ onUnmounted(() => {
 /* El track container también debe ser 100% */
 .carousel-track-container {
   width: 100%;
-  height: 460px;
+  height: 370px;
   overflow: hidden; /* Asegura que las imágenes no se salgan del carrusel */
 }
 
@@ -158,9 +158,9 @@ onUnmounted(() => {
 }
 
 /* 📱 Optimización estricta para celulares */
-@media (max-width: 600px) {
+@media (max-width: 740px) {
   .carousel-track-container {
-    height: 220px;     /* Reducimos la altura en móviles para equilibrar el espacio */
+    height: 150px;     /* Reducimos la altura en móviles para equilibrar el espacio */
   }
   
   .carousel-button {

@@ -69,4 +69,15 @@ const horaCotizacion = route.query.hora || '--:--'
 .font-mono { font-family: monospace; font-size: 1.05rem; }
 .btn-home { width: 100%; margin-top: 24px; background-color: var(--DC-orange); color: white; border: none; padding: 12px 16px; border-radius: 12px; font-weight: 800; cursor: pointer; transition: all 0.2s; }
 .btn-home:hover { background-color: var(--DC-brown); transform: translateY(-1px); }
+
+@media (max-width: 480px) {
+  .success-card {
+    padding: 30px 18px;
+    border-radius: 20px;
+  }
+
+  .success-title {
+    font-size: 1.2rem;
+  }
+}
 </style>
