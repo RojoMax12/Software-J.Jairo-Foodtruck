@@ -1241,12 +1241,18 @@ onMounted(() => {
   grid-template-columns: minmax(500px, 2.6fr) minmax(320px, 1.2fr) minmax(310px, 1.1fr);
   gap: 18px;
   align-items: start;
+
+  height: 100vh;
 }
 
 /* ----------------------------------------------------
    4. COLUMNA 1: CATÁLOGO
 ---------------------------------------------------- */
 .catalog-section {
+  /* MUY IMPORTANTE */
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   background: white;
   border-radius: 16px;
   border: 1px solid #f1ece7;
@@ -1257,11 +1263,6 @@ onMounted(() => {
   gap: 14px;
 
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
-
-  /* MUY IMPORTANTE */
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
 }
 
 
@@ -1356,13 +1357,14 @@ onMounted(() => {
 
 .products-grid-admin {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 
   flex: 1;
   min-height: 0;
 
   overflow-y: auto;
+  overflow-x: hidden;
 
   padding: 4px 6px 10px 0;
   align-content: start;
@@ -1397,6 +1399,7 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
+  min-height: 260px;
 }
 
 .pos-product-card:hover {
@@ -2612,6 +2615,17 @@ onMounted(() => {
 /* ----------------------------------------------------
    10. RESPONSIVO MÓVIL & TABLET
 ---------------------------------------------------- */
+@media (min-width: 1025px) and (max-width: 1200px) {
+  .product-layout {
+    grid-template-columns:
+      minmax(400px, 2.6fr)
+      minmax(250px, 1.2fr)
+      minmax(250px, 1.1fr);
+
+    gap: 12px;
+  }
+}
+
 @media (max-width: 1024px) {
   .pos-quote-wizard {
     padding: 8px 10px 90px 10px;

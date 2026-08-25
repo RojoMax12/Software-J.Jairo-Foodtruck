@@ -37,6 +37,9 @@ Route::prefix('auth')->middleware('throttle:auth_limits')->group(function () {
     });
 });
 
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+
 // ==========================================
 // 2. RUTAS PÚBLICAS PARA MENÚ QR Y PEDIDOS DE CLIENTES
 // ==========================================
