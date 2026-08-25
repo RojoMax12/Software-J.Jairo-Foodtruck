@@ -656,7 +656,7 @@ watch(
     left: auto;    /* 🔥 CRÍTICO: Cancela el "left: 30px" del diseño de escritorio */
     width: 55px;
     height: 55px;  /* Un tamaño ligeramente menor para no tapar tanto contenido */
-    z-index: 9999; /* Asegura que flote por ENCIMA del footer y de las tarjetas */
+    z-index: 999;  /* Por encima de tarjetas pero por debajo de modales (z-index: 2000+) */
   }
 
   .floating-scroll-top {
@@ -664,7 +664,7 @@ watch(
     right: 20px;
     width: 44px;
     height: 44px;
-    z-index: 9998;
+    z-index: 998;
   }
 }
 </style>

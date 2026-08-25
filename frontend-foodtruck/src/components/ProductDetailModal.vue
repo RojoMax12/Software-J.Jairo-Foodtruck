@@ -628,20 +628,51 @@ const handleAddToCart = () => {
 
   .product-info-box { 
     padding: 14px 12px; 
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
     flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .header-info {
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+  }
+
+  .product-title {
+    font-size: 1.4rem;
   }
 
   .scrollable-config {
     gap: 12px;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding-bottom: 8px;
   }
 
   .purchase-actions { 
-    flex-direction: column; 
+    flex-direction: row; 
     margin-top: 8px;
-    gap: 8px;
+    padding-top: 10px;
+    gap: 10px;
+    border-top: 2px solid #eeedee;
+    background-color: white;
+    flex-shrink: 0;
   }
-  .quantity-selector { width: 100%; padding: 8px; box-sizing: border-box; }
-  .add-to-cart-btn { width: 100%; padding: 12px; box-sizing: border-box; }
+  .quantity-selector { width: 110px; padding: 4px; box-sizing: border-box; }
+  .quantity-btn { width: 30px; height: 30px; }
+  .add-to-cart-btn { flex: 1; padding: 10px 14px; box-sizing: border-box; }
+}
+
+@media (max-height: 600px) {
+  .modal-wrapper {
+    height: 96vh;
+    max-height: 96vh;
+  }
+  .product-img-box {
+    height: 80px;
+  }
 }
 </style>

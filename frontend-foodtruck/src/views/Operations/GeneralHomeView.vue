@@ -174,11 +174,17 @@ onMounted(() => {
     margin: 1.5rem auto;
   }
   .admin-options-grid {
-    grid-template-columns: repeat(2, 1fr); /* En celular que queden 2 columnas para que no sea una lista vertical infinita */
+    grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
   }
   .admin-option-card {
     padding: 1.5rem 1rem;
+  }
+}
+
+@media (max-width: 440px) {
+  .admin-options-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

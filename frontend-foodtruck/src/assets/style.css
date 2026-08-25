@@ -27,8 +27,10 @@
   font-family: var(--font-main);
 }
 
-html, body {
+html, body, #app {
   width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   min-height: 100vh;
   background-color: var(--DC-bg-gray);
   color: var(--DC-gray);
@@ -53,4 +55,18 @@ html, body {
 html.modal-open,
 body.modal-open {
   overflow: hidden;
+}
+
+/* 📱/💻 Visibilidad Responsiva Unificada */
+.mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .desktop-table-only {
+    display: none !important;
+  }
+  .mobile-only {
+    display: flex !important;
+  }
 }
