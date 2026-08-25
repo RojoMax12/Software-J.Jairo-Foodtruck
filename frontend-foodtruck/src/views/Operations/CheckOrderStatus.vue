@@ -100,16 +100,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { Clock, ChefHat, CheckCircle, PackageCheck } from 'lucide-vue-next';
 import orderService from '@/services/orderService';
 
 const router = useRouter();
+const route = useRoute();
 const orderId = ref('');
 const isLoading = ref(false);
 const errorMessage = ref('');
 const orderResult = ref<any>(null);
+
+onMounted(() => {
+  const queryId = route.query.id;
+  if (queryId) {
+    const rawVal = Array.isArray(queryId) ? queryId[0] : String(queryId);
+    if (rawVal) {
+      orderId.value = rawVal;
+      handleSearch();
+    }
+  }
+});
 
 // Definición estricta de la línea de tiempo
 const timelineSteps = [

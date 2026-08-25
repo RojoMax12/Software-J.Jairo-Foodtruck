@@ -100,7 +100,7 @@
             <p>No hay movimientos que coincidan con los filtros.</p>
           </div>
 
-          <div v-else class="table-wrapper">
+          <div v-else class="table-wrapper desktop-table-only">
             <table class="inventory-table">
               <thead>
                 <tr>
@@ -146,6 +146,36 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- VISTA TARJETAS MÓVIL (MOBILE TRANSACTIONS) -->
+          <div v-if="!isLoading && filteredTransactions.length > 0" class="mobile-transactions-cards mobile-only">
+            <div v-for="trx in filteredTransactions" :key="'mob-trx-' + trx.id" class="mobile-trx-card">
+              <div class="mob-trx-header">
+                <div class="mob-trx-meta">
+                  <Clock3 :size="14" />
+                  <span>{{ trx.date }}</span>
+                </div>
+                <span class="stock-badge" :class="trx.type === 'ingreso' ? 'status-ok' : 'status-critical'">
+                  {{ trx.type === 'ingreso' ? 'Ingreso' : 'Egreso' }}
+                </span>
+              </div>
+              <div class="mob-trx-body">
+                <div class="mob-trx-main">
+                  <span class="category-pill">{{ trx.category }}</span>
+                  <strong class="mob-trx-amount" :class="trx.type === 'ingreso' ? 'text-green' : 'text-red'">
+                    {{ trx.type === 'ingreso' ? '+' : '-' }}{{ formatCurrency(trx.amount) }}
+                  </strong>
+                </div>
+                <p v-if="trx.description" class="mob-trx-desc">{{ trx.description }}</p>
+                <div class="mob-trx-footer">
+                  <small class="mob-trx-method">Pago: {{ trx.paymentMethod }}</small>
+                  <span class="stock-badge" :class="trx.status === 'completado' ? 'status-ok' : 'status-low'">
+                    {{ trx.status }}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -688,8 +718,9 @@ onMounted(() => {
 }
 .btn-primary:disabled { opacity: 0.65; cursor: not-allowed; }
 
-.spinning { animation: spin 0.9s linear infinite; }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.mobile-only {
+  display: none !important;
+}
 
 /* ==========================================================
    RESPONSIVIDAD MÓVIL Y TABLET
@@ -757,6 +788,80 @@ onMounted(() => {
 
   .grid-2-cols {
     grid-template-columns: 1fr;
+  }
+
+  .desktop-table-only {
+    display: none !important;
+  }
+
+  .mobile-only {
+    display: flex !important;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .mobile-trx-card {
+    background: white;
+    border: 1px solid #eeedee;
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+  }
+
+  .mob-trx-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .mob-trx-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: #6e6a75;
+    font-weight: 700;
+  }
+
+  .mob-trx-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mob-trx-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .mob-trx-amount {
+    font-size: 1.1rem;
+    font-weight: 900;
+  }
+
+  .mob-trx-amount.text-green { color: #16a34a; }
+  .mob-trx-amount.text-red { color: #dc2626; }
+
+  .mob-trx-desc {
+    font-size: 0.88rem;
+    color: #322c44;
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .mob-trx-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px dashed #eeedee;
+    padding-top: 8px;
+    font-size: 0.78rem;
+    color: #6e6a75;
   }
 }
 </style>

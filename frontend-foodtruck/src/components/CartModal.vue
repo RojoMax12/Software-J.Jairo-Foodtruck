@@ -41,6 +41,12 @@
                       Sin {{ ingrediente }}
                     </span>
                   </div>
+
+                  <div v-if="item.agregados && item.agregados.length > 0" class="additions-box">
+                    <span v-for="ingrediente in item.agregados" :key="ingrediente" class="addition-badge">
+                      + {{ ingrediente }}
+                    </span>
+                  </div>
                   
                   <div class="item-action-row">
                     <span class="item-price-info">${{ item.price.toLocaleString('es-CL') }}</span>
@@ -224,12 +230,14 @@ const cartTotal = computed(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .item-header-row {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 6px;
 }
 
 .item-name {
@@ -238,6 +246,7 @@ const cartTotal = computed(() => {
   color: var(--DC-gray);
   font-weight: 800; 
   line-height: 1.2;
+  word-break: break-word;
 }
 
 .item-size-tag {
@@ -247,8 +256,9 @@ const cartTotal = computed(() => {
   margin: 0 0 6px 0;
 }
 
-/* 🌟 ESTILOS DE LOS INGREDIENTES EXCLUIDOS */
-.exclusions-box {
+/* 🌟 ESTILOS DE LOS INGREDIENTES EXCLUIDOS Y AGREGADOS */
+.exclusions-box,
+.additions-box {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
@@ -259,6 +269,17 @@ const cartTotal = computed(() => {
   background-color: #fff0f3;
   color: #c92a2a;
   border: 1px solid #ffc9c9;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.addition-badge {
+  background-color: #e6fcf5;
+  color: #0ca678;
+  border: 1px solid #96f2d7;
   font-size: 0.65rem;
   font-weight: 800;
   padding: 2px 6px;

@@ -317,7 +317,7 @@ const emit = defineEmits<{
 }
 
 @media (max-width: 600px) {
-    .modal-container {
+    .modal {
         width: 95vw;
         max-height: 90vh;
         margin: 10px;

@@ -205,8 +205,7 @@
 
         <div class="table-content">
 
-            <table class="workers-table">
-
+            <table class="workers-table desktop-table-only">
                 <thead class="table-header">
                     <tr>
                         <th>ID</th>
@@ -247,13 +246,9 @@
                         :key="worker.id_usuario"
                         class="table-row"
                     >
-
                         <td>{{ worker.id_usuario }}</td>
-
                         <td>{{ worker.nombre }}</td>
-
                         <td>{{ getRoleName(worker.id_rol) }}</td>
-
                         <td>
                             <label
                                 class="status-switch"
@@ -264,32 +259,62 @@
                                     :checked="worker.estado"
                                     @change="toggleWorker(worker)"
                                 />
-
                                 <span class="slider"></span>
-
                                 <span class="status-text">
                                     {{ worker.estado ? "Activo" : "Inactivo" }}
                                 </span>
                             </label>
                         </td>
-
                         <td class="actions-column">
-
                             <button class="action-icon detail-action" @click="openWorkerDetail(worker)">
                                 <Eye :size="18" />
                             </button>
-
                             <button class="action-icon edit-action" @click="openEditWorkerModal(worker)">
                                 <SquarePen :size="18" />
                             </button>
-
                         </td>
-
                     </tr>
-
                 </tbody>
-
             </table>
+
+            <!-- VISTA TARJETAS MÓVIL (MOBILE WORKERS) -->
+            <div class="mobile-workers-cards mobile-only">
+                <div v-if="isLoading" class="skeleton-cards-mobile">
+                    <div v-for="n in 3" :key="'work-skel-mob-' + n" class="mobile-worker-card skeleton-card">
+                        <div class="skeleton-pill width-120"></div>
+                        <div class="skeleton-pill width-80"></div>
+                    </div>
+                </div>
+                <div v-else-if="paginatedWorkers.length === 0" class="empty-state">
+                    <UserRoundX :size="40" />
+                    <p>No se encontraron trabajadores</p>
+                </div>
+                <div v-else v-for="worker in paginatedWorkers" :key="'mob-w-' + worker.id_usuario" class="mobile-worker-card">
+                    <div class="mob-worker-header">
+                        <div class="mob-worker-info">
+                            <div>
+                                <h4 class="mob-worker-name">{{ worker.nombre }}</h4>
+                                <small class="mob-worker-role">ID #{{ worker.id_usuario }} · {{ getRoleName(worker.id_rol) }}</small>
+                            </div>
+                        </div>
+                        <label class="status-switch" :class="{ active: worker.estado, inactive: !worker.estado }">
+                            <input type="checkbox" :checked="worker.estado" @change="toggleWorker(worker)" />
+                            <span class="slider"></span>
+                            <span class="status-text">{{ worker.estado ? "Activo" : "Inactivo" }}</span>
+                        </label>
+                    </div>
+                    <div class="mob-worker-actions">
+                        <button class="action-icon detail-action mob-btn" @click="openWorkerDetail(worker)">
+                            <Eye :size="16" />
+                            <span>Detalle</span>
+                        </button>
+                        <button class="action-icon edit-action mob-btn" @click="openEditWorkerModal(worker)">
+                            <SquarePen :size="16" />
+                            <span>Editar</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             <ConfirmStatusWorkerModal
                 :isOpen="isConfirmStatusModalOpen"
@@ -1268,9 +1293,8 @@ onBeforeUnmount(() => {
     border-color:var(--DC-brown);
 }
 
-.footer-actions button:disabled{
-    opacity:.45;
-    cursor:not-allowed;
+.mobile-only {
+    display: none !important;
 }
 
 /* Tablet */
@@ -1320,6 +1344,67 @@ onBeforeUnmount(() => {
     .table-content {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+    }
+
+    .desktop-table-only {
+        display: none !important;
+    }
+
+    .mobile-only {
+        display: flex !important;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .mobile-worker-card {
+        background: white;
+        border: 1px solid #eeedee;
+        border-radius: 14px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+    }
+
+    .mob-worker-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .mob-worker-name {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--DC-gray);
+    }
+
+    .mob-worker-role {
+        font-size: 0.78rem;
+        color: var(--DC-text-gray);
+        font-weight: 600;
+    }
+
+    .mob-worker-actions {
+        display: flex;
+        gap: 8px;
+        border-top: 1px dashed #eeedee;
+        padding-top: 10px;
+    }
+
+    .mob-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 700;
     }
 
     .table-footer {
