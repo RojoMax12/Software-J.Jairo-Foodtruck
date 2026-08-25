@@ -40,12 +40,13 @@
             />
           </div>
 
-          <div class="input-group-full">
+          <div class="input-group-full phone-input-wrapper">
+            <span class="phone-prefix-badge">+56 9</span>
             <input 
               v-model="phone" 
-              type="text" 
-              placeholder="Teléfono" 
-              class="dc-input" 
+              type="tel" 
+              placeholder="1234 5678" 
+              class="dc-input phone-input" 
             />
           </div>
 
@@ -93,6 +94,12 @@
                   </span>
                 </div>
 
+                <div v-if="item.agregados && item.agregados.length > 0" class="additions-box">
+                  <span v-for="ing in item.agregados" :key="ing" class="addition-badge">
+                    + {{ ing }}
+                  </span>
+                </div>
+
                 <div class="item-meta-row">
                   <span class="item-spec">${{ item.price.toLocaleString('es-CL') }}</span>
                   <span class="item-qty">x{{ item.quantity }}</span>
@@ -120,7 +127,7 @@
               @click="handleCancelQuotation"
               :disabled="isLoading"
             >
-              {{ isLoading ? 'Cancelando...' : 'Cancelar pedido' }}
+              Cancelar pedido
             </button>
           </div>
         </section>
@@ -158,6 +165,18 @@ const triggerAlert = (message: string) => {
   setTimeout(() => { showToast.value = false }, 4000)
 }
 
+const sanitizePhoneForDB = (rawPhone: string): string => {
+  if (!rawPhone) return ''
+  let digits = rawPhone.replace(/\D/g, '')
+  if (digits.startsWith('56') && digits.length >= 10) {
+    digits = digits.slice(2)
+  }
+  if (!digits.startsWith('9') && digits.length === 8) {
+    digits = '9' + digits
+  }
+  return digits
+}
+
 const handleFirstNameCacheSync = () => localStorage.setItem('dicreme_temp_first_name', firstName.value.trim())
 const handleLastNameCacheSync = () => localStorage.setItem('dicreme_temp_last_name', lastName.value.trim())
 
@@ -175,7 +194,8 @@ onMounted(() => {
     try {
       const userObj = JSON.parse(userParsed)
       userId.value = userObj.id || null
-      phone.value = userObj.telefono || ''
+      const rawUserPhone = userObj.telefono || ''
+      phone.value = sanitizePhoneForDB(rawUserPhone)
       if (!firstName.value) firstName.value = userObj.nombre || ''
     } catch (error) {
       console.error('Error parseando usuario:', error)
@@ -193,81 +213,6 @@ const totalEstimated = computed(() => {
   return `$${totalRaw.toLocaleString('es-CL')}`
 })
 
-/*const handleConfirmQuotation = async () => {
-  // --- VALIDACIONES DE ENTRADA CORREGIDAS ---
-  if (!firstName.value.trim()) { triggerAlert('Por favor, ingresa tu nombre.'); return; }
-  if (!lastName.value.trim()) { triggerAlert('Por favor, ingresa tu apellido.'); return; }
-  if (!phone.value.trim()) { triggerAlert('Por favor, ingresa un teléfono.'); return; }
-  if (!selectedPaymentMethod.value) { triggerAlert('Selecciona un método de pago.'); return; }
-
-  const now = new Date()
-  const dateString = now.toISOString().split('T')[0] 
-  const timeString = now.toTimeString().split(' ')[0] 
-
-  const resolveProductId = (item: any): number => {
-    if (item.id_producto) return Number(item.id_producto)
-    if (item.producto_id) return Number(item.producto_id)
-    if (item.id) return Number(item.id)
-    return 0;
-  }
-
-  const calculatedTotal = quotationItems.value.reduce((sum, item) => {
-    const cleanPrice = typeof item.price === 'string'
-      ? Number(item.price.replace(/[^0-9]/g, ''))
-      : Number(item.price)
-    return sum + (cleanPrice * item.quantity)
-  }, 0)
-
-  const quotationPayload = {
-    id_distribuidor: Number(userId.value) || 0, // 0 si es invitado
-    id_usuario_dicreme: null,
-    id_estado_cotizacion: 1,
-    persona_recibe: `${firstName.value.trim()} ${lastName.value.trim()}`,
-    telefono: phone.value.trim(),
-    fecha_creacion: dateString,
-    hora_creacion: timeString,
-    total_cotizacion: calculatedTotal,
-    metodo_pago: selectedPaymentMethod.value,
-
-    cotizacion_productos: quotationItems.value.map(item => {
-      const resolvedId = resolveProductId(item)
-      const resolvedPrice = typeof item.price === 'string' 
-        ? Number(item.price.replace(/[^0-9]/g, '')) 
-        : Number(item.price || item.precio_unitario_venta || 0)
-
-      return {
-        id_producto: resolvedId,
-        cantidad: Number(item.quantity || item.cantidad || 1),
-        precio_unitario_venta: resolvedPrice,
-        ingredientes_excluidos: item.excluidos || [] // Se envía a BDD
-      }
-    })
-  }
-
-  try {
-    const response = await quoteService.createQuote(quotationPayload)
-    const result = response.data
-    notify(`¡Pedido confirmado exitosamente! N°: ${result.id || result.ID || 'Generado'}`, 'success')
-    
-    localStorage.removeItem('dicreme_temp_cart')
-    localStorage.removeItem('dicreme_temp_first_name')
-    localStorage.removeItem('dicreme_temp_last_name')
-
-    router.push({
-      path: '/cotizacion-exitosa',
-      query: {
-        id: result.id || result.ID || null,
-        fecha: now.toLocaleDateString('es-CL'), 
-        hora: now.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
-      }
-    })
-
-  } catch (error) {
-    console.error('Error al enviar:', error)
-    triggerAlert('Hubo un problema al conectar con el servidor.')
-  }
-}*/
-
 const handleCancelQuotation = async () =>{
   router.push({
     path: '/'
@@ -278,6 +223,13 @@ const handleConfirmQuotation = async () => {
   if (!firstName.value.trim()) { triggerAlert('Por favor, ingresa tu nombre.'); return; }
   if (!lastName.value.trim()) { triggerAlert('Por favor, ingresa tu apellido.'); return; }
   if (!phone.value.trim()) { triggerAlert('Por favor, ingresa un teléfono.'); return; }
+
+  const cleanPhone = sanitizePhoneForDB(phone.value);
+  if (!cleanPhone || cleanPhone.length !== 9 || !cleanPhone.startsWith('9')) {
+    triggerAlert('Por favor, ingresa un número de teléfono válido de 9 dígitos (ej: 9 1234 5678).');
+    return;
+  }
+
   if (!selectedPaymentMethod.value) { triggerAlert('Selecciona un método de pago.'); return; }
 
   isLoading.value = true;
@@ -291,7 +243,7 @@ const handleConfirmQuotation = async () => {
 
   const orderPayload = {
     nombre_persona: `${firstName.value.trim()} ${lastName.value.trim()}`,
-    numero_telefono: phone.value.trim(),
+    numero_telefono: cleanPhone,
     metodo_pago: selectedPaymentMethod.value,
     total: calculatedTotal,
     items: quotationItems.value.map(item => {
@@ -312,17 +264,31 @@ const handleConfirmQuotation = async () => {
         precio_unitario: typeof item.price === 'string'
           ? Number(item.price.replace(/[^0-9]/g, ''))
           : Number(item.price || 0),
+        excluidos: item.excluidos || [],
+        agregados: item.agregados || [],
         modificaciones: [
           ...(item.excluidosDetails || []).map((ex: any) => ({
             id_ingrediente: ex.id_ingrediente || null,
             tipo: 'Exclusión',
-            precio: 0
+            precio: 0,
+            ingrediente: ex.nombre || ex.name || (typeof ex === 'string' ? ex : '')
           })),
+          ...((item.excluidos && (!item.excluidosDetails || !item.excluidosDetails.length)) ? item.excluidos.map((ex: string) => ({
+            tipo: 'Exclusión',
+            precio: 0,
+            ingrediente: ex
+          })) : []),
           ...(item.agregadosDetails || []).map((ag: any) => ({
             id_ingrediente: ag.id_ingrediente || null,
             tipo: 'Agregado',
-            precio: 0
-          }))
+            precio: 0,
+            ingrediente: ag.nombre || ag.name || (typeof ag === 'string' ? ag : '')
+          })),
+          ...((item.agregados && (!item.agregadosDetails || !item.agregadosDetails.length)) ? item.agregados.map((ag: string) => ({
+            tipo: 'Agregado',
+            precio: 0,
+            ingrediente: ag
+          })) : [])
         ]
       };
     })
@@ -384,6 +350,31 @@ const handleConfirmQuotation = async () => {
 .dc-input:focus { border-color: var(--DC-orange); }
 .dc-input::placeholder { color: #b5b2bc; font-weight: 500; }
 
+.phone-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.phone-prefix-badge {
+  position: absolute;
+  left: 12px;
+  font-weight: 800;
+  color: var(--DC-gray);
+  font-size: 0.95rem;
+  pointer-events: none;
+  z-index: 2;
+  user-select: none;
+  background-color: #f1f0f2;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid #eeedee;
+}
+
+.phone-input {
+  padding-left: 78px !important;
+}
+
 select.dc-input {
   appearance: none;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e28743' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
@@ -403,19 +394,20 @@ select.dc-input {
 .cart-box-container::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 4px; }
 
 .checkout-item-card { display: flex; gap: 15px; background-color: #f8f9fa; padding: 12px; border-radius: 12px; align-items: flex-start; border: 1px solid #eeedee; }
-.item-thumb { width: 70px; height: 70px; object-fit: cover; border-radius: 8px; }
-.item-info { flex: 1; display: flex; flex-direction: column; }
+.item-thumb { width: 70px; height: 70px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+.item-info { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
 .item-name-row { margin-bottom: 2px; }
-.item-name { font-size: 1rem; font-weight: 800; color: var(--DC-gray); line-height: 1.2;}
+.item-name { font-size: 1rem; font-weight: 800; color: var(--DC-gray); line-height: 1.2; word-break: break-word; }
 
 .item-tags-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
 .item-tag { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; }
 .item-size-tag { font-size: 0.75rem; font-weight: 700; color: var(--DC-text-gray); background: #eeedee; padding: 2px 6px; border-radius: 4px;}
 
-/* 🌟 BADGES DE EXCLUSIONES */
-.exclusions-box { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+/* 🌟 BADGES DE EXCLUSIONES Y AGREGADOS */
+.exclusions-box, .additions-box { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
 .exclusion-badge { background-color: #fff0f3; color: #c92a2a; font-size: 0.65rem; font-weight: 800; padding: 3px 6px; border-radius: 4px; text-transform: uppercase; border: 1px solid #ffc9c9; }
+.addition-badge { background-color: #e6fcf5; color: #0ca678; font-size: 0.65rem; font-weight: 800; padding: 3px 6px; border-radius: 4px; text-transform: uppercase; border: 1px solid #96f2d7; }
 
 .item-meta-row { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
 .item-spec { font-size: 1.05rem; font-weight: 900; color: var(--DC-orange); }
@@ -439,7 +431,54 @@ select.dc-input {
 
 /* RESPONSIVE */
 @media (max-width: 768px) {
-  .quotation-grid { grid-template-columns: 1fr; gap: 30px; }
-  .cart-box-container { height: auto; max-height: 400px; }
+  .quotation-page {
+    padding: 20px 0 40px 0;
+  }
+
+  .quotation-container {
+    padding: 0 14px;
+  }
+
+  .quotation-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .cart-box-container {
+    height: auto;
+    max-height: 360px;
+  }
+
+  .checkout-item-card {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .item-thumb {
+    width: 60px;
+    height: 60px;
+  }
+
+  .item-name {
+    font-size: 0.92rem;
+  }
+
+  .total-display-box {
+    padding: 12px 16px;
+  }
+
+  .total-label {
+    font-size: 1rem;
+  }
+
+  .total-value {
+    font-size: 1.25rem;
+  }
+
+  .btn-confirm-cotizacion,
+  .btn-cancel-cotizacion {
+    padding: 14px;
+    font-size: 1rem;
+  }
 }
 </style>

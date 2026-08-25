@@ -107,10 +107,10 @@
               <div class="dropdown-item" @click="selectStatus('all')">Todos los estados</div>
               <div class="dropdown-divider"></div>
               <div class="dropdown-item" @click="selectStatus('Pendiente')">Pendiente</div>
-              <div class="dropdown-item" @click="selectStatus('Pagado')">Pagado</div>
-              <div class="dropdown-item" @click="selectStatus('Anulado')">Anulado</div>
               <div class="dropdown-item" @click="selectStatus('En preparación')">En preparación</div>
-              <div class="dropdown-item" @click="selectStatus('Entregado')">Entregado</div>              
+              <div class="dropdown-item" @click="selectStatus('Listo')">Listo</div>
+              <div class="dropdown-item" @click="selectStatus('Entregado')">Entregado</div>
+              <div class="dropdown-item" @click="selectStatus('Cancelado')">Cancelado</div>
             </div>
           </div>
 
@@ -126,7 +126,8 @@
         </div>
       </div>
 
-      <div class="table-responsive">
+      <!-- VISTA TABLA (ESCRITORIO & TABLET) -->
+      <div class="table-responsive desktop-table-view">
         <table class="orders-table">
           <thead>
             <tr>
@@ -176,7 +177,7 @@
                 </div>
               </td>
             </tr>
-            <tr v-else v-for="order in sortedOrders" :key="order.id">
+            <tr v-else v-for="order in paginatedOrders" :key="order.id">
               <td class="bold-text">#{{ order.id }}</td>
               <td class="bold-text">{{ order.distributor }}</td>
               <td>
@@ -211,6 +212,140 @@
           </tbody>
         </table>
       </div>
+
+      <!-- VISTA TARJETAS MÓVILES (SMARTPHONES) -->
+      <div class="mobile-cards-view">
+        <div v-if="isLoading" class="mobile-skeleton-container">
+          <div v-for="n in 4" :key="'mob-skel-' + n" class="mobile-card-skeleton">
+            <div class="skeleton-pill width-80"></div>
+            <div class="skeleton-pill width-120 margin-top-4"></div>
+            <div class="skeleton-pill width-100 margin-top-4"></div>
+          </div>
+        </div>
+
+        <div v-else-if="sortedOrders.length === 0" class="mobile-empty-state">
+          <Package :size="40" class="empty-icon" />
+          <p>No se encontraron pedidos para esta fecha o filtros.</p>
+          <button @click="fetchOrders" class="btn-retry">Actualizar datos</button>
+        </div>
+
+        <div v-else class="mobile-cards-list">
+          <div 
+            v-for="order in paginatedOrders" 
+            :key="'mob-' + order.id" 
+            class="mobile-order-card"
+            @click="openModal(order.id)"
+          >
+            <div class="mobile-card-top">
+              <div class="mobile-id-box">
+                <span class="mobile-order-id">#{{ order.id }}</span>
+                <span class="mobile-order-time"><Clock :size="12" /> {{ order.time }}</span>
+              </div>
+              <div class="mobile-card-badges">
+                <span class="status-badge" :class="getStatusClass(order.status, order.rawStatusId)">
+                  {{ order.status }}
+                </span>
+                <span class="status-badge" :class="Number(order.id_estado_pago) === 2 ? 'status-paid' : 'status-unpaid'">
+                  {{ Number(order.id_estado_pago) === 2 ? 'PAGADO' : 'POR PAGAR' }}
+                </span>
+              </div>
+            </div>
+
+            <div class="mobile-card-body">
+              <div class="mobile-client-line">
+                <User :size="15" class="mobile-icon" />
+                <span class="mobile-client-name">{{ order.distributor || 'Cliente' }}</span>
+              </div>
+              <div v-if="order.phone" class="mobile-phone-line">
+                <Phone :size="13" class="mobile-icon" />
+                <span>{{ order.phone }}</span>
+              </div>
+            </div>
+
+            <div class="mobile-card-footer">
+              <div class="mobile-price-section">
+                <span class="price-title">Total</span>
+                <strong class="price-value">${{ formatPrice(order.total) }}</strong>
+              </div>
+
+              <div class="mobile-actions-row" @click.stop>
+                <button class="btn-mobile-detail" @click="openModal(order.id)">
+                  <Eye :size="15" /> <span>Detalle</span>
+                </button>
+
+                <button 
+                  v-if="Number(order.rawStatusId) === 1" 
+                  class="btn-mobile-advance advance-step-1" 
+                  @click="advanceOrderStatus(order)"
+                >
+                  <span>A Cocina</span> <ArrowRight :size="13" />
+                </button>
+                <button 
+                  v-else-if="Number(order.rawStatusId) === 2" 
+                  class="btn-mobile-advance advance-step-2" 
+                  @click="advanceOrderStatus(order)"
+                >
+                  <span>Listo</span> <ArrowRight :size="13" />
+                </button>
+                <button 
+                  v-else-if="Number(order.rawStatusId) === 3" 
+                  class="btn-mobile-advance advance-step-3" 
+                  @click="advanceOrderStatus(order)"
+                >
+                  <span>Entregar</span> <CheckCircle :size="13" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Control de Paginación -->
+      <div v-if="sortedOrders.length > 0" class="pagination-footer">
+        <div class="pagination-info">
+          <span>Mostrando <strong>{{ paginationInfo.start }}</strong> - <strong>{{ paginationInfo.end }}</strong> de <strong>{{ paginationInfo.total }}</strong> pedidos</span>
+        </div>
+
+        <div class="pagination-controls">
+          <div class="page-size-selector">
+            <span>Mostrar:</span>
+            <select v-model="itemsPerPage" class="select-page-size">
+              <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }} por pág.</option>
+            </select>
+          </div>
+
+          <div class="page-buttons">
+            <button 
+              class="btn-page-nav" 
+              :disabled="currentPage === 1" 
+              @click="prevPage" 
+              title="Página anterior"
+            >
+              <ChevronLeft :size="16" />
+            </button>
+
+            <button
+              v-for="(page, idx) in displayedPages"
+              :key="idx"
+              class="btn-page-num"
+              :class="{ 'active': currentPage === page, 'ellipsis': page === '...' }"
+              :disabled="page === '...'"
+              @click="goToPage(page)"
+            >
+              {{ page }}
+            </button>
+
+            <button 
+              class="btn-page-nav" 
+              :disabled="currentPage === totalPages" 
+              @click="nextPage" 
+              title="Página siguiente"
+            >
+              <ChevronRight :size="16" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <OrdersDetailModal 
@@ -232,12 +367,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import OrdersDetailModal from './OrdersDetailModal.vue';
 import {
   ClipboardCheck, Package, Truck, CheckCircle, Search, Filter,
   ChevronDown, Calendar as CalendarIcon, Eye, ChevronsUpDown,
-  RefreshCw, Clock, ArrowRight
+  RefreshCw, Clock, ArrowRight, ChevronLeft, ChevronRight, User, Phone
 } from 'lucide-vue-next';
 import orderService  from '@/services/orderService';
 
@@ -373,6 +508,10 @@ const fetchOrders = async () => {
       const customerName = o.nombre_persona || (o.usuario?.nombre_empresa) || 'Cliente Anónimo';
       const dt = parseDateTime(o.fecha || o.created_at);
       const shiftDate = getShiftDateString(o.fecha || o.created_at);
+      
+      const orderTotal = Number(o.total || 0) > 0
+        ? Number(o.total)
+        : (o.detalles || []).reduce((acc: number, d: any) => acc + (Number(d.cantidad || 1) * Number(d.precio_unitario || d.precio || 0)), 0);
   
       return {
         id: o.numero_pedido_dia || o.id_pedido,
@@ -381,7 +520,7 @@ const fetchOrders = async () => {
         customer: customerName,
         phone: o.numero_telefono || o.telefono || '',
         status: o.estado_pedido?.nombre || DEFAULT_NAMES[statusId] || `Estado #${statusId}`,
-        total: Number(o.total || 0),
+        total: orderTotal,
         date: dt.date,
         time: dt.time,
         shiftDate: shiftDate,
@@ -581,6 +720,76 @@ const sortedOrders = computed(() => {
     if (aValue > bValue) return sortConfig.value.direction === 'asc' ? 1 : -1;
     return 0;
   });
+});
+
+// 📄 Estados y Lógica de Paginación
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+const pageSizeOptions = [10, 25, 50, 100];
+
+const totalPages = computed(() => {
+  return Math.ceil(sortedOrders.value.length / itemsPerPage.value) || 1;
+});
+
+const paginatedOrders = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  return sortedOrders.value.slice(start, start + itemsPerPage.value);
+});
+
+const paginationInfo = computed(() => {
+  const total = sortedOrders.value.length;
+  if (total === 0) return { start: 0, end: 0, total: 0 };
+  const start = (currentPage.value - 1) * itemsPerPage.value + 1;
+  const end = Math.min(currentPage.value * itemsPerPage.value, total);
+  return { start, end, total };
+});
+
+const displayedPages = computed(() => {
+  const total = totalPages.value;
+  const current = currentPage.value;
+  const delta = 2;
+  const range: (number | string)[] = [];
+
+  for (let i = Math.max(2, current - delta); i <= Math.min(total - 1, current + delta); i++) {
+    range.push(i);
+  }
+
+  if (current - delta > 2) {
+    range.unshift('...');
+  }
+  range.unshift(1);
+
+  if (current + delta < total - 1) {
+    range.push('...');
+  }
+  if (total > 1) {
+    range.push(total);
+  }
+
+  return range;
+});
+
+const goToPage = (page: number | string) => {
+  if (typeof page === 'number' && page >= 1 && page <= totalPages.value) {
+    currentPage.value = page;
+  }
+};
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+  }
+};
+
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+  }
+};
+
+// Reiniciar a la primera página si cambian los filtros o el tamaño de página
+watch([searchQuery, statusFilter, selectedDate, itemsPerPage], () => {
+  currentPage.value = 1;
 });
 
 onMounted(async () => {
@@ -1046,61 +1255,407 @@ onUnmounted(() => {
   border-color: var(--DC-orange);
 }
 
-/* 📱 RESPONSIVO: ESTILO APP NATIVA PARA CELULARES */
+/* 📄 PAGINACIÓN */
+.pagination-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px 24px;
+  background-color: white;
+  border-top: 1px solid #eeedee;
+}
+
+.pagination-info {
+  font-size: 0.85rem;
+  color: var(--DC-brown);
+  font-weight: 600;
+}
+
+.pagination-info strong {
+  color: var(--DC-gray);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--DC-brown);
+  font-weight: 700;
+}
+
+.select-page-size {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background-color: #f8fafc;
+  color: var(--DC-gray);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.select-page-size:focus,
+.select-page-size:hover {
+  border-color: var(--DC-orange);
+  background-color: white;
+}
+
+.page-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-page-nav,
+.btn-page-num {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 6px;
+  border-radius: 8px;
+  border: 1.5px solid #eeedee;
+  background-color: white;
+  color: var(--DC-gray);
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.btn-page-nav:hover:not(:disabled),
+.btn-page-num:hover:not(:disabled):not(.ellipsis) {
+  border-color: var(--DC-orange);
+  color: var(--DC-orange);
+  background-color: #fffaf5;
+  transform: translateY(-1px);
+}
+
+.btn-page-num.active {
+  background-color: var(--DC-orange);
+  border-color: var(--DC-orange);
+  color: white;
+  box-shadow: 0 2px 6px rgba(255, 107, 0, 0.3);
+}
+
+.btn-page-nav:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.btn-page-num.ellipsis {
+  cursor: default;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+}
+
+/* 💻 VISTAS RESPONSIVAS: ESCRITORIO vs MÓVIL */
+.desktop-table-view {
+  display: block;
+}
+
+.mobile-cards-view {
+  display: none;
+}
+
+/* 📱 RESPONSIVO: ESTILO APP NATIVA PARA CELULARES Y TABLETS */
 @media (max-width: 768px) {
+  .desktop-table-view {
+    display: none !important;
+  }
+
+  .mobile-cards-view {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .mobile-cards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mobile-order-card {
+    background: white;
+    border: 1.5px solid #eeedee;
+    border-radius: 16px;
+    padding: 14px 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .mobile-order-card:active {
+    transform: scale(0.99);
+    border-color: var(--DC-orange);
+  }
+
+  .mobile-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .mobile-id-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mobile-order-id {
+    font-size: 1.05rem;
+    font-weight: 900;
+    color: #1e293b;
+  }
+
+  .mobile-order-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.78rem;
+    color: #64748b;
+    font-weight: 700;
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 6px;
+  }
+
+  .mobile-card-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .mobile-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 0;
+    border-top: 1px dashed #f1ece7;
+    border-bottom: 1px dashed #f1ece7;
+  }
+
+  .mobile-client-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #1e293b;
+  }
+
+  .mobile-client-name {
+    color: #1e293b;
+  }
+
+  .mobile-phone-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  .mobile-icon {
+    color: var(--DC-orange);
+    flex-shrink: 0;
+  }
+
+  .mobile-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .mobile-price-section {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .price-title {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+  }
+
+  .price-value {
+    font-size: 1.2rem;
+    font-weight: 900;
+    color: #059669;
+  }
+
+  .mobile-actions-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .btn-mobile-detail {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1.5px solid var(--DC-orange);
+    background: white;
+    color: var(--DC-orange);
+    font-size: 0.82rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-mobile-detail:hover {
+    background: var(--DC-orange);
+    color: white;
+  }
+
+  .btn-mobile-advance {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: none;
+    font-size: 0.82rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .mobile-skeleton-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mobile-card-skeleton {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #eeedee;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mobile-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 30px 16px;
+    color: #64748b;
+    gap: 12px;
+  }
+
   .orders-container { 
-    padding: 15px 10px; 
+    padding: 12px 10px; 
     min-height: auto;
   }
-  .orders-header { margin-bottom: 20px; }
-  .orders-title { font-size: 1.5rem; }
-  .orders-description { font-size: 0.85rem; }
+  .orders-header { margin-bottom: 16px; }
+  .orders-title { font-size: 1.4rem; }
+  .orders-description { font-size: 0.82rem; }
 
   .status-cards { 
-    display: flex; 
-    overflow-x: auto; 
-    scroll-snap-type: x mandatory; 
-    gap: 12px; 
-    margin: 0 -10px 20px -10px; 
-    padding: 0 10px 10px 10px;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; 
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0 0 16px 0;
+    padding: 0;
+    overflow-x: visible;
+    width: 100%;
   }
-  .status-cards::-webkit-scrollbar { display: none; }
   
   .status-card { 
-    min-width: 250px; 
-    scroll-snap-align: center; 
-    padding: 12px 15px;
+    width: 100%;
+    min-width: 0;
+    min-height: auto;
+    box-sizing: border-box;
+    padding: 12px 16px;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 12px;
   }
-  .card-count { font-size: 1.5rem; }
-  .icon-box { width: 38px; height: 38px; }
 
-  .tabs-outer-container { margin-bottom: 15px; }
-  .switch-container { width: 100%; }
-  .switch-btn { 
-    flex: 1; 
-    padding: 8px 5px; 
-    font-size: 0.85rem; 
-    justify-content: center;
+  .card-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-width: 0;
   }
+
+  .card-label {
+    font-size: 0.85rem;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    flex-shrink: 0;
+  }
+
+  .card-count { font-size: 1.25rem; font-weight: 900; }
+  .icon-box { width: 40px; height: 40px; flex-shrink: 0; }
 
   .table-actions { 
-    padding: 15px 10px; 
+    padding: 12px 10px; 
     flex-direction: column; 
-    gap: 12px; 
+    gap: 10px; 
   }
   .actions-left { 
     display: flex; 
     flex-direction: column; 
-    gap: 10px; 
+    gap: 8px; 
     width: 100%; 
   }
   .search-box { 
     width: 100%; 
     max-width: 100%; 
   }
-  .search-box input { padding: 10px 10px 10px 38px; font-size: 0.85rem; }
+  .search-box input { 
+    padding: 10px 10px 10px 38px; 
+    font-size: 0.88rem; 
+  }
 
   .date-filter-box {
     width: 100%;
@@ -1109,46 +1664,56 @@ onUnmounted(() => {
   .mobile-date-input {
     width: 100%;
     box-sizing: border-box;
-    font-size: 16px;
-  }
-
-  .card-date-picker {
-    width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-    font-size: 16px;
+    font-size: 0.88rem;
+    padding: 10px 12px 10px 38px;
   }
   
   .dropdown-container { width: 100%; }
   .btn-secondary { 
     width: 100%; 
-    padding: 10px 8px; 
+    padding: 10px 12px; 
     font-size: 0.85rem; 
     justify-content: space-between; 
   }
-  .btn-secondary span {
-    white-space: nowrap; 
-    overflow: hidden; 
-    text-overflow: ellipsis; 
-  }
-  .dropdown-menu { width: 100%; min-width: 0; } 
 
-  .actions-right { width: 100%; }
-  .btn-export { width: 100%; justify-content: center; padding: 10px; font-size: 0.85rem; }
+  .btn-live-toggle {
+    width: 100%;
+    justify-content: center;
+    padding: 10px;
+    font-size: 0.85rem;
+  }
 
   .main-table-card { 
-    border-radius: 12px; 
+    border-radius: 16px; 
     box-shadow: 0 4px 15px rgba(0,0,0,0.05);
   }
-  .orders-table { 
-    display: block; 
-    overflow-x: auto; 
-    -webkit-overflow-scrolling: touch; 
+
+  .pagination-footer {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 12px;
   }
-  .orders-table th, .orders-table td { 
-    padding: 12px 10px; 
-    font-size: 0.85rem; 
-    white-space: nowrap; 
+
+  .pagination-info {
+    text-align: center;
+    font-size: 0.8rem;
+  }
+
+  .pagination-controls {
+    flex-direction: column;
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .page-size-selector {
+    justify-content: center;
+  }
+
+  .page-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
 </style>

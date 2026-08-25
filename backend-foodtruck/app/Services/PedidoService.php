@@ -36,7 +36,7 @@ class PedidoService
 
     public function descontarInventario($pedidoId)
     {
-        $pedido = Pedido::with(['detalles'])->find($pedidoId);
+        $pedido = Pedido::with(['detalles.ingredientes'])->find($pedidoId);
         if (!$pedido || $pedido->inventario_descontado) {
             return;
         }
@@ -45,6 +45,16 @@ class PedidoService
             $productoId = $detalle->id_producto;
             $tamanoId = $detalle->id_tamaño;
             $cantComprada = $detalle->cantidad;
+
+            // Obtener exclusiones de este detalle
+            $excluidosIds = ($detalle->ingredientes ?? collect())
+                ->filter(function ($mod) {
+                    $tipo = strtolower($mod->tipo_modificacion ?? '');
+                    return str_contains($tipo, 'exclu') || str_contains($tipo, 'quit');
+                })
+                ->pluck('id_ingrediente')
+                ->filter()
+                ->toArray();
 
             // Receta: ingredientes por tamaño o globales para el producto
             $receta = Producto_ingrediente::where('id_producto', $productoId)
@@ -56,6 +66,11 @@ class PedidoService
                 ->get();
 
             foreach ($receta as $itemReceta) {
+                // Si el ingrediente fue excluido, no se descuenta
+                if (in_array($itemReceta->id_ingrediente, $excluidosIds)) {
+                    continue;
+                }
+
                 $ingrediente = Ingrediente::find($itemReceta->id_ingrediente);
                 if ($ingrediente) {
                     $descuentoTotal = $itemReceta->cantidad * $cantComprada;
@@ -74,6 +89,32 @@ class PedidoService
                     ]);
                 }
             }
+
+            // Descontar agregados / extras
+            $agregados = ($detalle->ingredientes ?? collect())
+                ->filter(function ($mod) {
+                    $tipo = strtolower($mod->tipo_modificacion ?? '');
+                    return str_contains($tipo, 'agre') || str_contains($tipo, 'extra');
+                });
+
+            foreach ($agregados as $itemAgregado) {
+                $ingrediente = Ingrediente::find($itemAgregado->id_ingrediente);
+                if ($ingrediente) {
+                    $descuentoTotal = 1 * $cantComprada;
+                    $ingrediente->cantidad_actual = max(0, $ingrediente->cantidad_actual - $descuentoTotal);
+                    if ($ingrediente->cantidad_actual <= 0) {
+                        $ingrediente->disponible = false;
+                    }
+                    $ingrediente->save();
+
+                    Movimientos::create([
+                        'id_ingrediente' => $ingrediente->id_ingrediente,
+                        'cantidad' => $descuentoTotal,
+                        'tipo_movimiento' => 'Salida',
+                        'fecha_movimiento' => now()->toDateString(),
+                    ]);
+                }
+            }
         }
 
         $pedido->inventario_descontado = true;
@@ -82,7 +123,7 @@ class PedidoService
 
     public function revertirInventario($pedidoId)
     {
-        $pedido = Pedido::with(['detalles'])->find($pedidoId);
+        $pedido = Pedido::with(['detalles.ingredientes'])->find($pedidoId);
         if (!$pedido || !$pedido->inventario_descontado) {
             return;
         }
@@ -91,6 +132,15 @@ class PedidoService
             $productoId = $detalle->id_producto;
             $tamanoId = $detalle->id_tamaño;
             $cantComprada = $detalle->cantidad;
+
+            $excluidosIds = ($detalle->ingredientes ?? collect())
+                ->filter(function ($mod) {
+                    $tipo = strtolower($mod->tipo_modificacion ?? '');
+                    return str_contains($tipo, 'exclu') || str_contains($tipo, 'quit');
+                })
+                ->pluck('id_ingrediente')
+                ->filter()
+                ->toArray();
 
             $receta = Producto_ingrediente::where('id_producto', $productoId)
                 ->where(function ($query) use ($tamanoId) {
@@ -101,9 +151,38 @@ class PedidoService
                 ->get();
 
             foreach ($receta as $itemReceta) {
+                if (in_array($itemReceta->id_ingrediente, $excluidosIds)) {
+                    continue;
+                }
+
                 $ingrediente = Ingrediente::find($itemReceta->id_ingrediente);
                 if ($ingrediente) {
                     $reversionTotal = $itemReceta->cantidad * $cantComprada;
+                    $ingrediente->cantidad_actual = $ingrediente->cantidad_actual + $reversionTotal;
+                    if ($ingrediente->cantidad_actual > 0) {
+                        $ingrediente->disponible = true;
+                    }
+                    $ingrediente->save();
+
+                    Movimientos::create([
+                        'id_ingrediente' => $ingrediente->id_ingrediente,
+                        'cantidad' => $reversionTotal,
+                        'tipo_movimiento' => 'Entrada',
+                        'fecha_movimiento' => now()->toDateString(),
+                    ]);
+                }
+            }
+
+            $agregados = ($detalle->ingredientes ?? collect())
+                ->filter(function ($mod) {
+                    $tipo = strtolower($mod->tipo_modificacion ?? '');
+                    return str_contains($tipo, 'agre') || str_contains($tipo, 'extra');
+                });
+
+            foreach ($agregados as $itemAgregado) {
+                $ingrediente = Ingrediente::find($itemAgregado->id_ingrediente);
+                if ($ingrediente) {
+                    $reversionTotal = 1 * $cantComprada;
                     $ingrediente->cantidad_actual = $ingrediente->cantidad_actual + $reversionTotal;
                     if ($ingrediente->cantidad_actual > 0) {
                         $ingrediente->disponible = true;

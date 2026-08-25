@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileSearch, CheckCircle2, IceCream } from 'lucide-vue-next'
 import quoteService from '@/services/quoteService'
+import orderService from '@/services/orderService'
 import userService from '@/services/userService'
 import distributorService from '@/services/distributorService'
 import quoteProductService from '@/services/quoteProductService'
@@ -79,47 +80,99 @@ onMounted(async () => {
     isLoading.value = true
 
     // llamada a la API
-    const response = await quoteService.getQuoteDetails(quotationId.value)
-    const payload = response.data.data || response.data
+    let response: any = null;
+    try {
+      response = await quoteService.getQuoteDetails(quotationId.value);
+    } catch (e) {
+      try {
+        response = await orderService.getPublicOrderById(quotationId.value);
+      } catch (e2) {
+        response = await orderService.getOrderById(quotationId.value);
+      }
+    }
 
-    if(payload){
-      quotationData.value = payload
+    const payload = response?.data?.data || response?.data;
 
-      distributorData.value = payload.distribuidor || {}
+    if (payload) {
+      quotationData.value = payload;
 
-      productsData.value = (payload.productos || []).map((prod: any) => {
+      distributorData.value = payload.distribuidor || payload.usuario || {};
 
-        console.log('Producto raw:', prod)
-
-        const formatos: Record<number, string> = {
-          1: '10L',
-          2: '5L',
-          3: '2.5L',
-          4: '1L'
+      const parsePrice = (val: any): number => {
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        if (typeof val === 'string') {
+          const cleaned = val.replace(/[^0-9.-]/g, '');
+          const num = parseFloat(cleaned);
+          return isNaN(num) ? 0 : num;
         }
+        return 0;
+      };
+
+      const rawProds = payload.productos || payload.detalles || payload.items || [];
+      productsData.value = rawProds.map((prod: any) => {
+        const p = prod.producto || prod;
+        const pName = p.nombre || p.name || prod.nombre_producto || prod.nombre || 'Producto';
+        const pSize = prod.tamaño?.nombre || prod.tamano?.nombre || p.formato || prod.formato || '';
+        const pCat = p.categoria?.nombre_categoria || p.categoria?.nombre || (typeof p.categoria === 'string' ? p.categoria : '');
+        const pQty = parsePrice(prod.cantidad ?? prod.quantity ?? 1) || 1;
+        
+        let pPrice = parsePrice(
+          prod.precio_unitario ?? 
+          prod.precio_unitario_venta ?? 
+          prod.precio ?? 
+          p.precio_unitario ?? 
+          p.precio_base ?? 
+          p.precio ?? 
+          0
+        );
+
+        let subtotal = parsePrice(prod.subtotal);
+        if (subtotal === 0 && pPrice > 0) {
+          subtotal = pPrice * pQty;
+        } else if (pPrice === 0 && subtotal > 0) {
+          pPrice = Math.round(subtotal / pQty);
+        }
+
+        let excluidosList: string[] = [];
+        if (Array.isArray(prod.ingredientes)) {
+          excluidosList = prod.ingredientes
+            .filter((ing: any) => {
+              const tipo = String(ing.tipo_modificacion || ing.tipo || '').toLowerCase();
+              return tipo.includes('exclu') || tipo.includes('quit');
+            })
+            .map((ing: any) => ing.ingrediente?.nombre || ing.nombre || (typeof ing === 'string' ? ing : ''))
+            .filter(Boolean);
+        } else if (Array.isArray(prod.ingredientes_excluidos)) {
+          excluidosList = prod.ingredientes_excluidos.map((i: any) => typeof i === 'string' ? i : (i.nombre || i.name)).filter(Boolean);
+        } else if (Array.isArray(prod.excluidos)) {
+          excluidosList = prod.excluidos.map((i: any) => typeof i === 'string' ? i : (i.nombre || i.name)).filter(Boolean);
+        }
+
         return {
-          cantidad: prod.cantidad,
-          precio_unitario_venta: prod.precio_unitario_venta,
+          cantidad: pQty,
+          precio_unitario_venta: pPrice,
+          subtotal: subtotal,
+          excluidos: excluidosList,
           producto: {
-            name: prod.nombre_producto,
-            id_categoria: prod.id_categoria,
-            // Aquí asignamos el texto usando el diccionario, si no lo encuentra usa '10L'
-            formato: formatos[prod.id_formato] || '10L',
-            precio: prod.precio_unitario_venta
+            name: pName,
+            categoria: pCat,
+            formato: pSize,
+            precio: pPrice,
+            image: p.imagen || p.image || prod.imagen || prod.image || boxPlaceholderImage
           }
-        }
-      })
+        };
+      });
     } else {
-      errorMessage.value = 'No se encontraron los detalles de la cotización.'
+      errorMessage.value = 'No se encontraron los detalles de la cotización.';
     }
 
   } catch (error) {
-    console.error('Error fetching quotation details:', error)
-    errorMessage.value = 'Hubo un problema al conectar con el servidor.'
+    console.error('Error fetching quotation details:', error);
+    errorMessage.value = 'Hubo un problema al conectar con el servidor.';
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-})
+});
 
 const getQuoteStatusLabel = (statusId: number): string => {
   const safeId = Number(statusId)
@@ -174,9 +227,9 @@ const handleGoBack = () => {
 
           <div class="amount-group">
             <div class="amount-row highlighted">
-              <span class="amount-label">Monto Estimado:</span>
+              <span class="amount-label">Monto Total:</span>
               <div class="amount-box-pink">
-                {{ formatCurrency(quotationData?.total_cotizacion) }}
+                {{ formatCurrency(quotationData?.total_cotizacion ?? quotationData?.total ?? quotationData?.monto_final ?? productsData.reduce((acc, p) => acc + (p.subtotal || 0), 0)) }}
               </div>
             </div>
           </div>
@@ -199,21 +252,31 @@ const handleGoBack = () => {
               <img :src="item.producto?.image ?? item.producto?.imagen ?? boxPlaceholderImage" class="item-thumb" />
               
               <div class="item-info">
-                <span class="item-name">
-                  {{ item.producto?.name ?? item.producto?.nombre ?? item.producto?.nombre_producto ?? 'Helado Artesanal' }}
-                </span>
+                <div class="item-header-row">
+                  <span class="item-name">
+                    {{ item.producto?.name ?? 'Producto' }}
+                    <span v-if="item.producto?.formato" class="item-size">({{ item.producto?.formato }})</span>
+                  </span>
+                  <span class="item-qty">x{{ item.cantidad }}</span>
+                </div>
                 
-                <span class="item-tag">
-                  - {{ item.producto?.id_categoria === 1 ? 'Al agua' : item.producto?.id_categoria === 2 ? 'Crema' : item.producto?.categoria_objeto?.nombre_categoria ?? item.producto?.categoria_nombre ?? 'Categoría' }}
+                <span v-if="item.producto?.categoria" class="item-tag">
+                  {{ item.producto?.categoria }}
                 </span>
+
+                <div v-if="item.excluidos && item.excluidos.length > 0" class="product-exclusions">
+                  <span v-for="ing in item.excluidos" :key="ing" class="exclusion-badge">
+                    Sin {{ ing }}
+                  </span>
+                </div>
                 
                 <div class="item-meta-row">
                   <span class="item-spec">
-                    {{ item.producto?.formato ?? '10L' }} - 
-                    {{ formatCurrency((item.precio_unitario_venta ?? item.precio) ?? (item.producto?.precio || 0)) }}
+                    {{ formatCurrency(item.precio_unitario_venta) }} c/u
                   </span>
-                  
-                  <span class="item-qty">X{{ item.cantidad }}</span>
+                  <span class="item-subtotal">
+                    Total: {{ formatCurrency(item.subtotal) }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -364,18 +427,23 @@ const handleGoBack = () => {
   display: flex;
   gap: 15px;
   background-color: #e2dee2;
-  padding: 10px 14px;
+  padding: 12px 14px;
   border-radius: 14px;
-  align-items: center;
+  align-items: flex-start;
 }
 
-.item-thumb { width: 75px; height: 55px; object-fit: cover; border-radius: 10px; }
+.item-thumb { width: 75px; height: 60px; object-fit: cover; border-radius: 10px; flex-shrink: 0; }
 .item-info { flex: 1; display: flex; flex-direction: column; text-align: left; }
-.item-name { font-size: 0.95rem; font-weight: bold; color: #1a1624; }
-.item-tag { font-size: 0.75rem; font-weight: 700; margin-top: 1px; color: var(--DC-pink); }
-.item-meta-row { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
-.item-spec { font-size: 0.95rem; font-weight: 800; color: #1a1624; }
-.item-qty { font-size: 0.95rem; font-weight: 800; color: #444; }
+.item-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.item-name { font-size: 0.95rem; font-weight: bold; color: #1a1624; line-height: 1.2; }
+.item-size { font-size: 0.85rem; color: #666; font-weight: 600; margin-left: 4px; }
+.item-qty { font-size: 0.85rem; font-weight: 800; color: #322c44; background: #d5d0d8; padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
+.item-tag { font-size: 0.75rem; font-weight: 700; margin-top: 2px; color: var(--DC-pink); }
+.product-exclusions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; margin-bottom: 2px; }
+.exclusion-badge { background-color: #ffe3e3; color: #c92a2a; border: 1px solid #ffa8a8; font-size: 0.75rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; }
+.item-meta-row { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 0.85rem; border-top: 1px dashed #d0cbd0; padding-top: 5px; }
+.item-spec { font-size: 0.85rem; font-weight: 600; color: #666; }
+.item-subtotal { font-size: 0.9rem; font-weight: 800; color: #1a1624; }
 
 .timeline-wrapper {
   margin: 60px auto 30px auto;
@@ -536,5 +604,36 @@ const handleGoBack = () => {
   margin-left: 5px;
   display: flex;
   align-items: center;
+}
+
+@media (max-width: 768px) {
+  .quotation-detail-container {
+    padding: 15px 12px;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .timeline-card {
+    padding: 24px 14px;
+  }
+
+  .node-text {
+    font-size: 0.68rem;
+  }
+
+  .action-row {
+    flex-direction: column-reverse;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .btn-return-back,
+  .btn-contact {
+    width: 100%;
+    justify-content: center;
+  }
 }
 </style>

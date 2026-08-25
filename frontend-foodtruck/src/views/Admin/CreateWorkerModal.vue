@@ -505,4 +505,28 @@ const closeModal = () => {
 .fade-leave-to {
     opacity: 0;
 }
+
+@media (max-width: 600px) {
+    .modal {
+        width: 95vw;
+        max-height: 90vh;
+        margin: 10px;
+    }
+
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: 14px 16px;
+    }
+
+    .modal-footer {
+        flex-direction: column-reverse;
+        gap: 8px;
+    }
+
+    .modal-footer button {
+        width: 100%;
+        justify-content: center;
+    }
+}
 </style>

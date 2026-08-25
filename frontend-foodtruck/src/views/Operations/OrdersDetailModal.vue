@@ -91,12 +91,12 @@
               class="timeline-step"
               :class="{ 
                 'active': localStatusId === step.id, 
-                'completed': localStatusId > step.id 
+                'completed': localStatusId !== 5 && localStatusId > step.id 
               }"
-              @click="setOrderStatus(step.id)"
+              @click="localStatusId !== 5 && setOrderStatus(step.id)"
             >
               <div class="step-circle">
-                <Check v-if="localStatusId > step.id" :size="14" />
+                <Check v-if="localStatusId !== 5 && localStatusId > step.id" :size="14" />
                 <span v-else>{{ step.id }}</span>
               </div>
               <span class="step-label">{{ step.name }}</span>
@@ -107,7 +107,7 @@
           <div class="status-navigation">
             <button 
               class="btn-step" 
-              :disabled="localStatusId <= 1" 
+              :disabled="localStatusId <= 1 || localStatusId === 5" 
               @click="stepStatus(-1)"
             >
               <ChevronLeft :size="16" /> Anterior
@@ -137,7 +137,7 @@
 
             <button 
               class="btn-step" 
-              :disabled="localStatusId >= 4" 
+              :disabled="localStatusId >= 4 || localStatusId === 5" 
               @click="stepStatus(1)"
             >
               Siguiente <ChevronRight :size="16" />
@@ -428,7 +428,76 @@ const orderSteps = [
 
 const isInitializing = ref(true);
 
-watch(() => props.rawOrder, (newOrder) => {
+const extractRemovedFromDet = (det: any): string[] => {
+  let list: string[] = [];
+  if (Array.isArray(det.ingredientes) && det.ingredientes.length > 0) {
+    list = det.ingredientes
+      .filter((ing: any) => {
+        const tipo = String(ing.tipo_modificacion || ing.tipo || '').toLowerCase();
+        return tipo.includes('exclu') || tipo.includes('quit');
+      })
+      .map((ing: any) => ing.ingrediente?.nombre || ing.nombre || (typeof ing === 'string' ? ing : ''))
+      .filter(Boolean);
+  } else if (Array.isArray(det.removedIngredients)) {
+    list = det.removedIngredients.map((i: any) => typeof i === 'string' ? i : (i.nombre || i.name)).filter(Boolean);
+  } else if (Array.isArray(det.ingredientes_excluidos)) {
+    list = det.ingredientes_excluidos.map((i: any) => typeof i === 'string' ? i : (i.nombre || i.name)).filter(Boolean);
+  } else if (Array.isArray(det.excluidos)) {
+    list = det.excluidos.map((i: any) => typeof i === 'string' ? i : (i.nombre || i.name)).filter(Boolean);
+  } else if (Array.isArray(det.modificaciones)) {
+    list = det.modificaciones
+      .filter((m: any) => {
+        const tipo = String(m.tipo || m.tipo_modificacion || '').toLowerCase();
+        return tipo.includes('exclu') || tipo.includes('quit');
+      })
+      .map((m: any) => m.nombre || m.ingrediente?.nombre || (typeof m === 'string' ? m : ''))
+      .filter(Boolean);
+  }
+  return [...new Set(list)];
+};
+
+const extractAddedFromDet = (det: any): any[] => {
+  let list: any[] = [];
+  if (Array.isArray(det.ingredientes) && det.ingredientes.length > 0) {
+    list = det.ingredientes
+      .filter((ing: any) => {
+        const tipo = String(ing.tipo_modificacion || ing.tipo || '').toLowerCase();
+        return tipo.includes('agre') || tipo.includes('extra');
+      })
+      .map((ing: any) => ({
+        name: ing.ingrediente?.nombre || ing.nombre || (typeof ing === 'string' ? ing : 'Extra'),
+        quantity: 1,
+        price: Number(ing.precio_aplicado || 0)
+      }))
+      .filter((e: any) => Boolean(e.name));
+  } else if (Array.isArray(det.addedExtras)) {
+    list = det.addedExtras.map((i: any) => typeof i === 'string' ? { name: i, quantity: 1, price: 0 } : { name: i.name || i.nombre, quantity: i.quantity || 1, price: i.price || 0 }).filter((e: any) => Boolean(e.name));
+  } else if (Array.isArray(det.agregados)) {
+    list = det.agregados.map((i: any) => typeof i === 'string' ? { name: i, quantity: 1, price: 0 } : { name: i.nombre || i.name, quantity: 1, price: i.precio || 0 }).filter((e: any) => Boolean(e.name));
+  } else if (Array.isArray(det.modificaciones)) {
+    list = det.modificaciones
+      .filter((m: any) => {
+        const tipo = String(m.tipo || m.tipo_modificacion || '').toLowerCase();
+        return tipo.includes('agre') || tipo.includes('extra');
+      })
+      .map((m: any) => ({
+        name: m.nombre || m.ingrediente?.nombre || (typeof m === 'string' ? m : 'Extra'),
+        quantity: 1,
+        price: Number(m.precio || 0)
+      }))
+      .filter((e: any) => Boolean(e.name));
+  }
+
+  const uniqueMap = new Map();
+  for (const item of list) {
+    if (!uniqueMap.has(item.name)) {
+      uniqueMap.set(item.name, item);
+    }
+  }
+  return Array.from(uniqueMap.values());
+};
+
+watch(() => props.rawOrder, async (newOrder) => {
   if (newOrder) {
     isInitializing.value = true;
     if (newOrder.rawStatusId) localStatusId.value = Number(newOrder.rawStatusId);
@@ -436,50 +505,38 @@ watch(() => props.rawOrder, (newOrder) => {
     if (newOrder.id_estado_pago) localPaymentStatusId.value = Number(newOrder.id_estado_pago);
     if (newOrder.notas !== undefined) orderNotes.value = newOrder.notas || '';
 
-    // Preservar productos añadidos/modificados localmente en localStorage si existen
-    const saved = localStorage.getItem(orderStorageKey.value);
-    let loadedFromStorage = false;
+    let detailsList = Array.isArray(newOrder.detalles) ? newOrder.detalles : [];
 
-    if (saved) {
+    // Si los detalles vienen vacíos o sin ingredientes cargados, buscar pedido fresco desde la API
+    const targetOrderId = props.realId || props.orderId;
+    if (targetOrderId && (detailsList.length === 0 || detailsList.some((d: any) => !d.ingredientes && !d.producto))) {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed.products) && parsed.products.length > 0) {
-          products.value = parsed.products;
-          loadedFromStorage = true;
+        const res = await orderService.getPublicOrderById(targetOrderId).catch(() => orderService.getOrderById(targetOrderId));
+        const fullOrder = res?.data?.data || res?.data;
+        if (fullOrder && Array.isArray(fullOrder.detalles) && fullOrder.detalles.length > 0) {
+          detailsList = fullOrder.detalles;
         }
-      } catch (e) {
-        console.error('Error cargando snapshot local del pedido:', e);
+      } catch (err) {
+        console.error('Error fetching order details in modal:', err);
       }
     }
 
-    // Si no había guardado local, cargamos desde detalles de la base de datos
-    if (!loadedFromStorage && Array.isArray(newOrder.detalles)) {
-      products.value = newOrder.detalles.map((det: any, idx: number) => {
-        const prodName = det.producto?.nombre || 'Producto';
-        const formatName = det.tamaño?.nombre || 'Único';
+    if (detailsList.length > 0) {
+      products.value = detailsList.map((det: any, idx: number) => {
+        const prodName = det.producto?.nombre || det.nombre || det.name || 'Producto';
+        const formatName = det.tamaño?.nombre || det.tamano?.nombre || det.formato || 'Único';
         const qty = Number(det.cantidad || 1);
-        const unitPrice = Number(det.precio_unitario || 0);
-
-        const excluidos = (det.ingredientes || [])
-          .filter((ing: any) => ing.tipo_modificacion === 'Exclusión')
-          .map((ing: any) => ing.ingrediente?.nombre || 'Ingrediente');
-
-        const agregados = (det.ingredientes || [])
-          .filter((ing: any) => ing.tipo_modificacion === 'Agregado')
-          .map((ing: any) => ({
-            name: ing.ingrediente?.nombre || 'Extra',
-            quantity: 1,
-            price: 0
-          }));
+        const unitPrice = Number(det.precio_unitario || det.precio || 0);
 
         return {
           id: det.id_detalle_pedido || idx + 1,
+          catalogId: det.id_producto || det.producto?.id_producto,
           name: prodName,
           format: formatName,
           quantity: qty,
           subtotal: qty * unitPrice,
-          removedIngredients: excluidos,
-          addedExtras: agregados
+          removedIngredients: extractRemovedFromDet(det),
+          addedExtras: extractAddedFromDet(det)
         };
       });
     }
@@ -579,7 +636,14 @@ watch(filteredCatalogProducts, (items) => {
   }
 });
 
-const formatNumber = (n: number) => n.toLocaleString('es-CL');
+const totalAmount = computed(() => {
+  return products.value.reduce((acc: number, p: any) => acc + (Number(p.subtotal) || 0), 0);
+});
+
+const formatNumber = (n: any) => {
+  const num = typeof n === 'object' && n !== null && 'value' in n ? Number(n.value) : Number(n);
+  return isNaN(num) ? '0' : num.toLocaleString('es-CL');
+};
 const formato = (f: string) => f;
 
 const saveOrder = (showNotification = true) => {
@@ -896,10 +960,14 @@ const toggleRemovedIngredient = (pid: any, ing: string) => {
   saveOrder(false);
 };
 
-const totalAmount = computed(() => products.value.reduce((acc, p) => acc + p.subtotal, 0));
-
 const getStatusClass = (id: number) => {
-  const map: any = { 1: 'status-pending', 2: 'status-preparation', 3: 'status-completed' };
+  const map: any = {
+    1: 'status-pending',
+    2: 'status-preparation',
+    3: 'status-completed',
+    4: 'status-delivered',
+    5: 'status-cancelled'
+  };
   return map[id] || 'status-generic';
 };
 
@@ -2236,5 +2304,359 @@ const contactClient = () => window.open(`tel:${props.phone}`);
   color: #059669;
   min-width: 45px;
   text-align: right;
+}
+
+/* 🕒 LÍNEA DE TIEMPO Y ESTADOS */
+.timeline-container {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.timeline-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  position: relative;
+}
+
+.timeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  text-align: center;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  border: 2px solid #cbd5e1;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 900;
+  transition: all 0.2s ease;
+}
+
+.step-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.timeline-step.active .step-circle {
+  background: #ff6b00;
+  border-color: #ff6b00;
+  color: white;
+  box-shadow: 0 0 0 4px rgba(255, 107, 0, 0.2);
+}
+
+.timeline-step.active .step-label {
+  color: #ff6b00;
+  font-weight: 900;
+}
+
+.timeline-step.completed .step-circle {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: white;
+}
+
+.timeline-step.completed .step-label {
+  color: #15803d;
+}
+
+/* 🚦 NAVEGACIÓN Y BOTONES DE ESTADO */
+.status-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.btn-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #cbd5e1;
+  background: white;
+  color: #334155;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-step:hover:not(:disabled) {
+  border-color: #ff6b00;
+  color: #ff6b00;
+  background: #fff7ed;
+}
+
+.btn-step:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #f8fafc;
+}
+
+.btn-pay {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  background: #16a34a;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
+  transition: all 0.2s ease;
+}
+
+.btn-pay:hover {
+  background: #15803d;
+}
+
+.badge-paid-confirmed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.btn-cancel-order {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #fecaca;
+  background: white;
+  color: #dc2626;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel-order:hover {
+  background: #dc2626;
+  color: white;
+}
+
+.badge-cancelled-confirmed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+/* 📱 RESPONSIVO PARA MODAL EN MÓVILES */
+@media (max-width: 640px) {
+  .modal-overlay {
+    padding: 8px;
+  }
+
+  .modal-container {
+    width: 100%;
+    max-height: 96vh;
+    border-radius: 18px;
+  }
+
+  .modal-header {
+    padding: 12px 16px;
+  }
+
+  .header-titles {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .modal-title {
+    font-size: 1rem;
+  }
+
+  .badges-row {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .modal-content {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .client-card {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .main-client-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .btn-whatsapp {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 8px;
+  }
+
+  .payment-select-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .payment-method-select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px;
+  }
+
+  .product-main {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .product-info {
+    min-width: 100%;
+    order: -1;
+  }
+
+  .price {
+    font-size: 0.95rem;
+    margin-left: auto;
+  }
+
+  .timeline-container {
+    padding: 12px 10px;
+  }
+
+  .timeline-steps {
+    gap: 4px;
+  }
+
+  .step-circle {
+    width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+  }
+
+  .step-label {
+    font-size: 0.68rem;
+  }
+
+  .status-navigation {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .btn-step,
+  .btn-pay,
+  .btn-cancel-order,
+  .badge-paid-confirmed,
+  .badge-cancelled-confirmed {
+    width: 100%;
+    box-sizing: border-box;
+    justify-content: center;
+    padding: 10px 6px;
+    font-size: 0.78rem;
+  }
+
+  .modal-footer {
+    padding: 12px 14px;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .footer-total {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+  }
+
+  .footer-actions {
+    width: 100%;
+  }
+
+  .btn-secondary {
+    width: 100%;
+    justify-content: center;
+    display: flex;
+  }
+
+  /* Submodal de Agregar Producto en Móvil */
+  .submodal-overlay {
+    padding: 8px;
+  }
+
+  .submodal-card {
+    width: 100%;
+    max-height: 94vh;
+    border-radius: 18px;
+  }
+
+  .submodal-header {
+    padding: 12px 14px;
+  }
+
+  .submodal-body {
+    padding: 12px 10px;
+    gap: 12px;
+  }
+
+  .submodal-footer {
+    padding: 12px 14px;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .submodal-footer .summary-box {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .submodal-footer .btn-primary {
+    width: 100%;
+    justify-content: center;
+    display: flex;
+  }
 }
 </style>

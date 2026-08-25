@@ -63,30 +63,18 @@
 
                 <!-- Tabla -->
 
-                <table class="products-table">
-
+                <table class="products-table desktop-table-only">
                     <thead>
-
                         <tr>
-
                             <th>Producto</th>
-
                             <th>Categoría</th>
-
                             <th>Precio</th>
-
                             <th>Ingredientes</th>
-
                             <th>Estado</th>
-
                             <th>Oferta</th>
-
                             <th>Acciones</th>
-
                         </tr>
-
                     </thead>
-
                     <tbody v-if="isLoading">
                         <tr v-for="n in 5" :key="'prod-admin-skel-' + n" class="skeleton-row">
                             <td><div class="skeleton-pill width-120"></div></td>
@@ -98,70 +86,33 @@
                             <td><div class="skeleton-pill width-80"></div></td>
                         </tr>
                     </tbody>
-
                     <tbody v-else>
-
                         <tr
                             v-for="product in paginatedProducts"
                             :key="product.id"
                         >
-
                             <!-- Producto -->
-
                             <td>
-
                                 <div class="product-info">
-
                                     <div class="product-image">
-
                                         {{ product.image }}
-
                                     </div>
-
                                     <div>
-
-                                        <h4>
-                                            {{ product.name }}
-                                        </h4>
-
-                                        <small>
-                                            ID #{{ product.id }}
-                                        </small>
-
+                                        <h4>{{ product.name }}</h4>
+                                        <small>ID #{{ product.id }}</small>
                                     </div>
-
                                 </div>
-
                             </td>
-
                             <!-- Categoría -->
-
                             <td>
-
-                                <span class="category-badge">
-
-                                    {{ product.category }}
-
-                                </span>
-
+                                <span class="category-badge">{{ product.category }}</span>
                             </td>
-
                             <!-- Precio -->
-
                             <td>
-
-                                <strong>
-
-                                    ${{ product.price.toLocaleString() }}
-
-                                </strong>
-
+                                <strong>${{ product.price.toLocaleString() }}</strong>
                             </td>
-
                             <!-- Ingredientes -->
-
                             <td>
-
                                 <div class="ingredients">
                                     <span
                                         v-for="ingredient in product.ingredients.slice(0, 2)"
@@ -170,7 +121,6 @@
                                     >
                                         {{ ingredient }}
                                     </span>
-
                                     <span
                                         v-if="product.ingredients.length > 2"
                                         class="ingredient-more"
@@ -179,7 +129,6 @@
                                     </span>
                                 </div>
                             </td>
-
                             <!-- Estado -->
                             <td>
                                 <span
@@ -191,7 +140,6 @@
                                     {{ product.active ? 'Activo' : 'Inactivo' }}
                                 </span>
                             </td>
-
                             <!-- Oferta -->
                             <td>
                                 <span
@@ -202,7 +150,6 @@
                                 >
                                     {{ product.offer }}%
                                 </span>
-
                                 <span
                                     v-else
                                     class="no-offer clickable"
@@ -212,7 +159,6 @@
                                     Sin oferta
                                 </span>
                             </td>
-
                             <!-- Acciones -->
                             <td>
                                 <div class="actions">
@@ -223,7 +169,6 @@
                                     >
                                         <Pencil :size="17" />
                                     </button>
-
                                     <button
                                         class="icon-button"
                                         title="Gestionar oferta"
@@ -231,7 +176,6 @@
                                     >
                                         <BadgePercent :size="17" />
                                     </button>
-
                                     <button
                                         class="icon-button delete-btn"
                                         title="Eliminar producto"
@@ -242,26 +186,72 @@
                                 </div>
                             </td>
                         </tr>
-
                     </tbody>
-
                 </table>
 
-                <!-- Sin resultados -->
+                <!-- VISTA TARJETAS MÓVIL (MOBILE) -->
+                <div class="mobile-products-cards mobile-only">
+                    <div v-if="isLoading" class="skeleton-cards-mobile">
+                        <div v-for="n in 3" :key="'mob-prod-skel-' + n" class="mobile-product-card skeleton-card">
+                            <div class="skeleton-pill width-120"></div>
+                            <div class="skeleton-pill width-80"></div>
+                        </div>
+                    </div>
+                    <div v-else-if="paginatedProducts.length === 0" class="empty-state">
+                        <PackageOpen :size="45" />
+                        <h3>No se encontraron productos</h3>
+                    </div>
+                    <div v-else v-for="product in paginatedProducts" :key="'mob-prod-' + product.id" class="mobile-product-card">
+                        <div class="mob-card-header">
+                            <div class="mob-prod-info">
+                                <span class="mob-prod-emoji">{{ product.image }}</span>
+                                <div>
+                                    <h4 class="mob-prod-name">{{ product.name }}</h4>
+                                    <small class="mob-prod-id">ID #{{ product.id }} · {{ product.category }}</small>
+                                </div>
+                            </div>
+                            <strong class="mob-prod-price">${{ product.price.toLocaleString('es-CL') }}</strong>
+                        </div>
+                        <div class="mob-card-body">
+                            <div class="mob-status-row">
+                                <span
+                                    class="status-badge clickable"
+                                    :class="product.active ? 'active' : 'inactive'"
+                                    @click="toggleProductStatus(product)"
+                                >
+                                    {{ product.active ? 'Activo' : 'Inactivo' }}
+                                </span>
+                                <span
+                                    v-if="product.offer"
+                                    class="offer-badge clickable"
+                                    @click="openOfferModal(product)"
+                                >
+                                    {{ product.offer }}% OFF
+                                </span>
+                            </div>
+                            <div class="actions">
+                                <button class="icon-button" title="Editar" @click="openEditModal(product)">
+                                    <Pencil :size="16" />
+                                </button>
+                                <button class="icon-button" title="Oferta" @click="openOfferModal(product)">
+                                    <BadgePercent :size="16" />
+                                </button>
+                                <button class="icon-button delete-btn" title="Eliminar" @click="handleDeleteProduct(product)">
+                                    <Trash2 :size="16" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
+                <!-- Sin resultados Desktop -->
                 <div
-                    v-if="paginatedProducts.length === 0"
-                    class="empty-state"
+                    v-if="!isLoading && paginatedProducts.length === 0"
+                    class="empty-state desktop-table-only"
                 >
-
                     <PackageOpen :size="55" />
-
                     <h3>No se encontraron productos</h3>
-
-                    <p>
-                        Intenta modificar los filtros de búsqueda.
-                    </p>
-
+                    <p>Intenta modificar los filtros de búsqueda.</p>
                 </div>
 
                 <!-- Paginación -->
@@ -1792,7 +1782,83 @@ button:active{
 
 }
 
+.desktop-table-only {
+    display: table;
+    width: 100%;
+}
+
+.mobile-only {
+    display: none !important;
+}
+
+@media(max-width:768px){
+    .desktop-table-only {
+        display: none !important;
+    }
+    .mobile-only {
+        display: flex !important;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+    }
+    .mobile-product-card {
+        background: white;
+        border: 1px solid #eeedee;
+        border-radius: 16px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    }
+    .mob-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .mob-prod-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .mob-prod-emoji {
+        font-size: 1.8rem;
+    }
+    .mob-prod-name {
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--DC-gray);
+        margin: 0;
+    }
+    .mob-prod-id {
+        font-size: 0.78rem;
+        color: #6e6a75;
+    }
+    .mob-prod-price {
+        font-size: 1.1rem;
+        font-weight: 900;
+        color: var(--DC-orange);
+    }
+    .mob-card-body {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px dashed #eeedee;
+        padding-top: 10px;
+    }
+    .mob-status-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+}
+
 @media(max-width:900px){
+
+    .content-grid{
+        grid-template-columns: 1fr;
+    }
 
     .page-header{
 
@@ -2123,7 +2189,63 @@ button:active{
 }
 
 /* ==========================================================
-   FIN
+   RESPONSIVIDAD MÓVIL Y TABLET
 ========================================================== */
+@media (max-width: 1024px) {
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+}
 
+@media (max-width: 768px) {
+    .products-page {
+        padding: 15px;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+    }
+
+    .header-actions {
+        width: 100%;
+        gap: 10px;
+    }
+
+    .header-actions button {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .table-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .search-box {
+        max-width: 100%;
+    }
+
+    .table-container {
+        padding: 14px;
+        border-radius: 16px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .modal-box {
+        max-width: 95vw !important;
+        width: 100% !important;
+        max-height: 90vh !important;
+        padding: 18px !important;
+        overflow-y: auto !important;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+}
 </style>

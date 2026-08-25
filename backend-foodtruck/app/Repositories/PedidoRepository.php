@@ -71,6 +71,17 @@ class PedidoRepository
             $maxNumeroShift = Pedido::where('created_at', '>=', $shiftStart)->max('numero_pedido_dia') ?? 0;
             $numeroPedidoDia = $maxNumeroShift + 1;
 
+            $items = $data['items'] ?? ($data['detalles'] ?? []);
+
+            $totalCalculado = isset($data['total']) ? (float)$data['total'] : 0;
+            if ($totalCalculado <= 0 && !empty($items)) {
+                foreach ($items as $it) {
+                    $cant = $it['cantidad'] ?? ($it['quantity'] ?? 1);
+                    $pu = $it['precio_unitario'] ?? ($it['precio'] ?? ($it['subtotal'] && $cant ? $it['subtotal'] / $cant : 0));
+                    $totalCalculado += ($cant * $pu);
+                }
+            }
+
             // 2. Preparar campos de la cabecera del pedido
             $pedidoData = [
                 'id_estado_pedido' => $data['id_estado_pedido'] ?? 1, // 1 = Pendiente
@@ -81,14 +92,13 @@ class PedidoRepository
                 'numero_telefono' => $data['numero_telefono'] ?? ($data['telefono'] ?? ''),
                 'metodo_pago' => $data['metodo_pago'] ?? 'Efectivo',
                 'fecha' => now(),
-                'total' => $data['total'] ?? 0,
+                'total' => $totalCalculado,
                 'notas' => $data['notas'] ?? null,
             ];
 
             $pedido = Pedido::create($pedidoData);
 
             // 3. Guardar detalles si vienen en el payload (items / detalles)
-            $items = $data['items'] ?? ($data['detalles'] ?? []);
             foreach ($items as $item) {
                 $idProducto = $item['id_producto'] ?? ($item['id'] ?? null);
                 $idTamaño = $item['id_tamaño'] ?? ($item['id_tamano'] ?? 1); // 1 = Único por defecto
@@ -104,14 +114,71 @@ class PedidoRepository
                         'precio_unitario' => $precioUnitario,
                     ]);
 
-                    // Ingredientes personalizados o exclusiones
-                    $modificaciones = $item['modificaciones'] ?? ($item['ingredientes'] ?? []);
-                    foreach ($modificaciones as $mod) {
-                        $idIngrediente = is_array($mod) ? ($mod['id_ingrediente'] ?? $mod['id'] ?? null) : $mod;
-                        $tipoMod = is_array($mod) ? ($mod['tipo'] ?? 'Agregado') : 'Exclusión';
-                        $precioAplicado = is_array($mod) ? ($mod['precio'] ?? 0) : 0;
+                    // Ingredientes personalizados, exclusiones o agregados
+                    $allMods = [];
+
+                    // 1. Modificaciones o ingredientes explícitos
+                    $rawMods = $item['modificaciones'] ?? ($item['ingredientes'] ?? []);
+                    if (is_array($rawMods)) {
+                        foreach ($rawMods as $m) {
+                            $allMods[] = $m;
+                        }
+                    }
+
+                    // 2. Exclusiones directas (excluidos / ingredientes_excluidos / removedIngredients)
+                    $rawExcluidos = $item['excluidos'] ?? ($item['ingredientes_excluidos'] ?? ($item['removedIngredients'] ?? []));
+                    if (is_array($rawExcluidos)) {
+                        foreach ($rawExcluidos as $ex) {
+                            $allMods[] = [
+                                'tipo' => 'Exclusión',
+                                'ingrediente' => is_array($ex) ? ($ex['nombre'] ?? $ex['id_ingrediente'] ?? $ex['id'] ?? '') : $ex,
+                                'id_ingrediente' => is_array($ex) ? ($ex['id_ingrediente'] ?? $ex['id'] ?? null) : (is_numeric($ex) ? (int)$ex : null),
+                                'precio' => 0,
+                            ];
+                        }
+                    }
+
+                    // 3. Agregados directos (agregados / addedExtras)
+                    $rawAgregados = $item['agregados'] ?? ($item['addedExtras'] ?? []);
+                    if (is_array($rawAgregados)) {
+                        foreach ($rawAgregados as $ag) {
+                            $allMods[] = [
+                                'tipo' => 'Agregado',
+                                'ingrediente' => is_array($ag) ? ($ag['nombre'] ?? $ag['name'] ?? $ag['id_ingrediente'] ?? '') : $ag,
+                                'id_ingrediente' => is_array($ag) ? ($ag['id_ingrediente'] ?? $ag['id'] ?? null) : (is_numeric($ag) ? (int)$ag : null),
+                                'precio' => is_array($ag) ? ($ag['precio'] ?? $ag['price'] ?? 0) : 0,
+                            ];
+                        }
+                    }
+
+                    // 4. Guardar cada modificación en la base de datos (evitando duplicados)
+                    $processedMods = [];
+                    foreach ($allMods as $mod) {
+                        $tipoMod = is_array($mod) ? ($mod['tipo'] ?? $mod['tipo_modificacion'] ?? 'Exclusión') : 'Exclusión';
+                        $precioAplicado = is_array($mod) ? ($mod['precio'] ?? $mod['precio_aplicado'] ?? 0) : 0;
+                        $idIngrediente = is_array($mod) ? ($mod['id_ingrediente'] ?? $mod['id'] ?? null) : (is_numeric($mod) ? (int)$mod : null);
+
+                        // Si no hay ID numérico pero hay nombre, buscar por nombre en BDD
+                        if (!$idIngrediente) {
+                            $rawName = is_array($mod) ? ($mod['ingrediente'] ?? $mod['nombre'] ?? $mod['name'] ?? null) : $mod;
+                            if ($rawName && is_string($rawName)) {
+                                $cleanName = trim($rawName);
+                                $foundIng = \App\Models\Ingrediente::where('nombre', $cleanName)
+                                    ->orWhere('nombre', 'LIKE', '%' . $cleanName . '%')
+                                    ->first();
+                                if ($foundIng) {
+                                    $idIngrediente = $foundIng->id_ingrediente;
+                                }
+                            }
+                        }
 
                         if ($idIngrediente) {
+                            $modKey = $idIngrediente . '_' . strtolower($tipoMod);
+                            if (isset($processedMods[$modKey])) {
+                                continue; // Evitar duplicar el mismo ingrediente y tipo de modificación
+                            }
+                            $processedMods[$modKey] = true;
+
                             Detalle_pedido_Ingrediente::create([
                                 'id_detalle_pedido' => $detalle->id_detalle_pedido,
                                 'id_ingrediente' => $idIngrediente,
@@ -296,10 +363,15 @@ class PedidoRepository
                             'precio_unitario' => $precioUnitario,
                         ]);
 
-                        // Exclusiones de ingredientes
-                        $removedList = $item['removedIngredients'] ?? [];
+                        // Exclusiones de ingredientes (sin duplicados)
+                        $removedList = $item['removedIngredients'] ?? ($item['excluidos'] ?? []);
+                        $seenRemoved = [];
                         foreach ($removedList as $rem) {
-                            $ingObj = \App\Models\Ingrediente::where('nombre', $rem)->first();
+                            $remName = is_array($rem) ? ($rem['nombre'] ?? $rem['ingrediente'] ?? '') : $rem;
+                            if (!$remName || isset($seenRemoved[$remName])) continue;
+                            $seenRemoved[$remName] = true;
+
+                            $ingObj = \App\Models\Ingrediente::where('nombre', $remName)->first();
                             if ($ingObj) {
                                 Detalle_pedido_Ingrediente::create([
                                     'id_detalle_pedido' => $detalle->id_detalle_pedido,
@@ -310,10 +382,14 @@ class PedidoRepository
                             }
                         }
 
-                        // Agregados / Extras de ingredientes
-                        $addedList = $item['addedExtras'] ?? [];
+                        // Agregados / Extras de ingredientes (sin duplicados)
+                        $addedList = $item['addedExtras'] ?? ($item['agregados'] ?? []);
+                        $seenAdded = [];
                         foreach ($addedList as $ext) {
-                            $extName = is_array($ext) ? ($ext['name'] ?? '') : $ext;
+                            $extName = is_array($ext) ? ($ext['name'] ?? $ext['nombre'] ?? '') : $ext;
+                            if (!$extName || isset($seenAdded[$extName])) continue;
+                            $seenAdded[$extName] = true;
+
                             $ingObj = \App\Models\Ingrediente::where('nombre', $extName)->first();
                             if ($ingObj) {
                                 Detalle_pedido_Ingrediente::create([
@@ -330,11 +406,6 @@ class PedidoRepository
             }
 
             $pedido->update($data);
-
-            $nuevoEstado = isset($data['id_estado_pedido']) ? (int)$data['id_estado_pedido'] : $previousEstado;
-            if ($nuevoEstado === 4 && $previousEstado !== 4) {
-                $this->descontarIngredientesStock($pedido);
-            }
 
             return $this->getPedidoById($pedido->id_pedido);
         }

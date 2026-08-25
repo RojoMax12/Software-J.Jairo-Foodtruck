@@ -228,24 +228,34 @@ const toggleSidebar = () => {
 @media (max-width: 768px) {
   .admin-navbar {
     padding: 0 10px;
-    height: 65px;
+    height: 60px;
   }
   
   .nav-left { 
     gap: 6px;
   } 
 
+  .btn-menu {
+    padding: 8px;
+  }
+
   .brand-logo { 
     height: 36px; 
   }
 
   .brand-text {
-    font-size: 1.1rem;
+    font-size: 1.15rem;
   }
   
   .session-display {
-    padding: 4px 10px;
+    padding: 3px 8px;
     border-radius: 20px;
+    gap: 6px;
+  }
+
+  .user-avatar {
+    width: 28px;
+    height: 28px;
   }
 
   .user-role {
@@ -254,7 +264,7 @@ const toggleSidebar = () => {
 
   .user-name {
     font-size: 0.75rem;
-    max-width: 90px;
+    max-width: 80px;
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -262,6 +272,22 @@ const toggleSidebar = () => {
   .btn-logout-icon {
     width: 34px;
     height: 34px;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand-text {
+    font-size: 1rem;
+  }
+
+  .user-details {
+    display: none;
+  }
+
+  .session-display {
+    padding: 2px;
+    background: transparent;
+    border: none;
   }
 }
 </style>

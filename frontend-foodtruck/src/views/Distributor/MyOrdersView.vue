@@ -322,4 +322,24 @@ const formatCurrency = (value: any) => {
 
 .total-label { font-size: 0.95rem; font-weight: bold; color: #322c44; }
 .total-price { font-size: 1.1rem; font-weight: 800; color: #e4869f; }
+
+@media (max-width: 768px) {
+  .history-container {
+    margin: 15px auto;
+    padding: 0 12px;
+  }
+
+  .orders-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .card-header, .card-footer {
+    padding: 12px 14px;
+  }
+
+  .card-body {
+    padding: 14px;
+  }
+}
 </style>

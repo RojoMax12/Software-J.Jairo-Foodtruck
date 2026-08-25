@@ -55,6 +55,19 @@
       </div>
     </main>
 
+    <!-- Botón Flotante para Subir -->
+    <Transition name="fade-scale">
+      <button 
+        v-if="showScrollTop && !isCartOpen && !isDetailOpen" 
+        class="floating-scroll-top"
+        @click="scrollToTop"
+        title="Volver arriba"
+        aria-label="Volver arriba"
+      >
+        <ChevronUp :size="24" :stroke-width="2.5" />
+      </button>
+    </Transition>
+
     <button 
       v-if="!isCartOpen && !isDetailOpen" 
       class="floating-cart" 
@@ -71,14 +84,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import SearchBar from '@/components/SearchBar.vue'
 import ProductCard from '@/components/ProductCard.vue'
 import CartModal from '@/components/CartModal.vue'
 import ProductDetailModal from '@/components/ProductDetailModal.vue';
 import LoginNoticeModal from '@/components/LoginNoticeModal.vue';
-import { ShoppingCart } from 'lucide-vue-next'
+import { ShoppingCart, ChevronUp } from 'lucide-vue-next'
 import categoryService from '@/services/productCategoryService';
 import productService from '@/services/productService';
 import Footer from '@/components/Footer.vue'
@@ -90,10 +103,8 @@ import { useNotification } from '@/composables/useNotification';
 
 const { notify } = useNotification();
 
-
-
-
 // Estados reactivos
+const showScrollTop = ref(false);
 const isLoadingProducts = ref(true);
 const isCartOpen = ref(false);
 const isDetailOpen = ref(false);
@@ -430,9 +441,21 @@ const fetchIceCreams = async () => {
   }
 };
 
+const handleScroll = () => {
+  showScrollTop.value = window.scrollY > 280;
+};
+
+const scrollToTop = () => {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  });
+};
+
 onMounted(() => {
   fetchIceCreams();
   checkAuthStatus();
+  window.addEventListener('scroll', handleScroll, { passive: true });
 
   // Recuperación segura del estado persistido del carrito temporal
   const savedCart = localStorage.getItem('dicreme_temp_cart');
@@ -443,6 +466,10 @@ onMounted(() => {
       console.error('Error al cargar el carrito guardado:', error);
     }
   }
+});
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll);
 });
 
 // Guardado reactivo profundo en LocalStorage para no perder la persistencia de compra
@@ -493,11 +520,52 @@ watch(
 }
 
 .floating-cart:hover {
-  transform: scale(1.1);
+  transform: scale(1.08);
 }
 
 .floating-cart:active {
-  transform: scale(0.9);
+  transform: scale(0.92);
+}
+
+/* Botón Flotante Volver Arriba */
+.floating-scroll-top {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--DC-brown, #513119);
+  color: #ffffff;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 998;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.floating-scroll-top:hover {
+  background-color: var(--DC-orange, #e28743);
+  transform: translateY(-4px) scale(1.06);
+  box-shadow: 0 8px 22px rgba(226, 135, 67, 0.45);
+}
+
+.floating-scroll-top:active {
+  transform: scale(0.92);
+}
+
+.fade-scale-enter-active,
+.fade-scale-leave-active {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fade-scale-enter-from,
+.fade-scale-leave-to {
+  opacity: 0;
+  transform: scale(0.7) translateY(10px);
 }
 
 @keyframes shimmer {
@@ -588,8 +656,15 @@ watch(
     left: auto;    /* 🔥 CRÍTICO: Cancela el "left: 30px" del diseño de escritorio */
     width: 55px;
     height: 55px;  /* Un tamaño ligeramente menor para no tapar tanto contenido */
-    z-index: 9999; /* Asegura que flote por ENCIMA del footer y de las tarjetas */
+    z-index: 999;  /* Por encima de tarjetas pero por debajo de modales (z-index: 2000+) */
+  }
+
+  .floating-scroll-top {
+    bottom: 85px;  /* Ubicado justo arriba del carrito flotante en móviles */
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    z-index: 998;
   }
 }
-
 </style>

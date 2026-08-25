@@ -2,65 +2,64 @@ import api from './api';
 
 export default { 
 
-    getQuotes(){
-        return api.get('/cotizaciones');
+    getQuotes() {
+        return api.get('/pedidos');
     },
 
-    getQuotesByDistributor(idDistribuidor: number){
-        return api.get(`/cotizaciones/${idDistribuidor}/usuario_distribuidor`);
+    getQuotesByDistributor(idDistribuidor: number | string) {
+        return api.get(`/pedidos/usuario/${idDistribuidor}`).catch(() => api.get('/pedidos'));
     },
     
-    getQuoteById(id: number){
-        return api.get(`/cotizaciones/${id}`);
+    getQuoteById(id: number | string) {
+        return api.get(`/public/pedidos/${id}`).catch(() => api.get(`/pedidos/${id}`));
     },
 
-    updateQuote(id: number, data: unknown){
-        return api.put(`/cotizaciones/${id}`, data);
+    getQuoteDetails(id: number | string) {
+        return api.get(`/public/pedidos/${id}`).catch(() => api.get(`/pedidos/${id}`));
     },
 
-    deleteQuote(id: number){
-        return api.delete(`/cotizaciones/${id}`);
+    updateQuote(id: number | string, data: unknown) {
+        return api.put(`/pedidos/${id}`, data);
     },
 
-    createQuote(data: unknown){
-        return api.post('/cotizaciones', data);
+    deleteQuote(id: number | string) {
+        return api.delete(`/pedidos/${id}`);
     },
 
-    getQuoteProducts(idCotizacion: number | string){
-        return api.get(`/cotizacion_producto/cotizacion/${idCotizacion}`);
+    createQuote(data: unknown) {
+        return api.post('/public/pedidos', data).catch(() => api.post('/pedidos', data));
     },
 
-    transformQuoteToOrder(idCotizacion: number | string){
-        return api.post(`/cotizacion/${idCotizacion}/transformar`);
+    getQuoteProducts(idCotizacion: number | string) {
+        return api.get(`/public/pedidos/${idCotizacion}`).catch(() => api.get(`/pedidos/${idCotizacion}`));
     },
 
-    getQuoteDetails(id: number) {
-        return api.get(`/cotizaciones/${id}/details`);
+    transformQuoteToOrder(idCotizacion: number | string) {
+        return api.put(`/pedidos/${idCotizacion}`, { id_estado_pedido: 2 });
     },
 
-    takeQuote(id: number, idadmin: number) {
-        return api.put(`/cotizaciones/${id}/tomarcotizacion/${idadmin}`, { idadmin });
-
-     },
-
-    validateQuote(id: number, idadmin: number, discountData?: any) {
-    return api.put(`/cotizaciones/${id}/validarcotizacion/${idadmin}`, discountData);
+    takeQuote(id: number | string, idadmin: number | string) {
+        return api.put(`/pedidos/${id}`, { id_estado_pedido: 2, id_usuario: idadmin });
     },
 
-    cancelQuote(id: number, iduser: number) {
-        return api.put(`/cotizacion/${id}/cancelarcotizacion/${iduser}`, { iduser });
+    validateQuote(id: number | string, idadmin: number | string, discountData?: any) {
+        return api.put(`/pedidos/${id}`, { id_estado_pedido: 3, ...discountData });
     },
 
-    add_productos_to_cotizacion(idCotizacion: number, payload: { id_producto: number, cantidad: number }) {
-    return api.post(`/cotizaciones/${idCotizacion}/agregarproductos`, payload);
+    cancelQuote(id: number | string, iduser?: number | string) {
+        return api.put(`/pedidos/${id}`, { id_estado_pedido: 5 });
     },
 
-    remove_productos_to_cotizacion(idCotizacion: number, payload: { id_producto: number, cantidad: number }) {
-    return api.post(`/cotizaciones/${idCotizacion}/eliminarproductos`, payload);
+    add_productos_to_cotizacion(idCotizacion: number | string, payload: { id_producto: number, cantidad: number }) {
+        return api.post(`/detalle-pedidos`, { id_pedido: idCotizacion, ...payload });
     },
 
-    force_remove_producto(idCotizacion: number, payload: { id_producto: number }) {
-    return api.post(`/cotizaciones/${idCotizacion}/eliminarproducto`, payload);
+    remove_productos_to_cotizacion(idCotizacion: number | string, payload: { id_producto: number, cantidad: number }) {
+        return api.delete(`/detalle-pedidos/${payload.id_producto}`);
+    },
+
+    force_remove_producto(idCotizacion: number | string, payload: { id_producto: number }) {
+        return api.delete(`/detalle-pedidos/${payload.id_producto}`);
     }
 
 }
