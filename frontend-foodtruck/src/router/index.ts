@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from '../components/LoginView.vue'
 import RegisterView from '../components/RegisterView.vue'
 import ForgotPasswordView from '../components/ForgotPasswordView.vue'
+import ResetPasswordView from '../components/ResetPasswordView.vue'
 import HomeView from '../views/Home/HomeView.vue'
 import { globalLoading } from '@/composables/useLoading'; // Importa el estado
 
@@ -31,6 +32,12 @@ const router = createRouter({
       path: '/forgot-password',
       name: 'forgot-password',
       component: ForgotPasswordView,
+      meta: { hideNavbar: true, useLoader: true }
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: ResetPasswordView,
       meta: { hideNavbar: true, useLoader: true }
     },
     {

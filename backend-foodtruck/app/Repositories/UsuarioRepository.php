@@ -32,6 +32,11 @@ class UsuarioRepository
         return Usuario::where('nombre', $nombre)->first();
     }
 
+    public function getUsuarioByEmail($correo)
+    {
+        return Usuario::where('correo', $correo)->first();
+    }
+
     public function getUsuariosByRolId($idRol)
     {
         return Usuario::where('id_rol', $idRol)->get();

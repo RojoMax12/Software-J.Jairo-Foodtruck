@@ -7,6 +7,7 @@ use App\Services\JwtService;
 use App\Services\UsuarioService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 
 class AuthController extends Controller
 {
@@ -95,28 +96,44 @@ class AuthController extends Controller
 
     public function forgotPassword(Request $request)
     {
-        $request->validate(['nombre' => 'required|string']);
-        $resultado = $this->authService->enviarEnlaceRecuperacion($request->nombre);
+        $request->validate([
+            'correo' => 'required|email',
+        ]);
 
-        if (!$resultado) {
-            return response()->json(['status' => 'error', 'message' => 'Usuario no encontrado.'], 404);
-        }
+        $status = $this->authService->enviarEnlaceRecuperacion(
+            $request->correo
+        );
 
-        return response()->json(['status' => 'success', 'message' => 'Enlace de recuperación enviado.']);
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Si el correo está registrado, recibirás un enlace de recuperación.',
+        ]);
     }
 
     public function resetPassword(Request $request)
     {
         $request->validate([
             'token' => 'required|string',
-            'password' => 'required|string|min:6|confirmed'
+            'correo' => 'required|email',
+            'password' => 'required|string|min:6|confirmed',
         ]);
 
-        try {
-            $this->authService->restablecerContrasena($request->token, $request->password);
-            return response()->json(['status' => 'success', 'message' => 'Contraseña restablecida.']);
-        } catch (\Exception $e) {
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
+        $status = $this->authService->restablecerContrasena(
+            $request->token,
+            $request->correo,
+            $request->password
+        );
+
+        if ($status !== Password::PASSWORD_RESET) {
+            return response()->json([
+                'status' => 'error',
+                'message' => __($status),
+            ], 400);
         }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Contraseña restablecida correctamente.',
+        ]);
     }
 }
