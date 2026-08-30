@@ -62,7 +62,7 @@ class Usuario extends Authenticatable
 
     public function getAuthIdentifierName()
     {
-        return 'correo';
+        return 'id_usuario';
     }
 
     // Funciones para recuperación de contraseña
