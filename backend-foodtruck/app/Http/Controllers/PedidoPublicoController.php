@@ -19,6 +19,25 @@ class PedidoPublicoController extends Controller
      */
     public function storePublico(Request $request)
     {
+        // 1. Validar que el local esté dentro de su turno y horario de atención
+        $pedidoRepo = app(\App\Repositories\PedidoRepository::class);
+        $window = $pedidoRepo->getShiftWindow();
+
+        if (empty($window['is_active'])) {
+            $apertura = substr($window['hora_apertura'] ?? '19:00', 0, 5);
+            $cierre = substr($window['hora_cierre'] ?? '00:30', 0, 5);
+            return response()->json([
+                'success' => false,
+                'is_closed' => true,
+                'message' => "El Foodtruck se encuentra cerrado en este momento. Nuestro horario de atención es de {$apertura} a {$cierre} hrs. ¡Te esperamos en nuestro próximo turno!",
+                'horario' => [
+                    'hora_apertura' => $apertura,
+                    'hora_cierre' => $cierre,
+                    'dia' => $window['dia'] ?? 'Hoy'
+                ]
+            ], 422);
+        }
+
         $data = $request->all();
         $user = $request->user();
         if (empty($data['id_usuario']) && $user) {
@@ -53,6 +72,12 @@ class PedidoPublicoController extends Controller
                     'message' => "No encontramos el pedido con ID #{$id}."
                 ], 404);
             }
+
+            // Anonimizar teléfono para protección de datos personales
+            if (!empty($pedido->numero_telefono)) {
+                $pedido->numero_telefono = $this->maskPhone($pedido->numero_telefono);
+            }
+
             return response()->json([
                 'success' => true,
                 'data' => $pedido
@@ -94,11 +119,26 @@ class PedidoPublicoController extends Controller
             ], 404);
         }
 
+        // Anonimizar teléfono para protección de datos en pantallas públicas
+        if (!empty($pedido->numero_telefono)) {
+            $pedido->numero_telefono = $this->maskPhone($pedido->numero_telefono);
+        }
+
         return response()->json([
             'success' => true,
             'data' => $pedido,
             'jornada' => $jornada
         ]);
     }
-}
 
+    private function maskPhone($phone): string
+    {
+        if (!$phone) return '';
+        $clean = preg_replace('/\D/', '', $phone);
+        if (strlen($clean) >= 8) {
+            $last4 = substr($clean, -4);
+            return '+56 9 **** ' . $last4;
+        }
+        return '****';
+    }
+}

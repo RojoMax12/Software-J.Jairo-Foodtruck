@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+
 use App\Repositories\DetallePedidoRepository;
 
 class DetallePedidoService
@@ -10,6 +11,16 @@ class DetallePedidoService
     public function __construct(DetallePedidoRepository $detallePedidoRepository)
     {
         $this->detallePedidoRepository = $detallePedidoRepository;
+    }
+
+    public function getAllDetallePedidos()
+    {
+        return $this->detallePedidoRepository->getAllDetallePedidos();
+    }
+
+    public function getDetallePedidoById($id)
+    {
+        return $this->detallePedidoRepository->getDetallePedidoById($id);
     }
 
     public function createDetallePedido($data)

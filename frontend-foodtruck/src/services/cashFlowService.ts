@@ -86,27 +86,76 @@ export function parseDateTimeString(dateString?: string): { formatted: string; t
   };
 }
 
-export function getShiftStartTimestamp(referenceDate: Date = new Date()): number {
-  const now = referenceDate;
+export interface ShiftWindow {
+  start: string;
+  end: string;
+  start_timestamp: number;
+  end_timestamp: number;
+  hora_apertura: string;
+  hora_cierre: string;
+  dia: string;
+  es_jornada_activa: boolean;
+  shift_date: string;
+}
+
+let cachedShiftWindow: ShiftWindow | null = null;
+
+export async function fetchShiftWindowFromBackend(date?: string): Promise<ShiftWindow> {
+  try {
+    const res = await api.get('/horarios/turno-actual', { params: date ? { fecha: date } : {} });
+    if (res.data?.start_timestamp) {
+      cachedShiftWindow = res.data;
+      return res.data;
+    }
+  } catch (err) {
+    console.warn('Error al obtener ventana de turno desde backend:', err);
+  }
+
+  // Fallback seguro si la API no está disponible
+  const now = date ? new Date(date) : new Date();
+  const d = new Date(now);
+  if (d.getHours() < 6) {
+    d.setDate(d.getDate() - 1);
+  }
+  d.setHours(19, 0, 0, 0);
+
+  const fallback: ShiftWindow = {
+    start: d.toISOString(),
+    end: new Date(d.getTime() + 6 * 3600 * 1000).toISOString(),
+    start_timestamp: d.getTime(),
+    end_timestamp: d.getTime() + 6 * 3600 * 1000,
+    hora_apertura: '19:00',
+    hora_cierre: '00:30',
+    dia: 'Hoy',
+    es_jornada_activa: true,
+    shift_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  };
+
+  cachedShiftWindow = fallback;
+  return fallback;
+}
+
+export function getShiftStartTimestamp(referenceDate?: Date): number {
+  if (cachedShiftWindow?.start_timestamp) {
+    return cachedShiftWindow.start_timestamp;
+  }
+  const now = referenceDate || new Date();
   const currentHour = now.getHours();
   const shiftDate = new Date(now);
 
   if (currentHour >= 0 && currentHour < 6) {
-    // Madrugada: el turno de atención comenzó ayer por la tarde (18:00 hrs)
     shiftDate.setDate(shiftDate.getDate() - 1);
-    shiftDate.setHours(18, 0, 0, 0);
-  } else if (currentHour >= 6 && currentHour < 18) {
-    // Durante el día: desde las 06:00 hrs
-    shiftDate.setHours(6, 0, 0, 0);
-  } else {
-    // Noche (>= 18:00 hrs): desde hoy a las 18:00 hrs
-    shiftDate.setHours(18, 0, 0, 0);
   }
+  shiftDate.setHours(19, 0, 0, 0);
 
   return shiftDate.getTime();
 }
 
 export default {
+  // Obtener ventana de turno real de base de datos
+  fetchShiftWindowFromBackend,
+  getShiftStartTimestamp,
+
   // Obtener sesión de caja actual (Turno) sincronizada con el backend
   async fetchCurrentSessionFromBackend(): Promise<CashRegisterSession> {
     try {
@@ -223,7 +272,8 @@ export default {
         monto_inicial: Math.max(0, Number(initialCash || 0)),
         total_ventas: 0,
         total_recaudado: 0,
-        estado: 'abierta'
+        estado: 'abierta',
+        observaciones: `Cajero: ${cashierName}`
       });
       if (response.data?.id_caja) {
         backendId = response.data.id_caja;

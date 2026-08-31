@@ -16,6 +16,17 @@
         <p class="main-subtitle">Revisa tus datos y productos antes de confirmar.</p>
       </div>
 
+      <!-- AVISO DE LOCAL CERRADO / FUERA DE HORARIO -->
+      <div v-if="isStoreClosed" class="store-closed-checkout-banner">
+        <div class="closed-banner-left">
+          <AlertTriangle :size="24" class="closed-icon" />
+          <div class="closed-text-box">
+            <strong>Foodtruck cerrado en este momento</strong>
+            <span>Nuestro horario de atención es de <strong>{{ shiftWindow?.hora_apertura || '19:00' }} a {{ shiftWindow?.hora_cierre || '00:30' }} hrs</strong>. No es posible procesar pedidos fuera de turno. ¡Te esperamos en nuestro próximo turno!</span>
+          </div>
+        </div>
+      </div>
+
       <div class="quotation-grid">
         <!-- COLUMNA IZQUIERDA: DATOS DEL CLIENTE Y MÉTODO DE PAGO -->
         <section class="forms-column">
@@ -206,10 +217,19 @@
             <div class="action-row">
               <button 
                 class="btn-confirm-cotizacion" 
+                :class="{ 'btn-disabled-closed': isStoreClosed }"
                 @click="handleConfirmQuotation"
-                :disabled="isLoading || quotationItems.length === 0"
+                :disabled="isLoading || quotationItems.length === 0 || isStoreClosed"
+                :title="isStoreClosed ? 'El local se encuentra cerrado' : ''"
               >
-                <span>{{ isLoading ? 'Enviando comanda...' : `Confirmar Pedido • ${totalEstimated}` }}</span>
+                <span>
+                  {{ isStoreClosed 
+                      ? 'Local Cerrado (Fuera de Horario)' 
+                      : isLoading 
+                        ? 'Enviando comanda...' 
+                        : `Confirmar Pedido • ${totalEstimated}` 
+                  }}
+                </span>
               </button>
 
               <button 
@@ -243,8 +263,9 @@ import {
 import boxPlaceholderImage from '@/assets/logo_jairo.webp'
 import quoteService from '@/services/quoteService'
 import orderService from '@/services/orderService'
-import { useNotification } from '@/composables/useNotification'
 import TermsAndPrivacyModal from '@/components/TermsAndPrivacyModal.vue'
+import cashFlowService, { type ShiftWindow } from '@/services/cashFlowService'
+import { useNotification } from '@/composables/useNotification'
 
 const router = useRouter()
 const { notify } = useNotification()
@@ -259,6 +280,9 @@ const userId = ref<number | null>(null)
 const isLoading = ref(false)
 const isLoggedIn = ref(false)
 const loggedUserName = ref('')
+
+const shiftWindow = ref<ShiftWindow | null>(null)
+const isStoreClosed = computed(() => shiftWindow.value !== null && shiftWindow.value.es_jornada_activa === false)
 
 const quotationItems = ref<any[]>([])
 const errorMessage = ref('')
@@ -312,7 +336,7 @@ const sanitizePhoneForDB = (rawPhone: string): string => {
 const handleFirstNameCacheSync = () => localStorage.setItem('dicreme_temp_first_name', firstName.value.trim())
 const handleLastNameCacheSync = () => localStorage.setItem('dicreme_temp_last_name', lastName.value.trim())
 
-onMounted(() => {
+onMounted(async () => {
   const savedCart = localStorage.getItem('dicreme_temp_cart')
   if (savedCart) {
     try {
@@ -360,6 +384,13 @@ onMounted(() => {
     if (cachedFirstName !== null && !firstName.value) firstName.value = cachedFirstName
     if (cachedLastName !== null && !lastName.value) lastName.value = cachedLastName
   }
+
+  // 3. Consultar horario de turno
+  try {
+    shiftWindow.value = await cashFlowService.fetchShiftWindowFromBackend()
+  } catch (e) {
+    console.warn('Error al obtener horario en checkout:', e)
+  }
 })
 
 const totalEstimated = computed(() => {
@@ -377,6 +408,11 @@ const handleCancelQuotation = () => {
 }
 
 const handleConfirmQuotation = async () => {
+  if (isStoreClosed.value) {
+    triggerAlert(`El Foodtruck se encuentra cerrado en este momento. Horario de atención: ${shiftWindow.value?.hora_apertura || '19:00'} a ${shiftWindow.value?.hora_cierre || '00:30'} hrs.`);
+    return;
+  }
+
   if (!firstName.value.trim()) { triggerAlert('Por favor, ingresa tu nombre.'); return; }
   if (!lastName.value.trim()) { triggerAlert('Por favor, ingresa tu apellido.'); return; }
   if (!phone.value.trim()) { triggerAlert('Por favor, ingresa tu número telefónico.'); return; }
@@ -399,49 +435,35 @@ const handleConfirmQuotation = async () => {
   }, 0);
 
   const orderPayload = {
+    nombre_persona: `${firstName.value.trim()} ${lastName.value.trim()}`,
+    numero_telefono: cleanPhone,
     id_usuario: userId.value || null,
-    nombre_persona: `${firstName.value.trim()} ${lastName.value.trim()}`.trim(),
-    numero_telefono: `+56${cleanPhone}`,
-    metodo_pago: selectedPaymentMethod.value,
     total: calculatedTotal,
-    items: quotationItems.value.map(item => {
-      const rawProdId = item.id_producto ?? item.productId ?? item.id ?? 1;
-      const cleanProdId = (typeof rawProdId === 'number' && !isNaN(rawProdId)) 
-        ? rawProdId 
-        : (parseInt(String(rawProdId).split('_')[0] || '1') || 1);
-
-      const rawTamanoId = item.id_tamaño ?? item.tamano_id ?? 1;
-      const cleanTamanoId = (typeof rawTamanoId === 'number' && !isNaN(rawTamanoId)) 
-        ? rawTamanoId 
-        : (parseInt(String(rawTamanoId)) || 1);
+    metodo_pago: selectedPaymentMethod.value,
+    id_estado_pago: 1, // Por pagar
+    id_estado_pedido: 1, // Pendiente
+    detalles: quotationItems.value.map(item => {
+      const unitPrice = typeof item.price === 'string'
+        ? Number(item.price.replace(/[^0-9]/g, ''))
+        : Number(item.price || 0);
 
       return {
-        id_producto: cleanProdId,
-        id_tamaño: cleanTamanoId,
+        id_producto: item.id || item.id_producto || null,
+        nombre_producto: item.name || item.nombre || 'Producto',
         cantidad: Number(item.quantity || 1),
-        precio_unitario: typeof item.price === 'string'
-          ? Number(item.price.replace(/[^0-9]/g, ''))
-          : Number(item.price || 0),
-        excluidos: item.excluidos || [],
-        agregados: item.agregados || [],
-        modificaciones: [
-          ...(item.excluidosDetails || []).map((ex: any) => ({
-            id_ingrediente: ex.id_ingrediente || null,
-            tipo: 'Exclusión',
-            precio: 0,
-            ingrediente: ex.nombre || ex.name || (typeof ex === 'string' ? ex : '')
-          })),
-          ...((item.excluidos && (!item.excluidosDetails || !item.excluidosDetails.length)) ? item.excluidos.map((ex: string) => ({
-            tipo: 'Exclusión',
-            precio: 0,
-            ingrediente: ex
-          })) : []),
-          ...(item.agregadosDetails || []).map((ag: any) => ({
+        precio_unitario: unitPrice,
+        subtotal: unitPrice * Number(item.quantity || 1),
+        opciones_seleccionadas: [
+          ...(item.tamaño ? [{ tipo: 'Tamaño', valor: item.tamaño }] : []),
+          ...(item.size ? [{ tipo: 'Tamaño', valor: item.size }] : []),
+          ...(item.exclusiones ? item.exclusiones.map((ex: string) => ({ tipo: 'Exclusión', ingrediente: ex })) : []),
+          ...(item.ingredientesRemovidos ? item.ingredientesRemovidos.map((ex: string) => ({ tipo: 'Sin', ingrediente: ex })) : []),
+          ...(item.agregadosDetails ? item.agregadosDetails.map((ag: any) => ({
             id_ingrediente: ag.id_ingrediente || null,
             tipo: 'Agregado',
             precio: 0,
             ingrediente: ag.nombre || ag.name || (typeof ag === 'string' ? ag : '')
-          })),
+          })) : []),
           ...((item.agregados && (!item.agregadosDetails || !item.agregadosDetails.length)) ? item.agregados.map((ag: string) => ({
             tipo: 'Agregado',
             precio: 0,
@@ -475,9 +497,10 @@ const handleConfirmQuotation = async () => {
         hora: now.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
       }
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error enviando pedido:', err);
-    triggerAlert('Hubo un problema al procesar tu pedido. Por favor intenta de nuevo.');
+    const apiMsg = err.response?.data?.message || 'Hubo un problema al procesar tu pedido. Por favor intenta de nuevo.';
+    triggerAlert(apiMsg);
   } finally {
     isLoading.value = false;
   }
@@ -485,6 +508,50 @@ const handleConfirmQuotation = async () => {
 </script>
 
 <style scoped>
+.store-closed-checkout-banner {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  border: 2px solid #fed7aa;
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 14px rgba(226, 135, 67, 0.08);
+}
+
+.closed-banner-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.closed-icon {
+  color: #c2410c;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.closed-text-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.closed-text-box strong {
+  font-size: 1rem;
+  color: #9a3412;
+}
+
+.closed-text-box span {
+  font-size: 0.88rem;
+  color: #7c2d12;
+  line-height: 1.4;
+}
+
+.btn-disabled-closed {
+  background-color: #94a3b8 !important;
+  cursor: not-allowed !important;
+  opacity: 0.85;
+}
+
 .quotation-page {
   background-color: var(--DC-bg-gray, #f5ebe0);
   min-height: 100vh;

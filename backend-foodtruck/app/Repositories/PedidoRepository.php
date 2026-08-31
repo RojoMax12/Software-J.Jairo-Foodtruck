@@ -40,13 +40,15 @@ class PedidoRepository
         }
         $yesterdayShiftEndWithBuffer = $yesterdayShiftEnd->copy()->addMinutes($colchonAyer);
 
-        if ($now->lessThanOrEqualTo($yesterdayShiftEndWithBuffer)) {
+        if ($now->lessThanOrEqualTo($yesterdayShiftEndWithBuffer) && $now->greaterThanOrEqualTo($yesterdayShiftStart)) {
             return [
                 'start' => $yesterdayShiftStart,
                 'end' => $yesterdayShiftEndWithBuffer,
                 'hora_apertura' => $horaAyerAp,
                 'hora_cierre' => $horaAyerCi,
-                'dia' => 'Ayer'
+                'dia' => 'Madrugada (Turno de ayer)',
+                'is_active' => true,
+                'shift_date' => $yesterdayShiftStart->format('Y-m-d')
             ];
         }
 
@@ -70,23 +72,27 @@ class PedidoRepository
         }
         $todayShiftEndWithBuffer = $todayShiftEnd->copy()->addMinutes($colchonHoy);
 
-        if ($now->greaterThanOrEqualTo($todayShiftStart)) {
+        if ($now->greaterThanOrEqualTo($todayShiftStart) && $now->lessThanOrEqualTo($todayShiftEndWithBuffer)) {
             return [
                 'start' => $todayShiftStart,
                 'end' => $todayShiftEndWithBuffer,
                 'hora_apertura' => $horaHoyAp,
                 'hora_cierre' => $horaHoyCi,
-                'dia' => 'Hoy'
+                'dia' => 'Hoy',
+                'is_active' => true,
+                'shift_date' => $todayShiftStart->format('Y-m-d')
             ];
         }
 
-        // 3. Durante el día antes de abrir: la última jornada completada fue la de ayer
+        // 3. Durante el día antes de abrir: el turno es hoy cuando abra a su hora oficial
         return [
-            'start' => $yesterdayShiftStart,
-            'end' => $todayShiftStart,
-            'hora_apertura' => $horaAyerAp,
-            'hora_cierre' => $horaAyerCi,
-            'dia' => 'Última jornada'
+            'start' => $todayShiftStart,
+            'end' => $todayShiftEndWithBuffer,
+            'hora_apertura' => $horaHoyAp,
+            'hora_cierre' => $horaHoyCi,
+            'dia' => 'Hoy (Abre a las ' . substr($horaHoyAp, 0, 5) . ')',
+            'is_active' => false,
+            'shift_date' => $todayShiftStart->format('Y-m-d')
         ];
     }
 
@@ -471,6 +477,11 @@ class PedidoRepository
                     }
                 }
                 unset($data['items']);
+            }
+
+            // Auto-asignar fecha_de_pago cuando se marca como Pagado (id_estado_pago = 2)
+            if (isset($data['id_estado_pago']) && (int)$data['id_estado_pago'] === 2 && !$pedido->fecha_de_pago) {
+                $data['fecha_de_pago'] = now()->format('Y-m-d H:i:s');
             }
 
             $pedido->update($data);

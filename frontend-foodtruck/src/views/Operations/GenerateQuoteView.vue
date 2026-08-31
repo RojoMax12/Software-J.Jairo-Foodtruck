@@ -6,8 +6,19 @@
         <div class="brand-title-row">
           <Utensils :size="22" class="brand-icon" />
           <h1>Generar Pedido</h1>
+          <span 
+            v-if="shiftWindow"
+            class="pos-shift-badge" 
+            :class="shiftWindow.es_jornada_activa ? 'badge-shift-live' : 'badge-shift-off'"
+            :title="`Horario: ${shiftWindow.hora_apertura} a ${shiftWindow.hora_cierre}`"
+          >
+            {{ shiftWindow.es_jornada_activa ? '🟢 Turno Activo' : '⚪ Fuera de Horario' }}
+          </span>
         </div>
-        <p class="header-subtitle">Punto de Venta · J.Jairo Foodtruck</p>
+        <p class="header-subtitle">
+          Punto de Venta · J.Jairo Foodtruck
+          <span v-if="shiftWindow" class="header-shift-hours"> (Horario: {{ shiftWindow.hora_apertura }} - {{ shiftWindow.hora_cierre }} hrs)</span>
+        </p>
       </div>
 
       <div class="steps-indicator">
@@ -45,6 +56,14 @@
         </div>
       </div>
     </header>
+
+    <!-- AVISO DE FUERA DE HORARIO PARA EL PERSONAL -->
+    <div v-if="shiftWindow && !shiftWindow.es_jornada_activa" class="pos-outside-shift-banner">
+      <AlertTriangle :size="16" class="warning-icon" />
+      <span>
+        Atención: Estás operando <strong>fuera del horario de turno oficial ({{ shiftWindow.hora_apertura }} - {{ shiftWindow.hora_cierre }} hrs)</strong>. Las comandas ingresadas pertenecerán a la jornada del turno actual.
+      </span>
+    </div>
 
     <!-- STEP 1: PRODUCT SELECTION, RECIPE CUSTOMIZATION & CART -->
     <div v-if="currentStep === 1" class="step-container product-step">
@@ -713,17 +732,19 @@ import { useRouter } from 'vue-router';
 import { 
   Search, ArrowRight, ArrowLeft, ShoppingCart, Trash2, Plus, Minus, 
   FileText, Utensils, Check, X, CreditCard, Banknote, Smartphone, 
-  DollarSign, User, Phone, CheckCircle 
+  DollarSign, User, Phone, CheckCircle, AlertTriangle
 } from 'lucide-vue-next';
 import productService from '@/services/productService';
 import categoryService from '@/services/categoryService';
 import orderService from '@/services/orderService';
 import { useNotification } from '@/composables/useNotification';
+import cashFlowService, { type ShiftWindow } from '@/services/cashFlowService';
 
 const router = useRouter();
 const { notify } = useNotification();
 const currentStep = ref(1);
 const isSubmitting = ref(false);
+const shiftWindow = ref<ShiftWindow | null>(null);
 
 const isMobileRecipeOpen = ref(false);
 const isMobileCartOpen = ref(false);
@@ -1100,23 +1121,33 @@ const confirmQuote = async () => {
       }))
     };
 
-    await orderService.createPublicOrder(payload);
+    try {
+      await orderService.createOrder(payload);
+    } catch {
+      await orderService.createPublicOrder(payload);
+    }
     notify('¡Pedido registrado y enviado a cocina exitosamente!', 'success');
     currentStep.value = 1; 
     cartItems.value = [];
     activeVariant.value = null;
     router.push('/general-home/orders');
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error al procesar el pedido:', error); 
-    notify('Error al procesar el pedido', 'warning');
+    const msg = error.response?.data?.message || 'Error al procesar el pedido';
+    notify(msg, 'warning');
   } finally { 
     isSubmitting.value = false; 
   }
 };
 
-onMounted(() => { 
+onMounted(async () => { 
   cargarMetodosSimulados(); 
   fetchProducts(); 
+  try {
+    shiftWindow.value = await cashFlowService.fetchShiftWindowFromBackend();
+  } catch (e) {
+    console.warn('Error al cargar horario en POS:', e);
+  }
 });
 </script>
 
@@ -1155,6 +1186,49 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.pos-shift-badge {
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-left: 6px;
+}
+
+.badge-shift-live {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.badge-shift-off {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+}
+
+.header-shift-hours {
+  font-weight: 700;
+  color: #ff6b00;
+}
+
+.pos-outside-shift-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff7ed;
+  border: 1.5px solid #fed7aa;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  color: #9a3412;
+  font-weight: 600;
+}
+
+.pos-outside-shift-banner .warning-icon {
+  color: #ea580c;
+  flex-shrink: 0;
 }
 
 .brand-icon {

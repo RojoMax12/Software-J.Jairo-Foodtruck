@@ -28,6 +28,6 @@ class Oferta extends Model
     // Una oferta tiene muchas oferta_producto (one-to-many)
     public function oferta_producto()
     {
-        return $this->hasMany(OfertaProducto::class, 'id_ofertas');
+        return $this->hasMany(Oferta_producto::class, 'id_oferta', 'id_oferta');
     }
 }

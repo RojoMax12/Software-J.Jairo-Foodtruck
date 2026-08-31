@@ -7,6 +7,7 @@ use App\Http\Controllers\DetallePedidoController;
 use App\Http\Controllers\DetallePedidoIngredienteController;
 use App\Http\Controllers\EstadoPagoController;
 use App\Http\Controllers\EstadoPedidoController;
+use App\Http\Controllers\HistorialMovimientoController;
 use App\Http\Controllers\HorarioAtencionController;
 use App\Http\Controllers\IngredienteController;
 use App\Http\Controllers\MarketingController;
@@ -59,7 +60,9 @@ Route::prefix('public')->group(function () {
     Route::get('/pedidos/comanda/{numeroComanda}', [PedidoPublicoController::class, 'buscarPorComanda']);
     Route::get('/pedidos/{id}', [PedidoPublicoController::class, 'buscarPorId']);
     Route::get('/marketing', [MarketingController::class, 'index']);
+    Route::get('/horarios/turno-actual', [HorarioAtencionController::class, 'getTurnoActual']);
 });
+Route::get('/horarios/turno-actual', [HorarioAtencionController::class, 'getTurnoActual']);
 
 
 // ==========================================
@@ -71,7 +74,7 @@ Route::middleware('jwt.auth')->group(function () {
     Route::get('/pedidos/{id}/usuario_distribuidor', [PedidoController::class, 'getPedidosByUsuario']);
     Route::get('/pedidos/usuario/{id}', [PedidoController::class, 'getPedidosByUsuario']);
 });
-Route::get('/pedidos/{id}', [PedidoController::class, 'show']);
+
 
 // ==========================================
 // 4. ENTORNO PROTEGIDO - CONTROL DE ACCESO POR ROLES (JWT)
@@ -87,6 +90,7 @@ Route::middleware('jwt.auth')->group(function () {
         Route::apiResource('roles', RolController::class);
         Route::apiResource('horario_atenciones', HorarioAtencionController::class);
         Route::apiResource('movimientos', MovimientosController::class);
+        Route::delete('historial_movimientos-clear', [HistorialMovimientoController::class, 'clear']);
     });
 
     // B. ADMINISTRADORES Y TRABAJADORES (Rol 1 = Admin, Rol 3 = Trabajador/Cocina)
@@ -105,6 +109,7 @@ Route::middleware('jwt.auth')->group(function () {
         Route::apiResource('detalle_pedido_ingredientes', DetallePedidoIngredienteController::class);
         Route::apiResource('estado_pedidos', EstadoPedidoController::class);
         Route::apiResource('estado_pagos', EstadoPagoController::class);
+        Route::apiResource('historial_movimientos', HistorialMovimientoController::class);
         Route::post('marketing', [MarketingController::class, 'store']);
     });
 });

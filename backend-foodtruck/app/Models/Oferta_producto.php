@@ -12,19 +12,22 @@ class Oferta_producto extends Model
     protected $table = 'oferta_producto';
 
     protected $fillable = [
+        'id_oferta',
         'id_productos',
-        'id_ofertas',
+        'descripcion',
+        'precio_oferta',
+        'tipo',
     ];
 
     // Pertenece a un producto
     public function producto()
     {
-        return $this->belongsTo(Producto::class, 'id_productos');
+        return $this->belongsTo(Producto::class, 'id_productos', 'id_producto');
     }
 
     // Pertenece a una oferta
     public function oferta()
     {
-        return $this->belongsTo(Oferta::class, 'id_ofertas');
+        return $this->belongsTo(Oferta::class, 'id_oferta', 'id_oferta');
     }
 }

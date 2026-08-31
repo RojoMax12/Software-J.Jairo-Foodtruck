@@ -228,6 +228,11 @@ class PedidoService
         return $this->pedidoRepository->getPedidosByEstadoPago($estadoPago);
     }
 
+    public function getPedidoByComandaTurno($numeroComanda, $targetDate = null)
+    {
+        return $this->pedidoRepository->getPedidoByComandaTurno($numeroComanda, $targetDate);
+    }
+
     public function getVentaByPedidoId($id)
     {
         return $this->pedidoRepository->getVentaByPedidoId($id);
@@ -240,12 +245,20 @@ class PedidoService
         }
 
         $pedidoAnterior = $this->getPedidoById($id);
+
+        // Si se modifican los items y ya se había descontado stock, revertir el anterior primero
+        if (isset($data['items']) && is_array($data['items']) && $pedidoAnterior && $pedidoAnterior->inventario_descontado) {
+            $this->revertirInventario($id);
+        }
+
         $nuevoPedido = $this->pedidoRepository->updatePedido($id, $data);
 
-        $nuevoEstado = isset($data['id_estado_pedido']) ? (int)$data['id_estado_pedido'] : null;
+        $nuevoEstado = isset($data['id_estado_pedido']) ? (int)$data['id_estado_pedido'] : ($nuevoPedido ? (int)$nuevoPedido->id_estado_pedido : 1);
 
-        // Descontar inventario 1 sola vez si avanza a En preparación (2), Listo (3) o Entregado (4)
-        if ($nuevoPedido && in_array($nuevoEstado, [2, 3, 4])) {
+        // Si se modificaron items y no está cancelado, o si el pedido no tiene stock descontado y está activo
+        if (isset($data['items']) && is_array($data['items']) && $nuevoPedido && $nuevoEstado !== 5) {
+            $this->descontarInventario($id);
+        } elseif ($nuevoPedido && in_array($nuevoEstado, [1, 2, 3, 4]) && !$nuevoPedido->inventario_descontado) {
             $this->descontarInventario($id);
         }
 

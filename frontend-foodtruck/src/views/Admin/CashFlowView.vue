@@ -542,7 +542,9 @@ import cashFlowService, {
   type CashTransaction,
   type CashRegisterSession,
   type CashShiftSummary,
-  getShiftStartTimestamp
+  type ShiftWindow,
+  getShiftStartTimestamp,
+  fetchShiftWindowFromBackend
 } from '@/services/cashFlowService';
 import { useNotification } from '@/composables/useNotification';
 
@@ -555,6 +557,7 @@ const currentTab = ref<'current-shift' | 'history'>('current-shift');
 const session = ref<CashRegisterSession>(cashFlowService.getCurrentSession());
 const closedSessions = ref<CashRegisterSession[]>([]);
 const allTransactions = ref<CashTransaction[]>([]);
+const shiftWindow = ref<ShiftWindow | null>(null);
 
 // Filtros
 const searchQuery = ref('');
@@ -587,9 +590,16 @@ const quickForm = ref({
 const loadData = async () => {
   isLoading.value = true;
   try {
-    session.value = await cashFlowService.fetchCurrentSessionFromBackend();
-    closedSessions.value = await cashFlowService.fetchClosedSessionsFromBackend();
-    allTransactions.value = await cashFlowService.getCombinedTransactions();
+    const [sess, closed, trxs, sw] = await Promise.all([
+      cashFlowService.fetchCurrentSessionFromBackend(),
+      cashFlowService.fetchClosedSessionsFromBackend(),
+      cashFlowService.getCombinedTransactions(),
+      cashFlowService.fetchShiftWindowFromBackend()
+    ]);
+    session.value = sess;
+    closedSessions.value = closed;
+    allTransactions.value = trxs;
+    shiftWindow.value = sw;
   } catch (err) {
     console.error('Error cargando transacciones de caja:', err);
   } finally {
@@ -613,7 +623,7 @@ const currentShiftTransactions = computed(() => {
   if (!session.value.isOpen) {
     return [];
   }
-  const shiftStart = getShiftStartTimestamp();
+  const shiftStart = shiftWindow.value?.start_timestamp || getShiftStartTimestamp();
   const openedTime = session.value.openedTimestamp || shiftStart;
   const filterThreshold = Math.min(shiftStart, openedTime);
 

@@ -236,7 +236,7 @@ class AuthController extends Controller
         $email = $request->input('correo_electronico') ?? $request->input('correo');
         $nombre = $request->input('nombre_empresa') ?? $request->input('nombre') ?? explode('@', (string) $email)[0];
         $telefono = $request->input('telefono');
-        $idRol = (int) ($request->input('id_rol') ?? 2); // 2 = Cliente
+        $idRol = 2; // Siempre Cliente en registro público — no se permite escoger rol
 
         if (empty($email)) {
             return response()->json(['message' => 'El correo electrónico es requerido.'], 422);

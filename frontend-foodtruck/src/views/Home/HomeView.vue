@@ -25,6 +25,27 @@
     />
 
     <Carousel />
+
+    <!-- BANNER DE HORARIO Y ESTADO DE ATENCIÓN PÚBLICO -->
+    <div class="store-status-wrapper">
+      <div class="store-status-bar" :class="isStoreOpen ? 'store-open' : 'store-closed'">
+        <div class="store-status-content">
+          <span class="store-status-dot"></span>
+          <div class="store-status-text">
+            <strong v-if="isStoreOpen">
+              🟢 ¡Estamos atendiendo en vivo!
+            </strong>
+            <strong v-else>
+              ⚪ Foodtruck cerrado en este momento
+            </strong>
+            <span class="store-hours-info">
+              🕒 Horario: {{ shiftWindow?.hora_apertura || '19:00' }} a {{ shiftWindow?.hora_cierre || '00:30' }} hrs
+              <template v-if="!isStoreOpen"> · ¡Te esperamos hoy a las {{ shiftWindow?.hora_apertura || '19:00' }}!</template>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
     
     <main class="content-container">
       <SearchBar 
@@ -100,6 +121,7 @@ import Footer from '@/components/Footer.vue'
 import Carousel from '@/components/Carousel.vue';
 import AdminPreviewBar from '@/components/AdminPreviewBar.vue';
 import { useNotification } from '@/composables/useNotification';
+import cashFlowService, { type ShiftWindow } from '@/services/cashFlowService';
 
 const { notify } = useNotification();
 
@@ -117,6 +139,16 @@ const categoriesList = ref<any[]>([]);
 const selectedCategory = ref<string>('Todas');
 const searchQueryText = ref<string>('');
 
+const shiftWindow = ref<ShiftWindow | null>(null);
+const isStoreOpen = computed(() => shiftWindow.value?.es_jornada_activa ?? false);
+
+const loadShiftStatus = async () => {
+  try {
+    shiftWindow.value = await cashFlowService.fetchShiftWindowFromBackend();
+  } catch (e) {
+    console.warn('Error al consultar horario de atención en HomeView:', e);
+  }
+};
 
 // Estados autenticación
 const isLoggedIn = ref(false); 
@@ -136,7 +168,7 @@ const checkAuthStatus = () => {
     if (userParsed) {
       try {
         const userObj = JSON.parse(userParsed);
-        console.log("Contenido real de lo que hay en 'user':", userObj);
+
         currentUser.value = userObj.nombre || 'Cliente';
       } catch (error) {
         console.error("Error al parsear el usuario:", error);
@@ -449,6 +481,7 @@ const scrollToTop = () => {
 };
 
 onMounted(() => {
+  loadShiftStatus();
   fetchIceCreams();
   checkAuthStatus();
   window.addEventListener('scroll', handleScroll, { passive: true });
@@ -485,6 +518,82 @@ watch(
 </script>
 
 <style scoped>
+.store-status-wrapper {
+  max-width: 1200px;
+  margin: 15px auto 0 auto;
+  padding: 0 16px;
+}
+
+.store-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-radius: 14px;
+  transition: all 0.3s ease;
+}
+
+.store-open {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1.5px solid #86efac;
+}
+
+.store-closed {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1.5px solid #cbd5e1;
+}
+
+.store-status-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.store-status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.store-open .store-status-dot {
+  background-color: #22c55e;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  animation: pulse-dot-home 1.6s infinite;
+}
+
+.store-closed .store-status-dot {
+  background-color: #94a3b8;
+}
+
+@keyframes pulse-dot-home {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+.store-status-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.store-open .store-status-text strong {
+  color: #166534;
+  font-size: 0.95rem;
+}
+
+.store-closed .store-status-text strong {
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.store-hours-info {
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
 .content-container {
   flex: 1; 
   padding: 20px;

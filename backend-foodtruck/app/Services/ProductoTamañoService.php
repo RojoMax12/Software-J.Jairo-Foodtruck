@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+
 use App\Repositories\ProductoTamañoRepository;
 
 class ProductoTamañoService
@@ -10,6 +11,16 @@ class ProductoTamañoService
     public function __construct(ProductoTamañoRepository $productoTamañoRepository)
     {
         $this->productoTamañoRepository = $productoTamañoRepository;
+    }
+
+    public function getAllProductoTamaños()
+    {
+        return $this->productoTamañoRepository->getAllProductoTamaños();
+    }
+
+    public function getProductoTamañoById($id)
+    {
+        return $this->productoTamañoRepository->getProductoTamañoById($id);
     }
 
     public function createProductoTamaño($data)

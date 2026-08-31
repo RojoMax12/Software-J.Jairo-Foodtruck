@@ -133,12 +133,12 @@ const isActive = (path: string) => {
 
             <button 
               class="nav-item" 
-              :class="{ active: isActive('/general-home/admin/banners') }"
-              @click="navigateTo('/general-home/admin/banners')"
-              v-role="[1]"
+              :class="{ active: isActive('/general-home/admin/history') }"
+              @click="navigateTo('/general-home/admin/history')"
+              v-role="[1,3]"
             >
-              <Images :size="20" />
-              <span>Banners y Avisos</span>
+              <History :size="20" />
+              <span>Historial de Movimientos</span>
             </button>
           </div>
         </nav>

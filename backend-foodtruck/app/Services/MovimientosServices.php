@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+
 use App\Repositories\MovimientosRepository;
 
 class MovimientosServices
@@ -10,6 +11,11 @@ class MovimientosServices
     public function __construct(MovimientosRepository $movimientosRepository)
     {
         $this->movimientosRepository = $movimientosRepository;
+    }
+
+    public function getAllMovimientos()
+    {
+        return $this->movimientosRepository->getAllMovimientos();
     }
 
     public function createMovimiento($data)

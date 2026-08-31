@@ -1,8 +1,31 @@
 <template>
   <div class="orders-container">
     <header class="orders-header">
-      <h1 class="orders-title">Pedidos</h1>
-      <p class="orders-description">Gestiona y Monitorea todos los pedidos ingresados.</p>
+      <div class="header-main-info">
+        <h1 class="orders-title">Gestión de Pedidos & KDS</h1>
+        <p class="orders-description">Monitorea y despacha pedidos en tiempo real organizados por turnos operativos.</p>
+      </div>
+
+      <!-- BANNER DE ESTADO DEL TURNO OPERATIVO -->
+      <div class="shift-status-banner" :class="shiftWindow?.es_jornada_activa ? 'banner-active' : 'banner-inactive'">
+        <div class="shift-banner-left">
+          <div class="shift-live-indicator">
+            <span class="live-dot" v-if="shiftWindow?.es_jornada_activa"></span>
+            <strong>{{ shiftWindow?.es_jornada_activa ? '🟢 TURNO EN VIVO' : '⚪ FUERA DE HORARIO' }}</strong>
+            <span class="shift-day-tag">{{ shiftWindow?.dia || 'Hoy' }}</span>
+          </div>
+          <div class="shift-schedule-info">
+            <span>🕒 Horario: <strong>{{ shiftWindow?.hora_apertura || '19:00' }} a {{ shiftWindow?.hora_cierre || '00:30' }}</strong></span>
+            <span>📅 Fecha Turno: <strong>{{ shiftDateFormatted }}</strong></span>
+          </div>
+        </div>
+        <div class="shift-banner-right">
+          <div class="shift-comandas-summary">
+            <span class="comandas-label">Comandas del Turno</span>
+            <strong class="comandas-val">#1 - #{{ shiftOrdersCount }}</strong>
+          </div>
+        </div>
+      </div>
     </header>
 
     <div class="status-cards">
@@ -72,19 +95,94 @@
       </div>
     </div>
 
+    <!-- PESTAÑAS RÁPIDAS DE ESTADO KDS -->
+    <div class="status-quick-tabs">
+      <button 
+        class="status-tab-btn" 
+        :class="{ active: statusFilter === 'all' }" 
+        @click="selectStatus('all')"
+      >
+        <span>Todos</span>
+        <span class="tab-count-pill">{{ filteredByShiftOrders.length }}</span>
+      </button>
+      <button 
+        class="status-tab-btn tab-pending" 
+        :class="{ active: statusFilter === 'Pendiente' }" 
+        @click="selectStatus('Pendiente')"
+      >
+        <span>🟡 Pendientes</span>
+        <span class="tab-count-pill">{{ countByStatus(1) }}</span>
+      </button>
+      <button 
+        class="status-tab-btn tab-prep" 
+        :class="{ active: statusFilter === 'En preparación' }" 
+        @click="selectStatus('En preparación')"
+      >
+        <span>🔵 En Preparación</span>
+        <span class="tab-count-pill">{{ countByStatus(2) }}</span>
+      </button>
+      <button 
+        class="status-tab-btn tab-ready" 
+        :class="{ active: statusFilter === 'Listo' }" 
+        @click="selectStatus('Listo')"
+      >
+        <span>🟢 Listos</span>
+        <span class="tab-count-pill">{{ countByStatus(3) }}</span>
+      </button>
+      <button 
+        class="status-tab-btn tab-delivered" 
+        :class="{ active: statusFilter === 'Entregado' }" 
+        @click="selectStatus('Entregado')"
+      >
+        <span>✓ Entregados</span>
+        <span class="tab-count-pill">{{ countByStatus(4) }}</span>
+      </button>
+    </div>
+
     <div class="main-table-card">
       <div class="table-actions">
         <div class="actions-left">
+          <!-- SELECTOR DE MODO DE TURNO -->
+          <div class="shift-mode-selector">
+            <button 
+              class="btn-shift-mode" 
+              :class="{ active: shiftMode === 'current' }" 
+              @click="setShiftMode('current')"
+              title="Ver pedidos del turno en curso"
+            >
+              <Zap :size="15" />
+              <span>Turno Actual</span>
+            </button>
+            <button 
+              class="btn-shift-mode" 
+              :class="{ active: shiftMode === 'previous' }" 
+              @click="setShiftMode('previous')"
+              title="Ver pedidos del turno anterior"
+            >
+              <History :size="15" />
+              <span>Turno Anterior</span>
+            </button>
+            <button 
+              class="btn-shift-mode" 
+              :class="{ active: shiftMode === 'custom' }" 
+              @click="setShiftMode('custom')"
+              title="Ver todos o elegir fecha específica"
+            >
+              <CalendarIcon :size="15" />
+              <span>Por Fecha</span>
+            </button>
+          </div>
+
           <div class="search-box">
             <Search :size="18" class="search-icon" />
             <input 
               type="text" 
               v-model="searchQuery" 
-              placeholder="Busca por ID de pedido o distribuidor..."
+              placeholder="Buscar por comanda, nombre, teléfono..."
             />
           </div>
 
-          <div class="date-filter-box">
+          <div class="date-filter-box" v-if="shiftMode === 'custom' || canEditDate">
             <CalendarIcon :size="18" class="date-filter-icon" />
             <input 
               type="date" 
@@ -94,24 +192,6 @@
               :class="{ 'picker-disabled': !canEditDate }"
               :title="canEditDate ? 'Buscar por fecha' : 'Solo ver pedidos de hoy'"
             />
-          </div>
-
-          <div class="dropdown-container">
-            <button class="btn-secondary" @click.stop="toggleStatusDropdown">
-              <Filter :size="18" />
-              <span>{{ statusFilter === 'all' ? 'Todos los estados' : statusFilter }}</span>
-              <ChevronDown :size="16" />
-            </button>
-            
-            <div class="dropdown-menu" v-if="isStatusDropdownOpen">
-              <div class="dropdown-item" @click="selectStatus('all')">Todos los estados</div>
-              <div class="dropdown-divider"></div>
-              <div class="dropdown-item" @click="selectStatus('Pendiente')">Pendiente</div>
-              <div class="dropdown-item" @click="selectStatus('En preparación')">En preparación</div>
-              <div class="dropdown-item" @click="selectStatus('Listo')">Listo</div>
-              <div class="dropdown-item" @click="selectStatus('Entregado')">Entregado</div>
-              <div class="dropdown-item" @click="selectStatus('Cancelado')">Cancelado</div>
-            </div>
           </div>
 
           <button 
@@ -133,12 +213,12 @@
             <tr>
               <th @click="sortBy('id')">
                 <div class="header-content">
-                  ID pedido <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'id' }" />
+                  Comanda / Turno <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'id' }" />
                 </div>
               </th>
               <th @click="sortBy('distributor')">
                 <div class="header-content">
-                  Nombre <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'distributor' }" />
+                  Cliente <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'distributor' }" />
                 </div>
               </th>
               <th @click="sortBy('status')">
@@ -148,7 +228,7 @@
               </th>
               <th @click="sortBy('date')">
                 <div class="header-content">
-                  Fecha <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'date' }" />
+                  Hora / Tiempo <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'date' }" />
                 </div>
               </th>
               <th @click="sortBy('total')">
@@ -172,14 +252,24 @@
               <td colspan="6" class="text-center padding-large">
                 <div class="empty-state">
                   <Package :size="48" class="empty-icon" />
-                  <p>No se encontraron pedidos para esta fecha o filtros.</p>
+                  <p>No se encontraron pedidos para este turno o filtros.</p>
                   <button @click="fetchOrders" class="btn-retry">Actualizar datos</button>
                 </div>
               </td>
             </tr>
             <tr v-else v-for="order in paginatedOrders" :key="order.id">
-              <td class="bold-text">#{{ order.id }}</td>
-              <td class="bold-text">{{ order.distributor }}</td>
+              <td>
+                <div class="comanda-cell">
+                  <span class="comanda-badge">Comanda #{{ order.id }}</span>
+                  <small class="order-real-id">ID #{{ order.real_id }}</small>
+                </div>
+              </td>
+              <td>
+                <div class="client-cell">
+                  <strong class="client-name">{{ order.distributor }}</strong>
+                  <span v-if="order.phone" class="client-phone"><Phone :size="12" /> {{ order.phone }}</span>
+                </div>
+              </td>
               <td>
                 <div class="badges-cell">
                   <span class="status-badge" :class="getStatusClass(order.status, order.rawStatusId)">
@@ -192,10 +282,15 @@
               </td>
               <td>
                 <div class="date-content">
-                  <CalendarIcon :size="18" class="date-icon" />
-                  <div class="date-time">
-                    <span class="date">{{ order.date }}</span>
-                    <span class="time">{{ order.time }}</span>
+                  <div class="time-primary">
+                    <Clock :size="14" class="time-icon" />
+                    <strong>{{ order.time }}</strong>
+                  </div>
+                  <div class="date-secondary">
+                    <span class="elapsed-badge" :class="getElapsedBadgeClass(order.elapsedMinutes)" :title="`Ingresó hace ${order.elapsedMinutes} minutos`">
+                      {{ order.elapsedMinutes }}m
+                    </span>
+                    <span class="date-text">{{ order.date }}</span>
                   </div>
                 </div>
               </td>
@@ -238,8 +333,11 @@
           >
             <div class="mobile-card-top">
               <div class="mobile-id-box">
-                <span class="mobile-order-id">#{{ order.id }}</span>
-                <span class="mobile-order-time"><Clock :size="12" /> {{ order.time }}</span>
+                <span class="mobile-order-id">Comanda #{{ order.id }}</span>
+                <span class="mobile-real-id">ID #{{ order.real_id }}</span>
+                <span class="elapsed-badge" :class="getElapsedBadgeClass(order.elapsedMinutes)">
+                  <Clock :size="11" /> {{ order.time }} ({{ order.elapsedMinutes }}m)
+                </span>
               </div>
               <div class="mobile-card-badges">
                 <span class="status-badge" :class="getStatusClass(order.status, order.rawStatusId)">
@@ -372,10 +470,11 @@ import OrdersDetailModal from './OrdersDetailModal.vue';
 import {
   ClipboardCheck, Package, Truck, CheckCircle, Search, Filter,
   ChevronDown, Calendar as CalendarIcon, Eye, ChevronsUpDown,
-  RefreshCw, Clock, ArrowRight, ChevronLeft, ChevronRight, User, Phone
+  RefreshCw, Clock, ArrowRight, ChevronLeft, ChevronRight, User, Phone,
+  Zap, History
 } from 'lucide-vue-next';
 import orderService  from '@/services/orderService';
-
+import cashFlowService, { type ShiftWindow, fetchShiftWindowFromBackend } from '@/services/cashFlowService';
 
 const orders = ref<any[]>([]);
 const isLoading = ref(true);
@@ -385,6 +484,8 @@ const refreshInterval = ref<any>(null);
 const countdownTimer = ref<any>(null);
 
 const userRole = ref<number | null>(null);
+const shiftWindow = ref<ShiftWindow | null>(null);
+const shiftMode = ref<'current' | 'previous' | 'custom'>('current');
 
 const getElapsedMinutes = (rawDateStr?: string) => {
   if (!rawDateStr) return 0;
@@ -462,6 +563,39 @@ const getShiftDateString = (inputDate?: string | Date) => {
 
 const selectedDate = ref(getShiftDateString());
 
+const loadShiftWindow = async () => {
+  try {
+    const sw = await fetchShiftWindowFromBackend();
+    shiftWindow.value = sw;
+    if (shiftMode.value === 'current' && sw?.shift_date) {
+      selectedDate.value = sw.shift_date;
+    }
+  } catch (e) {
+    console.warn('Error al cargar horario de turno en Orders:', e);
+  }
+};
+
+const shiftDateFormatted = computed(() => {
+  const d = selectedDate.value || shiftWindow.value?.shift_date;
+  if (!d) return 'Hoy';
+  const parts = d.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return d;
+});
+
+const setShiftMode = (mode: 'current' | 'previous' | 'custom') => {
+  shiftMode.value = mode;
+  if (mode === 'current') {
+    selectedDate.value = shiftWindow.value?.shift_date || getShiftDateString();
+  } else if (mode === 'previous') {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    selectedDate.value = getShiftDateString(d);
+  }
+};
+
 const checkUserRole = () => {
   const userParsed = localStorage.getItem('user');
   if (userParsed) {
@@ -486,7 +620,7 @@ const statusMap = ref<Map<number, string>>(new Map([
   [6, 'Por pagar'],
   [7, 'Pagada'],
   [8, 'Cancelado']
-]))
+]));
 
 const fetchOrders = async () => {
   isLoading.value = true;
@@ -531,7 +665,7 @@ const fetchOrders = async () => {
         detalles: o.detalles || []
       };
     });
-    console.log(orders.value)
+
   } catch (error) {
     console.error('Error al cargar pedidos desde API:', error);
   } finally {
@@ -570,21 +704,35 @@ const formatDate = (dateString?: string) => {
   return parseDateTime(dateString).date;
 };
 
-// 🌟 Lógica de Filtros Aplicados
-const filteredOrders = computed(() => {
+// Pedidos pertenecientes a la jornada/turno seleccionado
+const filteredByShiftOrders = computed(() => {
   let result = orders.value;
-
   if (selectedDate.value) {
     const [year, month, day] = selectedDate.value.split('-');
     const formattedSelectedDate = `${day}/${month}/${year}`;
     result = result.filter((o: any) => o.shiftDate === selectedDate.value || o.date === formattedSelectedDate);
   }
+  return result;
+});
+
+const shiftOrdersCount = computed(() => {
+  return filteredByShiftOrders.value.length;
+});
+
+const countByStatus = (statusId: number) => {
+  return filteredByShiftOrders.value.filter((o: any) => Number(o.rawStatusId) === Number(statusId)).length;
+};
+
+// 🌟 Lógica de Filtros Aplicados
+const filteredOrders = computed(() => {
+  let result = filteredByShiftOrders.value;
 
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
     result = result.filter((o: any) => {
       const name = `${o.distributor || o.customer || ''}`.toLowerCase();
-      return o.id.toString().includes(query) || name.includes(query);
+      const phone = (o.phone || '').toLowerCase();
+      return o.id.toString().includes(query) || name.includes(query) || phone.includes(query);
     });
   }
 
@@ -795,7 +943,10 @@ watch([searchQuery, statusFilter, selectedDate, itemsPerPage], () => {
 onMounted(async () => {
   checkUserRole();
   window.addEventListener('click', closeDropdowns);
-  await fetchOrders();
+  await Promise.all([
+    loadShiftWindow(),
+    fetchOrders()
+  ]);
 
   refreshInterval.value = setInterval(() => {
     if (autoRefresh.value && !isModalOpen.value) {
@@ -827,7 +978,294 @@ onUnmounted(() => {
 
 .orders-header {
   max-width: 1200px;
-  margin: 0 auto 30px auto;
+  margin: 0 auto 25px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header-main-info {
+  display: flex;
+  flex-direction: column;
+}
+
+/* BANNER DE TURNO OPERATIVO */
+.shift-status-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  border-radius: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+}
+
+.banner-active {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1.5px solid #86efac;
+}
+
+.banner-inactive {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1.5px solid #cbd5e1;
+}
+
+.shift-banner-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shift-live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  color: #166534;
+}
+
+.banner-inactive .shift-live-indicator {
+  color: #475569;
+}
+
+.live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  animation: pulse-dot 1.6s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+.shift-day-tag {
+  background: white;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}
+
+.shift-schedule-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.84rem;
+  color: #334155;
+}
+
+.shift-banner-right {
+  display: flex;
+  align-items: center;
+}
+
+.shift-comandas-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  background: white;
+  padding: 6px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.comandas-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.comandas-val {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: var(--DC-orange, #e28743);
+}
+
+/* PESTAÑAS RÁPIDAS DE ESTADO KDS */
+.status-quick-tabs {
+  display: flex;
+  gap: 8px;
+  max-width: 1200px;
+  margin: 0 auto 20px auto;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.status-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: white;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.status-tab-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.status-tab-btn.active {
+  background: var(--DC-brown, #513119);
+  color: white;
+  border-color: var(--DC-brown, #513119);
+}
+
+.tab-count-pill {
+  background: rgba(0, 0, 0, 0.08);
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.status-tab-btn.active .tab-count-pill {
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+}
+
+/* SELECTOR DE MODO DE TURNO */
+.shift-mode-selector {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 12px;
+  gap: 3px;
+}
+
+.btn-shift-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-shift-mode.active {
+  background: white;
+  color: var(--DC-orange, #e28743);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+/* COMANDAS Y CELDAS KDS */
+.comanda-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.comanda-badge {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: var(--DC-orange, #e28743);
+  background: #fff7ed;
+  padding: 3px 8px;
+  border-radius: 8px;
+  border: 1px solid #fed7aa;
+  display: inline-block;
+  width: fit-content;
+}
+
+.order-real-id {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.client-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.client-name {
+  font-size: 0.92rem;
+  color: #1e293b;
+}
+
+.client-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.76rem;
+  color: #64748b;
+}
+
+.time-primary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.92rem;
+  color: #0f172a;
+}
+
+.date-secondary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.elapsed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.elapsed-ok {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.elapsed-warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.elapsed-danger {
+  background: #fee2e2;
+  color: #b91c1c;
+  animation: pulse-danger 1.5s infinite;
+}
+
+@keyframes pulse-danger {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+
+.mobile-real-id {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 600;
 }
 
 .orders-title {

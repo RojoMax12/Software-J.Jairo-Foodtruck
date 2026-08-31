@@ -1940,9 +1940,9 @@ const formatExactDate = (dateStr: string) => {
     }
 }
 
-const clearAuditHistory = () => {
-    if (!confirm('¿Deseas vaciar el historial de auditoría de catálogo?')) return
-    catalogHistoryService.clearHistory()
+const clearAuditHistory = async () => {
+    if (!confirm('¿Deseas vaciar el historial de auditoría de catálogo en la base de datos?')) return
+    await catalogHistoryService.clearHistory()
     catalogHistory.value = []
     notify('Historial de movimientos vaciado', 'warning')
 }
@@ -1952,9 +1952,9 @@ const clearAuditHistory = () => {
 // ==========================================
 onMounted(async () => {
     await loadCatalogData()
-    catalogHistory.value = catalogHistoryService.getMovements()
-    window.addEventListener('foodtruck-catalog-movement', () => {
-        catalogHistory.value = catalogHistoryService.getMovements()
+    catalogHistory.value = await catalogHistoryService.fetchMovementsFromBackend()
+    window.addEventListener('foodtruck-catalog-movement', async () => {
+        catalogHistory.value = await catalogHistoryService.fetchMovementsFromBackend()
     })
     window.addEventListener('foodtruck-products-update', () => {
         loadCatalogData()

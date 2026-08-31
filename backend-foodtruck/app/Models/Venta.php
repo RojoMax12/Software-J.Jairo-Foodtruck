@@ -21,7 +21,7 @@ class Venta extends Model
     // Una venta pertenece a un pedido
     public function pedido()
     {
-        return $this->hasOne(Pedido::class, 'id_pedido');
+        return $this->belongsTo(Pedido::class, 'id_pedido', 'id_pedido');
     }
 
     // Una venta pertenece a una caja

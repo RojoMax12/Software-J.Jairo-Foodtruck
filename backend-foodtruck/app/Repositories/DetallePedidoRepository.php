@@ -1,10 +1,21 @@
 <?php
 
 namespace App\Repositories;
+
 use App\Models\Detalle_Pedido;
 
 class DetallePedidoRepository
 {
+    public function getAllDetallePedidos()
+    {
+        return Detalle_Pedido::with(['producto', 'tamano', 'ingredientes.ingrediente'])->get();
+    }
+
+    public function getDetallePedidoById($id)
+    {
+        return Detalle_Pedido::with(['producto', 'tamano', 'ingredientes.ingrediente'])->find($id);
+    }
+
     public function createDetallePedido($data)
     {
         return Detalle_Pedido::create($data);
@@ -12,7 +23,7 @@ class DetallePedidoRepository
 
     public function getDetallePedidosByPedidoId($id_pedido)
     {
-        return Detalle_Pedido::where('id_pedido', $id_pedido)->get();
+        return Detalle_Pedido::with(['producto', 'tamano', 'ingredientes.ingrediente'])->where('id_pedido', $id_pedido)->get();
     }
 
     public function updateDetallePedido($id, $data)
@@ -34,5 +45,4 @@ class DetallePedidoRepository
         }
         return false;
     }
-
 }

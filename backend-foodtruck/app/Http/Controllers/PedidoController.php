@@ -29,6 +29,22 @@ class PedidoController extends Controller
     {
         $data = $request->all();
         $user = $request->user();
+
+        // Clientes regulares (Rol 2 o sin rol especial) solo pueden pedir durante el turno activo
+        if (!$user || $user->id_rol === 2) {
+            $pedidoRepo = app(\App\Repositories\PedidoRepository::class);
+            $window = $pedidoRepo->getShiftWindow();
+            if (empty($window['is_active'])) {
+                $apertura = substr($window['hora_apertura'] ?? '19:00', 0, 5);
+                $cierre = substr($window['hora_cierre'] ?? '00:30', 0, 5);
+                return response()->json([
+                    'success' => false,
+                    'is_closed' => true,
+                    'message' => "El Foodtruck se encuentra cerrado en este momento. Horario de atención: {$apertura} a {$cierre} hrs."
+                ], 422);
+            }
+        }
+
         if (empty($data['id_usuario']) && $user) {
             $data['id_usuario'] = $user->id_usuario;
         }

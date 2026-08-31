@@ -15,7 +15,11 @@
             </div>
 
             <div class="header-actions">
-                <button class="secondary-button" @click="clearHistory" title="Vaciar todo el registro">
+                <button class="btn-refresh" @click="loadHistory" :disabled="isLoading" title="Actualizar desde base de datos">
+                    <RefreshCw :size="16" :class="{ spinning: isLoading }" />
+                    <span>{{ isLoading ? 'Cargando...' : 'Actualizar' }}</span>
+                </button>
+                <button class="secondary-button" @click="clearHistory" title="Vaciar todo el registro en base de datos">
                     <RotateCcw :size="16" />
                     <span>Vaciar Auditoría</span>
                 </button>
@@ -103,13 +107,25 @@
 import { ref, computed, onMounted } from 'vue'
 import catalogHistoryService, { type CatalogMovement } from '@/services/catalogHistoryService'
 import { useNotification } from '@/composables/useNotification'
-import { History, Search, X, Check, Pencil, Trash2, BadgePercent, Sparkles, Clock, RotateCcw } from 'lucide-vue-next'
+import { History, Search, X, Check, Pencil, Trash2, BadgePercent, Sparkles, Clock, RotateCcw, RefreshCw } from 'lucide-vue-next'
 
 const { notify } = useNotification()
 
 const historyList = ref<CatalogMovement[]>([])
 const search = ref('')
 const filterType = ref('')
+const isLoading = ref(false)
+
+const loadHistory = async () => {
+    isLoading.value = true
+    try {
+        historyList.value = await catalogHistoryService.fetchMovementsFromBackend()
+    } catch (e) {
+        console.error('Error cargando historial de movimientos:', e)
+    } finally {
+        isLoading.value = false
+    }
+}
 
 const formatActionName = (action: string) => {
     switch (action) {
@@ -166,17 +182,17 @@ const filteredHistory = computed(() => {
     return list
 })
 
-const clearHistory = () => {
-    if (!confirm('¿Deseas vaciar el historial de auditoría de catálogo?')) return
-    catalogHistoryService.clearHistory()
+const clearHistory = async () => {
+    if (!confirm('¿Deseas vaciar el historial de auditoría de catálogo en la base de datos?')) return
+    await catalogHistoryService.clearHistory()
     historyList.value = []
-    notify('Historial de movimientos vaciado', 'warning')
+    notify('Historial de movimientos vaciado en la base de datos', 'warning')
 }
 
 onMounted(() => {
-    historyList.value = catalogHistoryService.getMovements()
+    loadHistory()
     window.addEventListener('foodtruck-catalog-movement', () => {
-        historyList.value = catalogHistoryService.getMovements()
+        loadHistory()
     })
 })
 </script>
@@ -242,6 +258,40 @@ onMounted(() => {
     color: #78716c;
     font-size: 0.92rem;
     max-width: 600px;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    background: white;
+    font-weight: 800;
+    color: var(--DC-brown, #513119);
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-refresh:hover {
+    background: #f8fafc;
+    border-color: var(--DC-orange, #e28743);
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 .secondary-button {
