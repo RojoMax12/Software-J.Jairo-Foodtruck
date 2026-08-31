@@ -550,7 +550,7 @@ watch(() => props.rawOrder, async (newOrder) => {
 const isAddModalOpen = ref(false);
 const hasPendingChanges = ref(false);
 const isLoadingCatalog = ref(false);
-const catalogProducts = ref([]);
+const catalogProducts = ref<any[]>([]);
 
 // Cargar productos del catálogo
 const loadCatalogProducts = async () => {
@@ -558,8 +558,14 @@ const loadCatalogProducts = async () => {
   try {
     const response = await productService.getPublicProducts();
     const rawProducts = Array.isArray(response?.data) ? response.data : (response?.data?.data || []);
+    const activeRawProducts = rawProducts.filter((p: any) => {
+      const isActivo = p.activo !== false && p.activo !== 0 && p.active !== false;
+      const isDisponible = p.disponible !== false && p.disponible !== 0 && p.inStock !== false;
+      const isEstadoOk = p.estado !== 0;
+      return isActivo && isDisponible && isEstadoOk;
+    });
     
-    catalogProducts.value = rawProducts.map((product: any) => {
+    catalogProducts.value = activeRawProducts.map((product: any) => {
       const catName = product.categoria?.nombre_categoria || product.categoria?.nombre || product.id_categoria || 'Varios';
 
       const sizesArray = Array.isArray(product.tamaños) ? product.tamaños : (product.sizes || []);
@@ -954,7 +960,7 @@ const toggleRemovedIngredient = (pid: any, ing: string) => {
 
   const removed = p.removedIngredients || [];
   p.removedIngredients = removed.includes(ing)
-    ? removed.filter(i => i !== ing)
+    ? removed.filter((i: any) => i !== ing)
     : [...removed, ing];
 
   saveOrder(false);
@@ -976,6 +982,8 @@ const markAsPaid = async () => {
     const targetId = props.realId || props.orderId;
     await orderService.updateOrder(targetId, { id_estado_pago: 2 });
     localPaymentStatusId.value = 2;
+    window.dispatchEvent(new Event('foodtruck-cash-transaction-update'));
+    window.dispatchEvent(new Event('foodtruck-cash-session-update'));
     notify('¡Pedido marcado como PAGADO exitosamente!', 'success');
     emit('statusChanged');
     emit('status-changed');
@@ -989,6 +997,8 @@ const updatePaymentMethod = async () => {
   try {
     const targetId = props.realId || props.orderId;
     await orderService.updateOrder(targetId, { metodo_pago: currentPaymentMethod.value });
+    window.dispatchEvent(new Event('foodtruck-cash-transaction-update'));
+    window.dispatchEvent(new Event('foodtruck-cash-session-update'));
     notify(`Método de pago cambiado a: ${currentPaymentMethod.value}`, 'success');
     emit('statusChanged');
     emit('status-changed');
@@ -1006,6 +1016,8 @@ const cancelOrder = async () => {
     await orderService.updateOrder(targetId, { id_estado_pedido: 5, total: totalAmount.value });
     localStatusId.value = 5;
     localStatus.value = 'Cancelado';
+    window.dispatchEvent(new Event('foodtruck-cash-transaction-update'));
+    window.dispatchEvent(new Event('foodtruck-cash-session-update'));
     notify('Pedido marcado como CANCELADO', 'success');
     emit('statusChanged');
     emit('status-changed');

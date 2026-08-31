@@ -1,15 +1,42 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Services\MoviminetosService;
+
+use App\Services\MovimientosServices;
+use Illuminate\Http\Request;
 
 class MovimientosController extends Controller
 {
     protected $movimientosService;
 
-    public function __construct(MovimientosService $movimientosService)
+    public function __construct(MovimientosServices $movimientosService)
     {
         $this->movimientosService = $movimientosService;
+    }
+
+    public function index()
+    {
+        return response()->json([]);
+    }
+
+    public function store(Request $request)
+    {
+        return $this->createMovimiento($request);
+    }
+
+    public function show($id)
+    {
+        return $this->getMovimientosById($id);
+    }
+
+    public function update(Request $request, $id)
+    {
+        return $this->updateMovimiento($request, $id);
+    }
+
+    public function destroy($id)
+    {
+        return $this->deleteMovimientoById($id);
     }
 
     public function createMovimiento(Request $request)

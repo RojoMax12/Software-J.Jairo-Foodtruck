@@ -87,11 +87,36 @@ const router = createRouter({
       component: () => import('../views/Admin/ProductView.vue'),
       meta: {useLoader: true}
     },
+    {
+      path: '/general-home/admin/categories',
+      name: 'general-home-admin-categories',
+      component: () => import('../views/Admin/CategoryView.vue'),
+      meta: {useLoader: true}
+    },
+    {
+      path: '/general-home/admin/sizes',
+      name: 'general-home-admin-sizes',
+      component: () => import('../views/Admin/SizeView.vue'),
+      meta: {useLoader: true}
+    },
+    {
+      path: '/general-home/admin/history',
+      name: 'general-home-admin-history',
+      component: () => import('../views/Admin/CatalogHistoryView.vue'),
+      meta: {useLoader: true}
+    },
 
     {
       path: '/general-home/admin/worker',
       name: 'general-home-admin-worker',
       component: () => import('../views/Admin/WorkerView.vue'),
+      meta: {useLoader: true}
+    },
+
+    {
+      path: '/general-home/admin/banners',
+      name: 'general-home-admin-banners',
+      component: () => import('../views/Admin/BannersAndAnnouncementsView.vue'),
       meta: {useLoader: true}
     },
 
@@ -130,6 +155,17 @@ const router = createRouter({
       name: 'order-detail',
       component: () => import('@/views/Distributor/OrderDetailView.vue'),
       meta: {useLoader: true}
+    },
+    {
+      path: '/mi-perfil',
+      name: 'my-profile',
+      component: () => import('@/views/Distributor/ProfileView.vue'),
+      meta: {useLoader: true}
+    },
+    {
+      path: '/perfil',
+      name: 'profile',
+      redirect: '/mi-perfil'
     },
     {
       path: '/:pathMatch(.*)*',

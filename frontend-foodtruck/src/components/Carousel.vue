@@ -6,11 +6,11 @@
         :style="{ transform: `translateX(-${currentSlide * 100}%)` }"
       >
         <div 
-          v-for="(image, index) in images" 
+          v-for="(image, index) in displayImages" 
           :key="index" 
           class="carousel-slide"
         >
-          <img :src="image" alt="Banner Di Creme" class="carousel-image" />
+          <img :src="image" alt="Banner Foodtruck J.Jairo" class="carousel-image" />
         </div>
       </div>
     </div>
@@ -20,7 +20,7 @@
 
     <div class="carousel-indicators">
       <button 
-        v-for="(_, index) in images" 
+        v-for="(_, index) in displayImages" 
         :key="index"
         :class="['indicator-dot', { active: currentSlide === index }]"
         @click="goToSlide(index)"
@@ -30,18 +30,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useMarketingConfig } from '@/composables/useMarketingConfig';
 
 const props = defineProps<{
-  images: string[];
+  images?: string[];
   autoPlayInterval?: number; // Tiempo opcional para el auto-avance
 }>();
+
+const { activeBanners, autoPlayInterval: configInterval, resolveImageUrl } = useMarketingConfig();
+
+const displayImages = computed(() => {
+  if (props.images && props.images.length > 0) {
+    return props.images.map(img => resolveImageUrl(img));
+  }
+  const dynamic = activeBanners().map((b: any) => resolveImageUrl(b.image));
+  return dynamic.length > 0 ? dynamic : [];
+});
 
 const currentSlide = ref(0);
 let autoPlayTimer: any = null;
 
+const effectiveInterval = computed(() => props.autoPlayInterval || configInterval.value || 5000);
+
 const nextSlide = () => {
-  if (currentSlide.value < props.images.length - 1) {
+  if (displayImages.value.length <= 1) return;
+  if (currentSlide.value < displayImages.value.length - 1) {
     currentSlide.value++;
   } else {
     currentSlide.value = 0;
@@ -49,10 +63,11 @@ const nextSlide = () => {
 };
 
 const prevSlide = () => {
+  if (displayImages.value.length <= 1) return;
   if (currentSlide.value > 0) {
     currentSlide.value--;
   } else {
-    currentSlide.value = props.images.length - 1;
+    currentSlide.value = displayImages.value.length - 1;
   }
 };
 
@@ -60,10 +75,22 @@ const goToSlide = (index: number) => {
   currentSlide.value = index;
 };
 
-onMounted(() => {
-  if (props.autoPlayInterval) {
-    autoPlayTimer = setInterval(nextSlide, props.autoPlayInterval);
+const restartTimer = () => {
+  if (autoPlayTimer) clearInterval(autoPlayTimer);
+  if (effectiveInterval.value && displayImages.value.length > 1) {
+    autoPlayTimer = setInterval(nextSlide, effectiveInterval.value);
   }
+};
+
+onMounted(() => {
+  restartTimer();
+});
+
+watch([displayImages, effectiveInterval], () => {
+  if (currentSlide.value >= displayImages.value.length) {
+    currentSlide.value = 0;
+  }
+  restartTimer();
 });
 
 onUnmounted(() => {

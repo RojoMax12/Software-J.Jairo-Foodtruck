@@ -20,7 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->api(append: [
+            \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\PurifyInput::class,
+            \App\Http\Middleware\AuditLogMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

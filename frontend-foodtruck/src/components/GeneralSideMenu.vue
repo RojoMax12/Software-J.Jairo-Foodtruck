@@ -1,5 +1,17 @@
 <script setup lang="ts">
-import { BadgeDollarSign , ShoppingBag, X, Package, Store, Users, PackageSearch   } from 'lucide-vue-next'
+import { 
+  BadgeDollarSign, 
+  ShoppingBag, 
+  X, 
+  Package, 
+  Store, 
+  Users, 
+  PackageSearch, 
+  Images,
+  FolderTree,
+  Tag,
+  History
+} from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 
 const props = defineProps<{
@@ -23,7 +35,7 @@ const isActive = (path: string) => {
 
 <template>
   <div>
-    <!-- Overlay -->
+    <!-- Backdrop oscuro -->
     <Transition name="fade">
       <div v-if="isOpen" class="sidebar-overlay" @click="emit('close')"></div>
     </Transition>
@@ -34,7 +46,7 @@ const isActive = (path: string) => {
         <div class="sidebar-header">
           <div class="brand-group">
             <img src="@/assets/logo_jairo.webp" alt="Logo" class="sidebar-logo" />
-            <span class="brand-name">J.Junior</span>
+            <span class="brand-name">J.Jairo</span>
           </div>
           <button class="btn-close" @click="emit('close')">
             <X :size="24" />
@@ -43,7 +55,7 @@ const isActive = (path: string) => {
 
         <nav class="sidebar-nav">
           <div class="nav-section">
-            <span class="section-title">Navegación</span>
+            <span class="section-title">Operaciones</span>
             
             <button 
               class="nav-item" 
@@ -71,7 +83,7 @@ const isActive = (path: string) => {
               @click="navigateTo('/general-home/admin/cash-flow')"
               v-role="[1]"
             >
-              <BadgeDollarSign  :size="20" />
+              <BadgeDollarSign :size="20" />
               <span>Caja</span>
             </button>
 
@@ -85,6 +97,7 @@ const isActive = (path: string) => {
               <span>Inventario</span>
             </button>
 
+            <span class="section-title" style="margin-top: 10px;">Catálogo & Menú</span>
 
             <button 
               class="nav-item" 
@@ -93,9 +106,20 @@ const isActive = (path: string) => {
               v-role="[1]"
             >
               <PackageSearch :size="20" />
-              <span>Productos</span>
+              <span>Gestión de Catálogo</span>
             </button>
 
+            <button 
+              class="nav-item" 
+              :class="{ active: isActive('/general-home/admin/banners') }"
+              @click="navigateTo('/general-home/admin/banners')"
+              v-role="[1]"
+            >
+              <Images :size="20" />
+              <span>Banners y Avisos</span>
+            </button>
+
+            <span class="section-title" style="margin-top: 10px;">Administración</span>
 
             <button 
               class="nav-item" 
@@ -105,6 +129,16 @@ const isActive = (path: string) => {
             >
               <Users :size="20" />
               <span>Trabajadores</span>
+            </button>
+
+            <button 
+              class="nav-item" 
+              :class="{ active: isActive('/general-home/admin/banners') }"
+              @click="navigateTo('/general-home/admin/banners')"
+              v-role="[1]"
+            >
+              <Images :size="20" />
+              <span>Banners y Avisos</span>
             </button>
           </div>
         </nav>

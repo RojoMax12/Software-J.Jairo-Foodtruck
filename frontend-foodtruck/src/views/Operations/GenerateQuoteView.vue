@@ -802,7 +802,14 @@ const fetchProducts = async () => {
       'Bebestibles & Jugos': 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=900'
     };
 
-    foodProducts.value = dbProducts.map((prod: any) => {
+    const activeDbProducts = dbProducts.filter((p: any) => {
+      const isActivo = p.activo !== false && p.activo !== 0 && p.active !== false;
+      const isDisponible = p.disponible !== false && p.disponible !== 0 && p.inStock !== false;
+      const isEstadoOk = p.estado !== 0;
+      return isActivo && isDisponible && isEstadoOk;
+    });
+
+    foodProducts.value = activeDbProducts.map((prod: any) => {
       const catName = prod.categoria?.nombre_categoria || 'Varios';
       const sizesArray = (prod.tamaños || []).map((t: any) => t.nombre);
       const pricesMap: Record<string, number> = {};
@@ -813,11 +820,13 @@ const fetchProducts = async () => {
         sizesMap[t.nombre] = Number(t.id_tamaño || t.id || 1);
       });
 
+      const prodImage = prod.imagen_url || prod.imagen || prod.image || categoryImages[catName] || 'https://images.unsplash.com/photo-1567620812782-f461bc805b46?w=900';
+
       return {
         id: prod.id_producto,
         name: prod.nombre,
         category: catName,
-        image: categoryImages[catName] || 'https://images.unsplash.com/photo-1567620812782-f461bc805b46?w=900',
+        image: prodImage,
         tipo_armado: prod.tipo_armado || 'Estandar',
         cantidad_incluida: prod.cantidad_incluida ?? 0,
         precio_ingrediente_extra: Number(prod.precio_ingrediente_extra || 0),
@@ -830,6 +839,7 @@ const fetchProducts = async () => {
             id: prod.id_producto,
             name: prod.nombre,
             desc: prod.descripcion,
+            image: prodImage,
             prices: pricesMap,
             producto_ingrediente: prod.ingredientes || []
           }

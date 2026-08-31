@@ -5,68 +5,133 @@ namespace App\Repositories;
 use App\Models\Detalle_Pedido;
 use App\Models\Detalle_pedido_Ingrediente;
 use App\Models\Pedido;
+use App\Models\Horario_atencion;
+use App\Models\Ingrediente;
+use App\Models\Producto_ingrediente;
+use App\Models\Tamaño;
 use Illuminate\Support\Facades\DB;
 
 # Repositorio Pedido
 class PedidoRepository
 {
-    public function getShiftStart()
+    public function getShiftWindow($referenceTime = null)
     {
-        $now = now();
+        $now = $referenceTime ? \Carbon\Carbon::parse($referenceTime) : now();
         $dayOfWeek = (int)$now->format('w'); // 0 (Domingo) a 6 (Sábado)
 
-        // 1. Obtener horario de ayer para verificar si la madrugada actual pertenece a la jornada de ayer
+        // 1. Horario de ayer (para madrugadas)
         $yesterdayDay = ($dayOfWeek + 6) % 7;
-        $horarioAyer = \App\Models\Horario_atencion::where('dia_semana', $yesterdayDay)
+        $horarioAyer = Horario_atencion::where('dia_semana', $yesterdayDay)
             ->where('activo', true)
             ->first();
 
-        // Calcular hora límite de cierre de la jornada de ayer (hora_cierre + minuto_colchon)
-        $horaAyerApertura = $horarioAyer ? $horarioAyer->hora_apertura : '19:00:00';
-        $horaAyerCierre = $horarioAyer ? $horarioAyer->hora_cierre : '01:30:00';
-        $minColchonAyer = $horarioAyer ? (int)($horarioAyer->minuto_colchon ?? 30) : 30;
+        $horaAyerAp = $horarioAyer ? $horarioAyer->hora_apertura : '19:00:00';
+        $horaAyerCi = $horarioAyer ? $horarioAyer->hora_cierre : '00:30:00';
+        $colchonAyer = $horarioAyer ? (int)($horarioAyer->minuto_colchon ?? 30) : 30;
 
-        $partsAyerAp = explode(':', $horaAyerApertura);
-        $partsAyerCi = explode(':', $horaAyerCierre);
+        $partsAyerAp = explode(':', $horaAyerAp);
+        $partsAyerCi = explode(':', $horaAyerCi);
 
-        $yesterdayShiftStart = now()->subDay()->setTime((int)$partsAyerAp[0], (int)($partsAyerAp[1] ?? 0), 0);
-        $yesterdayShiftEnd = now()->subDay()
-            ->setTime((int)$partsAyerCi[0], (int)($partsAyerCi[1] ?? 0), 0);
-            
-        // Si hora_cierre es de madrugada (menor a la apertura, ej. 01:30 < 19:00), el cierre ocurre al día siguiente
+        $yesterdayShiftStart = $now->copy()->subDay()->setTime((int)$partsAyerAp[0], (int)($partsAyerAp[1] ?? 0), 0);
+        $yesterdayShiftEnd = $now->copy()->subDay()->setTime((int)$partsAyerCi[0], (int)($partsAyerCi[1] ?? 0), 0);
+
         if ((int)$partsAyerCi[0] < (int)$partsAyerAp[0]) {
             $yesterdayShiftEnd->addDay();
         }
-        // Sumar los minutos de colchón al cierre de la jornada
-        $yesterdayShiftEnd->addMinutes($minColchonAyer);
+        $yesterdayShiftEndWithBuffer = $yesterdayShiftEnd->copy()->addMinutes($colchonAyer);
 
-        // Si la hora actual es antes o igual al cierre con colchón de la jornada de ayer, estamos en la jornada de ayer
-        if ($now->lessThanOrEqualTo($yesterdayShiftEnd)) {
-            return $yesterdayShiftStart;
+        if ($now->lessThanOrEqualTo($yesterdayShiftEndWithBuffer)) {
+            return [
+                'start' => $yesterdayShiftStart,
+                'end' => $yesterdayShiftEndWithBuffer,
+                'hora_apertura' => $horaAyerAp,
+                'hora_cierre' => $horaAyerCi,
+                'dia' => 'Ayer'
+            ];
         }
 
-        // 2. Obtener horario de hoy
-        $horarioHoy = \App\Models\Horario_atencion::where('dia_semana', $dayOfWeek)
+        // 2. Horario de hoy
+        $horarioHoy = Horario_atencion::where('dia_semana', $dayOfWeek)
             ->where('activo', true)
             ->first();
 
-        $horaHoyApertura = $horarioHoy ? $horarioHoy->hora_apertura : '19:00:00';
-        $partsHoyAp = explode(':', $horaHoyApertura);
-        $todayShiftStart = now()->setTime((int)$partsHoyAp[0], (int)($partsHoyAp[1] ?? 0), 0);
+        $horaHoyAp = $horarioHoy ? $horarioHoy->hora_apertura : '19:00:00';
+        $horaHoyCi = $horarioHoy ? $horarioHoy->hora_cierre : '00:30:00';
+        $colchonHoy = $horarioHoy ? (int)($horarioHoy->minuto_colchon ?? 30) : 30;
+
+        $partsHoyAp = explode(':', $horaHoyAp);
+        $partsHoyCi = explode(':', $horaHoyCi);
+
+        $todayShiftStart = $now->copy()->setTime((int)$partsHoyAp[0], (int)($partsHoyAp[1] ?? 0), 0);
+        $todayShiftEnd = $now->copy()->setTime((int)$partsHoyCi[0], (int)($partsHoyCi[1] ?? 0), 0);
+
+        if ((int)$partsHoyCi[0] < (int)$partsHoyAp[0]) {
+            $todayShiftEnd->addDay();
+        }
+        $todayShiftEndWithBuffer = $todayShiftEnd->copy()->addMinutes($colchonHoy);
 
         if ($now->greaterThanOrEqualTo($todayShiftStart)) {
-            return $todayShiftStart;
+            return [
+                'start' => $todayShiftStart,
+                'end' => $todayShiftEndWithBuffer,
+                'hora_apertura' => $horaHoyAp,
+                'hora_cierre' => $horaHoyCi,
+                'dia' => 'Hoy'
+            ];
         }
 
-        // Si estamos entre el cierre con colchón de ayer y la apertura de hoy, la última jornada fue la de ayer
-        return $yesterdayShiftStart;
+        // 3. Durante el día antes de abrir: la última jornada completada fue la de ayer
+        return [
+            'start' => $yesterdayShiftStart,
+            'end' => $todayShiftStart,
+            'hora_apertura' => $horaAyerAp,
+            'hora_cierre' => $horaAyerCi,
+            'dia' => 'Última jornada'
+        ];
+    }
+
+    public function getShiftStart()
+    {
+        $window = $this->getShiftWindow();
+        return $window['start'];
+    }
+
+    public function getPedidoByComandaTurno($numeroComanda, $targetDate = null)
+    {
+        $window = $this->getShiftWindow($targetDate);
+
+        $relations = [
+            'detalles.producto',
+            'detalles.tamano',
+            'detalles.tamaño',
+            'detalles.ingredientes.ingrediente',
+            'estadoPedido',
+            'estadoPago',
+            'usuario',
+        ];
+
+        $pedido = Pedido::with($relations)
+            ->where('numero_pedido_dia', (int)$numeroComanda)
+            ->whereBetween('created_at', [$window['start'], $window['end']])
+            ->orderBy('id_pedido', 'desc')
+            ->first();
+
+        return [
+            'pedido' => $pedido,
+            'jornada' => [
+                'inicio' => $window['start']->format('Y-m-d H:i:s'),
+                'fin' => $window['end']->format('Y-m-d H:i:s'),
+                'hora_apertura' => substr($window['hora_apertura'] ?? '19:00', 0, 5),
+                'hora_cierre' => substr($window['hora_cierre'] ?? '00:30', 0, 5),
+                'es_jornada_activa' => now()->between($window['start'], $window['end'])
+            ]
+        ];
     }
 
     # Create
     public function createPedido($data)
     {
         return DB::transaction(function () use ($data) {
-            // 1. Calcular numero_pedido_dia correlativo para la jornada/turno actual (Horario_atencion BDD)
             $shiftStart = $this->getShiftStart();
             $maxNumeroShift = Pedido::where('created_at', '>=', $shiftStart)->max('numero_pedido_dia') ?? 0;
             $numeroPedidoDia = $maxNumeroShift + 1;
@@ -82,11 +147,10 @@ class PedidoRepository
                 }
             }
 
-            // 2. Preparar campos de la cabecera del pedido
             $pedidoData = [
-                'id_estado_pedido' => $data['id_estado_pedido'] ?? 1, // 1 = Pendiente
-                'id_estado_pago' => $data['id_estado_pago'] ?? 1,   // 1 = Pendiente
-                'id_usuario' => $data['id_usuario'] ?? null,        // Null para clientes QR anónimos
+                'id_estado_pedido' => $data['id_estado_pedido'] ?? 1,
+                'id_estado_pago' => $data['id_estado_pago'] ?? 1,
+                'id_usuario' => $data['id_usuario'] ?? null,
                 'numero_pedido_dia' => $numeroPedidoDia,
                 'nombre_persona' => $data['nombre_persona'] ?? ($data['persona_recibe'] ?? 'Cliente'),
                 'numero_telefono' => $data['numero_telefono'] ?? ($data['telefono'] ?? ''),
@@ -98,10 +162,9 @@ class PedidoRepository
 
             $pedido = Pedido::create($pedidoData);
 
-            // 3. Guardar detalles si vienen en el payload (items / detalles)
             foreach ($items as $item) {
                 $idProducto = $item['id_producto'] ?? ($item['id'] ?? null);
-                $idTamaño = $item['id_tamaño'] ?? ($item['id_tamano'] ?? 1); // 1 = Único por defecto
+                $idTamaño = $item['id_tamaño'] ?? ($item['id_tamano'] ?? 1);
                 $cantidad = $item['cantidad'] ?? ($item['quantity'] ?? 1);
                 $precioUnitario = $item['precio_unitario'] ?? ($item['precio'] ?? 0);
 
@@ -114,10 +177,8 @@ class PedidoRepository
                         'precio_unitario' => $precioUnitario,
                     ]);
 
-                    // Ingredientes personalizados, exclusiones o agregados
                     $allMods = [];
 
-                    // 1. Modificaciones o ingredientes explícitos
                     $rawMods = $item['modificaciones'] ?? ($item['ingredientes'] ?? []);
                     if (is_array($rawMods)) {
                         foreach ($rawMods as $m) {
@@ -125,7 +186,6 @@ class PedidoRepository
                         }
                     }
 
-                    // 2. Exclusiones directas (excluidos / ingredientes_excluidos / removedIngredients)
                     $rawExcluidos = $item['excluidos'] ?? ($item['ingredientes_excluidos'] ?? ($item['removedIngredients'] ?? []));
                     if (is_array($rawExcluidos)) {
                         foreach ($rawExcluidos as $ex) {
@@ -138,7 +198,6 @@ class PedidoRepository
                         }
                     }
 
-                    // 3. Agregados directos (agregados / addedExtras)
                     $rawAgregados = $item['agregados'] ?? ($item['addedExtras'] ?? []);
                     if (is_array($rawAgregados)) {
                         foreach ($rawAgregados as $ag) {
@@ -151,19 +210,17 @@ class PedidoRepository
                         }
                     }
 
-                    // 4. Guardar cada modificación en la base de datos (evitando duplicados)
                     $processedMods = [];
                     foreach ($allMods as $mod) {
                         $tipoMod = is_array($mod) ? ($mod['tipo'] ?? $mod['tipo_modificacion'] ?? 'Exclusión') : 'Exclusión';
                         $precioAplicado = is_array($mod) ? ($mod['precio'] ?? $mod['precio_aplicado'] ?? 0) : 0;
                         $idIngrediente = is_array($mod) ? ($mod['id_ingrediente'] ?? $mod['id'] ?? null) : (is_numeric($mod) ? (int)$mod : null);
 
-                        // Si no hay ID numérico pero hay nombre, buscar por nombre en BDD
                         if (!$idIngrediente) {
                             $rawName = is_array($mod) ? ($mod['ingrediente'] ?? $mod['nombre'] ?? $mod['name'] ?? null) : $mod;
                             if ($rawName && is_string($rawName)) {
                                 $cleanName = trim($rawName);
-                                $foundIng = \App\Models\Ingrediente::where('nombre', $cleanName)
+                                $foundIng = Ingrediente::where('nombre', $cleanName)
                                     ->orWhere('nombre', 'LIKE', '%' . $cleanName . '%')
                                     ->first();
                                 if ($foundIng) {
@@ -175,7 +232,7 @@ class PedidoRepository
                         if ($idIngrediente) {
                             $modKey = $idIngrediente . '_' . strtolower($tipoMod);
                             if (isset($processedMods[$modKey])) {
-                                continue; // Evitar duplicar el mismo ingrediente y tipo de modificación
+                                continue;
                             }
                             $processedMods[$modKey] = true;
 
@@ -199,6 +256,7 @@ class PedidoRepository
     {
         return Pedido::with([
             'detalles.producto',
+            'detalles.tamano',
             'detalles.tamaño',
             'detalles.ingredientes.ingrediente',
             'estadoPedido',
@@ -218,6 +276,7 @@ class PedidoRepository
 
         $relations = [
             'detalles.producto',
+            'detalles.tamano',
             'detalles.tamaño',
             'detalles.ingredientes.ingrediente',
             'estadoPedido',
@@ -225,7 +284,7 @@ class PedidoRepository
             'usuario',
         ];
 
-        // 1. Buscar por numero_pedido_dia de la jornada actual
+        // 1. Prioridad: Buscar por numero_pedido_dia de la jornada/horario actual
         $pedidoJornada = Pedido::with($relations)
             ->where('numero_pedido_dia', $search)
             ->where('created_at', '>=', $shiftStart)
@@ -236,31 +295,49 @@ class PedidoRepository
             return $pedidoJornada;
         }
 
-        // 2. Buscar por numero_pedido_dia mas reciente
-        $pedidoDia = Pedido::with($relations)
+        // 2. Si el search es un ID general de pedido (ej: 36)
+        if (is_numeric($search) && (int)$search > 0) {
+            $pedidoById = Pedido::with($relations)->find((int)$search);
+            if ($pedidoById) {
+                return $pedidoById;
+            }
+        }
+
+        // 3. Fallback: Buscar por numero_pedido_dia mas reciente en cualquier jornada anterior
+        return Pedido::with($relations)
             ->where('numero_pedido_dia', $search)
             ->orderBy('id_pedido', 'desc')
             ->first();
-
-        if ($pedidoDia) {
-            return $pedidoDia;
-        }
-
-        // 3. Fallback: Buscar por clave primaria id_pedido
-        return Pedido::with($relations)->find($search);
     }
 
-    public function getPedidosByUsuarioId($idUsuario)
+    public function getPedidosByUsuarioId($idUsuario, $fechaInicio = null, $fechaFin = null, $limit = 50)
     {
-        return Pedido::with(['detalles.producto', 'estadoPedido', 'estadoPago'])
-            ->where('id_usuario', $idUsuario)
+        $query = Pedido::with([
+            'detalles.producto', 
+            'detalles.tamano', 
+            'detalles.tamaño',
+            'detalles.ingredientes.ingrediente', 
+            'estadoPedido', 
+            'estadoPago'
+        ])->where('id_usuario', $idUsuario);
+
+        if (!empty($fechaInicio)) {
+            $query->whereDate('created_at', '>=', $fechaInicio);
+        }
+
+        if (!empty($fechaFin)) {
+            $query->whereDate('created_at', '<=', $fechaFin);
+        }
+
+        return $query->orderBy('created_at', 'desc')
             ->orderBy('id_pedido', 'desc')
+            ->limit($limit)
             ->get();
     }
 
     public function getPedidosByEstadoId($idEstado)
     {
-        return Pedido::with(['detalles.producto', 'estadoPedido', 'estadoPago'])
+        return Pedido::with(['detalles.producto', 'detalles.tamano', 'detalles.tamaño', 'estadoPedido', 'estadoPago'])
             ->where('id_estado_pedido', $idEstado)
             ->orderBy('id_pedido', 'desc')
             ->get();
@@ -268,7 +345,7 @@ class PedidoRepository
 
     public function getPedidosByEstadoPago($estadoPago)
     {
-        return Pedido::with(['detalles.producto', 'estadoPedido', 'estadoPago'])
+        return Pedido::with(['detalles.producto', 'detalles.tamano', 'detalles.tamaño', 'estadoPedido', 'estadoPago'])
             ->where('id_estado_pago', $estadoPago)
             ->orderBy('id_pedido', 'desc')
             ->get();
@@ -292,15 +369,13 @@ class PedidoRepository
             $idTamaño = $detalle->id_tamaño;
             $cantidadPedido = $detalle->cantidad;
 
-            // Obtener exclusiones para este detalle
             $excluidosIds = $detalle->ingredientes
                 ->filter(fn($mod) => strtolower($mod->tipo_modificacion) === 'exclusión' || strtolower($mod->tipo_modificacion) === 'exclusion')
                 ->pluck('id_ingrediente')
                 ->filter()
                 ->toArray();
 
-            // Buscar receta base del producto
-            $receta = \App\Models\Producto_ingrediente::where('id_producto', $idProducto)
+            $receta = Producto_ingrediente::where('id_producto', $idProducto)
                 ->when($idTamaño, fn($q) => $q->where(function($query) use ($idTamaño) {
                     $query->where('id_tamaño', $idTamaño)->orWhereNull('id_tamaño');
                 }))
@@ -310,7 +385,7 @@ class PedidoRepository
                 if (!in_array($itemReceta->id_ingrediente, $excluidosIds)) {
                     $cantRequerida = ($itemReceta->cantidad ?? 1) * $cantidadPedido;
 
-                    $ingrediente = \App\Models\Ingrediente::find($itemReceta->id_ingrediente);
+                    $ingrediente = Ingrediente::find($itemReceta->id_ingrediente);
                     if ($ingrediente) {
                         $nuevoStock = max(0, $ingrediente->cantidad_actual - $cantRequerida);
                         $ingrediente->update([
@@ -331,11 +406,7 @@ class PedidoRepository
             $pedido = $this->getPedidoBySearch($id);
         }
         if ($pedido) {
-            $previousEstado = (int)$pedido->id_estado_pedido;
-
-            // Si vienen items/detalles para actualizar los productos del pedido en BDD
             if (isset($data['items']) && is_array($data['items'])) {
-                // Eliminar detalles e ingredientes asociados anteriores
                 $oldDetalles = Detalle_Pedido::where('id_pedido', $pedido->id_pedido)->pluck('id_detalle_pedido');
                 Detalle_pedido_Ingrediente::whereIn('id_detalle_pedido', $oldDetalles)->delete();
                 Detalle_Pedido::where('id_pedido', $pedido->id_pedido)->delete();
@@ -346,9 +417,8 @@ class PedidoRepository
                     $cantidad = $item['cantidad'] ?? $item['quantity'] ?? 1;
                     $precioUnitario = $item['precio_unitario'] ?? ($item['subtotal'] && $cantidad ? $item['subtotal'] / $cantidad : 0);
 
-                    // Si no viene id_tamaño directamente, intentar resolverlo por el nombre del formato (ej: Chico, Grande, XXL)
                     if (!$idTamaño && !empty($item['format'])) {
-                        $tamObj = \App\Models\Tamaño::where('nombre', $item['format'])->first();
+                        $tamObj = Tamaño::where('nombre', $item['format'])->first();
                         if ($tamObj) {
                             $idTamaño = $tamObj->id_tamaño;
                         }
@@ -363,7 +433,6 @@ class PedidoRepository
                             'precio_unitario' => $precioUnitario,
                         ]);
 
-                        // Exclusiones de ingredientes (sin duplicados)
                         $removedList = $item['removedIngredients'] ?? ($item['excluidos'] ?? []);
                         $seenRemoved = [];
                         foreach ($removedList as $rem) {
@@ -371,18 +440,17 @@ class PedidoRepository
                             if (!$remName || isset($seenRemoved[$remName])) continue;
                             $seenRemoved[$remName] = true;
 
-                            $ingObj = \App\Models\Ingrediente::where('nombre', $remName)->first();
+                            $ingObj = Ingrediente::where('nombre', $remName)->first();
                             if ($ingObj) {
                                 Detalle_pedido_Ingrediente::create([
                                     'id_detalle_pedido' => $detalle->id_detalle_pedido,
                                     'id_ingrediente' => $ingObj->id_ingrediente,
                                     'tipo_modificacion' => 'Exclusión',
                                     'precio_aplicado' => 0,
-                                ]);
+                                    ]);
                             }
                         }
 
-                        // Agregados / Extras de ingredientes (sin duplicados)
                         $addedList = $item['addedExtras'] ?? ($item['agregados'] ?? []);
                         $seenAdded = [];
                         foreach ($addedList as $ext) {
@@ -390,7 +458,7 @@ class PedidoRepository
                             if (!$extName || isset($seenAdded[$extName])) continue;
                             $seenAdded[$extName] = true;
 
-                            $ingObj = \App\Models\Ingrediente::where('nombre', $extName)->first();
+                            $ingObj = Ingrediente::where('nombre', $extName)->first();
                             if ($ingObj) {
                                 Detalle_pedido_Ingrediente::create([
                                     'id_detalle_pedido' => $detalle->id_detalle_pedido,

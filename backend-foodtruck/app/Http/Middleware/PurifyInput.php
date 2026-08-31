@@ -8,49 +8,89 @@ use Symfony\Component\HttpFoundation\Response;
 
 class PurifyInput
 {
+    /**
+     * Campos que no deben ser alterados para preservar contraseñas o datos binarios.
+     */
+    protected array $camposIgnorados = [
+        'contrasena',
+        'password',
+        'password_confirmation',
+        'contrasena_confirmation',
+        'current_password',
+        'new_password',
+    ];
+
     public function handle(Request $request, Closure $next): Response
     {
-        // 1. Si es un método de lectura (GET, HEAD, DELETE), no hay datos que sanitizar. Pasamos de largo.
-        if ($request->isMethod('GET') || $request->isMethod('HEAD') || $request->isMethod('DELETE')) {
+        // 1. Sanitizar query parameters (GET) contra XSS y SQLi
+        if ($request->query->count() > 0) {
+            $sanitizedQuery = $this->sanitizeArray($request->query->all());
+            $request->query->replace($sanitizedQuery);
+        }
+
+        // 2. Si no es un método con payload (HEAD), continuamos
+        if ($request->isMethod('HEAD')) {
             return $next($request);
         }
 
-        // 2. Obtenemos todos los datos de la petición
+        // 3. Sanitizar cuerpo de la petición
         $input = $request->all();
+        if (!empty($input)) {
+            $sanitizedInput = $this->sanitizeArray($input);
+            $request->merge($sanitizedInput);
+        }
 
-        // 3. Definimos qué campos queremos proteger (contraseñas y confirmaciones)
-        $camposIgnorados = [
-            'contrasena', 
-            'password', 
-            'password_confirmation', 
-            'contrasena_confirmation'
-        ];
+        return $next($request);
+    }
 
-        // 4. Limpieza manual y segura del mapa de datos
-        foreach ($input as $key => $value) {
-            // Ignorar los campos de contraseñas de la limpieza
-            if (in_array($key, $camposIgnorados)) {
+    /**
+     * Sanitiza de manera recursiva un array de entradas.
+     */
+    protected function sanitizeArray(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            if (in_array(strtolower((string) $key), $this->camposIgnorados, true)) {
+                // Para contraseñas solo removemos bytes nulos para prevenir ataques de truncamiento
+                if (is_string($value)) {
+                    $data[$key] = str_replace(chr(0), '', $value);
+                }
                 continue;
             }
 
-            // Si el campo es un texto, le quitamos las etiquetas HTML/JS
-            if (is_string($value)) {
-                $input[$key] = strip_tags($value);
-            } 
-            // Si es un array secundario (por ejemplo, la lista de productos en una cotización)
-            elseif (is_array($value)) {
-                array_walk_recursive($value, function (&$subValue) {
-                    if (is_string($subValue)) {
-                        $subValue = strip_tags($subValue);
-                    }
-                });
-                $input[$key] = $value;
+            if (is_array($value)) {
+                $data[$key] = $this->sanitizeArray($value);
+            } elseif (is_string($value)) {
+                $data[$key] = $this->sanitizeString($value);
             }
         }
 
-        // 5. Reemplazamos los datos usando merge() de forma segura en el Request
-        $request->merge($input);
+        return $data;
+    }
 
-        return $next($request);
+    /**
+     * Sanitiza una cadena de texto contra XSS, inyecciones de código y SQLi.
+     */
+    protected function sanitizeString(string $value): string
+    {
+        // 1. Eliminar bytes nulos (null byte injection)
+        $clean = str_replace(chr(0), '', $value);
+
+        // 2. Limpiar etiquetas HTML y scripts
+        $clean = strip_tags($clean);
+
+        // 3. Eliminar esquemas peligrosos como javascript:, vbscript:, data:
+        $clean = preg_replace('/javascript\s*:/i', '', $clean);
+        $clean = preg_replace('/vbscript\s*:/i', '', $clean);
+        $clean = preg_replace('/data\s*:\s*text\/html/i', '', $clean);
+
+        // 4. Eliminar eventos de JavaScript inline (onerror=, onclick=, onload=, etc.)
+        $clean = preg_replace('/on\w+\s*=\s*["\'][^"\']*["\']/i', '', $clean);
+        $clean = preg_replace('/on\w+\s*=\s*[^\s>]+/i', '', $clean);
+
+        // 5. Neutralizar patrones de inyección SQL comunes en campos de texto libre
+        $clean = preg_replace('/(--|\/\*|\*\/)/', '', $clean);
+
+        // 6. Trimming de espacios en blanco
+        return trim($clean);
     }
 }

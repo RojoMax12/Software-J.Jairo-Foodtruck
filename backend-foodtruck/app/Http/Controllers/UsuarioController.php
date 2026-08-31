@@ -31,7 +31,9 @@ class UsuarioController extends Controller
             'nombre' => 'required',
             'correo' => 'required|email',
             'id_rol' => 'required',
-            'contrasena' => ['required','string', Password::min(8)->mixedCase()->numbers(),],
+            'contrasena' => ['required', 'string', Password::min(8)->mixedCase()->numbers()->symbols()],
+        ], [
+            'contrasena.min' => 'La contraseña debe tener al menos 8 caracteres.',
         ]);
 
         return response()->json(
@@ -50,7 +52,7 @@ class UsuarioController extends Controller
                 'sometimes',
                 'nullable',
                 'string',
-                Password::min(8)->mixedCase()->numbers(),
+                Password::min(8)->mixedCase()->numbers()->symbols(),
             ],
             'estado' => 'sometimes|boolean',
         ]);

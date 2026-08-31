@@ -1,5 +1,7 @@
 <template>
   <div class="home-page">
+    <AdminPreviewBar />
+
     <CartModal 
       :isOpen="isCartOpen"
       :cart-items="cartItems"
@@ -22,7 +24,7 @@
       @confirm="router.push('/login')"
     />
 
-    <Carousel :images="bannerImages" :autoPlayInterval="5000"/>
+    <Carousel />
     
     <main class="content-container">
       <SearchBar 
@@ -96,9 +98,7 @@ import categoryService from '@/services/productCategoryService';
 import productService from '@/services/productService';
 import Footer from '@/components/Footer.vue'
 import Carousel from '@/components/Carousel.vue';
-import imgBanner1 from '@/assets/banner1.webp'
-import imgBanner2 from '@/assets/banner2.webp'
-import imgBanner3 from '@/assets/banner3.webp'
+import AdminPreviewBar from '@/components/AdminPreviewBar.vue';
 import { useNotification } from '@/composables/useNotification';
 
 const { notify } = useNotification();
@@ -117,12 +117,6 @@ const categoriesList = ref<any[]>([]);
 const selectedCategory = ref<string>('Todas');
 const searchQueryText = ref<string>('');
 
-
-const bannerImages = [
-  imgBanner1,
-  imgBanner2,
-  imgBanner3
-];
 
 // Estados autenticación
 const isLoggedIn = ref(false); 
@@ -143,13 +137,13 @@ const checkAuthStatus = () => {
       try {
         const userObj = JSON.parse(userParsed);
         console.log("Contenido real de lo que hay en 'user':", userObj);
-        currentUser.value = userObj.nombre_empresa || 'Distribuidor';
+        currentUser.value = userObj.nombre || 'Cliente';
       } catch (error) {
         console.error("Error al parsear el usuario:", error);
-        currentUser.value = 'Distribuidor';
+        currentUser.value = 'Cliente';
       }
     } else {
-      currentUser.value = 'Distribuidor';
+      currentUser.value = 'Cliente';
     }
   } else {
     isLoggedIn.value = false;
@@ -342,10 +336,12 @@ const fetchIceCreams = async () => {
     const dbProducts = productsRes.data || [];
     const dbCategories = categoriesRes.data || [];
 
-    // Filtrar solo productos activos para el menú público del cliente
+    // Filtrar estrictamente solo productos activos y disponibles
     const activeDbProducts = dbProducts.filter((p: any) => {
-      if (p.active === false || p.activo === false || p.estado === 0 || p.activo === 0) return false;
-      return true;
+      const isActivo = p.activo !== false && p.activo !== 0 && p.active !== false;
+      const isDisponible = p.disponible !== false && p.disponible !== 0 && p.inStock !== false;
+      const isEstadoOk = p.estado !== 0;
+      return isActivo && isDisponible && isEstadoOk;
     });
 
     categoriesList.value = dbCategories.map((c: any) => ({
@@ -384,10 +380,11 @@ const fetchIceCreams = async () => {
     const groupableCategories = ['Vianesas', 'Ass', 'Churrascos', 'Lomitos'];
     const groupedMap: Record<string, any> = {};
 
-    dbProducts.forEach((prod: any) => {
+    activeDbProducts.forEach((prod: any) => {
       const catName = prod.categoria?.nombre_categoria || 'Varios';
       const isGroupable = groupableCategories.includes(catName);
       const groupKey = isGroupable ? catName : prod.nombre;
+      const prodImage = prod.imagen_url || prod.imagen || prod.image || categoryImages[catName] || 'https://images.unsplash.com/photo-1567620812782-f461bc805b46?w=900';
 
       if (!groupedMap[groupKey]) {
         groupedMap[groupKey] = {
@@ -395,7 +392,7 @@ const fetchIceCreams = async () => {
           name: isGroupable ? catName : prod.nombre,
           category: catName,
           color: categoryColors[catName] || '#E28743',
-          image: categoryImages[catName] || 'https://images.unsplash.com/photo-1567620812782-f461bc805b46?w=900',
+          image: prodImage,
           descripcion: prod.descripcion,
           tipo_armado: prod.tipo_armado,
           cantidad_incluida: prod.cantidad_incluida,
@@ -411,13 +408,12 @@ const fetchIceCreams = async () => {
         pricesMap[t.nombre] = Number(t.pivot?.precio || 0);
       });
 
-      const isProdActive = prod.active !== false && prod.activo !== false && prod.estado !== 0 && prod.activo !== 0;
-
       groupedMap[groupKey].types.push({
         id: prod.id_producto,
         name: prod.nombre,
         desc: prod.descripcion,
-        active: isProdActive,
+        active: true,
+        image: prodImage,
         prices: pricesMap,
         tamaños_obj: prod.tamaños || [],
         producto_ingrediente: prod.ingredientes || []
@@ -433,7 +429,7 @@ const fetchIceCreams = async () => {
       });
     });
 
-    iceCreams.value = Object.values(groupedMap);
+    iceCreams.value = Object.values(groupedMap).filter((g: any) => g.types && g.types.length > 0);
   } catch (error) {
     console.error('Error al cargar productos desde la API:', error);
   } finally {
@@ -456,6 +452,9 @@ onMounted(() => {
   fetchIceCreams();
   checkAuthStatus();
   window.addEventListener('scroll', handleScroll, { passive: true });
+  window.addEventListener('storage', fetchIceCreams);
+  window.addEventListener('focus', fetchIceCreams);
+  window.addEventListener('foodtruck-products-update', fetchIceCreams);
 
   // Recuperación segura del estado persistido del carrito temporal
   const savedCart = localStorage.getItem('dicreme_temp_cart');
@@ -470,6 +469,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
+  window.removeEventListener('storage', fetchIceCreams);
+  window.removeEventListener('focus', fetchIceCreams);
+  window.removeEventListener('foodtruck-products-update', fetchIceCreams);
 });
 
 // Guardado reactivo profundo en LocalStorage para no perder la persistencia de compra

@@ -8,15 +8,20 @@
       <div class="brand-group" @click="goToHome">
         <img src="@/assets/logo_jairo.webp" alt="J.Jairo Logo" class="brand-logo" />
         <div class="brand-info">
-          <span class="brand-text">J.Junior</span>
+          <span class="brand-text">J.Jairo</span>
         </div>
       </div>
     </div>
 
     <div class="nav-right">
+      <button class="btn-preview" @click="goToPreview" title="Ver cómo se ve la tienda en vivo">
+        <Eye :size="16" />
+        <span class="preview-btn-label">Previsualizar Tienda</span>
+      </button>
+
       <div class="session-display">
-        <div class="user-avatar">
-          <UserIcon :size="18" />
+        <div class="user-avatar" :title="username">
+          <span class="avatar-initials">{{ userInitials }}</span>
         </div>
         <div class="user-details">
           <span class="user-role">Sesión {{ userRoleName }}</span>
@@ -32,9 +37,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { LogOut, User as UserIcon, Menu } from 'lucide-vue-next'
+import { LogOut, Eye, Menu } from 'lucide-vue-next'
+import { getUserInitials } from '@/composables/useUserInitials'
 
 const router = useRouter()
 const route = useRoute()
@@ -74,6 +80,12 @@ onMounted(() => {
 watch(() => route.path, () => {
   checkAuth()
 })
+
+const userInitials = computed(() => getUserInitials(username.value))
+
+const goToPreview = () => {
+  router.push('/')
+}
 
 const emit = defineEmits(['toggleSidebar'])
 
@@ -174,6 +186,29 @@ const toggleSidebar = () => {
   flex-shrink: 0;
 }
 
+.btn-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 7px 15px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-preview:hover {
+  background-color: var(--DC-orange, #e28743);
+  border-color: var(--DC-orange, #e28743);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
 .session-display {
   display: flex;
   align-items: center;
@@ -194,6 +229,15 @@ const toggleSidebar = () => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  font-weight: 900;
+  font-size: 0.78rem;
+  letter-spacing: 0.5px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.avatar-initials {
+  text-transform: uppercase;
+  color: #ffffff;
 }
 
 .user-details {

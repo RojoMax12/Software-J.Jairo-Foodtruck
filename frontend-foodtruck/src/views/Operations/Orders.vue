@@ -507,7 +507,7 @@ const fetchOrders = async () => {
       const statusId = Number(o.id_estado_pedido || 1);
       const customerName = o.nombre_persona || (o.usuario?.nombre_empresa) || 'Cliente Anónimo';
       const dt = parseDateTime(o.fecha || o.created_at);
-      const shiftDate = getShiftDateString(o.fecha || o.created_at);
+      const shiftDate = o.shift_date || getShiftDateString(o.fecha || o.created_at);
       
       const orderTotal = Number(o.total || 0) > 0
         ? Number(o.total)

@@ -147,6 +147,11 @@
                                     {{ passwordRequirements.number ? '✓' : '✗' }}
                                     Un número
                                 </p>
+
+                                <p :class="{ valid: passwordRequirements.specialChar }">
+                                    {{ passwordRequirements.specialChar ? '✓' : '✗' }}
+                                    Un carácter especial (@, $, !, %, *, #, etc.)
+                                </p>
                             </div>
 
                             <input
@@ -247,6 +252,7 @@ const passwordRequirements = computed(() => ({
     upperCase: /[A-Z]/.test(password.value),
     lowerCase: /[a-z]/.test(password.value),
     number: /[0-9]/.test(password.value),
+    specialChar: /[@$!%*?&_#\-+=~`^()]/.test(password.value),
 }))
 
 const isPasswordValid = computed(() => {
@@ -258,7 +264,8 @@ const isPasswordValid = computed(() => {
         passwordRequirements.value.minLength &&
         passwordRequirements.value.upperCase &&
         passwordRequirements.value.lowerCase &&
-        passwordRequirements.value.number
+        passwordRequirements.value.number &&
+        passwordRequirements.value.specialChar
     )
 })
 
@@ -302,7 +309,7 @@ const saveChanges = () => {
 
     background:rgba(0,0,0,.45);
 
-    z-index:1000;
+    z-index:9999;
 }
 
 /* Modal */

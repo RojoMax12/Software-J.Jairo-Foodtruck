@@ -1,23 +1,20 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
-  Mail, Lock, Building2, Phone, ArrowLeft, 
-  Eye, EyeOff, MapPin, Fingerprint, 
-  ChevronDown, Search, X
+  Mail, Phone, ArrowLeft, 
+  Eye, EyeOff, Check, User
 } from 'lucide-vue-next'
 import { authService } from '../services/authService'
 import SuccessAccountModal from './SuccessAccountModal.vue'
+import TermsAndPrivacyModal from './TermsAndPrivacyModal.vue'
 
 const router = useRouter()
 
 const form = ref({
-  rut_empresa: '',
-  nombre_empresa: '',
+  nombre: '',
   correo_electronico: '',
   telefono: '',
-  comuna: '',
-  direccion: '',
   contrasena: '',
   confirmPassword: ''
 })
@@ -25,56 +22,15 @@ const form = ref({
 const isLoading = ref(false)
 const errorMessage = ref('')
 const showSuccessModal = ref(false)
+const acceptTerms = ref(false)
+const showTermsModal = ref(false)
 
-const comunasSantiago = [
-  'Cerrillos', 'Cerro Navia', 'Conchalí', 'El Bosque', 'Estación Central', 'Huechuraba', 
-  'Independencia', 'La Cisterna', 'La Florida', 'La Granja', 'La Pintana', 'La Reina', 
-  'Las Condes', 'Lo Barnechea', 'Lo Espejo', 'Lo Prado', 'Macul', 'Maipú', 'Ñuñoa', 
-  'Pedro Aguirre Cerda', 'Peñalolén', 'Providencia', 'Pudahuel', 'Quilicura', 'Quinta Normal', 
-  'Recoleta', 'Renca', 'San Joaquín', 'San Miguel', 'San Ramón', 'Santiago', 'Vitacura',
-  'Puente Alto', 'Pirque', 'San José de Maipo', 'San Bernardo', 'Buin', 'Calera de Tango', 
-  'Paine', 'Colina', 'Lampa', 'Tiltil', 'Talagante', 'El Monte', 'Isla de Maipo', 
-  'Padre Hurtado', 'Peñaflor', 'Melipilla', 'Alhué', 'Curacaví', 'María Pinto', 'San Pedro'
-].sort()
-
-// Searchable dropdown logic
-const isDropdownOpen = ref(false)
-const searchQuery = ref('')
-
-const filteredComunas = computed(() => {
-  if (!searchQuery.value) return comunasSantiago
-  return comunasSantiago.filter(c => 
-    c.toLowerCase().includes(searchQuery.value.toLowerCase())
-  )
-})
-
-const selectComuna = (comuna: string) => {
-  form.value.comuna = comuna
-  searchQuery.value = ''
-  isDropdownOpen.value = false
-}
-
-const toggleDropdown = () => {
-  isDropdownOpen.value = !isDropdownOpen.value
-  if (isDropdownOpen.value) {
-    searchQuery.value = ''
-  }
-}
-
-const closeDropdown = (e: MouseEvent) => {
-  const target = e.target as HTMLElement
-  if (!target.closest('.custom-dropdown-container')) {
-    isDropdownOpen.value = false
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('click', closeDropdown)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('click', closeDropdown)
-})
+// Requisitos de seguridad de contraseña (Ley N° 21.719)
+const hasMinLength = computed(() => form.value.contrasena.length >= 8)
+const hasUppercase = computed(() => /[A-Z]/.test(form.value.contrasena))
+const hasNumber = computed(() => /\d/.test(form.value.contrasena))
+const hasSpecialChar = computed(() => /[@$!%*?&_#\-+=~`^().]/.test(form.value.contrasena))
+const isPasswordValid = computed(() => hasMinLength.value && hasUppercase.value && hasNumber.value && hasSpecialChar.value)
 
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
@@ -85,7 +41,7 @@ const goBack = () => {
 
 const handleRegister = async () => {
   // 1. Validaciones básicas antes de enviar
-  if (!form.value.rut_empresa || !form.value.nombre_empresa || !form.value.correo_electronico || !form.value.contrasena) {
+  if (!form.value.nombre.trim() || !form.value.correo_electronico.trim() || !form.value.contrasena.trim()) {
     errorMessage.value = 'Por favor, completa todos los campos obligatorios.'
     return
   }
@@ -95,20 +51,38 @@ const handleRegister = async () => {
     return
   }
 
+  if (!isPasswordValid.value) {
+    errorMessage.value = 'La contraseña debe tener al menos 8 caracteres y contener al menos 1 mayúscula, 1 número y 1 carácter especial.'
+    return
+  }
+
+  if (!acceptTerms.value) {
+    errorMessage.value = 'Debes aceptar los Términos, Condiciones y la Política de Privacidad (Ley N° 21.719) para crear tu cuenta.'
+    return
+  }
+
   errorMessage.value = ''
   isLoading.value = true
 
   try {
     // 2. Llamada al backend
-    await authService.registerDistribuidor({
-      rut_empresa: form.value.rut_empresa,
-      nombre_empresa: form.value.nombre_empresa,
-      correo_electronico: form.value.correo_electronico,
-      telefono: form.value.telefono,
-      comuna: form.value.comuna,
-      direccion: form.value.direccion,
+    const res = await authService.registerDistribuidor({
+      nombre: form.value.nombre.trim(),
+      correo_electronico: form.value.correo_electronico.trim(),
+      telefono: form.value.telefono.trim(),
       contrasena: form.value.contrasena
     })
+
+    const data = res.data || res
+    if (data?.token || data?.access_token) {
+      localStorage.setItem('token', data.token || data.access_token)
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify({
+          ...data.user,
+          telefono: form.value.telefono.trim()
+        }))
+      }
+    }
 
     // 3. Éxito: Mostramos el modal
     showSuccessModal.value = true
@@ -145,6 +119,17 @@ const goToLogin = () => {
 
           <div v-if="errorMessage" class="error-banner">
             {{ errorMessage }}
+          </div>
+
+          <div class="input-group">
+            <input
+              v-model="form.nombre"
+              type="text"
+              placeholder="Nombre completo"
+              class="custom-input"
+              :disabled="isLoading"
+            />
+            <User class="input-icon" :size="20" />
           </div>
 
           <div class="input-group">
@@ -190,6 +175,33 @@ const goToLogin = () => {
             </div>
           </div>
 
+          <!-- REQUISITOS DE CONTRASEÑA -->
+          <div v-if="form.contrasena" class="password-requirements-box">
+            <span class="requirements-title">Requisitos de seguridad:</span>
+            <div class="req-grid">
+              <div class="req-item" :class="{ met: hasMinLength }">
+                <Check v-if="hasMinLength" :size="12" class="req-icon" />
+                <span v-else class="req-dot"></span>
+                <span>Mínimo 8 caracteres</span>
+              </div>
+              <div class="req-item" :class="{ met: hasUppercase }">
+                <Check v-if="hasUppercase" :size="12" class="req-icon" />
+                <span v-else class="req-dot"></span>
+                <span>1 letra mayúscula (A-Z)</span>
+              </div>
+              <div class="req-item" :class="{ met: hasNumber }">
+                <Check v-if="hasNumber" :size="12" class="req-icon" />
+                <span v-else class="req-dot"></span>
+                <span>1 número (0-9)</span>
+              </div>
+              <div class="req-item" :class="{ met: hasSpecialChar }">
+                <Check v-if="hasSpecialChar" :size="12" class="req-icon" />
+                <span v-else class="req-dot"></span>
+                <span>1 carácter especial (@, $, !, %, *, #, etc.)</span>
+              </div>
+            </div>
+          </div>
+
           <div class="input-group">
             <input
               v-model="form.confirmPassword"
@@ -204,10 +216,28 @@ const goToLogin = () => {
             </div>
           </div>
 
+          <!-- CHECKBOX TÉRMINOS Y PRIVACIDAD LEY 21.719 -->
+          <div class="terms-checkbox-group">
+            <label class="terms-label">
+              <input 
+                type="checkbox" 
+                v-model="acceptTerms" 
+                class="custom-checkbox" 
+                :disabled="isLoading" 
+              />
+              <span class="terms-text">
+                He leído y acepto los 
+                <button type="button" class="terms-link-btn" @click="showTermsModal = true">
+                  Términos, Condiciones y Política de Privacidad (Ley N° 21.719)
+                </button>
+              </span>
+            </label>
+          </div>
+
           <button
             @click="handleRegister"
             class="btn btn-primary"
-            :disabled="isLoading"
+            :disabled="isLoading || !acceptTerms"
           >
             {{ isLoading ? 'PROCESANDO...' : 'CREAR CUENTA' }}
           </button>
@@ -218,6 +248,12 @@ const goToLogin = () => {
     <SuccessAccountModal
       v-if="showSuccessModal"
       @accept="goToLogin"
+    />
+
+    <TermsAndPrivacyModal 
+      :isOpen="showTermsModal" 
+      @close="showTermsModal = false" 
+      @accept="acceptTerms = true" 
     />
   </div>
 </template>
@@ -389,13 +425,17 @@ const goToLogin = () => {
   background-color: #fcfbf9;
   border: 2px solid #eeedee;
   border-radius: 0.75rem;
-  padding: 0.9rem 0.8rem;
-  font-weight: 700;
+  padding: 0.9rem 1.2rem;
+  font-weight: 800;
   color: var(--DC-orange);
   font-size: 1rem;
   user-select: none;
-  min-width: 55px;
+  min-width: 70px;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .phone-input-container {
@@ -590,6 +630,102 @@ const goToLogin = () => {
   background-color: var(--DC-orange);
   color: white;
   box-shadow: 0 4px 15px rgba(226, 135, 67, 0.3);
+}
+
+.terms-checkbox-group {
+  margin: 1rem 0 0.5rem 0;
+  width: 100%;
+}
+
+.password-requirements-box {
+  background: #f8f6fb;
+  border: 1px solid #eae5f3;
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin: -0.5rem 0 1rem 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.requirements-title {
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #4a415a;
+  margin-bottom: 6px;
+}
+
+.req-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.req-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.76rem;
+  color: #8c859d;
+  transition: all 0.2s ease;
+}
+
+.req-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d3cde0;
+  flex-shrink: 0;
+}
+
+.req-icon {
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+.req-item.met {
+  color: #065f46;
+  font-weight: 600;
+}
+
+.terms-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.custom-checkbox {
+  margin-top: 3px;
+  width: 17px;
+  height: 17px;
+  accent-color: var(--DC-orange);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.terms-text {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #4a415a;
+}
+
+.terms-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--DC-orange);
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  cursor: pointer;
+  display: inline;
+  text-align: left;
+}
+
+.terms-link-btn:hover {
+  color: var(--DC-brown);
 }
 
 @media (max-width: 576px) {

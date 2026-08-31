@@ -203,9 +203,9 @@ class PedidoService
         $pedido->save();
     }
 
-    public function getAllPedidos()
+    public function getAllPedidos($fecha = null)
     {
-        return $this->pedidoRepository->getAllPedidos();
+        return $this->pedidoRepository->getAllPedidos($fecha);
     }
 
     public function getPedidoById($id)
@@ -213,9 +213,9 @@ class PedidoService
         return $this->pedidoRepository->getPedidoById($id);
     }
 
-    public function getPedidosByUsuarioId($idUsuario)
+    public function getPedidosByUsuarioId($idUsuario, $fechaInicio = null, $fechaFin = null, $limit = 50)
     {
-        return $this->pedidoRepository->getPedidosByUsuarioId($idUsuario);
+        return $this->pedidoRepository->getPedidosByUsuarioId($idUsuario, $fechaInicio, $fechaFin, $limit);
     }
 
     public function getPedidosByEstadoId($idEstado)
