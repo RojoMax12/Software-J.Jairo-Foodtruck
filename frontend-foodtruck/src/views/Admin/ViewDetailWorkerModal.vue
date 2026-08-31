@@ -37,6 +37,13 @@
                     </div>
 
                     <div class="info-item">
+                        <span class="info-label">Teléfono</span>
+                        <span class="info-value">
+                            {{ worker.telefono }}
+                        </span>
+                    </div>
+
+                    <div class="info-item">
                         <span class="info-label">Correo</span>
                         <span class="info-value">
                             {{ worker.correo }}
