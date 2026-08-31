@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id('id_usuario');
             $table->unsignedBigInteger('id_rol');
             $table->string('nombre');
+            $table->string('telefono');
             $table->string('correo')->unique();
             $table->boolean('estado')->default(true);
             $table->string('contrasena');

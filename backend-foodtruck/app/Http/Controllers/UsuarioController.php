@@ -29,6 +29,11 @@ class UsuarioController extends Controller
     {
         $data = $request->validate([
             'nombre' => 'required',
+            'telefono' => [
+                'required',
+                'string',
+                'regex:/^(?:\+?56\s?9\s?\d{4}\s?\d{4}|9\s?\d{4}\s?\d{4})$/'
+            ],
             'correo' => 'required|email',
             'id_rol' => 'required',
             'contrasena' => ['required', 'string', Password::min(8)->mixedCase()->numbers()->symbols()],
@@ -46,6 +51,7 @@ class UsuarioController extends Controller
     {
         $data = $request->validate([
             'nombre' => 'sometimes|string',
+            'telefono' => 'sometimes|string',
             'correo' => 'sometimes|email',
             'id_rol' => 'sometimes|integer',
             'contrasena' => [

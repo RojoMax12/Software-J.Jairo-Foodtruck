@@ -15,7 +15,7 @@ const emit = defineEmits(['accept'])
     <div class="modal-card">
       <div class="icon-container">
         <div class="icon-bg"></div>
-        <CheckCircle2 :size="64" color="#e4869f" class="check-icon" />
+        <CheckCircle2 :size="64" color="var(--DC-orange)" class="check-icon" />
       </div>
       
       <h2 class="modal-title">{{ title || '¡Cuenta creada con éxito!' }}</h2>
@@ -101,7 +101,7 @@ const emit = defineEmits(['accept'])
 }
 
 .accept-button {
-  background-color: #e4869f;
+  background-color: var(--DC-orange);
   color: white;
   border: none;
   padding: 1rem 2rem;
@@ -115,7 +115,7 @@ const emit = defineEmits(['accept'])
 }
 
 .accept-button:hover {
-  background-color: #d6758e;
+  background-color: var(--DC-brown);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(228, 134, 159, 0.4);
 }

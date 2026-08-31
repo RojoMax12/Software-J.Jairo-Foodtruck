@@ -38,6 +38,28 @@
                             </p>
                         </div>
 
+                        <!-- Teléfono -->
+                        <div class="form-group">
+                            <label for="phone">
+                                Teléfono
+                            </label>
+
+                            <input
+                                id="phone"
+                                v-model="phone"
+                                type="tel"
+                                placeholder="Ej. +56 9 1234 5678"
+                                @blur="touchedPhone = true"
+                            >
+
+                            <p
+                                v-if="phone.length > 0 && !isPhoneValid"
+                                class="field-error"
+                            >
+                                Ingresa un número de teléfono válido
+                            </p>
+                        </div>
+
                         <div class="form-group">
                             <label for="email">
                                 Correo electrónico
@@ -166,10 +188,12 @@ import type { CreateWorkerRequest } from '@/services/userService'
 const { notify } = useNotification()
 
 const touchedName = ref(false)
+const touchedPhone = ref(false)
 const touchedEmail = ref(false)
 const touchedRole = ref(false)
 
 const fullName = ref('')
+const phone = ref('')
 const email = ref('')
 const role = ref<1 | 3 | null>(null)
 const password = ref('')
@@ -186,10 +210,18 @@ const emit = defineEmits<{
 const isFormValid = computed(() => {
     return (
         fullName.value.trim() !== '' &&
+        phone.value.trim() !== '' &&
+        isPhoneValid.value &&
         isEmailValid.value &&
         role.value !== null &&
         isPasswordValid.value
     )
+})
+
+const isPhoneValid = computed(() => {
+    const phoneRegex = /^(?:\+?56\s?9\s?\d{4}\s?\d{4}|9\s?\d{4}\s?\d{4})$/
+
+    return phoneRegex.test(phone.value.trim())
 })
 
 const isEmailValid = computed(() => {
@@ -223,6 +255,7 @@ const createWorker = async () => {
         const worker: CreateWorkerRequest = {
             id_rol: role.value,
             nombre: fullName.value,
+            telefono: phone.value,
             correo: email.value,
             estado: true,
             contrasena: password.value
@@ -256,6 +289,7 @@ const createWorker = async () => {
 
 const resetForm = () => {
     fullName.value = ''
+    phone.value = ''
     email.value = ''
     role.value = null
     password.value = ''

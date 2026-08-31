@@ -48,6 +48,28 @@
                             </p>
                         </div>
 
+                        <!-- Teléfono -->
+                        <div class="form-group">
+                            <label for="phone">
+                                Teléfono
+                            </label>
+
+                            <input
+                                id="phone"
+                                v-model="phone"
+                                type="tel"
+                                placeholder="Ej. +56 9 1234 5678"
+                                @blur="touchedPhone = true"
+                            >
+
+                            <p
+                                v-if="phone.length > 0 && !isPhoneValid"
+                                class="field-error"
+                            >
+                                Ingresa un número de teléfono válido
+                            </p>
+                        </div>
+
                         <!-- Correo -->
 
                         <div class="form-group">
@@ -194,11 +216,13 @@ import { ChevronDown, Edit3 } from 'lucide-vue-next'
 const { notify } = useNotification()
 
 const fullName = ref('')
+const phone = ref('')
 const email = ref('')
 const roleId = ref<1 | 3 | null>(null)
 const password = ref('')
 
 const touchedName = ref(false)
+const touchedPhone = ref(false)
 const touchedEmail = ref(false)
 const touchedRole = ref(false)
 const touchedPassword = ref(false)
@@ -220,11 +244,13 @@ watch(() => props.worker,
         if (!worker) return
 
         fullName.value = worker.nombre
+        phone.value = worker.telefono
         email.value = worker.correo
         roleId.value = worker.id_rol
         password.value = ''
 
         touchedName.value = false
+        touchedPhone.value = false
         touchedEmail.value = false
         touchedRole.value = false
         touchedPassword.value = false
@@ -237,10 +263,17 @@ const hasChanges = computed(() => {
 
     return (
         fullName.value.trim() !== props.worker.nombre ||
+        phone.value.trim() !== props.worker.telefono ||
         email.value.trim() !== props.worker.correo ||
         roleId.value !== props.worker.id_rol ||
         password.value.trim() !== ''
     )
+})
+
+const isPhoneValid = computed(() => {
+    const phoneRegex = /^(?:\+?56\s?9\s?\d{4}\s?\d{4}|9\s?\d{4}\s?\d{4})$/
+
+    return phoneRegex.test(phone.value.trim())
 })
 
 const isEmailValid = computed(() => {
@@ -272,6 +305,8 @@ const isPasswordValid = computed(() => {
 const isFormValid = computed(() => {
     return (
         fullName.value.trim() !== '' &&
+        phone.value.trim() !== '' &&
+        isPhoneValid.value &&
         isEmailValid.value &&
         roleId.value !== null &&
         isPasswordValid.value
@@ -281,6 +316,7 @@ const isFormValid = computed(() => {
 const saveChanges = () => {
     const payload: UpdateWorkerRequest = {
         nombre: fullName.value.trim(),
+        telefono: phone.value.trim(),
         correo: email.value.trim(),
         id_rol: roleId.value!
     }

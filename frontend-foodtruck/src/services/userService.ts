@@ -4,6 +4,7 @@ export interface Worker {
     id_usuario: number
     id_rol: 1 | 3
     nombre: string
+    telefono: string
     correo: string
     estado: boolean
     created_at: string
@@ -13,6 +14,7 @@ export interface Worker {
 export interface CreateWorkerRequest {
     id_rol: 1 | 3
     nombre: string
+    telefono: string
     correo: string
     estado: boolean
     contrasena: string
@@ -21,6 +23,7 @@ export interface CreateWorkerRequest {
 export interface UpdateWorkerRequest {
     id_rol?: 1 | 3
     nombre?: string
+    telefono?: string
     correo?: string
     estado?: boolean
     contrasena?: string

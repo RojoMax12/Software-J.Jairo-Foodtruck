@@ -38,6 +38,7 @@ class DatabaseSeeder extends Seeder
             ['correo' => 'admin@foodtruck.cl'],
             [
                 'nombre' => 'Administrador',
+                'telefono' => '+56900000000',
                 'id_rol' => 1,
                 'estado' => true,
                 'contrasena' => \Illuminate\Support\Facades\Hash::make('admin123'),
@@ -48,6 +49,7 @@ class DatabaseSeeder extends Seeder
             ['correo' => 'cocina@foodtruck.cl'],
             [
                 'nombre' => 'Cocina',
+                'telefono' => '+56911111111',
                 'id_rol' => 3,
                 'estado' => true,
                 'contrasena' => \Illuminate\Support\Facades\Hash::make('cocina123'),
@@ -172,6 +174,7 @@ class DatabaseSeeder extends Seeder
                 [
                     'id_rol' => $adminRole->id_rol,
                     'nombre' => 'Administrador Jairo',
+                    'telefono' => '+56900000000',
                     'estado' => true,
                     'contrasena' => bcrypt('Admin1234'),
                 ]
@@ -185,6 +188,7 @@ class DatabaseSeeder extends Seeder
                 [
                     'id_rol' => $trabajadorRole->id_rol,
                     'nombre' => 'Cajera Turno',
+                    'telefono' => '+56900000000',
                     'estado' => true,
                     'contrasena' => bcrypt('Caja1234'),
                 ]
