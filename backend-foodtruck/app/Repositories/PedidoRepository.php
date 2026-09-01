@@ -233,7 +233,16 @@ class PedidoRepository
 
                     $processedMods = [];
                     foreach ($allMods as $mod) {
-                        $tipoMod = is_array($mod) ? ($mod['tipo'] ?? $mod['tipo_modificacion'] ?? 'Exclusión') : 'Exclusión';
+                        $rawTipo = is_array($mod) ? ($mod['tipo'] ?? $mod['tipo_modificacion'] ?? 'Exclusión') : 'Exclusión';
+                        $lowerTipo = strtolower((string)$rawTipo);
+                        if (strpos($lowerTipo, 'tamaño') !== false || strpos($lowerTipo, 'tamano') !== false || strpos($lowerTipo, 'size') !== false) {
+                            continue;
+                        }
+
+                        $tipoMod = (strpos($lowerTipo, 'exclu') !== false || strpos($lowerTipo, 'sin') !== false || strpos($lowerTipo, 'quit') !== false)
+                            ? 'Exclusión'
+                            : 'Agregado';
+
                         $precioAplicado = is_array($mod) ? ($mod['precio'] ?? $mod['precio_aplicado'] ?? 0) : 0;
                         $idIngrediente = is_array($mod) ? ($mod['id_ingrediente'] ?? $mod['id'] ?? null) : (is_numeric($mod) ? (int)$mod : null);
 
@@ -241,8 +250,8 @@ class PedidoRepository
                             $rawName = is_array($mod) ? ($mod['ingrediente'] ?? $mod['nombre'] ?? $mod['name'] ?? null) : $mod;
                             if ($rawName && is_string($rawName)) {
                                 $cleanName = trim($rawName);
-                                $foundIng = Ingrediente::where('nombre', $cleanName)
-                                    ->orWhere('nombre', 'LIKE', '%' . $cleanName . '%')
+                                $foundIng = Ingrediente::whereRaw('LOWER(nombre) = ?', [mb_strtolower($cleanName, 'UTF-8')])
+                                    ->orWhere('nombre', 'ILIKE', '%' . $cleanName . '%')
                                     ->first();
                                 if ($foundIng) {
                                     $idIngrediente = $foundIng->id_ingrediente;

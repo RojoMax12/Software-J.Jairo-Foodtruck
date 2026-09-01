@@ -447,28 +447,62 @@ const handleConfirmQuotation = async () => {
         ? Number(item.price.replace(/[^0-9]/g, ''))
         : Number(item.price || 0);
 
+      const rawExcluidosList = item.excluidos || item.exclusiones || item.ingredientesRemovidos || [];
+      const rawAgregadosList = item.agregados || item.extras || [];
+      const cleanProdId = item.id_producto 
+        ? Number(item.id_producto) 
+        : (typeof item.id === 'number' 
+            ? item.id 
+            : parseInt(String(item.id || '1').split('_')[0] || '1', 10) || 1);
+
+      const cleanTamanoId = item.id_tamaño 
+        ? Number(item.id_tamaño)
+        : (typeof item.tamano_id === 'number'
+            ? item.tamano_id
+            : (typeof item.id_tamano === 'number'
+                ? item.id_tamano
+                : parseInt(String(item.tamano_id || item.id_tamaño || item.id_tamano || '1').split('_')[0] || '1', 10) || 1));
+
       return {
-        id_producto: item.id || item.id_producto || null,
+        id_producto: cleanProdId,
+        id_tamaño: cleanTamanoId,
         nombre_producto: item.name || item.nombre || 'Producto',
         cantidad: Number(item.quantity || 1),
         precio_unitario: unitPrice,
         subtotal: unitPrice * Number(item.quantity || 1),
+        excluidos: rawExcluidosList,
+        agregados: rawAgregadosList,
         opciones_seleccionadas: [
           ...(item.tamaño ? [{ tipo: 'Tamaño', valor: item.tamaño }] : []),
           ...(item.size ? [{ tipo: 'Tamaño', valor: item.size }] : []),
-          ...(item.exclusiones ? item.exclusiones.map((ex: string) => ({ tipo: 'Exclusión', ingrediente: ex })) : []),
-          ...(item.ingredientesRemovidos ? item.ingredientesRemovidos.map((ex: string) => ({ tipo: 'Sin', ingrediente: ex })) : []),
-          ...(item.agregadosDetails ? item.agregadosDetails.map((ag: any) => ({
-            id_ingrediente: ag.id_ingrediente || null,
-            tipo: 'Agregado',
-            precio: 0,
-            ingrediente: ag.nombre || ag.name || (typeof ag === 'string' ? ag : '')
-          })) : []),
-          ...((item.agregados && (!item.agregadosDetails || !item.agregadosDetails.length)) ? item.agregados.map((ag: string) => ({
-            tipo: 'Agregado',
-            precio: 0,
-            ingrediente: ag
-          })) : [])
+          ...(item.excluidosDetails && item.excluidosDetails.length
+            ? item.excluidosDetails.map((ex: any) => ({
+                id_ingrediente: ex.id_ingrediente || null,
+                tipo: 'Exclusión',
+                precio: 0,
+                ingrediente: ex.nombre || ex.name || (typeof ex === 'string' ? ex : '')
+              }))
+            : rawExcluidosList.map((ex: any) => ({
+                id_ingrediente: typeof ex === 'object' ? (ex.id_ingrediente || ex.id || null) : null,
+                tipo: 'Exclusión',
+                precio: 0,
+                ingrediente: typeof ex === 'object' ? (ex.nombre || ex.name || '') : String(ex)
+              }))
+          ),
+          ...(item.agregadosDetails && item.agregadosDetails.length
+            ? item.agregadosDetails.map((ag: any) => ({
+                id_ingrediente: ag.id_ingrediente || null,
+                tipo: 'Agregado',
+                precio: Number(ag.precio || ag.price || 0),
+                ingrediente: ag.nombre || ag.name || (typeof ag === 'string' ? ag : '')
+              }))
+            : rawAgregadosList.map((ag: any) => ({
+                id_ingrediente: typeof ag === 'object' ? (ag.id_ingrediente || ag.id || null) : null,
+                tipo: 'Agregado',
+                precio: typeof ag === 'object' ? Number(ag.precio || ag.price || 0) : 0,
+                ingrediente: typeof ag === 'object' ? (ag.nombre || ag.name || '') : String(ag)
+              }))
+          )
         ]
       };
     })
