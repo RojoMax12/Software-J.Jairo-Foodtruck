@@ -169,10 +169,25 @@ class PedidoRepository
             $pedido = Pedido::create($pedidoData);
 
             foreach ($items as $item) {
-                $idProducto = $item['id_producto'] ?? ($item['id'] ?? null);
-                $idTamaño = $item['id_tamaño'] ?? ($item['id_tamano'] ?? 1);
-                $cantidad = $item['cantidad'] ?? ($item['quantity'] ?? 1);
-                $precioUnitario = $item['precio_unitario'] ?? ($item['precio'] ?? 0);
+                $rawProd = $item['id_producto'] ?? ($item['id'] ?? null);
+                if (is_string($rawProd) && strpos($rawProd, '_') !== false) {
+                    $rawProd = explode('_', $rawProd)[0];
+                }
+                $idProducto = is_numeric($rawProd) ? (int)$rawProd : null;
+
+                $rawTamano = $item['id_tamaño'] ?? ($item['id_tamano'] ?? ($item['id_size'] ?? 1));
+                if (is_string($rawTamano) && strpos($rawTamano, '_') !== false) {
+                    $rawTamano = explode('_', $rawTamano)[0];
+                }
+                $idTamaño = is_numeric($rawTamano) ? (int)$rawTamano : 1;
+
+                $cantidad = is_numeric($item['cantidad'] ?? ($item['quantity'] ?? 1)) 
+                    ? (int)($item['cantidad'] ?? ($item['quantity'] ?? 1)) 
+                    : 1;
+
+                $precioUnitario = is_numeric($item['precio_unitario'] ?? ($item['precio'] ?? 0))
+                    ? (float)($item['precio_unitario'] ?? ($item['precio'] ?? 0))
+                    : 0;
 
                 if ($idProducto) {
                     $detalle = Detalle_Pedido::create([
@@ -185,7 +200,7 @@ class PedidoRepository
 
                     $allMods = [];
 
-                    $rawMods = $item['modificaciones'] ?? ($item['ingredientes'] ?? []);
+                    $rawMods = $item['opciones_seleccionadas'] ?? ($item['modificaciones'] ?? ($item['ingredientes'] ?? []));
                     if (is_array($rawMods)) {
                         foreach ($rawMods as $m) {
                             $allMods[] = $m;
