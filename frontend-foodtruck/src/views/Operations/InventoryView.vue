@@ -101,6 +101,7 @@
             <div class="header-col col-center col-min">Mínimo</div>
             <div class="header-col col-center col-status">Estado</div>
             <div class="header-col col-center col-disponibilidad">Disponibilidad</div>
+            <div class="header-col col-action">Acción</div>
             <div class="header-col col-updated">Última actualización</div>
           </div>
         </div>
@@ -120,6 +121,7 @@
                   <td class="text-center col-min"><div class="skeleton-pill width-50"></div></td>
                   <td class="text-center col-status"><div class="skeleton-pill width-80"></div></td>
                   <td class="text-center col-disponibilidad"><div class="skeleton-pill width-80"></div></td>
+                  <td class="col-action"><div class="skeleton-pill width-80"></div></td>
                   <td class="col-updated"><div class="skeleton-pill width-90"></div></td>
                 </tr>
               </tbody>
@@ -127,7 +129,7 @@
               <!-- ESTADO DE ERROR -->
               <tbody v-else-if="errorMessage">
                 <tr>
-                  <td colspan="8" class="text-center">
+                    <td colspan="9" class="text-center">
                     <div class="state-card error-state">
                       <AlertTriangle :size="34" />
                       <p>{{ errorMessage }}</p>
@@ -140,7 +142,7 @@
               <!-- ESTADO SIN RESULTADOS -->
               <tbody v-else-if="filteredItems.length === 0">
                 <tr>
-                  <td colspan="8" class="text-center">
+                    <td colspan="9" class="text-center">
                     <div class="state-card empty-state">
                       <Package :size="40" />
                       <p>No hay coincidencias con los filtros actuales.</p>
@@ -186,6 +188,12 @@
                       {{ item.disponible ? '🟢 Disponible' : '🔴 Agotado' }}
                     </button>
                   </td>
+                  <td class="col-action">
+                    <button type="button" class="stock-action-btn" @click="openStockModal(item)">
+                      <Edit3 :size="15" />
+                      <span>Actualizar</span>
+                    </button>
+                  </td>
                   <td class="col-updated">
                     <div class="meta-inline muted">
                       <Clock3 :size="16" />
@@ -229,6 +237,10 @@
                   <Clock3 :size="14" />
                   <span>Actualizado: {{ item.updatedLabel }}</span>
                 </div>
+                <button type="button" class="stock-action-btn" @click="openStockModal(item)">
+                  <Edit3 :size="15" />
+                  <span>Actualizar stock</span>
+                </button>
               </div>
             </div>
           </div>
@@ -263,60 +275,6 @@
       </div>
 
       <aside class="side-panel">
-        <div class="panel-card quick-update-card">
-          <button class="dropdown-trigger" type="button" @click="toggleQuickUpdateMenu">
-            <div class="side-title-row no-margin">
-              <div>
-                <span class="eyebrow">Stock</span>
-                <h2>Actualizar producto</h2>
-              </div>
-              <ChevronDown :size="22" class="title-icon dropdown-icon" :class="{ open: isQuickUpdateOpen }" />
-            </div>
-          </button>
-
-          <Transition name="dropdown-fade">
-            <form v-if="isQuickUpdateOpen" class="quick-update-form" @submit.prevent="submitStockUpdate">
-              <label class="field-label">
-                Filtrar por categoría
-                <select v-model="quickUpdateCategory" class="form-input">
-                  <option value="all">Todas las categorías</option>
-                  <option v-for="cat in availableCategories" :key="cat" :value="cat">
-                    {{ cat }}
-                  </option>
-                </select>
-              </label>
-
-              <label class="field-label">
-                Producto
-                <select v-model="selectedStockId" class="form-input">
-                  <option value="" disabled>Selecciona un producto</option>
-                  <option v-for="item in quickUpdateItems" :key="item.id" :value="String(item.id)">
-                    {{ item.productName }} ({{ item.categoryName }}) · actual: {{ item.quantity }}
-                  </option>
-                </select>
-              </label>
-
-              <label class="field-label">
-                Nueva cantidad
-                <input
-                  v-model.number="newQuantity"
-                  type="number"
-                  min="0"
-                  class="form-input"
-                  placeholder="0"
-                />
-              </label>
-
-              <p class="helper-text">Selecciona un producto y define la nueva cantidad para actualizar el stock.</p>
-
-              <button class="btn-primary" type="submit" :disabled="isSaving || !selectedStockId">
-                <RefreshCw :size="18" :class="{ spinning: isSaving }" />
-                <span>{{ isSaving ? 'Guardando' : 'Guardar cambio' }}</span>
-              </button>
-            </form>
-          </Transition>
-        </div>
-
         <div class="panel-card alert-card">
           <div class="side-title-row">
             <div>
@@ -330,7 +288,7 @@
             <p>No hay productos críticos en este momento.</p>
           </div>
 
-          <div v-else class="alert-list">
+          <div v-else class="alert-list" :class="{ 'has-scroll': criticalItems.length >= 5 }">
             <article v-for="item in criticalItems" :key="item.id" class="alert-item">
               <div>
                 <strong>{{ item.productName }}</strong>
@@ -341,33 +299,34 @@
           </div>
         </div>
 
-        <div class="panel-card alert-card">
-          <div class="side-title-row">
-            <div>
-              <span class="eyebrow">Categorías</span>
-              <h2>Con más movimiento</h2>
-            </div>
-            <Boxes :size="22" class="title-icon" />
-          </div>
-
-          <div class="warehouse-list">
-            <div v-for="category in categorySummary" :key="category.name" class="warehouse-row">
-              <div>
-                <strong>{{ category.name }}</strong>
-                <p>{{ category.items }} registros</p>
-              </div>
-              <span>{{ category.total }} uds.</span>
-            </div>
-          </div>
-        </div>
       </aside>
     </section>
+
+    <Transition name="modal-fade">
+      <div v-if="isStockModalOpen" class="modal-backdrop" @click.self="closeStockModal">
+        <form class="stock-modal" @submit.prevent="submitStockUpdate">
+          <button type="button" class="modal-close" aria-label="Cerrar" @click="closeStockModal">
+            <X :size="20" />
+          </button>
+          <span class="eyebrow">Stock</span>
+          <h2>Actualizar cantidad</h2>
+          <p class="modal-product">{{ selectedStockItem?.productName }}</p>
+          <label class="field-label" for="new-stock-quantity">Nueva cantidad</label>
+          <input id="new-stock-quantity" v-model.number="newQuantity" type="number" min="0" class="form-input" />
+          <p class="helper-text">Cantidad actual: {{ selectedStockItem?.quantity ?? 0 }} {{ selectedStockItem?.formatName }}</p>
+          <button class="btn-primary" type="submit" :disabled="isSaving || newQuantity === null">
+            <RefreshCw :size="18" :class="{ spinning: isSaving }" />
+            <span>{{ isSaving ? 'Guardando' : 'Guardar cambio' }}</span>
+          </button>
+        </form>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { AlertTriangle, Boxes, ChevronDown, ChevronLeft, ChevronRight, Clock3, Filter, Layers3, Package, RefreshCw, Search, TrendingUp } from 'lucide-vue-next';
+import { AlertTriangle, ChevronLeft, ChevronRight, Clock3, Edit3, Filter, Layers3, Package, RefreshCw, Search, TrendingUp, X } from 'lucide-vue-next';
 import inventoryService, { type InventoryItem, type InventoryStatus } from '@/services/inventoryService';
 import { useNotification } from '@/composables/useNotification';
 
@@ -375,13 +334,13 @@ const { notify } = useNotification();
 const inventoryItems = ref<InventoryItem[]>([]);
 const isLoading = ref(true);
 const isSaving = ref(false);
-const isQuickUpdateOpen = ref(true);
+const isStockModalOpen = ref(false);
+const selectedStockItem = ref<InventoryItem | null>(null);
 const errorMessage = ref('');
 const searchQuery = ref('');
 const statusFilter = ref<'all' | InventoryStatus>('all');
 const selectedStockId = ref('');
 const newQuantity = ref<number | null>(null);
-const quickUpdateCategory = ref('all');
 
 const currentPage = ref(1);
 const itemsPerPage = ref(8);
@@ -406,15 +365,6 @@ const getCategoryPillClass = (catName: string) => {
   return 'cat-varios';
 };
 
-const availableCategories = computed(() => {
-  return [...new Set(inventoryItems.value.map(item => item.categoryName).filter(Boolean))];
-});
-
-const quickUpdateItems = computed(() => {
-  if (quickUpdateCategory.value === 'all') return inventoryItems.value;
-  return inventoryItems.value.filter(item => item.categoryName === quickUpdateCategory.value);
-});
-
 const fetchInventory = async () => {
   isLoading.value = true;
   errorMessage.value = '';
@@ -434,8 +384,18 @@ const reloadInventory = () => {
   fetchInventory();
 };
 
-const toggleQuickUpdateMenu = () => {
-  isQuickUpdateOpen.value = !isQuickUpdateOpen.value;
+const openStockModal = (item: InventoryItem) => {
+  selectedStockItem.value = item;
+  selectedStockId.value = String(item.id);
+  newQuantity.value = item.quantity;
+  isStockModalOpen.value = true;
+};
+
+const closeStockModal = () => {
+  if (isSaving.value) return;
+  isStockModalOpen.value = false;
+  selectedStockItem.value = null;
+  selectedStockId.value = '';
 };
 
 const toggleIngredientAvailability = async (item: InventoryItem) => {
@@ -462,6 +422,7 @@ const submitStockUpdate = async () => {
     inventoryItems.value = updatedItems;
     notify('¡Stock de insumo actualizado correctamente!', 'success');
     newQuantity.value = null;
+    closeStockModal();
   } catch (error) {
     console.error('Error al actualizar stock:', error);
     errorMessage.value = 'No se pudo actualizar el stock. Intenta nuevamente.';
@@ -492,8 +453,7 @@ const paginatedItems = computed(() => {
 
 const criticalItems = computed(() => {
   return inventoryItems.value
-    .filter((item) => item.status === 'critical' || item.status === 'low')
-    .slice(0, 5);
+    .filter((item) => item.status === 'critical' || item.status === 'low');
 });
 
 const stats = computed(() => {
@@ -505,21 +465,6 @@ const stats = computed(() => {
     low: inventoryItems.value.filter((item) => item.status === 'low' || item.status === 'critical').length,
     formats: activeFormats.size,
   };
-});
-
-const categorySummary = computed(() => {
-  const summary = new Map<string, { name: string; total: number; items: number }>();
-
-  inventoryItems.value.forEach((item) => {
-    const current = summary.get(item.categoryName) || { name: item.categoryName, total: 0, items: 0 };
-    current.total += item.quantity;
-    current.items += 1;
-    summary.set(item.categoryName, current);
-  });
-
-  return Array.from(summary.values())
-    .sort((a, b) => (b.items * 100 + b.total) - (a.items * 100 + a.total))
-    .slice(0, 4);
 });
 
 onMounted(() => {
@@ -838,15 +783,17 @@ onMounted(() => {
 }
 
 .header-card {
-  padding: 0.85rem 1.25rem;
-  background: white;
+  padding: 0.9rem 1.25rem;
+  background: linear-gradient(180deg, #fffefa 0%, #faf4ed 100%);
   border-radius: 18px;
-  box-shadow: 0 4px 16px rgba(26, 14, 5, 0.04);
+  box-shadow: 0 5px 18px rgba(26, 14, 5, 0.05);
   border: 1px solid rgba(81, 49, 25, 0.08);
 }
 
 .header-grid {
-  display: flex;
+  display: grid;
+  grid-template-columns: 20fr 13fr 10fr 7fr 7fr 10fr 12fr 10fr 11fr;
+  column-gap: 0.35rem;
   align-items: center;
   width: 100%;
 }
@@ -857,21 +804,28 @@ onMounted(() => {
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
 }
 
 .header-col.col-center {
   text-align: center;
 }
 
-.col-product { width: 24%; flex-shrink: 0; }
-.col-category { width: 16%; flex-shrink: 0; }
-.col-format { width: 12%; flex-shrink: 0; }
-.col-stock { width: 8%; flex-shrink: 0; }
-.col-min { width: 8%; flex-shrink: 0; }
-.col-status { width: 11%; flex-shrink: 0; }
-.col-disponibilidad { width: 11%; flex-shrink: 0; }
-.col-updated { width: 10%; flex-shrink: 0; }
+.header-grid .header-col {
+  width: auto;
+}
+
+.col-product { width: 20%; flex-shrink: 0; }
+.col-category { width: 13%; flex-shrink: 0; }
+.col-format { width: 10%; flex-shrink: 0; }
+.col-stock { width: 7%; flex-shrink: 0; }
+.col-min { width: 7%; flex-shrink: 0; }
+.col-status { width: 10%; flex-shrink: 0; }
+.col-disponibilidad { width: 12%; flex-shrink: 0; }
+.col-action { width: 10%; flex-shrink: 0; }
+.col-updated { width: 11%; flex-shrink: 0; }
 
 .table-card {
   padding: 0;
@@ -884,7 +838,7 @@ onMounted(() => {
 
 .table-wrapper {
   width: 100%;
-  overflow-x: auto;
+  overflow-x: hidden;
   scrollbar-width: none;
 }
 
@@ -1112,6 +1066,28 @@ onMounted(() => {
   background-color: #fecaca;
 }
 
+.stock-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(226, 135, 67, 0.35);
+  border-radius: 999px;
+  background: rgba(226, 135, 67, 0.1);
+  color: var(--DC-brown);
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.stock-action-btn:hover {
+  background: var(--DC-orange);
+  border-color: var(--DC-orange);
+}
+
 .stock-amount {
   font-size: 1.15rem;
   font-weight: 800;
@@ -1200,6 +1176,17 @@ onMounted(() => {
   gap: 0.85rem;
 }
 
+.alert-list.has-scroll {
+  max-height: 22rem;
+  overflow-y: auto;
+  padding-right: 0.35rem;
+  scrollbar-width: none;
+}
+
+.alert-list.has-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 .alert-item,
 .warehouse-row {
   display: flex;
@@ -1214,6 +1201,8 @@ onMounted(() => {
 .alert-item strong,
 .warehouse-row strong {
   color: var(--DC-gray);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .alert-qty {
@@ -1235,6 +1224,75 @@ onMounted(() => {
 
 .text-center {
   text-align: center;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(35, 20, 10, 0.46);
+}
+
+.stock-modal {
+  position: relative;
+  width: min(100%, 420px);
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(81, 49, 25, 0.1);
+  border-radius: 22px;
+  background: white;
+  box-shadow: 0 24px 70px rgba(26, 14, 5, 0.24);
+}
+
+.stock-modal h2 {
+  margin: 0;
+  color: var(--DC-brown);
+  font-size: 1.35rem;
+}
+
+.modal-product {
+  margin: -0.35rem 0 0.25rem;
+  color: var(--DC-text-gray);
+  font-weight: 700;
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--DC-bg-gray);
+  color: var(--DC-brown);
+  cursor: pointer;
+}
+
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.modal-fade-enter-active .stock-modal,
+.modal-fade-leave-active .stock-modal {
+  transition: transform 0.2s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+.modal-fade-enter-from .stock-modal,
+.modal-fade-leave-to .stock-modal {
+  transform: translateY(10px) scale(0.98);
 }
 
 @keyframes spin {
@@ -1319,8 +1377,7 @@ onMounted(() => {
   }
 
   .table-wrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow-x: hidden;
   }
 }
 
@@ -1357,6 +1414,8 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 10px;
+    min-width: 0;
+    flex-wrap: wrap;
     border-bottom: 1px dashed #eee;
     padding-bottom: 0.75rem;
   }
@@ -1367,12 +1426,14 @@ onMounted(() => {
     gap: 2px;
     flex: 1;
     overflow: hidden;
+    min-width: 0;
   }
 
   .mobile-card-info strong {
     font-size: 1rem;
     color: var(--DC-gray);
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -1417,8 +1478,20 @@ onMounted(() => {
 
   .mobile-card-footer {
     display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.7rem;
     justify-content: flex-end;
     font-size: 0.75rem;
+  }
+
+  .mobile-card-footer .meta-inline {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-card-footer .stock-action-btn {
+    margin-left: auto;
   }
 }
 
@@ -1427,7 +1500,13 @@ onMounted(() => {
 ---------------------------------------------------- */
 .table-wrapper {
   max-height: 500px;
+  overflow: hidden;
   overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.table-wrapper::-webkit-scrollbar {
+  display: none;
 }
 
 .inventory-pagination {
