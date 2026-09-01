@@ -14,7 +14,7 @@ class CajaRepository
     # Geters
     public function getAllCajas()
     {
-        return Caja::all();
+        return Caja::with(['usuario'])->orderBy('id_caja', 'asc')->get();
     }
 
     public function getCajaById($id)

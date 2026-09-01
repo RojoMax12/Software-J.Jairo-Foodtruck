@@ -1,18 +1,29 @@
 <?php
 
 namespace App\Repositories;
+
 use App\Models\Movimientos;
 
 class MovimientosRepository
 {
+    public function getAllMovimientos()
+    {
+        return Movimientos::with(['ingrediente'])->orderBy('id_movimiento', 'desc')->get();
+    }
+
+    public function getMovimientos()
+    {
+        return $this->getAllMovimientos();
+    }
+
     public function createMovimiento($data)
     {
         return Movimientos::create($data);
     }
 
-    public function getMovimientos()
+    public function getMovimientosById($id)
     {
-        return Movimientos::all();
+        return Movimientos::with(['ingrediente'])->find($id);
     }
 
     public function updateMovimiento($id, $data)

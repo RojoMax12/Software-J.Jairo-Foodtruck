@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Home, FileText, ShoppingBag, X } from 'lucide-vue-next'
+import { Home, FileText, ShoppingBag, User, X } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 
 const props = defineProps<{
@@ -32,8 +32,8 @@ const isActive = (path: string) => {
         
         <div class="sidebar-header">
           <div class="brand-group">
-            <img src="@/assets/logo_dicreme.png" alt="Logo" class="sidebar-logo" />
-            <span class="brand-name">Di Creme</span>
+            <img src="@/assets/logo_jairo.webp" alt="Logo" class="sidebar-logo" />
+            <span class="brand-name">J.Jairo</span>
           </div>
           <button class="btn-close" @click="emit('close')">
             <X :size="24" />
@@ -55,20 +55,20 @@ const isActive = (path: string) => {
 
             <button 
               class="nav-item" 
-              :class="{ active: isActive('/mis-cotizaciones') }"
-              @click="navigateTo('/mis-cotizaciones')"
-            >
-              <FileText :size="20" />
-              <span>Mis Cotizaciones</span>
-            </button>
-
-            <button 
-              class="nav-item" 
               :class="{ active: isActive('/mis-pedidos') }"
               @click="navigateTo('/mis-pedidos')"
             >
               <ShoppingBag :size="20" />
               <span>Mis Pedidos</span>
+            </button>
+
+            <button 
+              class="nav-item" 
+              :class="{ active: isActive('/mi-perfil') }"
+              @click="navigateTo('/mi-perfil')"
+            >
+              <User :size="20" />
+              <span>Mi Perfil</span>
             </button>
           </div>
         </nav>

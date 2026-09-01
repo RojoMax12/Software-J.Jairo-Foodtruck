@@ -1,10 +1,21 @@
 <?php
 
 namespace App\Repositories;
+
 use App\Models\Producto_Tamaño;
 
 class ProductoTamañoRepository
 {
+    public function getAllProductoTamaños()
+    {
+        return Producto_Tamaño::with(['producto', 'tamaño'])->get();
+    }
+
+    public function getProductoTamañoById($id)
+    {
+        return Producto_Tamaño::with(['producto', 'tamaño'])->find($id);
+    }
+
     public function createProductoTamaño($data)
     {
         return Producto_Tamaño::create($data);
@@ -12,7 +23,7 @@ class ProductoTamañoRepository
 
     public function getProductoTamañosByProductoId($id_producto)
     {
-        return Producto_Tamaño::where('id_producto', $id_producto)->get();
+        return Producto_Tamaño::with(['tamaño'])->where('id_producto', $id_producto)->get();
     }
 
     public function updateProductoTamaño($id, $data)

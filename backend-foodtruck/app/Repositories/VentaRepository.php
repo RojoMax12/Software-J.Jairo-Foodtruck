@@ -13,12 +13,12 @@ class VentaRepository
     # Geters
     public function getAllVentas()
     {
-        return Venta::all();
+        return Venta::with(['pedido', 'caja'])->orderBy('id_venta', 'desc')->get();
     }
 
     public function getVentaById($id)
     {
-        return Venta::find($id);
+        return Venta::with(['pedido', 'caja'])->find($id);
     }
 
     public function getVentaByPedidoId($idPedido)

@@ -1,40 +1,67 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Services\MoviminetosService;
+
+use App\Services\MovimientosServices;
+use Illuminate\Http\Request;
 
 class MovimientosController extends Controller
 {
     protected $movimientosService;
 
-    public function __construct(MovimientosService $movimientosService)
+    public function __construct(MovimientosServices $movimientosService)
     {
         $this->movimientosService = $movimientosService;
     }
 
-    public function createMovimiento(Request $request)
+    public function index()
+    {
+        return response()->json($this->movimientosService->getAllMovimientos());
+    }
+
+    public function show($id)
+    {
+        $mov = $this->movimientosService->getMovimientosById($id);
+        if (!$mov) {
+            return response()->json(['message' => 'Movimiento no encontrado'], 404);
+        }
+        return response()->json($mov);
+    }
+
+    public function store(Request $request)
     {
         $data = $request->all();
         $movimiento = $this->movimientosService->createMovimiento($data);
         return response()->json($movimiento, 201);
     }
 
-    public function getMovimientosById($id_movimiento)
-    {
-        $movimiento = $this->movimientosService->getMovimientosById($id_movimiento);
-        return response()->json($movimiento);
-    }
-
-    public function updateMovimiento(Request $request, $id_movimiento)
+    public function update(Request $request, $id)
     {
         $data = $request->all();
-        $movimiento = $this->movimientosService->updateMovimiento($id_movimiento, $data);
+        $movimiento = $this->movimientosService->updateMovimiento($id, $data);
+        if (!$movimiento) {
+            return response()->json(['message' => 'Movimiento no encontrado'], 404);
+        }
         return response()->json($movimiento);
     }
 
-    public function deleteMovimientoById($id_movimiento)
+    public function destroy($id)
     {
-        $this->movimientosService->deleteMovimientoById($id_movimiento);
+        $deleted = $this->movimientosService->deleteMovimientoById($id);
+        if (!$deleted) {
+            return response()->json(['message' => 'Movimiento no encontrado'], 404);
+        }
         return response()->json(null, 204);
+    }
+
+    // Aliases para compatibilidad
+    public function createMovimiento(Request $request)
+    {
+        return $this->store($request);
+    }
+
+    public function getMovimientosById($id)
+    {
+        return $this->show($id);
     }
 }

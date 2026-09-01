@@ -5,6 +5,11 @@ use App\Models\Horario_atencion;
 
 class HorarioAtencionRepository
 {
+    public function getAllHorarioAtencion()
+    {
+        return Horario_atencion::orderBy('dia_semana', 'asc')->get();
+    }
+
     public function createHorarioAtencion($data)
     {
         return Horario_atencion::create($data);

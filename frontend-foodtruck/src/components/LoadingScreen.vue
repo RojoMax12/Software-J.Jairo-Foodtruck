@@ -5,7 +5,6 @@
         <div class="icon-ring">
           <span class="fast-food-icon">🍔</span>
         </div>
-        <h2 class="loading-text">Cargando la experiencia...</h2>
         <div class="loading-bar-track">
           <div class="loading-bar-fill"></div>
         </div>

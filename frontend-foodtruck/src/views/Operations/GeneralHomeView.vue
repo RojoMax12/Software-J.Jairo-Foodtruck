@@ -55,6 +55,14 @@
         <h2>Productos</h2>
         <p>Gestiona, revisa y pon los productos disponible en oferta</p>
       </router-link>
+
+      <router-link v-role="[1]" to="/general-home/admin/banners" class="admin-option-card">
+        <div class="icon-container">
+          <PackageSearch :size="48" />
+        </div>
+        <h2>Personalizacion de la tienda</h2>
+        <p>Gestiona la personalización del banner y de los avisos</p>
+      </router-link>
     </div>
   </div>
 </template>

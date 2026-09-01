@@ -1,12 +1,17 @@
 import api from './api';
 
 export default { 
-    getOrders() {
-        return api.get('/pedidos');
+    getOrders(params?: { fecha_inicio?: string; fecha_fin?: string; limit?: number }) {
+        return api.get('/pedidos', { params });
     },
 
-    getOrdersByDistributor(distributorId: number) {
-        return api.get(`/pedidos/${distributorId}/usuario_distribuidor`);
+    getMyOrders(params?: { fecha_inicio?: string; fecha_fin?: string; limit?: number }) {
+        return api.get('/pedidos/mis-pedidos', { params });
+    },
+
+    getOrdersByDistributor(distributorId: number, params?: { fecha_inicio?: string; fecha_fin?: string; limit?: number }) {
+        return api.get(`/pedidos/${distributorId}/usuario_distribuidor`, { params })
+            .catch(() => api.get('/pedidos/mis-pedidos', { params }));
     },
     
     getOrderById(id: number | string) {
@@ -34,6 +39,10 @@ export default {
     },
 
     // RUTAS PÚBLICAS PARA QR Y CLIENTES SIN LOGIN
+    getOrderByComanda(comanda: number | string, params?: { fecha?: string }) {
+        return api.get(`/public/pedidos/comanda/${comanda}`, { params });
+    },
+
     getPublicOrderById(id: number | string) {
         return api.get(`/public/pedidos/${id}`);
     },

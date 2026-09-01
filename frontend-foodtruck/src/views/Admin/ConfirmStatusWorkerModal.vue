@@ -122,7 +122,7 @@ const emit = defineEmits<{
 
     background: rgba(0, 0, 0, .45);
 
-    z-index: 1100;
+    z-index: 9999;
 }
 
 /* Modal */

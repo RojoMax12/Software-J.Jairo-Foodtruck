@@ -10,9 +10,19 @@ class TamañoRepository
         return Tamaño::create($data);
     }
 
+    public function getAllTamaños()
+    {
+        return Tamaño::all();
+    }
+
     public function getTamaños()
     {
         return Tamaño::all();
+    }
+
+    public function getTamañoById($id)
+    {
+        return Tamaño::find($id);
     }
 
     public function updateTamaño($id, $data)

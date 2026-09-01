@@ -21,6 +21,16 @@ export default {
         return api.post('/productos', data);
     },
 
+    uploadProductImage(id: number | string, file: File){
+        const formData = new FormData();
+        formData.append('imagen', file);
+        return api.post(`/public/productos/${id}/imagen`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            }
+        });
+    },
+
     // RUTAS PÚBLICAS PARA QR Y CLIENTES
     getPublicProducts(){
         return api.get('/public/productos');

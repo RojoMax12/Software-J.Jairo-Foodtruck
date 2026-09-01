@@ -1,5 +1,7 @@
 <template>
   <div class="home-page">
+    <AdminPreviewBar />
+
     <CartModal 
       :isOpen="isCartOpen"
       :cart-items="cartItems"
@@ -22,7 +24,28 @@
       @confirm="router.push('/login')"
     />
 
-    <Carousel :images="bannerImages" :autoPlayInterval="5000"/>
+    <Carousel />
+
+    <!-- BANNER DE HORARIO Y ESTADO DE ATENCIÓN PÚBLICO -->
+    <div class="store-status-wrapper">
+      <div class="store-status-bar" :class="isStoreOpen ? 'store-open' : 'store-closed'">
+        <div class="store-status-content">
+          <span class="store-status-dot"></span>
+          <div class="store-status-text">
+            <strong v-if="isStoreOpen">
+              🟢 ¡Estamos atendiendo en vivo!
+            </strong>
+            <strong v-else>
+              ⚪ Foodtruck cerrado en este momento
+            </strong>
+            <span class="store-hours-info">
+              🕒 Horario: {{ shiftWindow?.hora_apertura || '19:00' }} a {{ shiftWindow?.hora_cierre || '00:30' }} hrs
+              <template v-if="!isStoreOpen"> · ¡Te esperamos hoy a las {{ shiftWindow?.hora_apertura || '19:00' }}!</template>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
     
     <main class="content-container">
       <SearchBar 
@@ -96,10 +119,9 @@ import categoryService from '@/services/productCategoryService';
 import productService from '@/services/productService';
 import Footer from '@/components/Footer.vue'
 import Carousel from '@/components/Carousel.vue';
-import imgBanner1 from '@/assets/banner1.webp'
-import imgBanner2 from '@/assets/banner2.webp'
-import imgBanner3 from '@/assets/banner3.webp'
+import AdminPreviewBar from '@/components/AdminPreviewBar.vue';
 import { useNotification } from '@/composables/useNotification';
+import cashFlowService, { type ShiftWindow } from '@/services/cashFlowService';
 
 const { notify } = useNotification();
 
@@ -117,12 +139,16 @@ const categoriesList = ref<any[]>([]);
 const selectedCategory = ref<string>('Todas');
 const searchQueryText = ref<string>('');
 
+const shiftWindow = ref<ShiftWindow | null>(null);
+const isStoreOpen = computed(() => shiftWindow.value?.es_jornada_activa ?? false);
 
-const bannerImages = [
-  imgBanner1,
-  imgBanner2,
-  imgBanner3
-];
+const loadShiftStatus = async () => {
+  try {
+    shiftWindow.value = await cashFlowService.fetchShiftWindowFromBackend();
+  } catch (e) {
+    console.warn('Error al consultar horario de atención en HomeView:', e);
+  }
+};
 
 // Estados autenticación
 const isLoggedIn = ref(false); 
@@ -142,14 +168,14 @@ const checkAuthStatus = () => {
     if (userParsed) {
       try {
         const userObj = JSON.parse(userParsed);
-        console.log("Contenido real de lo que hay en 'user':", userObj);
-        currentUser.value = userObj.nombre_empresa || 'Distribuidor';
+
+        currentUser.value = userObj.nombre || 'Cliente';
       } catch (error) {
         console.error("Error al parsear el usuario:", error);
-        currentUser.value = 'Distribuidor';
+        currentUser.value = 'Cliente';
       }
     } else {
-      currentUser.value = 'Distribuidor';
+      currentUser.value = 'Cliente';
     }
   } else {
     isLoggedIn.value = false;
@@ -342,10 +368,12 @@ const fetchIceCreams = async () => {
     const dbProducts = productsRes.data || [];
     const dbCategories = categoriesRes.data || [];
 
-    // Filtrar solo productos activos para el menú público del cliente
+    // Filtrar estrictamente solo productos activos y disponibles
     const activeDbProducts = dbProducts.filter((p: any) => {
-      if (p.active === false || p.activo === false || p.estado === 0 || p.activo === 0) return false;
-      return true;
+      const isActivo = p.activo !== false && p.activo !== 0 && p.active !== false;
+      const isDisponible = p.disponible !== false && p.disponible !== 0 && p.inStock !== false;
+      const isEstadoOk = p.estado !== 0;
+      return isActivo && isDisponible && isEstadoOk;
     });
 
     categoriesList.value = dbCategories.map((c: any) => ({
@@ -384,10 +412,11 @@ const fetchIceCreams = async () => {
     const groupableCategories = ['Vianesas', 'Ass', 'Churrascos', 'Lomitos'];
     const groupedMap: Record<string, any> = {};
 
-    dbProducts.forEach((prod: any) => {
+    activeDbProducts.forEach((prod: any) => {
       const catName = prod.categoria?.nombre_categoria || 'Varios';
       const isGroupable = groupableCategories.includes(catName);
       const groupKey = isGroupable ? catName : prod.nombre;
+      const prodImage = prod.imagen_url || prod.imagen || prod.image || categoryImages[catName] || 'https://images.unsplash.com/photo-1567620812782-f461bc805b46?w=900';
 
       if (!groupedMap[groupKey]) {
         groupedMap[groupKey] = {
@@ -395,7 +424,7 @@ const fetchIceCreams = async () => {
           name: isGroupable ? catName : prod.nombre,
           category: catName,
           color: categoryColors[catName] || '#E28743',
-          image: categoryImages[catName] || 'https://images.unsplash.com/photo-1567620812782-f461bc805b46?w=900',
+          image: prodImage,
           descripcion: prod.descripcion,
           tipo_armado: prod.tipo_armado,
           cantidad_incluida: prod.cantidad_incluida,
@@ -411,13 +440,12 @@ const fetchIceCreams = async () => {
         pricesMap[t.nombre] = Number(t.pivot?.precio || 0);
       });
 
-      const isProdActive = prod.active !== false && prod.activo !== false && prod.estado !== 0 && prod.activo !== 0;
-
       groupedMap[groupKey].types.push({
         id: prod.id_producto,
         name: prod.nombre,
         desc: prod.descripcion,
-        active: isProdActive,
+        active: true,
+        image: prodImage,
         prices: pricesMap,
         tamaños_obj: prod.tamaños || [],
         producto_ingrediente: prod.ingredientes || []
@@ -433,7 +461,7 @@ const fetchIceCreams = async () => {
       });
     });
 
-    iceCreams.value = Object.values(groupedMap);
+    iceCreams.value = Object.values(groupedMap).filter((g: any) => g.types && g.types.length > 0);
   } catch (error) {
     console.error('Error al cargar productos desde la API:', error);
   } finally {
@@ -453,9 +481,13 @@ const scrollToTop = () => {
 };
 
 onMounted(() => {
+  loadShiftStatus();
   fetchIceCreams();
   checkAuthStatus();
   window.addEventListener('scroll', handleScroll, { passive: true });
+  window.addEventListener('storage', fetchIceCreams);
+  window.addEventListener('focus', fetchIceCreams);
+  window.addEventListener('foodtruck-products-update', fetchIceCreams);
 
   // Recuperación segura del estado persistido del carrito temporal
   const savedCart = localStorage.getItem('dicreme_temp_cart');
@@ -470,6 +502,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
+  window.removeEventListener('storage', fetchIceCreams);
+  window.removeEventListener('focus', fetchIceCreams);
+  window.removeEventListener('foodtruck-products-update', fetchIceCreams);
 });
 
 // Guardado reactivo profundo en LocalStorage para no perder la persistencia de compra
@@ -483,6 +518,82 @@ watch(
 </script>
 
 <style scoped>
+.store-status-wrapper {
+  max-width: 1200px;
+  margin: 15px auto 0 auto;
+  padding: 0 16px;
+}
+
+.store-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-radius: 14px;
+  transition: all 0.3s ease;
+}
+
+.store-open {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1.5px solid #86efac;
+}
+
+.store-closed {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1.5px solid #cbd5e1;
+}
+
+.store-status-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.store-status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.store-open .store-status-dot {
+  background-color: #22c55e;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  animation: pulse-dot-home 1.6s infinite;
+}
+
+.store-closed .store-status-dot {
+  background-color: #94a3b8;
+}
+
+@keyframes pulse-dot-home {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+.store-status-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.store-open .store-status-text strong {
+  color: #166534;
+  font-size: 0.95rem;
+}
+
+.store-closed .store-status-text strong {
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.store-hours-info {
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
 .content-container {
   flex: 1; 
   padding: 20px;

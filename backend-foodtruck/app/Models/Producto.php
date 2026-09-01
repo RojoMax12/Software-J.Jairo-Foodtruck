@@ -20,8 +20,13 @@ class Producto extends Model
         'cantidad_incluida',
         'id_categoria',
         'descripcion',
+        'imagen',
         'activo',
         'disponible',
+    ];
+
+    protected $appends = [
+        'imagen_url',
     ];
 
     protected $casts = [
@@ -31,6 +36,19 @@ class Producto extends Model
         'activo' => 'boolean',
         'disponible' => 'boolean',
     ];
+
+    public function getImagenUrlAttribute()
+    {
+        if (empty($this->imagen)) {
+            return null;
+        }
+
+        if (str_starts_with($this->imagen, 'http://') || str_starts_with($this->imagen, 'https://') || str_starts_with($this->imagen, 'data:')) {
+            return $this->imagen;
+        }
+
+        return url('storage/' . ltrim($this->imagen, '/'));
+    }
 
     public function categoria()
     {

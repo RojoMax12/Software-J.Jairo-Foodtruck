@@ -4,11 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Auth\Passwords\CanResetPassword;
+use Illuminate\Notifications\Notifiable;
 
 class Usuario extends Authenticatable
 {
-    use HasFactory;
+    use HasFactory, CanResetPassword, Notifiable;
 
     protected $table = 'usuarios';
 
@@ -17,9 +18,12 @@ class Usuario extends Authenticatable
     protected $fillable = [
         'id_rol',
         'nombre',
+        'apellido',
+        'telefono',
         'estado',
         'contrasena',
         'correo',
+        'correo_electronico',
     ];
 
     protected $hidden = [
@@ -46,5 +50,37 @@ class Usuario extends Authenticatable
     public function caja()
     {
         return $this->hasMany(Caja::class, 'id_usuario');
+    }
+
+    // Funciones para que Laravel reconozca la contraseña del usuario
+    public function getAuthPasswordName()
+    {
+        return 'contrasena';
+    }
+
+    public function getAuthPassword()
+    {
+        return $this->contrasena;
+    }
+
+    public function getAuthIdentifierName()
+    {
+        return 'id_usuario';
+    }
+
+    // Funciones para recuperación de contraseña
+    public function getEmailForPasswordReset()
+    {
+        return $this->correo;
+    }
+
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new \App\Notifications\ResetPasswordNotification($token));
+    }
+
+    public function routeNotificationForMail(): string
+    {
+        return $this->correo;
     }
 }

@@ -1,7 +1,9 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Services\EstadoPagoService;
+use Illuminate\Http\Request;
 
 class EstadoPagoController extends Controller
 {
@@ -12,47 +14,59 @@ class EstadoPagoController extends Controller
         $this->estadoPagoService = $estadoPagoService;
     }
 
-    public function getAllEstadoPagos()
+    public function index()
     {
-        $estadoPagos = $this->estadoPagoService->getAllEstadoPagos();
-        return response()->json($estadoPagos);
+        return response()->json($this->estadoPagoService->getAllEstadoPagos());
     }
 
-    public function getEstadoPagoById($id)
+    public function show($id)
     {
         $estadoPago = $this->estadoPagoService->getEstadoPagoById($id);
-        if ($estadoPago) {
-            return response()->json($estadoPago);
-        } else {
+        if (!$estadoPago) {
             return response()->json(['message' => 'Estado de pago no encontrado'], 404);
         }
+        return response()->json($estadoPago);
     }
 
-    public function createEstadoPago(Request $request)
+    public function store(Request $request)
     {
         $data = $request->all();
         $estadoPago = $this->estadoPagoService->createEstadoPago($data);
         return response()->json($estadoPago, 201);
     }
 
-    public function updateEstadoPago(Request $request, $id)
+    public function update(Request $request, $id)
     {
         $data = $request->all();
         $estadoPago = $this->estadoPagoService->updateEstadoPago($id, $data);
-        if ($estadoPago) {
-            return response()->json($estadoPago);
-        } else {
+        if (!$estadoPago) {
             return response()->json(['message' => 'Estado de pago no encontrado'], 404);
         }
+        return response()->json($estadoPago);
     }
 
-    public function deleteEstadoPagoById($id)
+    public function destroy($id)
     {
         $deleted = $this->estadoPagoService->deleteEstadoPagoById($id);
-        if ($deleted) {
-            return response()->json(null, 204);
-        } else {
+        if (!$deleted) {
             return response()->json(['message' => 'Estado de pago no encontrado'], 404);
         }
+        return response()->json(null, 204);
+    }
+
+    // Aliases para compatibilidad
+    public function getAllEstadoPagos()
+    {
+        return $this->index();
+    }
+
+    public function getEstadoPagoById($id)
+    {
+        return $this->show($id);
+    }
+
+    public function createEstadoPago(Request $request)
+    {
+        return $this->store($request);
     }
 }

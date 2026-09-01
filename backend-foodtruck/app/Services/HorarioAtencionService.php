@@ -12,6 +12,11 @@ class HorarioAtencionService
         $this->horarioAtencionRepository = $horarioAtencionRepository;
     }
 
+    public function getAllHorarioAtencion()
+    {
+        return $this->horarioAtencionRepository->getAllHorarioAtencion();
+    }
+
     public function createHorarioAtencion($data)
     {
         return $this->horarioAtencionRepository->createHorarioAtencion($data);

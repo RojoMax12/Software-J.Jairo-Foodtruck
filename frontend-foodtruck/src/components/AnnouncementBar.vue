@@ -44,50 +44,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Megaphone, Flame, Clock, Sparkles, CreditCard, X } from 'lucide-vue-next';
+import { ref, computed } from 'vue';
+import { Megaphone, Flame, Clock, Sparkles, CreditCard } from 'lucide-vue-next';
+import { useMarketingConfig } from '@/composables/useMarketingConfig';
 
-interface AnnouncementItem {
-  badge: string;
-  type: 'promo' | 'schedule' | 'new' | 'payment' | 'info';
-  text: string;
-  highlight?: string;
-}
+const { activeAnnouncements } = useMarketingConfig();
 
 const isVisible = ref(true);
 
-const announcements = ref<AnnouncementItem[]>([
-  {
-    badge: 'PEDIDO ONLINE',
-    type: 'promo',
-    text: '¡Haz tu pedido en la web y retira directo en el foodtruck sin filas!',
-    highlight: '🌭 Retiro Rápido'
-  },
-  {
-    badge: 'HORARIOS',
-    type: 'schedule',
-    text: 'Atención de Lunes a Domingo de 18:30 a 00:30 hrs.',
-    highlight: '🔥 ¡Abierto hoy!'
-  },
-  {
-    badge: 'NUEVA CARTA',
-    type: 'new',
-    text: 'Prueba nuestras Hamburguesas Caseras XXL y Churrascos Premium.',
-    highlight: '🍔 100% Casero'
-  },
-  {
-    badge: 'ESTADO EN VIVO',
-    type: 'info',
-    text: 'Monitorea tu pedido en tiempo real desde la sección "Revisa tu pedido".',
-    highlight: '⚡ En vivo'
-  },
-  {
-    badge: 'MEDIOS DE PAGO',
-    type: 'payment',
-    text: 'Aceptamos Efectivo, Tarjeta de Débito, Crédito y Transferencia directa.',
-    highlight: '💳 Pago Fácil'
-  }
-]);
+const announcements = computed(() => {
+  const active = activeAnnouncements();
+  return active.length > 0 ? active : [];
+});
 </script>
 
 <style scoped>
@@ -116,16 +84,6 @@ const announcements = ref<AnnouncementItem[]>([
   width: 35px;
   pointer-events: none;
   z-index: 5;
-}
-
-.marquee-fade-left {
-  left: 0;
-  background: linear-gradient(to right, #442813, transparent);
-}
-
-.marquee-fade-right {
-  right: 32px;
-  background: linear-gradient(to left, #442813, transparent);
 }
 
 /* Riel de marquesina continua */

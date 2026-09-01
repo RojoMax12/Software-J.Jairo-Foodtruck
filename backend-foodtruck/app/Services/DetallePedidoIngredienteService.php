@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+
 use App\Repositories\DetallePedidoIngredienteRepository;
 
 class DetallePedidoIngredienteService
@@ -10,6 +11,16 @@ class DetallePedidoIngredienteService
     public function __construct(DetallePedidoIngredienteRepository $detallePedidoIngredienteRepository)
     {
         $this->detallePedidoIngredienteRepository = $detallePedidoIngredienteRepository;
+    }
+
+    public function getAllDetallePedidoIngredientes()
+    {
+        return $this->detallePedidoIngredienteRepository->getAllDetallePedidoIngredientes();
+    }
+
+    public function getDetallePedidoIngredienteById($id)
+    {
+        return $this->detallePedidoIngredienteRepository->getDetallePedidoIngredienteById($id);
     }
 
     public function createDetallePedidoIngrediente($data)
@@ -31,4 +42,4 @@ class DetallePedidoIngredienteService
     {
         return $this->detallePedidoIngredienteRepository->deleteDetallePedidoIngredienteById($id);
     }
-}   
+}

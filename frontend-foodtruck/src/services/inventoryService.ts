@@ -67,6 +67,7 @@ const dummyInventoryItems: InventoryItem[] = [
     statusLabel: statusLabelByType.ok,
     statusClass: 'status-ok',
     updatedLabel: '15 jun 2026',
+    disponible: true,
   },
   {
     id: 2,
@@ -81,6 +82,7 @@ const dummyInventoryItems: InventoryItem[] = [
     statusLabel: statusLabelByType.low,
     statusClass: 'status-low',
     updatedLabel: '15 jun 2026',
+    disponible: true,
   },
   {
     id: 3,
@@ -95,6 +97,7 @@ const dummyInventoryItems: InventoryItem[] = [
     statusLabel: statusLabelByType.critical,
     statusClass: 'status-critical',
     updatedLabel: '14 jun 2026',
+    disponible: false,
   },
   {
     id: 4,
@@ -109,6 +112,7 @@ const dummyInventoryItems: InventoryItem[] = [
     statusLabel: statusLabelByType.over,
     statusClass: 'status-over',
     updatedLabel: '15 jun 2026',
+    disponible: true,
   },
   {
     id: 5,
@@ -123,6 +127,7 @@ const dummyInventoryItems: InventoryItem[] = [
     statusLabel: statusLabelByType.ok,
     statusClass: 'status-ok',
     updatedLabel: '13 jun 2026',
+    disponible: true,
   },
   {
     id: 6,
@@ -137,6 +142,7 @@ const dummyInventoryItems: InventoryItem[] = [
     statusLabel: statusLabelByType.low,
     statusClass: 'status-low',
     updatedLabel: '12 jun 2026',
+    disponible: true,
   },
 ];
 

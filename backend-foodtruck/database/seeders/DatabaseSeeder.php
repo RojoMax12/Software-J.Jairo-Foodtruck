@@ -766,5 +766,8 @@ class DatabaseSeeder extends Seeder
                 ]
             );
         }
+
+        $this->call(ProductImageSeeder::class);
+        $this->call(MarketingSeeder::class);
     }
 }

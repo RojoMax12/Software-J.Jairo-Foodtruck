@@ -2,17 +2,69 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Mail, ArrowLeft } from 'lucide-vue-next'
+import api from '@/services/api'
+import { useNotification } from '@/composables/useNotification'
 
 const router = useRouter()
+const { notify } = useNotification()
+
 const email = ref('')
+const isLoading = ref(false)
+const errorMessage = ref('')
+const emailSent = ref(false)
 
 const goBack = () => {
   router.back()
 }
 
-const handleResetPassword = () => {
-  console.log('Reset password request for:', email.value)
-  // Falta la lógica para enviar el correo de restablecimiento de contraseña :)
+const handleResetPassword = async () => {
+  errorMessage.value = ''
+
+  const correo = email.value.trim()
+
+  // Validación básica
+  if (!correo) {
+    errorMessage.value = 'Por favor, ingresa tu correo electrónico.'
+    return
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+  if (!emailRegex.test(correo)) {
+    errorMessage.value = 'Ingresa un correo electrónico válido.'
+    return
+  }
+
+  isLoading.value = true
+
+  try {
+    await api.post('/auth/forgot-password', {
+      correo: correo
+    })
+
+    emailSent.value = true
+
+    notify(
+      'Si el correo está registrado, recibirás las instrucciones de recuperación.',
+      'success'
+    )
+
+  } catch (error: any) {
+    console.error('Forgot password error:', error)
+
+    errorMessage.value =
+      error.response?.data?.message ||
+      error.response?.data?.error ||
+      'No fue posible enviar el correo de recuperación.'
+
+    notify(
+      errorMessage.value,
+      'error'
+    )
+
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
@@ -31,25 +83,85 @@ const handleResetPassword = () => {
 
         <div class="divider"></div>
 
-        <div class="text-section">
-          <h2>Recupera tu acceso</h2>
-          <p>Ingresa tu correo electrónico y te enviaremos instrucciones para restablecer tu contraseña.</p>
-        </div>
+        <!-- FORMULARIO -->
+        <template v-if="!emailSent">
 
-        <div class="form-section">
-          <div class="input-group">
-            <input
-              v-model="email"
-              type="email"
-              placeholder="Correo electrónico"
-              class="custom-input"
-              @keyup.enter="handleResetPassword"
-            />
-            <Mail class="input-icon" :size="20" />
+          <div class="text-section">
+            <h2>Recupera tu acceso</h2>
+
+            <p>
+              Ingresa tu correo electrónico y te enviaremos
+              instrucciones para restablecer tu contraseña.
+            </p>
           </div>
 
-          <button @click="handleResetPassword" class="btn btn-primary">ENVIAR INSTRUCCIONES</button>
-        </div>
+          <div class="form-section">
+
+            <!-- Error -->
+            <div v-if="errorMessage" class="error-banner">
+              {{ errorMessage }}
+            </div>
+
+            <div class="input-group">
+              <input
+                v-model="email"
+                type="email"
+                placeholder="Correo electrónico"
+                class="custom-input"
+                :disabled="isLoading"
+                @keyup.enter="handleResetPassword"
+              />
+
+              <Mail
+                class="input-icon"
+                :size="20"
+              />
+            </div>
+
+            <button
+              @click="handleResetPassword"
+              class="btn btn-primary"
+              :disabled="isLoading"
+            >
+              {{ isLoading
+                ? 'ENVIANDO...'
+                : 'ENVIAR INSTRUCCIONES'
+              }}
+            </button>
+
+          </div>
+
+        </template>
+
+        <!-- CORREO ENVIADO -->
+        <template v-else>
+
+          <div class="success-section">
+
+            <div class="success-icon">
+              ✓
+            </div>
+
+            <div class="text-section">
+              <h2>Revisa tu correo</h2>
+
+              <p>
+                Si el correo ingresado está registrado,
+                recibirás un enlace para restablecer tu contraseña.
+              </p>
+            </div>
+
+            <button
+              @click="router.push('/login')"
+              class="btn btn-primary"
+            >
+              VOLVER AL LOGIN
+            </button>
+
+          </div>
+
+        </template>
+
       </div>
     </div>
   </div>
@@ -194,6 +306,19 @@ const handleResetPassword = () => {
   color: var(--DC-brown);
 }
 
+.error-banner {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: #fff0f3;
+  border: 2px solid var(--DC-pink);
+  border-radius: 0.75rem;
+  color: var(--DC-pink);
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-align: center;
+  box-sizing: border-box;
+}
+
 .btn {
   width: 100%;
   padding: 0.9rem;
@@ -216,6 +341,39 @@ const handleResetPassword = () => {
   transform: translateY(-2px);
   background-color: var(--DC-brown);
   box-shadow: 0 6px 20px rgba(81, 49, 25, 0.3);
+}
+
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background-color: #ccc;
+  box-shadow: none;
+  color: #666;
+}
+
+.success-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.success-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #e8f6ed;
+  color: #3b8f5c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 900;
+  margin-bottom: 1.5rem;
+}
+
+.success-section .text-section {
+  margin-bottom: 1rem;
 }
 
 @media (max-width: 576px) {
