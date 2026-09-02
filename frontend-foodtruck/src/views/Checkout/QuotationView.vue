@@ -464,6 +464,7 @@ const handleConfirmQuotation = async () => {
                 : parseInt(String(item.tamano_id || item.id_tamaño || item.id_tamano || '1').split('_')[0] || '1', 10) || 1));
 
       return {
+        id_producto: item.id || item.id_producto || null,
         id_producto: cleanProdId,
         id_tamaño: cleanTamanoId,
         nombre_producto: item.name || item.nombre || 'Producto',
@@ -475,6 +476,19 @@ const handleConfirmQuotation = async () => {
         opciones_seleccionadas: [
           ...(item.tamaño ? [{ tipo: 'Tamaño', valor: item.tamaño }] : []),
           ...(item.size ? [{ tipo: 'Tamaño', valor: item.size }] : []),
+          ...(item.exclusiones ? item.exclusiones.map((ex: string) => ({ tipo: 'Exclusión', ingrediente: ex })) : []),
+          ...(item.ingredientesRemovidos ? item.ingredientesRemovidos.map((ex: string) => ({ tipo: 'Sin', ingrediente: ex })) : []),
+          ...(item.agregadosDetails ? item.agregadosDetails.map((ag: any) => ({
+            id_ingrediente: ag.id_ingrediente || null,
+            tipo: 'Agregado',
+            precio: 0,
+            ingrediente: ag.nombre || ag.name || (typeof ag === 'string' ? ag : '')
+          })) : []),
+          ...((item.agregados && (!item.agregadosDetails || !item.agregadosDetails.length)) ? item.agregados.map((ag: string) => ({
+            tipo: 'Agregado',
+            precio: 0,
+            ingrediente: ag
+          })) : [])
           ...(item.excluidosDetails && item.excluidosDetails.length
             ? item.excluidosDetails.map((ex: any) => ({
                 id_ingrediente: ex.id_ingrediente || null,
