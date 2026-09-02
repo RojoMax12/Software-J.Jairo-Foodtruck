@@ -2,7 +2,7 @@
 
 namespace App\Repositories;
 
-use App\Models\Detalle_Pedido;
+use App\Models\Detalle_pedido;
 use App\Models\Detalle_pedido_Ingrediente;
 use App\Models\Pedido;
 use App\Models\Horario_atencion;
@@ -190,7 +190,7 @@ class PedidoRepository
                     : 0;
 
                 if ($idProducto) {
-                    $detalle = Detalle_Pedido::create([
+                    $detalle = Detalle_pedido::create([
                         'id_pedido' => $pedido->id_pedido,
                         'id_producto' => $idProducto,
                         'id_tamaño' => $idTamaño,
@@ -437,9 +437,9 @@ class PedidoRepository
         }
         if ($pedido) {
             if (isset($data['items']) && is_array($data['items'])) {
-                $oldDetalles = Detalle_Pedido::where('id_pedido', $pedido->id_pedido)->pluck('id_detalle_pedido');
+                $oldDetalles = Detalle_pedido::where('id_pedido', $pedido->id_pedido)->pluck('id_detalle_pedido');
                 Detalle_pedido_Ingrediente::whereIn('id_detalle_pedido', $oldDetalles)->delete();
-                Detalle_Pedido::where('id_pedido', $pedido->id_pedido)->delete();
+                Detalle_pedido::where('id_pedido', $pedido->id_pedido)->delete();
 
                 foreach ($data['items'] as $item) {
                     $idProducto = $item['id_producto'] ?? $item['catalogId'] ?? $item['id'] ?? null;
@@ -455,7 +455,7 @@ class PedidoRepository
                     }
 
                     if ($idProducto) {
-                        $detalle = Detalle_Pedido::create([
+                        $detalle = Detalle_pedido::create([
                             'id_pedido' => $pedido->id_pedido,
                             'id_producto' => $idProducto,
                             'id_tamaño' => $idTamaño,
