@@ -1,40 +1,40 @@
 <?php
 namespace App\Repositories;
-use App\Models\OfertaProducto;
+use App\Models\Oferta_producto;
 # Repositorio OfertaProducto
 class OfertaProductoRepository
 {
     # Create
     public function createOfertaProducto($data)
     {
-        return OfertaProducto::create($data);
+        return Oferta_producto::create($data);
     }
 
     # Geters
     public function getAllOfertaProductos()
     {
-        return OfertaProducto::all();
+        return Oferta_producto::all();
     }
 
     public function getOfertaProductoById($id)
     {
-        return OfertaProducto::find($id);
+        return Oferta_producto::find($id);
     }
 
     public function getOfertaProductosByProductoId($idProducto)
     {
-        return OfertaProducto::where('id_productos', $idProducto)->get();
+        return Oferta_producto::where('id_productos', $idProducto)->get();
     }
 
     public function getOfertaProductosByOfertaId($idOferta)
     {
-        return OfertaProducto::where('id_ofertas', $idOferta)->get();
+        return Oferta_producto::where('id_ofertas', $idOferta)->get();
     }
 
     # Seters
     public function updateOfertaProducto($id, $data)
     {
-        $ofertaProducto = OfertaProducto::find($id);
+        $ofertaProducto = Oferta_producto::find($id);
         if ($ofertaProducto) {
             $ofertaProducto->update($data);
             return $ofertaProducto;
@@ -45,7 +45,7 @@ class OfertaProductoRepository
     # Delete
     public function deleteOfertaProductoById($id)
     {
-        $ofertaProducto = OfertaProducto::find($id);
+        $ofertaProducto = Oferta_producto::find($id);
         if ($ofertaProducto) {
             $ofertaProducto->delete();
             return true;

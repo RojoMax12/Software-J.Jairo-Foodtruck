@@ -65,7 +65,7 @@ class Pedido extends Model
 
     public function detalles()
     {
-        return $this->hasMany(Detalle_Pedido::class, 'id_pedido');
+        return $this->hasMany(Detalle_pedido::class, 'id_pedido');
     }
 
 }

@@ -20,7 +20,7 @@ class Detalle_pedido_Ingrediente extends Model
 
     public function detalle_pedido()
     {
-        return $this->belongsTo(Detalle_Pedido::class, 'id_detalle_pedido');
+        return $this->belongsTo(Detalle_pedido::class, 'id_detalle_pedido');
     }
 
     public function ingrediente()

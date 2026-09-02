@@ -21,21 +21,21 @@ class RolService
 
     public function getRoleById($id)
     {
-        return $this->rolRepository->getRoleById($id);
+        return $this->rolRepository->getRolById($id);
     }
 
     public function createRole($data)
     {
-        return $this->rolRepository->createRole($data);
+        return $this->rolRepository->createRol($data);
     }
 
     public function updateRole($id, $data)
     {
-        return $this->rolRepository->updateRole($id, $data);
+        return $this->rolRepository->updateRol($id, $data);
     }
 
     public function deleteRole($id)
     {
-        return $this->rolRepository->deleteRole($id);
+        return $this->rolRepository->deleteRolById($id);
     }
 }

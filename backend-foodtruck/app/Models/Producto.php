@@ -75,6 +75,6 @@ class Producto extends Model
     // tabla que ya no existe. Un pedido se relaciona con el producto vía detalle_pedido.
     public function detalles()
     {
-        return $this->hasMany(Detalle_Pedido::class, 'id_producto');
+        return $this->hasMany(Detalle_pedido::class, 'id_producto');
     }
 }
