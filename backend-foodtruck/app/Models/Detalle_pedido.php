@@ -44,7 +44,7 @@ class Detalle_pedido extends Model
 
     public function ingredientes()
     {
-        return $this->hasMany(Detalle_Pedido_Ingrediente::class, 'id_detalle_pedido');
+        return $this->hasMany(Detalle_pedido_Ingrediente::class, 'id_detalle_pedido');
     }
 }
 
