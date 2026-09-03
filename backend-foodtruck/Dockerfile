@@ -17,5 +17,7 @@ COPY . /var/www/html
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN composer install --no-dev --optimize-autoloader
 
+RUN php artisan storage:link --force
+
 # Dar permisos al servidor sobre las carpetas de caché
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
