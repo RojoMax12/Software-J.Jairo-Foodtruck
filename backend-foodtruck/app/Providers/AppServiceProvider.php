@@ -23,6 +23,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        URL::forceScheme($this->app->environment('production') ? 'https' : 'http');
+
         // 1. Perfil para Autenticación (Previene fuerza bruta informando el tiempo de espera)
         RateLimiter::for('auth_limits', function (Request $request) {
             $path = $request->path();
@@ -42,9 +44,6 @@ class AppServiceProvider extends ServiceProvider
                 ], 429, $headers);
             });
         });
-            if ($this->app->environment('production')) {
-                URL::forceScheme('https');
-            }
 
         RateLimiter::for('api_escritura', function (Request $request) {
             return Limit::perMinute(40)->by($request->ip())->response(function (Request $request, array $headers) {
