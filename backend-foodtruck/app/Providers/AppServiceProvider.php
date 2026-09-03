@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\RateLimiter;
 
 class AppServiceProvider extends ServiceProvider
@@ -41,6 +42,9 @@ class AppServiceProvider extends ServiceProvider
                 ], 429, $headers);
             });
         });
+            if ($this->app->environment('production')) {
+                URL::forceScheme('https');
+            }
 
         RateLimiter::for('api_escritura', function (Request $request) {
             return Limit::perMinute(40)->by($request->ip())->response(function (Request $request, array $headers) {
