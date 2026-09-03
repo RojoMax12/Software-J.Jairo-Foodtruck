@@ -8,8 +8,8 @@
     <AnnouncementBar v-if="route.path === '/'" />
   </template>
 
-  <GlobalLoader />
-  <router-view v-if="!globalLoading"/>
+  <GlobalLoader/>
+  <router-view/>
 
   <div class="notification-container" aria-live="polite">
     <TransitionGroup name="toast">
