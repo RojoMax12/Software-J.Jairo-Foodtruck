@@ -1642,7 +1642,39 @@ const formatDiff = (diff: number) => {
 
 @media (max-width: 768px) {
   .cashflow-view {
-    padding: 15px;
+    padding: 15px 12px;
+  }
+
+  .cash-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .btn-refresh {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .shift-banner {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .shift-banner-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .kpis-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .tabs-header-bar {
@@ -1650,8 +1682,25 @@ const formatDiff = (diff: number) => {
     align-items: stretch;
   }
 
+  .view-tabs {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .tab-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
   .quick-action-buttons {
     flex-direction: column;
+    width: 100%;
+  }
+
+  .btn-quick-expense,
+  .btn-quick-withdraw {
+    width: 100%;
+    justify-content: center;
   }
 
   .grid-2-cols {

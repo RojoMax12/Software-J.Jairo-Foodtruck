@@ -1,6 +1,9 @@
 <?php
 namespace App\Services;
+
+use App\Models\HistorialMovimiento;
 use App\Repositories\CategoriaRepository;
+
 # Servicio Categoria
 class CategoriaService
 {
@@ -22,7 +25,17 @@ class CategoriaService
             throw new \InvalidArgumentException('Ya existe una categoría con ese nombre.');
         }
 
-        return $this->categoriaRepository->createCategoria($data);
+        $cat = $this->categoriaRepository->createCategoria($data);
+        if ($cat) {
+            HistorialMovimiento::registrar(
+                'categoria',
+                'crear',
+                'Nueva categoría creada',
+                $cat->nombre_categoria,
+                'Creada en catálogo de menú'
+            );
+        }
+        return $cat;
     }
 
     public function getAllCategorias()
@@ -51,11 +64,34 @@ class CategoriaService
             throw new \InvalidArgumentException('El nombre de la categoría no puede estar vacío.');
         }
 
-        return $this->categoriaRepository->updateCategoria($id, $data);
+        $catAnterior = $this->categoriaRepository->getCategoriaById($id);
+        $cat = $this->categoriaRepository->updateCategoria($id, $data);
+        if ($cat) {
+            HistorialMovimiento::registrar(
+                'categoria',
+                'editar',
+                'Categoría modificada',
+                $cat->nombre_categoria ?? ($catAnterior->nombre_categoria ?? "Categoría #$id"),
+                'Modificación de categoría en el menú'
+            );
+        }
+        return $cat;
     }
 
     public function deleteCategoriaById($id)
     {
-        return $this->categoriaRepository->deleteCategoriaById($id);
+        $cat = $this->categoriaRepository->getCategoriaById($id);
+        $nombre = $cat ? $cat->nombre_categoria : "Categoría #$id";
+        $deleted = $this->categoriaRepository->deleteCategoriaById($id);
+        if ($deleted) {
+            HistorialMovimiento::registrar(
+                'categoria',
+                'eliminar',
+                'Categoría eliminada',
+                $nombre,
+                'Eliminada del catálogo'
+            );
+        }
+        return $deleted;
     }
 }

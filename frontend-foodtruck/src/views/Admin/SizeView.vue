@@ -146,7 +146,6 @@
 import { ref, computed, onMounted } from 'vue'
 import sizeService from '@/services/sizeService'
 import productService from '@/services/productService'
-import catalogHistoryService from '@/services/catalogHistoryService'
 import { useNotification } from '@/composables/useNotification'
 import { Tag, Plus, Pencil, Trash2, Search, X, Check } from 'lucide-vue-next'
 
@@ -221,14 +220,6 @@ const submitForm = async () => {
         } catch {
             notify('Tamaño actualizado', 'success')
         }
-
-        catalogHistoryService.recordMovement({
-            tipo: 'tamaño',
-            accion: 'editar',
-            descripcion: 'Formato de tamaño modificado',
-            entidad: form.value.nombre,
-            usuario: 'Administrador (JJ)'
-        })
     } else {
         const newSize = {
             id_tamaño: Date.now(),
@@ -245,14 +236,6 @@ const submitForm = async () => {
         } catch {
             notify('Tamaño creado', 'success')
         }
-
-        catalogHistoryService.recordMovement({
-            tipo: 'tamaño',
-            accion: 'crear',
-            descripcion: 'Nuevo formato de tamaño registrado',
-            entidad: form.value.nombre,
-            usuario: 'Administrador (JJ)'
-        })
     }
 
     isModalOpen.value = false
@@ -269,14 +252,6 @@ const handleDelete = async (sz: any) => {
     } catch {
         notify('Tamaño eliminado', 'warning')
     }
-
-    catalogHistoryService.recordMovement({
-        tipo: 'tamaño',
-        accion: 'eliminar',
-        descripcion: 'Formato de tamaño eliminado',
-        entidad: sz.nombre,
-        usuario: 'Administrador (JJ)'
-    })
 }
 
 onMounted(async () => {
@@ -728,6 +703,46 @@ onMounted(async () => {
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    .size-page {
+        padding: 16px;
+    }
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+    }
+    .header-actions {
+        width: 100%;
+    }
+    .header-actions button {
+        width: 100%;
+        justify-content: center;
+    }
+    .modal-backdrop {
+        padding: 12px;
+    }
+    .modal-card {
+        border-radius: 18px;
+        max-width: 100%;
+    }
+    .modal-header {
+        padding: 14px 16px;
+    }
+    .modal-body {
+        padding: 16px;
+        gap: 14px;
+    }
+    .modal-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+    .modal-actions button {
+        width: 100%;
+        justify-content: center;
+    }
 }
 </style>
 

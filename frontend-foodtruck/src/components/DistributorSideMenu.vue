@@ -33,7 +33,7 @@ const isActive = (path: string) => {
         <div class="sidebar-header">
           <div class="brand-group">
             <img src="@/assets/logo_jairo.webp" alt="Logo" class="sidebar-logo" />
-            <span class="brand-name">J.Jairo</span>
+            <span class="brand-name">J.Junior</span>
           </div>
           <button class="btn-close" @click="emit('close')">
             <X :size="24" />

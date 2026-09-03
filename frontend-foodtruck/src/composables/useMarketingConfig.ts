@@ -30,7 +30,7 @@ const defaultBanners: BannerItem[] = [
   {
     id: 'banner-1',
     title: 'Nuestras Mejores Vianesas y Completos XXL',
-    subtitle: 'El auténtico sabor tradicional de J.Jairo',
+    subtitle: 'El auténtico sabor tradicional de J.Junior',
     image: imgBanner1,
     active: true,
     order: 1,
@@ -325,10 +325,13 @@ export function useMarketingConfig() {
     if (imagePath.includes('banner1')) return imgBanner1;
     if (imagePath.includes('banner2')) return imgBanner2;
     if (imagePath.includes('banner3')) return imgBanner3;
-    if (imagePath.startsWith('/storage/')) {
+
+    const normalized = imagePath.replace(/^\/?storage\/?/, '');
+    if (normalized !== imagePath || imagePath.startsWith('storage/') || imagePath.startsWith('/storage/')) {
       const backendUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace(/\/api\/?$/, '');
-      return `${backendUrl}${imagePath}`;
+      return `${backendUrl}/storage/${normalized}`;
     }
+
     return imagePath;
   }
 

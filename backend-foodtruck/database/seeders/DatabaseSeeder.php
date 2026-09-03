@@ -80,7 +80,8 @@ class DatabaseSeeder extends Seeder
             ['nombre_categoria' => 'Sándwich de Pollo', 'descripcion_categoria' => 'Sándwiches preparados con pechuga de pollo'],
             ['nombre_categoria' => 'Papas & Chorrillanas', 'descripcion_categoria' => 'Papas fritas, salchipapas, papas supremas y chorrillanas'],
             ['nombre_categoria' => 'Empanadas & Sopaipillas', 'descripcion_categoria' => 'Sopaipillas y empanadas variadas'],
-            ['nombre_categoria' => 'Bebestibles & Jugos', 'descripcion_categoria' => 'Bebidas frías, jugos, té y café'],
+            ['nombre_categoria' => 'Bebidas frías', 'descripcion_categoria' => 'Gaseosas, jugos, aguas minerales y bebidas energéticas'],
+            ['nombre_categoria' => 'Bebidas calientes', 'descripcion_categoria' => ' Cafés, té, hierbas e infusiones calientes'],
             ['nombre_categoria' => 'Promos / Combos', 'descripcion_categoria' => 'Promociones especiales y combos de la casa'],
         ];
 
@@ -531,7 +532,7 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'nombre' => 'Empanadas Queso 4x$1.000',
-                'categoria' => 'Empanadas & Sopaipillas',
+                'categoria' => 'Promos / Combos',
                 'descripcion' => 'Promoción de 4 empanadas de queso',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -541,7 +542,7 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'nombre' => 'Empanadas Variadas 3x$1.000',
-                'categoria' => 'Empanadas & Sopaipillas',
+                'categoria' => 'Promos / Combos',
                 'descripcion' => 'Promoción de 3 empanadas variadas (Queso aceituna, Jamón queso, Queso champiñón, Napolitana)',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -552,7 +553,7 @@ class DatabaseSeeder extends Seeder
             // --- BEBESTIBLES & JUGOS ---
             [
                 'nombre' => 'Té',
-                'categoria' => 'Bebestibles & Jugos',
+                'categoria' => 'Bebidas calientes',
                 'descripcion' => 'Té caliente',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -561,7 +562,7 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'nombre' => 'Café',
-                'categoria' => 'Bebestibles & Jugos',
+                'categoria' => 'Bebidas calientes',
                 'descripcion' => 'Café caliente',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -570,7 +571,7 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'nombre' => 'Café Express',
-                'categoria' => 'Bebestibles & Jugos',
+                'categoria' => 'Bebidas calientes',
                 'descripcion' => 'Café expreso concentrado',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -579,7 +580,7 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'nombre' => 'Agua Mineral',
-                'categoria' => 'Bebestibles & Jugos',
+                'categoria' => 'Bebidas frías',
                 'descripcion' => 'Agua mineral 500ml',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -588,7 +589,7 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'nombre' => 'Bebida en Lata',
-                'categoria' => 'Bebestibles & Jugos',
+                'categoria' => 'Bebidas frías',
                 'descripcion' => 'Gaseosa en lata 350ml',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -597,7 +598,7 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'nombre' => 'Bebida 1L',
-                'categoria' => 'Bebestibles & Jugos',
+                'categoria' => 'Bebidas frías',
                 'descripcion' => 'Gaseosa 1 Litro',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -606,7 +607,7 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'nombre' => 'Agua Max',
-                'categoria' => 'Bebestibles & Jugos',
+                'categoria' => 'Bebidas frías',
                 'descripcion' => 'Agua saborizada Max 1.5L',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -615,7 +616,7 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'nombre' => 'Jugo Benedictino',
-                'categoria' => 'Bebestibles & Jugos',
+                'categoria' => 'Bebidas frías',
                 'descripcion' => 'Jugo embotellado Benedictino',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -624,7 +625,7 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'nombre' => 'Jugo Del Valle',
-                'categoria' => 'Bebestibles & Jugos',
+                'categoria' => 'Bebidas frías',
                 'descripcion' => 'Jugo Del Valle sabores',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,

@@ -24,7 +24,9 @@ class OfertaRepository
 
     public function getOfertasByTipo($tipo)
     {
-        return Oferta::where('tipo', $tipo)->get();
+        return Oferta::whereHas('oferta_producto', function ($q) use ($tipo) {
+            $q->where('tipo', $tipo);
+        })->get();
     }
 
     public function getOfertaProductosByOfertaId($id)

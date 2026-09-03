@@ -464,7 +464,6 @@ const handleConfirmQuotation = async () => {
                 : parseInt(String(item.tamano_id || item.id_tamaño || item.id_tamano || '1').split('_')[0] || '1', 10) || 1));
 
       return {
-        id_producto: item.id || item.id_producto || null,
         id_producto: cleanProdId,
         id_tamaño: cleanTamanoId,
         nombre_producto: item.name || item.nombre || 'Producto',
@@ -488,7 +487,7 @@ const handleConfirmQuotation = async () => {
             tipo: 'Agregado',
             precio: 0,
             ingrediente: ag
-          })) : [])
+          })) : []),
           ...(item.excluidosDetails && item.excluidosDetails.length
             ? item.excluidosDetails.map((ex: any) => ({
                 id_ingrediente: ex.id_ingrediente || null,
@@ -887,6 +886,7 @@ const handleConfirmQuotation = async () => {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  min-width: 0;
 }
 
 .item-name-row {
@@ -894,18 +894,23 @@ const handleConfirmQuotation = async () => {
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
 }
 
 .item-name {
   font-size: 0.9rem;
   font-weight: 800;
   color: var(--DC-brown, #513119);
+  min-width: 0;
+  word-break: break-word;
 }
 
 .item-price-tag {
   font-size: 0.9rem;
   font-weight: 900;
   color: var(--DC-orange, #e28743);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .item-tags-row {
@@ -1067,16 +1072,113 @@ const handleConfirmQuotation = async () => {
 @media (max-width: 820px) {
   .quotation-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
 }
 
-@media (max-width: 480px) {
-  .name-inputs-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 600px) {
+  .quotation-page {
+    padding: 16px 12px 60px 12px;
   }
 
+  .title-section {
+    margin-bottom: 16px;
+  }
+
+  .main-title {
+    font-size: 1.35rem;
+  }
+
+  .main-subtitle {
+    font-size: 0.82rem;
+  }
+
+  .store-closed-checkout-banner {
+    padding: 14px;
+    border-radius: 14px;
+    margin-bottom: 16px;
+  }
+
+  .closed-banner-left {
+    gap: 10px;
+  }
+
+  .closed-text-box strong {
+    font-size: 0.92rem;
+  }
+
+  .closed-text-box span {
+    font-size: 0.82rem;
+  }
+
+  .form-card, 
+  .summary-card {
+    padding: 16px 14px;
+    border-radius: 14px;
+    margin-bottom: 14px;
+  }
+
+  .card-title {
+    font-size: 0.92rem;
+    margin-bottom: 12px;
+  }
+
+  .name-inputs-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .phone-prefix-tag {
+    padding: 10px 14px;
+    min-width: 64px;
+    font-size: 0.9rem;
+  }
+
+  .phone-real-input {
+    padding: 10px 14px;
+    font-size: 0.95rem;
+  }
+
+  .total-display-box {
+    padding: 12px 14px;
+  }
+
+  .total-label {
+    font-size: 0.88rem;
+  }
+
+  .total-value {
+    font-size: 1.25rem;
+  }
+
+  .btn-confirm-cotizacion {
+    padding: 13px;
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 400px) {
   .payment-options-grid {
-    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .payment-option-card {
+    padding: 10px 6px;
+    gap: 4px;
+  }
+
+  .pay-title {
+    font-size: 0.76rem;
+  }
+
+  .item-thumb {
+    width: 44px;
+    height: 44px;
+  }
+
+  .checkout-item-card {
+    padding: 8px;
+    gap: 8px;
   }
 }
 </style>

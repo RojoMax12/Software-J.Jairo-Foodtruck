@@ -2,8 +2,16 @@
   <div class="dashboard">
     <!-- Titulo -->
     <header class="orders-header">
-      <h1 class="orders-title">Gestión de trabajadores</h1>
-      <p class="orders-description">Administración trabajadores de Foodtruck J.Junior</p>
+      <div class="orders-header-copy">
+        <h1 class="orders-title">Gestión de trabajadores</h1>
+        <p class="orders-description">Administración de colaboradores y personal de Foodtruck J.Junior</p>
+      </div>
+      <div class="orders-header-actions">
+        <button class="btn-audit" @click="goToAudit" title="Ver auditoría de movimientos de trabajadores">
+          <History :size="16" />
+          <span>Ver Auditoría</span>
+        </button>
+      </div>
     </header>
 
     <!-- Tarjetas estadisticas -->
@@ -252,11 +260,17 @@
                         <td>
                             <label
                                 class="status-switch"
-                                :class="{ active: worker.estado, inactive: !worker.estado }"
+                                :class="{ 
+                                    active: worker.estado, 
+                                    inactive: !worker.estado,
+                                    'switch-disabled': isSelfUser(worker)
+                                }"
+                                :title="isSelfUser(worker) ? 'No puedes desactivar tu propia cuenta de administrador' : (worker.estado ? 'Desactivar trabajador' : 'Activar trabajador')"
                             >
                                 <input
                                     type="checkbox"
                                     :checked="worker.estado"
+                                    :disabled="isSelfUser(worker)"
                                     @change="toggleWorker(worker)"
                                 />
                                 <span class="slider"></span>
@@ -297,8 +311,21 @@
                                 <small class="mob-worker-role">ID #{{ worker.id_usuario }} · {{ getRoleName(worker.id_rol) }}</small>
                             </div>
                         </div>
-                        <label class="status-switch" :class="{ active: worker.estado, inactive: !worker.estado }">
-                            <input type="checkbox" :checked="worker.estado" @change="toggleWorker(worker)" />
+                        <label
+                            class="status-switch"
+                            :class="{ 
+                                active: worker.estado, 
+                                inactive: !worker.estado,
+                                'switch-disabled': isSelfUser(worker)
+                            }"
+                            :title="isSelfUser(worker) ? 'No puedes desactivar tu propia cuenta de administrador' : ''"
+                        >
+                            <input
+                                type="checkbox"
+                                :checked="worker.estado"
+                                :disabled="isSelfUser(worker)"
+                                @change="toggleWorker(worker)"
+                            />
                             <span class="slider"></span>
                             <span class="status-text">{{ worker.estado ? "Activo" : "Inactivo" }}</span>
                         </label>
@@ -387,8 +414,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { useNotification } from '@/composables/useNotification'
-import { SquarePen, Search, ShieldCheck, Users, UserCheck, UserX, CircleDot, ChevronDown, Plus, Eye, UserRoundX } from 'lucide-vue-next';
+import { SquarePen, Search, ShieldCheck, Users, UserCheck, UserX, CircleDot, ChevronDown, Plus, Eye, UserRoundX, History } from 'lucide-vue-next';
 import userService from '@/services/userService';
 import type { Worker, UpdateWorkerRequest } from '@/services/userService';
 import CreateWorkerModal from '@/views/Admin/CreateWorkerModal.vue';
@@ -396,6 +424,11 @@ import EditWorkerModal from '@/views/Admin/EditWorkerModal.vue';
 import ViewDetailWorkerModal from '@/views/Admin/ViewDetailWorkerModal.vue';
 import ConfirmStatusWorkerModal from '@/views/Admin/ConfirmStatusWorkerModal.vue';
 import { useModalScrollLock } from '@/composables/useModalScrollLock'
+
+const router = useRouter()
+const goToAudit = () => {
+  router.push('/general-home/admin/history?tipo=trabajador')
+}
 
 type RoleFilter = 'all' | 'Administrador' | 'Trabajador'
 type StatusFilter = 'all' | true | false
@@ -420,6 +453,23 @@ const selectedStatus = ref<StatusFilter>('all')
 const selectedWorker = ref<Worker | null>(null)
 const currentPage = ref(1)
 const pageSize = 10
+const currentUserId = ref<number | null>(null)
+
+const loadCurrentUser = () => {
+    try {
+        const userParsed = localStorage.getItem('user')
+        if (userParsed) {
+            const userObj = JSON.parse(userParsed)
+            currentUserId.value = Number(userObj.id_usuario || userObj.id || null)
+        }
+    } catch (e) {
+        console.error('Error parsing user session:', e)
+    }
+}
+
+const isSelfUser = (worker: Worker) => {
+    return currentUserId.value !== null && Number(worker.id_usuario) === Number(currentUserId.value)
+}
 
 /* Manejo de modales para restricción de scroll */
 const isAnyModalOpen = computed(() =>
@@ -578,6 +628,10 @@ const closeCreateWorkerModal = () => {
 
 /* 6. Funciones para cambiar el estado de un trabajador */
 const toggleWorker = (worker: Worker) => {
+    if (isSelfUser(worker)) {
+        notify('No puedes desactivar tu propia cuenta de administrador.', 'warning')
+        return
+    }
     workerToToggle.value = worker
     isConfirmStatusModalOpen.value = true
 }
@@ -591,6 +645,12 @@ const confirmToggleWorker = async () => {
     if (!workerToToggle.value) return
 
     const worker = workerToToggle.value
+    if (isSelfUser(worker)) {
+        notify('No puedes desactivar tu propia cuenta de administrador.', 'warning')
+        closeConfirmStatusModal()
+        return
+    }
+
     const newStatus = !worker.estado
 
     const previousStatus = worker.estado
@@ -717,6 +777,7 @@ const totalPages = computed(() =>
 )
 
 onMounted(() => {
+    loadCurrentUser()
     document.addEventListener('click', handleClickOutside)
     loadWorkers()
 })
@@ -766,6 +827,38 @@ onBeforeUnmount(() => {
 .orders-header {
   width: 100%;
   margin: 0 0 30px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.orders-header-copy {
+  display: flex;
+  flex-direction: column;
+}
+
+.btn-audit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: white;
+  border: 1.5px solid var(--DC-brown, #513119);
+  color: var(--DC-brown, #513119);
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(81, 49, 25, 0.04);
+}
+
+.btn-audit:hover {
+  background: var(--DC-brown, #513119);
+  color: white;
+  transform: translateY(-1px);
 }
 
 /* 1.1 Estilo título */
@@ -1158,6 +1251,24 @@ onBeforeUnmount(() => {
     outline-offset: 2px;
 }
 
+.status-switch.switch-disabled {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+}
+
+.status-switch.switch-disabled:hover {
+    filter: none;
+}
+
+.status-switch.switch-disabled input {
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
+
+.status-switch.switch-disabled .slider {
+    cursor: not-allowed !important;
+}
+
 /* 3.2.1.2.4 Acciones */
 .actions-column{
     display: flex;
@@ -1310,7 +1421,19 @@ onBeforeUnmount(() => {
 
     .orders-title { font-size: 1.5rem; }
     .orders-description { font-size: 0.85rem; }
-    .orders-header { margin-bottom: 5px; }
+    .orders-header {
+        margin-bottom: 12px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .orders-header-actions {
+        width: 100%;
+    }
+    .btn-audit {
+        width: 100%;
+        justify-content: center;
+    }
 
     .cards {
         grid-template-columns: 1fr;

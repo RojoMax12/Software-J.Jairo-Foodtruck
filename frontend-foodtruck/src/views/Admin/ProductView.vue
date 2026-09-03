@@ -21,31 +21,28 @@
                     <div class="header-stat-pills" v-else-if="activeTab === 'sizes'">
                         <span class="stat-pill"><strong>{{ sizesList.length }}</strong> formatos y tamaños</span>
                     </div>
-                    <div class="header-stat-pills" v-else-if="activeTab === 'history'">
-                        <span class="stat-pill"><strong>{{ catalogHistory.length }}</strong> movimientos registrados</span>
-                    </div>
                 </div>
                 <p>
-                    Administra integralmente la carta gastronómica: productos, categorías, formatos de tamaños y auditoría completa de movimientos.
+                    Administra integralmente la carta gastronómica: productos, categorías y formatos de tamaños.
                 </p>
             </div>
 
             <div class="header-actions">
+                <button class="secondary-button" @click="goToAudit" title="Ver auditoría completa de catálogo">
+                    <History :size="16" />
+                    <span>Ver Auditoría</span>
+                </button>
                 <button v-if="activeTab === 'products'" class="primary-button" @click="openCreateModal">
                     <Plus :size="18" />
-                    Nuevo producto
+                    <span>Nuevo Producto</span>
                 </button>
                 <button v-else-if="activeTab === 'categories'" class="primary-button" @click="openCreateCategoryModal">
                     <Plus :size="18" />
-                    Nueva categoría
+                    <span>Nueva Categoría</span>
                 </button>
                 <button v-else-if="activeTab === 'sizes'" class="primary-button" @click="openCreateSizeModal">
                     <Plus :size="18" />
-                    Nuevo tamaño
-                </button>
-                <button v-else-if="activeTab === 'history'" class="secondary-button" @click="clearAuditHistory" title="Limpiar historial">
-                    <RotateCcw :size="16" />
-                    Vaciar auditoría
+                    <span>Nuevo Formato / Tamaño</span>
                 </button>
             </div>
 
@@ -81,16 +78,6 @@
                 <Tag :size="17" />
                 <span>Tamaños</span>
                 <span class="tab-pill">{{ sizesList.length }}</span>
-            </button>
-
-            <button 
-                class="tab-nav-btn" 
-                :class="{ active: activeTab === 'history' }" 
-                @click="activeTab = 'history'"
-            >
-                <History :size="17" />
-                <span>Historial de Movimientos</span>
-                <span class="tab-pill history-pill" v-if="catalogHistory.length">{{ catalogHistory.length }}</span>
             </button>
         </div>
 
@@ -268,7 +255,8 @@
                                     </button>
                                     <button
                                         class="icon-button delete-btn"
-                                        title="Eliminar producto"
+                                        :class="{ 'already-inactive': !product.active }"
+                                        :title="product.active ? 'Desactivar producto de la carta' : 'Producto ya inactivo'"
                                         @click="handleDeleteProduct(product)"
                                     >
                                         <Trash2 :size="17" />
@@ -328,7 +316,12 @@
                                 <button class="icon-button" title="Oferta" @click="openOfferModal(product)">
                                     <BadgePercent :size="16" />
                                 </button>
-                                <button class="icon-button delete-btn" title="Eliminar" @click="handleDeleteProduct(product)">
+                                <button 
+                                    class="icon-button delete-btn" 
+                                    :class="{ 'already-inactive': !product.active }"
+                                    :title="product.active ? 'Desactivar producto de la carta' : 'Producto ya inactivo'" 
+                                    @click="handleDeleteProduct(product)"
+                                >
                                     <Trash2 :size="16" />
                                 </button>
                             </div>
@@ -495,84 +488,6 @@
                 <Tag :size="44" />
                 <h3>No se encontraron tamaños</h3>
                 <p>Agrega tamaños para ofrecer distintos formatos a tus clientes.</p>
-            </div>
-        </section>
-
-        <!-- ===================== TAB 4: HISTORIAL DE MOVIMIENTOS ===================== -->
-        <section v-if="activeTab === 'history'" class="table-container">
-            <div class="table-toolbar">
-                <div class="search-box">
-                    <Search :size="17" />
-                    <input
-                        v-model="historySearch"
-                        type="text"
-                        placeholder="Buscar por producto, categoría, usuario o detalle..."
-                    >
-                    <button v-if="historySearch" class="clear-search-btn" @click="historySearch = ''">
-                        <X :size="14" />
-                    </button>
-                </div>
-
-                <div class="filters-inline">
-                    <div class="filter-item">
-                        <select v-model="historyFilterType" class="filter-select">
-                            <option value="">Todos los tipos</option>
-                            <option value="producto">Solo Productos</option>
-                            <option value="categoria">Solo Categorías</option>
-                            <option value="tamaño">Solo Tamaños</option>
-                            <option value="oferta">Solo Ofertas</option>
-                            <option value="stock">Solo Stock / Estado</option>
-                        </select>
-                    </div>
-                    <button class="btn-clear-filters" @click="clearAuditHistory" title="Vaciar historial">
-                        <RotateCcw :size="14" />
-                        <span>Vaciar</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Timeline de Historial -->
-            <div class="history-timeline" v-if="filteredHistory.length > 0">
-                <div 
-                    v-for="mov in filteredHistory" 
-                    :key="mov.id" 
-                    class="timeline-entry"
-                >
-                    <div class="timeline-left-node">
-                        <div class="timeline-node-circle" :class="`action-${mov.accion}`">
-                            <Check v-if="mov.accion === 'crear'" :size="15" />
-                            <Pencil v-else-if="mov.accion === 'editar'" :size="15" />
-                            <Trash2 v-else-if="mov.accion === 'eliminar'" :size="15" />
-                            <BadgePercent v-else-if="mov.accion === 'oferta'" :size="15" />
-                            <Sparkles v-else :size="15" />
-                        </div>
-                        <div class="timeline-line-connector"></div>
-                    </div>
-
-                    <div class="timeline-box">
-                        <div class="timeline-box-header">
-                            <div class="timeline-header-title-group">
-                                <span class="timeline-type-pill" :class="`pill-${mov.accion}`">
-                                    {{ formatActionName(mov.accion) }} · {{ mov.tipo.toUpperCase() }}
-                                </span>
-                                <h4 class="timeline-heading">{{ mov.descripcion }}: <span class="highlight">{{ mov.entidad }}</span></h4>
-                            </div>
-                            <span class="timeline-rel-time"><Clock :size="13" /> {{ formatRelativeTime(mov.fecha) }}</span>
-                        </div>
-
-                        <p v-if="mov.detalle" class="timeline-box-desc">{{ mov.detalle }}</p>
-
-                        <div class="timeline-box-footer">
-                            <span class="timeline-user-badge">👤 {{ mov.usuario }}</span>
-                            <span class="timeline-exact-date">{{ formatExactDate(mov.fecha) }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div v-else class="empty-state-box">
-                <History :size="48" />
-                <h3>Sin movimientos registrados</h3>
-                <p>Cualquier cambio realizado en productos, categorías, formatos u ofertas quedará auditado aquí en tiempo real.</p>
             </div>
         </section>
 
@@ -991,31 +906,106 @@
             </div>
         </div>
 
-        <!-- MODAL OFERTA -->
+        <!-- MODAL OFERTA / DESCUENTO -->
         <div v-if="isOfferModalOpen" class="modal-backdrop" @click.self="isOfferModalOpen = false">
             <div class="modal-card">
                 <div class="modal-header">
-                    <h3><BadgePercent :size="20" /> Gestionar Oferta</h3>
+                    <div class="modal-header-title">
+                        <div class="header-icon-pill"><BadgePercent :size="18" /></div>
+                        <div>
+                            <h3>Gestionar Oferta y Descuento</h3>
+                            <p class="modal-header-desc">Aplica una promoción directa sobre el producto</p>
+                        </div>
+                    </div>
                     <button class="close-btn" @click="isOfferModalOpen = false"><X :size="20" /></button>
                 </div>
                 <div class="modal-body">
-                    <p class="offer-subtitle">Producto: <strong>{{ offerForm.productName }}</strong></p>
+                    <div class="offer-product-banner">
+                        <span class="offer-label-tag">Producto Seleccionado</span>
+                        <h4 class="offer-product-name">{{ offerForm.productName }}</h4>
+                        <div v-if="selectedProductForAction" class="offer-calc-row">
+                            <span class="offer-orig-price">Precio base: <strong>${{ Number(selectedProductForAction.price || 0).toLocaleString('es-CL') }}</strong></span>
+                            <span v-if="offerForm.discountPercent > 0" class="offer-preview-price">
+                                Con {{ offerForm.discountPercent }}% OFF: 
+                                <strong>${{ Math.round(Number(selectedProductForAction.price || 0) * (1 - offerForm.discountPercent / 100)).toLocaleString('es-CL') }}</strong>
+                            </span>
+                        </div>
+                    </div>
 
                     <label class="modal-label">
-                        Porcentaje de Descuento (%)
-                        <input v-model.number="offerForm.discountPercent" type="number" min="0" max="100" class="modal-input" placeholder="Ej: 15" />
+                        <span>Porcentaje de Descuento (%) <span class="required">*</span></span>
+                        <input 
+                            v-model.number="offerForm.discountPercent" 
+                            type="number" 
+                            min="0" 
+                            max="100" 
+                            class="modal-input" 
+                            placeholder="Ej: 15" 
+                        />
                     </label>
 
-                    <div class="preset-offers">
-                        <button type="button" class="preset-btn" @click="offerForm.discountPercent = 10">10% Off</button>
-                        <button type="button" class="preset-btn" @click="offerForm.discountPercent = 15">15% Off</button>
-                        <button type="button" class="preset-btn" @click="offerForm.discountPercent = 20">20% Off</button>
-                        <button type="button" class="preset-btn" @click="offerForm.discountPercent = 30">30% Off</button>
+                    <div class="preset-offers-group">
+                        <span class="sub-legend">Descuentos sugeridos rápidos:</span>
+                        <div class="preset-offers">
+                            <button 
+                                type="button" 
+                                class="preset-btn" 
+                                :class="{ active: offerForm.discountPercent === 10 }" 
+                                @click="offerForm.discountPercent = 10"
+                            >
+                                10% OFF
+                            </button>
+                            <button 
+                                type="button" 
+                                class="preset-btn" 
+                                :class="{ active: offerForm.discountPercent === 15 }" 
+                                @click="offerForm.discountPercent = 15"
+                            >
+                                15% OFF
+                            </button>
+                            <button 
+                                type="button" 
+                                class="preset-btn" 
+                                :class="{ active: offerForm.discountPercent === 20 }" 
+                                @click="offerForm.discountPercent = 20"
+                            >
+                                20% OFF
+                            </button>
+                            <button 
+                                type="button" 
+                                class="preset-btn" 
+                                :class="{ active: offerForm.discountPercent === 30 }" 
+                                @click="offerForm.discountPercent = 30"
+                            >
+                                30% OFF
+                            </button>
+                            <button 
+                                type="button" 
+                                class="preset-btn" 
+                                :class="{ active: offerForm.discountPercent === 50 }" 
+                                @click="offerForm.discountPercent = 50"
+                            >
+                                50% OFF
+                            </button>
+                        </div>
                     </div>
 
                     <div class="modal-actions">
-                        <button type="button" class="btn-remove" @click="clearOffer">Quitar Oferta</button>
-                        <button type="button" class="btn-save" @click="submitOffer">Aplicar Oferta</button>
+                        <button type="button" class="btn-cancel" @click="isOfferModalOpen = false">Cancelar</button>
+                        <button 
+                            v-if="selectedProductForAction?.offer" 
+                            type="button" 
+                            class="btn-remove" 
+                            @click="clearOffer"
+                            title="Quitar descuento y volver al precio original"
+                        >
+                            <Trash2 :size="15" />
+                            <span>Quitar Descuento</span>
+                        </button>
+                        <button type="button" class="btn-save" @click="submitOffer">
+                            <Check :size="16" />
+                            <span>Aplicar Oferta</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1027,12 +1017,12 @@
 
 <script setup lang="ts">
 
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import productService from '@/services/productService'
 import categoryService from '@/services/categoryService'
 import sizeService from '@/services/sizeService'
 import stockService from '@/services/stockService'
-import catalogHistoryService, { type CatalogMovement } from '@/services/catalogHistoryService'
 import { useNotification } from '@/composables/useNotification'
 import { useImageOptimizer } from '@/composables/useImageOptimizer'
 
@@ -1052,7 +1042,6 @@ import {
     PackageOpen,
     Pencil,
     Plus,
-    RotateCcw,
     Search,
     Sparkles,
     Tag,
@@ -1061,21 +1050,23 @@ import {
     X
 } from 'lucide-vue-next'
 
+const router = useRouter()
 const { notify } = useNotification()
 const { convertToWebP, getPreviewUrl } = useImageOptimizer()
 
-const activeTab = ref<'products' | 'categories' | 'sizes' | 'history'>('products')
+const goToAudit = () => {
+    router.push('/general-home/admin/history?tipo=producto')
+}
+
+const activeTab = ref<'products' | 'categories' | 'sizes'>('products')
 
 const isLoading = ref(true)
 const products = ref<any[]>([])
 const categoriesList = ref<any[]>([])
 const sizesList = ref<any[]>([])
-const catalogHistory = ref<CatalogMovement[]>([])
 
 const categorySearch = ref('')
 const sizeSearch = ref('')
-const historySearch = ref('')
-const historyFilterType = ref('')
 
 // Category Modal State
 const isCategoryModalOpen = ref(false)
@@ -1373,17 +1364,6 @@ const submitCreateProduct = async () => {
             localItem.image = res.data.imagen_url
         }
 
-        const sizeDetails = preciosTamanos.map(pt => `${pt.nombre}: $${pt.precio.toLocaleString('es-CL')}`).join(' | ')
-
-        catalogHistoryService.recordMovement({
-            tipo: 'producto',
-            accion: 'crear',
-            descripcion: 'Nuevo producto creado',
-            entidad: productForm.value.nombre,
-            detalle: `Formatos: ${sizeDetails} · Categoría: ${catName}`,
-            usuario: 'Administrador (JJ)'
-        })
-
         notify('¡Producto guardado exitosamente!', 'success')
     } catch (err) {
         notify('Producto creado', 'success')
@@ -1437,15 +1417,6 @@ const submitEditProduct = async () => {
             p.image = updateRes.data.imagen_url
         }
 
-        catalogHistoryService.recordMovement({
-            tipo: 'producto',
-            accion: 'editar',
-            descripcion: 'Producto modificado',
-            entidad: productForm.value.nombre,
-            detalle: `Precio: $${Number(basePrice).toLocaleString('es-CL')} · Categoría: ${catName}`,
-            usuario: 'Administrador (JJ)'
-        })
-
         notify('Producto actualizado exitosamente', 'success')
     } catch (err) {
         notify('Producto actualizado', 'success')
@@ -1454,42 +1425,89 @@ const submitEditProduct = async () => {
     isProductModalOpen.value = false
 }
 
+const saveDiscountsStorage = () => {
+    try {
+        const discounts: Record<string, number> = {}
+        products.value.forEach((p: any) => {
+            if (p.offer && p.offer > 0) {
+                discounts[p.id] = p.offer
+            }
+        })
+        localStorage.setItem('ft_product_discounts', JSON.stringify(discounts))
+    } catch (e) {
+        console.error('Error al guardar ofertas en localStorage:', e)
+    }
+}
+
+const loadDiscountsStorage = () => {
+    try {
+        const saved = localStorage.getItem('ft_product_discounts')
+        if (saved) {
+            const map = JSON.parse(saved)
+            products.value.forEach((p: any) => {
+                if (map[p.id]) {
+                    p.offer = Number(map[p.id])
+                }
+            })
+        }
+    } catch (e) {
+        console.error('Error al cargar ofertas desde localStorage:', e)
+    }
+}
+
 const openOfferModal = (product: any) => {
     selectedProductForAction.value = product
     offerForm.value = {
         productId: product.id,
         productName: product.name,
-        discountPercent: product.offer || 10
+        discountPercent: product.offer || 15
     }
     isOfferModalOpen.value = true
 }
 
-const submitOffer = () => {
+const submitOffer = async () => {
+    const discount = Math.min(100, Math.max(0, Number(offerForm.value.discountPercent) || 0))
     const p = products.value.find((item: any) => item.id === offerForm.value.productId)
     if (p) {
-        p.offer = Number(offerForm.value.discountPercent)
+        p.offer = discount
     }
-    notify(`Oferta del ${offerForm.value.discountPercent}% aplicada a "${offerForm.value.productName}"`, 'success')
+    if (selectedProductForAction.value) {
+        selectedProductForAction.value.offer = discount
+    }
+    saveDiscountsStorage()
+    notify(`Oferta del ${discount}% aplicada exitosamente a "${offerForm.value.productName}"`, 'success')
+    window.dispatchEvent(new Event('foodtruck-products-update'))
     isOfferModalOpen.value = false
 }
 
-const clearOffer = () => {
+const clearOffer = async () => {
     const p = products.value.find((item: any) => item.id === offerForm.value.productId)
     if (p) {
         p.offer = 0
     }
-    notify(`Oferta removida de "${offerForm.value.productName}"`, 'warning')
+    if (selectedProductForAction.value) {
+        selectedProductForAction.value.offer = 0
+    }
+    saveDiscountsStorage()
+    notify(`Oferta removida de "${offerForm.value.productName}". Vuelve a su precio base.`, 'warning')
+    window.dispatchEvent(new Event('foodtruck-products-update'))
     isOfferModalOpen.value = false
 }
 
 const handleDeleteProduct = async (product: any) => {
-    if (!confirm(`¿Estás seguro de eliminar el producto "${product.name}"?`)) return
-    products.value = products.value.filter((p: any) => p.id !== product.id)
+    if (!product.active) {
+        notify(`El producto "${product.name}" ya se encuentra inactivo en la carta.`, 'warning')
+        return
+    }
+    if (!confirm(`¿Estás seguro de desactivar el producto "${product.name}"? Quedará inactivo en la carta y no se mostrará a los clientes.`)) return
+    
+    product.active = false
+    product.inStock = false
     try {
-        await productService.deleteProduct(product.id)
-        notify('Producto eliminado', 'warning')
+        await productService.updateProduct(product.id, { activo: false, disponible: false })
+        notify(`Producto "${product.name}" desactivado correctamente`, 'warning')
     } catch (err) {
-        notify('Producto eliminado', 'warning')
+        notify(`Producto "${product.name}" marcado como inactivo`, 'warning')
     }
     window.dispatchEvent(new Event('foodtruck-products-update'))
 }
@@ -1537,6 +1555,7 @@ const loadCatalogData = async () => {
                 offer: 0
             }
         })
+        loadDiscountsStorage()
     } catch (err) {
         console.error('Error al cargar catálogo en Admin:', err)
     } finally {
@@ -1550,12 +1569,18 @@ const loadCatalogData = async () => {
  * ========================================================== */
 
 const search = ref('')
+const debouncedSearch = ref('')
 
 const selectedCategory = ref('')
 
 const selectedStatus = ref('')
 
 const selectedOffer = ref('')
+
+const normalizeText = (value: string = '') => value.trim().toLowerCase()
+
+const searchDebounceMs = 350
+let searchTimer: ReturnType<typeof setTimeout> | undefined
 
 /* ==========================================================
  * PAGINACIÓN
@@ -1565,17 +1590,55 @@ const pageSize = 5
 
 const currentPage = ref(1)
 
+watch(search, (value) => {
+    if (searchTimer) clearTimeout(searchTimer)
+
+    searchTimer = setTimeout(() => {
+        debouncedSearch.value = normalizeText(value)
+        currentPage.value = 1
+    }, searchDebounceMs)
+}, { immediate: true })
+
+watch([selectedCategory, selectedStatus, selectedOffer], () => {
+    currentPage.value = 1
+})
+
 /* ==========================================================
  * COMPUTED
  * ========================================================== */
 
+const productCategoryCounts = computed(() => {
+    const counts = new Map<string, number>()
+
+    for (const product of products.value) {
+        const category = product.category || 'General'
+        counts.set(category, (counts.get(category) || 0) + 1)
+    }
+
+    return counts
+})
+
+const productSizeCounts = computed(() => {
+    const counts = new Map<string, number>()
+
+    for (const product of products.value) {
+        const sizes = Array.isArray(product.sizes) ? product.sizes : []
+        for (const size of sizes) {
+            counts.set(size, (counts.get(size) || 0) + 1)
+        }
+    }
+
+    return counts
+})
+
+const searchTerm = computed(() => debouncedSearch.value)
+
 const filteredProducts = computed(() => {
+    const query = searchTerm.value
 
     return products.value.filter(product => {
-
-        const matchSearch =
-            product.name.toLowerCase()
-                .includes(search.value.toLowerCase())
+        const name = normalizeText(product.name || '')
+        const matchSearch = !query || name.includes(query)
 
         const matchCategory =
             !selectedCategory.value ||
@@ -1660,13 +1723,11 @@ const offerProducts = computed(() =>
 // HELPERS Y CONTEOS DE CATÁLOGO
 // ==========================================
 const getProductsCountByCategory = (catName: string) => {
-    return products.value.filter((p: any) => p.category === catName || p.categoria?.nombre_categoria === catName).length
+    return productCategoryCounts.value.get(catName) || 0
 }
 
 const getProductsCountBySize = (sizeName: string) => {
-    return products.value.filter((p: any) => {
-        return (p.sizes && p.sizes.includes(sizeName)) || (p.tamaños && p.tamaños.some((t: any) => t.nombre === sizeName))
-    }).length
+    return productSizeCounts.value.get(sizeName) || 0
 }
 
 const totalCategorizedProducts = computed(() => {
@@ -1689,23 +1750,6 @@ const filteredSizes = computed(() => {
         (s.nombre || '').toLowerCase().includes(q) ||
         (s.descripcion || '').toLowerCase().includes(q)
     )
-})
-
-const filteredHistory = computed(() => {
-    let list = catalogHistory.value
-    if (historyFilterType.value) {
-        list = list.filter((m: CatalogMovement) => m.tipo === historyFilterType.value)
-    }
-    if (historySearch.value) {
-        const q = historySearch.value.toLowerCase()
-        list = list.filter((m: CatalogMovement) =>
-            (m.entidad || '').toLowerCase().includes(q) ||
-            (m.descripcion || '').toLowerCase().includes(q) ||
-            (m.detalle || '').toLowerCase().includes(q) ||
-            (m.usuario || '').toLowerCase().includes(q)
-        )
-    }
-    return list
 })
 
 // ==========================================
@@ -1744,14 +1788,6 @@ const submitCategoryForm = async () => {
         } catch {
             notify('Categoría actualizada', 'success')
         }
-
-        catalogHistoryService.recordMovement({
-            tipo: 'categoria',
-            accion: 'editar',
-            descripcion: 'Categoría actualizada',
-            entidad: categoryForm.value.nombre_categoria,
-            usuario: 'Administrador (JJ)'
-        })
     } else {
         const newCat = {
             id_categoria: Date.now(),
@@ -1769,14 +1805,6 @@ const submitCategoryForm = async () => {
         } catch {
             notify('Categoría creada', 'success')
         }
-
-        catalogHistoryService.recordMovement({
-            tipo: 'categoria',
-            accion: 'crear',
-            descripcion: 'Nueva categoría creada',
-            entidad: categoryForm.value.nombre_categoria,
-            usuario: 'Administrador (JJ)'
-        })
     }
     isCategoryModalOpen.value = false
 }
@@ -1797,14 +1825,6 @@ const handleDeleteCategory = async (cat: any) => {
     } catch {
         notify('Categoría eliminada', 'warning')
     }
-
-    catalogHistoryService.recordMovement({
-        tipo: 'categoria',
-        accion: 'eliminar',
-        descripcion: 'Categoría eliminada',
-        entidad: cat.nombre_categoria,
-        usuario: 'Administrador (JJ)'
-    })
 }
 
 // ==========================================
@@ -1842,14 +1862,6 @@ const submitSizeForm = async () => {
         } catch {
             notify('Tamaño actualizado', 'success')
         }
-
-        catalogHistoryService.recordMovement({
-            tipo: 'tamaño',
-            accion: 'editar',
-            descripcion: 'Formato de tamaño modificado',
-            entidad: sizeForm.value.nombre,
-            usuario: 'Administrador (JJ)'
-        })
     } else {
         const newSz = {
             id_tamaño: Date.now(),
@@ -1866,14 +1878,6 @@ const submitSizeForm = async () => {
         } catch {
             notify('Tamaño creado', 'success')
         }
-
-        catalogHistoryService.recordMovement({
-            tipo: 'tamaño',
-            accion: 'crear',
-            descripcion: 'Nuevo formato de tamaño configurado',
-            entidad: sizeForm.value.nombre,
-            usuario: 'Administrador (JJ)'
-        })
     }
     isSizeModalOpen.value = false
 }
@@ -1889,62 +1893,6 @@ const handleDeleteSize = async (sz: any) => {
     } catch {
         notify('Tamaño eliminado', 'warning')
     }
-
-    catalogHistoryService.recordMovement({
-        tipo: 'tamaño',
-        accion: 'eliminar',
-        descripcion: 'Formato de tamaño eliminado',
-        entidad: sz.nombre,
-        usuario: 'Administrador (JJ)'
-    })
-}
-
-// ==========================================
-// HELPERS DE HISTORIAL Y FORMATO
-// ==========================================
-const formatActionName = (action: string) => {
-    switch (action) {
-        case 'crear': return 'CREACIÓN'
-        case 'editar': return 'MODIFICACIÓN'
-        case 'eliminar': return 'ELIMINACIÓN'
-        case 'oferta': return 'OFERTA'
-        case 'estado': return 'ESTADO'
-        default: return 'ACCIÓN'
-    }
-}
-
-const formatRelativeTime = (dateStr: string) => {
-    try {
-        const diffMs = Date.now() - new Date(dateStr).getTime()
-        const diffSecs = Math.floor(diffMs / 1000)
-        if (diffSecs < 60) return 'Hace un momento'
-        const diffMins = Math.floor(diffSecs / 60)
-        if (diffMins < 60) return `Hace ${diffMins} min`
-        const diffHours = Math.floor(diffMins / 60)
-        if (diffHours < 24) return `Hace ${diffHours} h`
-        const diffDays = Math.floor(diffHours / 24)
-        return `Hace ${diffDays} d`
-    } catch {
-        return 'Reciente'
-    }
-}
-
-const formatExactDate = (dateStr: string) => {
-    try {
-        return new Date(dateStr).toLocaleString('es-CL', {
-            day: '2-digit', month: '2-digit', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        })
-    } catch {
-        return dateStr
-    }
-}
-
-const clearAuditHistory = async () => {
-    if (!confirm('¿Deseas vaciar el historial de auditoría de catálogo en la base de datos?')) return
-    await catalogHistoryService.clearHistory()
-    catalogHistory.value = []
-    notify('Historial de movimientos vaciado', 'warning')
 }
 
 // ==========================================
@@ -1952,10 +1900,6 @@ const clearAuditHistory = async () => {
 // ==========================================
 onMounted(async () => {
     await loadCatalogData()
-    catalogHistory.value = await catalogHistoryService.fetchMovementsFromBackend()
-    window.addEventListener('foodtruck-catalog-movement', async () => {
-        catalogHistory.value = await catalogHistoryService.fetchMovementsFromBackend()
-    })
     window.addEventListener('foodtruck-products-update', () => {
         loadCatalogData()
     })
@@ -3251,6 +3195,19 @@ button:active{
     color: #dc2626 !important;
 }
 
+.delete-btn.already-inactive {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #f1f5f9 !important;
+    color: #94a3b8 !important;
+}
+
+.delete-btn.already-inactive:hover {
+    background: #f1f5f9 !important;
+    color: #94a3b8 !important;
+    transform: none !important;
+}
+
 .modal-backdrop {
     position: fixed;
     top: 0;
@@ -3268,12 +3225,27 @@ button:active{
 
 .modal-card {
     background: white;
-    border-radius: 24px;
+    border-radius: 20px;
     width: 100%;
-    max-width: 500px;
+    max-width: 480px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     overflow: hidden;
     animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    box-sizing: border-box;
+}
+
+.modal-body .modal-actions {
+    margin: 8px -24px -24px -24px;
+    padding: 16px 24px;
+    background: #f8fafc;
+    border-top: 1px solid #f1f5f9;
 }
 
 .modal-card-wide {
@@ -3710,6 +3682,13 @@ button:active{
     box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.15);
 }
 
+textarea.modal-input {
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+    line-height: 1.4;
+}
+
 .modal-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -3763,10 +3742,61 @@ button:active{
     box-shadow: 0 2px 6px rgba(226, 135, 67, 0.15);
 }
 
-.offer-subtitle {
-    margin: 0;
+.offer-product-banner {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.offer-label-tag {
+    font-size: 0.72rem;
+    font-weight: 800;
     color: #64748b;
-    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.offer-product-name {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--DC-brown, #513119);
+}
+
+.offer-calc-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 0.86rem;
+    color: #475569;
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px dashed #cbd5e1;
+}
+
+.offer-orig-price strong {
+    color: #1e293b;
+}
+
+.offer-preview-price {
+    color: #16a34a;
+    font-weight: 600;
+}
+
+.offer-preview-price strong {
+    color: #15803d;
+    font-size: 0.98rem;
+}
+
+.preset-offers-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .preset-offers {
@@ -3778,10 +3808,10 @@ button:active{
 .preset-btn {
     padding: 8px 14px;
     border-radius: 10px;
-    border: 1px solid #e2e8f0;
+    border: 1.5px solid #e2e8f0;
     background: #f8fafc;
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 0.84rem;
     color: var(--DC-brown, #513119);
     cursor: pointer;
     transition: 0.2s;
@@ -3791,6 +3821,13 @@ button:active{
     background: #fff4e6;
     border-color: var(--DC-orange, #e28743);
     color: var(--DC-orange, #e28743);
+}
+
+.preset-btn.active {
+    background: var(--DC-orange, #e28743);
+    border-color: var(--DC-orange, #e28743);
+    color: white;
+    box-shadow: 0 2px 6px rgba(226, 135, 67, 0.3);
 }
 
 /* ==========================================================
@@ -4288,15 +4325,69 @@ button:active{
         -webkit-overflow-scrolling: touch;
     }
 
+    /* MODALES RESPONSIVOS */
+    .modal-backdrop {
+        padding: 10px;
+    }
+
+    .modal-card {
+        border-radius: 18px;
+        max-width: 100%;
+    }
+
+    .modal-header {
+        padding: 14px 16px;
+    }
+
+    .modal-header h3 {
+        font-size: 1.05rem;
+    }
+
+    .modal-header-desc {
+        font-size: 0.75rem;
+    }
+
+    .modal-body {
+        padding: 16px;
+        gap: 14px;
+    }
+
+    .modal-body .modal-actions {
+        margin: 6px -16px -16px -16px;
+        padding: 12px 16px;
+        gap: 8px;
+    }
+
+    .modal-actions {
+        padding: 12px 16px;
+    }
+
+    .modal-actions button,
+    .modal-body .modal-actions button {
+        flex: 1;
+        justify-content: center;
+        padding: 10px 14px;
+        font-size: 0.88rem;
+    }
+
+    .modal-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
     .modal-columns-grid {
         grid-template-columns: 1fr !important;
-        gap: 18px !important;
-        padding: 16px !important;
+        gap: 14px !important;
+        padding: 14px !important;
     }
 
     .modal-card-wide {
-        max-height: 95vh !important;
+        max-height: 94vh !important;
         border-radius: 18px !important;
+    }
+
+    .modal-form-wrapper {
+        max-height: calc(94vh - 65px);
     }
 }
 </style>

@@ -183,7 +183,7 @@ const handleResetPassword = async () => {
         <div class="logo-section">
           <img
             src="../assets/logo_jairo.webp"
-            alt="J.Jairo Logo"
+            alt="J.Junior Logo"
             class="logo"
           />
         </div>

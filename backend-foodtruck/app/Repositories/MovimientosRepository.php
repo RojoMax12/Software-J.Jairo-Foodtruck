@@ -6,14 +6,24 @@ use App\Models\Movimientos;
 
 class MovimientosRepository
 {
-    public function getAllMovimientos()
+    public function getAllMovimientos($idIngrediente = null, $limit = 100)
     {
-        return Movimientos::with(['ingrediente'])->orderBy('id_movimiento', 'desc')->get();
+        $query = Movimientos::with(['ingrediente'])->orderBy('id_movimiento', 'desc');
+
+        if ($idIngrediente) {
+            $query->where('id_ingrediente', $idIngrediente);
+        }
+
+        if ($limit) {
+            $query->take((int)$limit);
+        }
+
+        return $query->get();
     }
 
-    public function getMovimientos()
+    public function getMovimientos($idIngrediente = null, $limit = 100)
     {
-        return $this->getAllMovimientos();
+        return $this->getAllMovimientos($idIngrediente, $limit);
     }
 
     public function createMovimiento($data)

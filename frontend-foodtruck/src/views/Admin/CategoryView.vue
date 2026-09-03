@@ -146,7 +146,6 @@
 import { ref, computed, onMounted } from 'vue'
 import categoryService from '@/services/categoryService'
 import productService from '@/services/productService'
-import catalogHistoryService from '@/services/catalogHistoryService'
 import { useNotification } from '@/composables/useNotification'
 import { FolderTree, Plus, Pencil, Trash2, Search, X, Check } from 'lucide-vue-next'
 
@@ -218,15 +217,6 @@ const submitForm = async () => {
         } catch {
             notify('Categoría actualizada', 'success')
         }
-
-        catalogHistoryService.recordMovement({
-            tipo: 'categoria',
-            accion: 'editar',
-            descripcion: 'Categoría modificada',
-            entidad: form.value.nombre_categoria,
-            detalle: form.value.descripcion_categoria,
-            usuario: 'Administrador (JJ)'
-        })
     } else {
         const newCat = {
             id_categoria: Date.now(),
@@ -244,15 +234,6 @@ const submitForm = async () => {
         } catch {
             notify('Categoría creada', 'success')
         }
-
-        catalogHistoryService.recordMovement({
-            tipo: 'categoria',
-            accion: 'crear',
-            descripcion: 'Nueva categoría registrada',
-            entidad: form.value.nombre_categoria,
-            detalle: form.value.descripcion_categoria,
-            usuario: 'Administrador (JJ)'
-        })
     }
 
     isModalOpen.value = false
@@ -274,14 +255,6 @@ const handleDelete = async (cat: any) => {
     } catch {
         notify('Categoría eliminada', 'warning')
     }
-
-    catalogHistoryService.recordMovement({
-        tipo: 'categoria',
-        accion: 'eliminar',
-        descripcion: 'Categoría eliminada',
-        entidad: cat.nombre_categoria,
-        usuario: 'Administrador (JJ)'
-    })
 }
 
 onMounted(async () => {
@@ -740,6 +713,46 @@ onMounted(async () => {
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    .category-page {
+        padding: 16px;
+    }
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+    }
+    .header-actions {
+        width: 100%;
+    }
+    .header-actions button {
+        width: 100%;
+        justify-content: center;
+    }
+    .modal-backdrop {
+        padding: 12px;
+    }
+    .modal-card {
+        border-radius: 18px;
+        max-width: 100%;
+    }
+    .modal-header {
+        padding: 14px 16px;
+    }
+    .modal-body {
+        padding: 16px;
+        gap: 14px;
+    }
+    .modal-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+    .modal-actions button {
+        width: 100%;
+        justify-content: center;
+    }
 }
 </style>
 

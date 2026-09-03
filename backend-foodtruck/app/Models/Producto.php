@@ -43,11 +43,20 @@ class Producto extends Model
             return null;
         }
 
-        if (str_starts_with($this->imagen, 'http://') || str_starts_with($this->imagen, 'https://') || str_starts_with($this->imagen, 'data:')) {
-            return $this->imagen;
+        $path = $this->imagen;
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://') || str_starts_with($path, 'data:')) {
+            return $path;
         }
 
-        return url('storage/' . ltrim($this->imagen, '/'));
+        $normalized = preg_replace('#^/?storage/?#', '', $path);
+        $normalized = ltrim((string) $normalized, '/');
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        return url('storage/' . $normalized);
     }
 
     public function categoria()

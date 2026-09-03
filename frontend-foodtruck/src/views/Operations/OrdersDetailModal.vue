@@ -58,7 +58,7 @@
           <div v-for="product in products" :key="product.id" class="product-card">
             <div class="product-main">
               <div class="qty-control">
-                <button @click="changeQty(product, -1)">-</button>
+                <button :disabled="product.quantity <= 1" @click="changeQty(product, -1)">-</button>
                 <span class="qty-num">{{ product.quantity }}</span>
                 <button @click="changeQty(product, 1)">+</button>
               </div>
@@ -83,6 +83,20 @@
             <div v-else class="product-ingredients-empty">Sin ajustes de ingredientes</div>
           </div>
         </div>
+        <!-- AVISOS OPERATIVOS CLAROS PARA LOS TRABAJADORES -->
+        <div v-if="localStatusId === 5" class="order-rule-banner banner-cancelled animate-fade-in">
+          <AlertTriangle :size="18" class="rule-icon" />
+          <div class="rule-text">
+            <strong>Pedido Cancelado:</strong> Este pedido fue cancelado. No es posible registrar pagos ni reactivar su preparación.
+          </div>
+        </div>
+        <div v-else-if="localStatusId === 4" class="order-rule-banner banner-delivered animate-fade-in">
+          <CheckCircle :size="18" class="rule-icon" />
+          <div class="rule-text">
+            <strong>Pedido Entregado:</strong> El pedido ya fue entregado exitosamente al cliente. Por políticas del local, no se puede cancelar.
+          </div>
+        </div>
+
         <div class="timeline-container">
           <div class="timeline-steps">
             <div 
@@ -93,7 +107,7 @@
                 'active': localStatusId === step.id, 
                 'completed': localStatusId !== 5 && localStatusId > step.id 
               }"
-              @click="localStatusId !== 5 && setOrderStatus(step.id)"
+              @click="localStatusId !== 5 && (localStatusId !== 4 || step.id <= 4) && setOrderStatus(step.id)"
             >
               <div class="step-circle">
                 <Check v-if="localStatusId !== 5 && localStatusId > step.id" :size="14" />
@@ -116,6 +130,9 @@
             <button 
               v-if="localPaymentStatusId !== 2" 
               class="btn-pay" 
+              :disabled="localStatusId === 5"
+              :class="{ 'btn-disabled-rule': localStatusId === 5 }"
+              :title="localStatusId === 5 ? 'Un pedido cancelado no puede ser marcado como pagado' : 'Marcar como Pagado'"
               @click="markAsPaid"
             >
               <DollarSign :size="16" /> Marcar como Pagado
@@ -127,6 +144,9 @@
             <button 
               v-if="localStatusId !== 5"
               class="btn-cancel-order"
+              :disabled="localStatusId === 4"
+              :class="{ 'btn-disabled-rule': localStatusId === 4 }"
+              :title="localStatusId === 4 ? 'Un pedido que ya ha sido entregado no puede ser cancelado' : 'Cancelar Pedido'"
               @click="cancelOrder"
             >
               <XCircle :size="16" /> Cancelar Pedido
@@ -307,7 +327,7 @@
           <div v-if="selectedCatalogProduct" class="picker-section">
             <p class="section-title">Cantidad</p>
             <div class="quantity-selector">
-              <button class="quantity-btn" @click="decreaseAddQuantity">-</button>
+              <button class="quantity-btn" :disabled="addQuantity <= 1" @click="decreaseAddQuantity">-</button>
               <span class="quantity-value">{{ addQuantity }}</span>
               <button class="quantity-btn" @click="increaseAddQuantity">+</button>
             </div>
@@ -327,7 +347,7 @@
 
   <div class="print-only" aria-hidden="true">
     <div class="print-header">
-      <div class="print-title">J.Jairo FoodTruck</div>
+      <div class="print-title">J.Junior FoodTruck</div>
       <div class="print-order-id">Comanda Pedido #{{ orderId }}</div>
       <div class="print-time">{{ date || '-' }} · {{ time || new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) }}</div>
     </div>
@@ -370,7 +390,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { X, Phone, Printer, Plus, Trash2, User, Check, CheckCircle, ChevronLeft, ChevronRight, DollarSign, XCircle, MessageCircle, FileText } from 'lucide-vue-next';
+import { X, Phone, Printer, Plus, Trash2, User, Check, CheckCircle, ChevronLeft, ChevronRight, DollarSign, XCircle, MessageCircle, FileText, AlertTriangle } from 'lucide-vue-next';
 import { useNotification } from '@/composables/useNotification';
 import orderService from '@/services/orderService';
 import productService from '@/services/productService';
@@ -415,7 +435,7 @@ const whatsappUrl = computed(() => {
     formatted = `569${cleanPhone}`;
   }
 
-  const text = encodeURIComponent(`Hola ${props.distributor || 'cliente'}, tu pedido #${props.orderId} en J.Jairo Foodtruck está listo! 🍔`);
+  const text = encodeURIComponent(`Hola ${props.distributor || 'cliente'}, tu pedido #${props.orderId} en J.Junior Foodtruck está listo! 🍔`);
   return `https://wa.me/${formatted}?text=${text}`;
 });
 
@@ -838,8 +858,16 @@ const handleClose = () => {
 };
 
 const changeQty = (p: any, delta: number) => {
-  p.quantity = Math.max(1, p.quantity + delta);
-  p.subtotal = p.quantity * (p.subtotal / (p.quantity - delta || 1));
+  const currentQuantity = Number(p.quantity || 1);
+  const nextQuantity = currentQuantity + delta;
+
+  if (nextQuantity < 1) {
+    return;
+  }
+
+  const unitPrice = currentQuantity > 0 ? (Number(p.subtotal || 0) / currentQuantity) : 0;
+  p.quantity = nextQuantity;
+  p.subtotal = Math.round(nextQuantity * unitPrice);
   saveOrder(false);
 };
 
@@ -978,6 +1006,11 @@ const getStatusClass = (id: number) => {
 };
 
 const markAsPaid = async () => {
+  if (localStatusId.value === 5) {
+    notify('Un pedido cancelado no puede ser marcado como pagado.', 'error');
+    return;
+  }
+
   try {
     const targetId = props.realId || props.orderId;
     await orderService.updateOrder(targetId, { id_estado_pago: 2 });
@@ -987,13 +1020,19 @@ const markAsPaid = async () => {
     notify('¡Pedido marcado como PAGADO exitosamente!', 'success');
     emit('statusChanged');
     emit('status-changed');
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error al actualizar estado de pago:', err);
-    notify('Error al marcar como pagado', 'error');
+    const msg = err?.response?.data?.error || err?.response?.data?.message || 'Error al marcar como pagado';
+    notify(msg, 'error');
   }
 };
 
 const updatePaymentMethod = async () => {
+  if (localStatusId.value === 5) {
+    notify('No se puede modificar el método de pago de un pedido cancelado.', 'error');
+    return;
+  }
+
   try {
     const targetId = props.realId || props.orderId;
     await orderService.updateOrder(targetId, { metodo_pago: currentPaymentMethod.value });
@@ -1002,16 +1041,24 @@ const updatePaymentMethod = async () => {
     notify(`Método de pago cambiado a: ${currentPaymentMethod.value}`, 'success');
     emit('statusChanged');
     emit('status-changed');
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error al actualizar método de pago:', err);
     notify('Error al cambiar método de pago', 'error');
   }
 };
 
 const cancelOrder = async () => {
+  if (localStatusId.value === 4) {
+    notify('Un pedido que ya ha sido entregado no puede ser cancelado.', 'error');
+    return;
+  }
+  if (localStatusId.value === 5) {
+    notify('Este pedido ya se encuentra cancelado.', 'warning');
+    return;
+  }
+
   if (!confirm('¿Estás seguro de cancelar este pedido?')) return;
   try {
-    saveOrder(false);
     const targetId = props.realId || props.orderId;
     await orderService.updateOrder(targetId, { id_estado_pedido: 5, total: totalAmount.value });
     localStatusId.value = 5;
@@ -1021,14 +1068,25 @@ const cancelOrder = async () => {
     notify('Pedido marcado como CANCELADO', 'success');
     emit('statusChanged');
     emit('status-changed');
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error al cancelar pedido:', err);
-    notify('Error al cancelar el pedido', 'error');
+    const msg = err?.response?.data?.error || err?.response?.data?.message || 'Error al cancelar el pedido';
+    notify(msg, 'error');
   }
 };
 
 const setOrderStatus = async (newStatusId: number) => {
   if (newStatusId === localStatusId.value) return;
+
+  if (localStatusId.value === 4 && newStatusId === 5) {
+    notify('Un pedido que ya ha sido entregado no puede ser cancelado.', 'error');
+    return;
+  }
+
+  if (localStatusId.value === 5) {
+    notify('El pedido está cancelado y no puede cambiar de estado.', 'error');
+    return;
+  }
 
   const statusNames: Record<number, string> = {
     1: 'Pendiente',
@@ -1039,7 +1097,6 @@ const setOrderStatus = async (newStatusId: number) => {
   };
 
   try {
-    saveOrder(false);
     const targetId = props.realId || props.orderId;
     await orderService.updateOrder(targetId, { id_estado_pedido: newStatusId, total: totalAmount.value });
 
@@ -1049,9 +1106,10 @@ const setOrderStatus = async (newStatusId: number) => {
     notify(`Estado actualizado a: ${localStatus.value}`, 'success');
     emit('statusChanged');
     emit('status-changed');
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error al actualizar estado:', err);
-    notify('Error al cambiar el estado del pedido', 'error');
+    const msg = err?.response?.data?.error || err?.response?.data?.message || 'Error al cambiar el estado del pedido';
+    notify(msg, 'error');
   }
 };
 
@@ -1089,7 +1147,7 @@ const printOrder = () => {
       <body>
         <div class="voucher">
           <div class="header">
-            <div class="title">J.Jairo FoodTruck</div>
+            <div class="title">J.Junior FoodTruck</div>
             <div class="order-id">Pedido #${props.orderId}</div>
             <div class="time">${props.date || '-'} · ${props.time || new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}</div>
           </div>
@@ -2475,9 +2533,17 @@ const contactClient = () => window.open(`tel:${props.phone}`);
   transition: all 0.2s ease;
 }
 
-.btn-cancel-order:hover {
+.btn-cancel-order:hover:not(:disabled) {
   background: #dc2626;
   color: white;
+}
+
+.btn-disabled-rule,
+.btn-cancel-order:disabled,
+.btn-pay:disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  pointer-events: auto !important;
 }
 
 .badge-cancelled-confirmed {
@@ -2489,6 +2555,45 @@ const contactClient = () => window.open(`tel:${props.phone}`);
   background: #fee2e2;
   color: #991b1b;
   font-size: 0.82rem;
+  font-weight: 800;
+}
+
+/* 🌟 BANNERS DE REGLAS OPERATIVAS (CANCELADO / ENTREGADO) */
+.order-rule-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin: 4px 0 10px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.banner-cancelled {
+  background: #fef2f2;
+  border: 1.5px solid #fecaca;
+  color: #991b1b;
+}
+
+.banner-cancelled .rule-icon {
+  color: #dc2626;
+  flex-shrink: 0;
+}
+
+.banner-delivered {
+  background: #f0fdf4;
+  border: 1.5px solid #bbf7d0;
+  color: #166534;
+}
+
+.banner-delivered .rule-icon {
+  color: #16a34a;
+  flex-shrink: 0;
+}
+
+.rule-text strong {
+  display: inline;
   font-weight: 800;
 }
 

@@ -57,7 +57,7 @@
 
     <!-- Línea final de derechos de autor -->
     <div class="footer-bottom">
-      <p>© 2026 J.Jairo. Todos los derechos reservados.</p>
+      <p>© 2026 J.Junior. Todos los derechos reservados.</p>
     </div>
   </footer>
 </template>

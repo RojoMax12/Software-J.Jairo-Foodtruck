@@ -3,9 +3,9 @@
     <nav class="dc-navbar">
       <div class="nav-left">
         <div class="brand-group" @click="goToHome">
-          <img src="@/assets/logo_jairo.webp" alt="Foodtruck J.Jairo Logo" class="brand-logo" />
+          <img src="@/assets/logo_jairo.webp" alt="Foodtruck J.Junior Logo" class="brand-logo" />
           <div class="brand-info">
-            <span class="brand-text">J. Jairo</span>
+            <span class="brand-text">J.Junior</span>
           </div>
         </div>
       </div>
@@ -524,18 +524,34 @@ watch(() => route.path, () => {
   }
 }
 
-@media (max-width: 480px) {
-  .brand-text {
-    font-size: 1.05rem;
+@media (max-width: 600px) {
+  .brand-group {
+    gap: 8px;
   }
 
   .brand-logo {
-    height: 32px;
+    height: 34px;
   }
 
-  .btn-nav-action {
-    padding: 6px 10px;
-    font-size: 0.72rem;
+  .brand-text {
+    font-size: 1.15rem;
+    letter-spacing: 0.5px;
+  }
+
+  .btn-check-order .btn-label, 
+  .btn-my-orders .btn-label,
+  .btn-login .btn-label {
+    display: none;
+  }
+  
+  .btn-check-order, 
+  .btn-my-orders,
+  .btn-login {
+    padding: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    justify-content: center;
   }
 
   .client-name {
@@ -543,18 +559,33 @@ watch(() => route.path, () => {
   }
 
   .client-user-badge {
-    padding: 4px;
+    padding: 3px;
   }
 }
 
-@media (max-width: 360px) {
-  .btn-check-order .btn-label, .btn-my-orders .btn-label {
-    display: none;
+@media (max-width: 420px) {
+  .dc-navbar {
+    padding: 0 10px;
+    height: 56px;
   }
-  
-  .btn-check-order, .btn-my-orders {
-    padding: 7px;
-    border-radius: 50%;
+
+  .brand-group {
+    gap: 6px;
+  }
+
+  .brand-logo {
+    height: 30px;
+  }
+
+  .brand-text {
+    font-size: 1.05rem;
+  }
+
+  .btn-check-order, 
+  .btn-my-orders,
+  .btn-login {
+    width: 32px;
+    height: 32px;
   }
 }
 </style>

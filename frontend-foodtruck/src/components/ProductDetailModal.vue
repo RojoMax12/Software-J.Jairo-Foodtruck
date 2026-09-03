@@ -9,7 +9,7 @@
 
         <div class="modal-grid">
           <div class="product-img-box">
-            <img :src="product.image" :alt="product.name" class="main-product-img" />
+            <img :src="selectedProductImage" :alt="selectedType?.name || product.name" class="main-product-img" />
           </div>
           
           <div class="product-info-box">
@@ -37,11 +37,11 @@
               </div>
 
               <!-- 2. Variedad / Producto de la Categoría -->
-              <div v-if="product.types && product.types.length > 0" class="config-section">
+              <div v-if="activeTypes && activeTypes.length > 0" class="config-section">
                 <p class="section-subtitle">{{ product.sizes?.length > 1 ? '2.' : '1.' }} Variedad / Producto:</p>
                 <div class="types-list">
                   <div 
-                    v-for="tipo in product.types" 
+                    v-for="tipo in activeTypes" 
                     :key="tipo.id"
                     class="type-row"
                     :class="{ 
@@ -176,6 +176,10 @@ const excludedIngredients = ref<string[]>([]);
 const addedExtraIngredients = ref<string[]>([]);
 const quantity = ref(1);
 
+const selectedProductImage = computed(() => {
+  return selectedType.value?.image || props.product?.image || '';
+});
+
 const activeTypes = computed(() => {
   if (!props.product || !props.product.types) return [];
   return props.product.types.filter((t: any) => {
@@ -184,9 +188,37 @@ const activeTypes = computed(() => {
   });
 });
 
+const getEffectiveSizeForType = (tipo: any) => {
+  if (!tipo || !tipo.prices) return '';
+
+  const keys = Object.keys(tipo.prices || {});
+  const preferred = selectedSize.value || newProductFallbackSize.value || '';
+
+  if (preferred && tipo.prices[preferred] != null) {
+    return preferred;
+  }
+
+  const positiveSize = keys.find((sizeName: string) => Number(tipo.prices[sizeName] ?? 0) > 0);
+  return positiveSize || keys[0] || '';
+};
+
+const newProductFallbackSize = computed(() => {
+  if (!props.product?.sizes?.length) return '';
+  return String(props.product.sizes[0]);
+});
+
 const isTypeAvailable = (tipo: any) => {
   if (!tipo) return false;
   if (tipo.active === false || tipo.activo === false || tipo.estado === 0 || tipo.activo === 0) return false;
+
+  const effectiveSize = selectedSize.value || getEffectiveSizeForType(tipo);
+  if (effectiveSize && tipo.prices) {
+    const priceForSelectedSize = Number(tipo.prices[effectiveSize] ?? 0);
+    if (priceForSelectedSize <= 0) {
+      return false;
+    }
+  }
+
   return true;
 };
 
@@ -194,7 +226,11 @@ const isTypeAvailable = (tipo: any) => {
 watch(() => props.product, (newProduct) => {
   if (newProduct && newProduct.types) {
     const firstAvailable = newProduct.types.find((t: any) => isTypeAvailable(t));
-    selectedSize.value = newProduct.sizes?.[0] || '';
+    const fallbackSize = firstAvailable
+      ? (newProduct.sizes?.[0] || getEffectiveSizeForType(firstAvailable) || '')
+      : (newProduct.sizes?.[0] || '');
+
+    selectedSize.value = fallbackSize;
     selectedType.value = firstAvailable || newProduct.types[0] || null;
     excludedIngredients.value = [];
     addedExtraIngredients.value = [];
@@ -259,7 +295,9 @@ const isBaseIngredient = (name: string) => {
          lower === 'hamburguesa' ||
          lower === 'masa pizza' ||
          lower === 'sopaipilla' ||
-         lower === 'empanada';
+         lower === 'empanada'||
+         lower === 'papas fritas' ||
+         lower === 'queso gauda';
 };
 
 // 1. Ingredientes de Receta Base (incluido_por_defecto !== false)
@@ -326,8 +364,10 @@ const extraIngredientsCost = computed(() => {
 });
 
 const currentPrice = computed(() => {
-  if (!selectedType.value || !selectedSize.value) return 0;
-  const basePrice = Number(selectedType.value.prices[selectedSize.value] || 0);
+  if (!selectedType.value) return 0;
+  const effectiveSize = selectedSize.value || getEffectiveSizeForType(selectedType.value);
+  if (!effectiveSize) return 0;
+  const basePrice = Number(selectedType.value.prices[effectiveSize] || 0);
   return basePrice + extraIngredientsCost.value;
 });
 
@@ -337,17 +377,19 @@ const totalPriceFormatted = computed(() => {
 
 const selectedSizeId = computed(() => {
   if (!selectedType.value) return 1;
+  const effectiveSize = selectedSize.value || getEffectiveSizeForType(selectedType.value);
   const list = selectedType.value.tamaños_obj || props.product?.tamaños_obj || [];
-  const found = list.find((t: any) => t.nombre === selectedSize.value);
+  const found = list.find((t: any) => t.nombre === effectiveSize);
   return found?.id_tamaño || found?.id || 1;
 });
 
 const handleAddToCart = () => {
   if (!selectedType.value || !isTypeAvailable(selectedType.value)) return;
 
+  const effectiveSize = selectedSize.value || getEffectiveSizeForType(selectedType.value);
   const exclusionKey = [...excludedIngredients.value].sort().join('-');
   const additionKey = [...addedExtraIngredients.value].sort().join('-');
-  const cartItemId = `${selectedType.value.id}_${selectedSize.value}_${exclusionKey}_${additionKey}`;
+  const cartItemId = `${selectedType.value.id}_${effectiveSize}_${exclusionKey}_${additionKey}`;
 
   const excluidosDetails = excludedIngredients.value.map((name: string) => {
     const found = selectedType.value?.producto_ingrediente?.find(
@@ -380,7 +422,7 @@ const handleAddToCart = () => {
       : props.product.name,
     category: props.product.category,
     image: props.product.image,
-    size: selectedSize.value,
+    size: effectiveSize,
     quantity: quantity.value,
     price: currentPrice.value,
     excluidos: [...excludedIngredients.value],

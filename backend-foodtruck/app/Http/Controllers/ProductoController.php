@@ -197,12 +197,7 @@ class ProductoController extends Controller
 
     public function destroy($id)
     {
-        $producto = $this->productoService->getProductoById($id);
-        if ($producto && $producto->imagen && !str_starts_with($producto->imagen, 'http')) {
-            Storage::disk('public')->delete($producto->imagen);
-        }
-
         $this->productoService->deleteProductoById($id);
-        return response()->json(null, 204);
+        return response()->json(['message' => 'Producto desactivado del catálogo correctamente.'], 200);
     }
 }

@@ -36,7 +36,7 @@ class ProductoRepository
     {
         $producto = Producto::find($id);
         if ($producto) {
-            return $producto->pedidos;
+            return $producto->detalles()->with('pedido')->get()->pluck('pedido')->filter()->unique('id_pedido')->values();
         }
         return null;
     }
@@ -45,7 +45,7 @@ class ProductoRepository
     {
         $producto = Producto::find($id);
         if ($producto) {
-            return $producto->producto_ingrediente;
+            return $producto->ingredientes;
         }
         return null;
     }
@@ -54,7 +54,7 @@ class ProductoRepository
     {
         $producto = Producto::find($id);
         if ($producto) {
-            return $producto->ofertaProductos;
+            return $producto->ofertas;
         }
         return null;
     }

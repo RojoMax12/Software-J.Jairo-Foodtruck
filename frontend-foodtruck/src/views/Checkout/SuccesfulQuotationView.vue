@@ -46,7 +46,7 @@ const goToCheckStatus = () => {
         </div>
 
         <h2 class="success-title">Tu Pedido ha sido Ingresado</h2>
-        <p class="success-subtitle">¡Gracias por tu preferencia J.Junior!</p>
+        <p class="success-subtitle">¡Gracias por tu preferencia en Foodtruck J.Junior!</p>
         
         <div class="divider-line"></div>
         

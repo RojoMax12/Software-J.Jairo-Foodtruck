@@ -1,9 +1,24 @@
+import api from './api';
 import stockService from './stockService';
 import productService from './productService';
 import categoryService from './productCategoryService';
 import formatService from './productFormatService';
 
 export type InventoryStatus = 'ok' | 'low' | 'critical' | 'over';
+
+export interface StockMovement {
+  id_movimiento: number;
+  id_ingrediente: number;
+  cantidad: number;
+  tipo_movimiento: 'Entrada' | 'Salida' | string;
+  fecha_movimiento: string;
+  created_at?: string;
+  ingrediente?: {
+    id_ingrediente: number;
+    nombre: string;
+    unidad_medida?: string;
+  };
+}
 
 export interface InventoryItem {
   id: number | string;
@@ -42,7 +57,7 @@ const formatDateLabel = (value: string | undefined) => {
 const buildStatus = (quantity: number, minStock: number): InventoryStatus => {
   if (quantity <= 0) return 'critical';
   if (quantity < minStock) return 'low';
-  if (quantity > minStock * 3) return 'over';
+  if (minStock > 0 && quantity > minStock * 15) return 'over';
   return 'ok';
 };
 
@@ -208,5 +223,18 @@ export default {
   async toggleAvailability(stockId: number | string, disponible: boolean) {
     await stockService.updateStock(stockId, { disponible });
     return getInventoryItems();
+  },
+  async getIngredientMovements(idIngrediente?: number | string, limit = 100): Promise<StockMovement[]> {
+    try {
+      const params: Record<string, any> = { limit };
+      if (idIngrediente) {
+        params.id_ingrediente = idIngrediente;
+      }
+      const response = await api.get('/movimientos', { params });
+      return Array.isArray(response.data) ? response.data : (response.data?.data || []);
+    } catch (error) {
+      console.warn('Error al cargar movimientos de stock:', error);
+      return [];
+    }
   },
 };

@@ -4,25 +4,52 @@
       <div class="header-copy">
         <span class="eyebrow">Operaciones</span>
         <h1>Inventario</h1>
-        <p>Revisa el stock disponible, detecta alertas y sigue la misma línea visual de la aplicación.</p>
+        <p>Revisa el stock disponible, detecta alertas y consulta el Kardex de entradas y salidas.</p>
       </div>
 
       <div class="header-actions">
-        <button class="btn-secondary" @click="reloadInventory" :disabled="isLoading">
-          <RefreshCw :size="18" :class="{ spinning: isLoading }" />
-          <span>{{ isLoading ? 'Actualizando' : 'Actualizar' }}</span>
+        <button class="btn-secondary" @click="currentTab === 'stock' ? reloadInventory() : loadAllKardexMovements()" :disabled="isLoading || isLoadingKardex">
+          <RefreshCw :size="18" :class="{ spinning: isLoading || isLoadingKardex }" />
+          <span>{{ (isLoading || isLoadingKardex) ? 'Actualizando' : 'Actualizar' }}</span>
         </button>
       </div>
     </header>
 
-    <section class="summary-grid">
-      <article class="summary-card">
-        <div class="summary-icon-box bg-summary-brown">
-          <Boxes :size="24" />
-        </div>
-        <div>
-          <span class="summary-label">Total registros</span>
-          <strong class="summary-value">{{ stats.total }}</strong>
+    <!-- PESTAÑAS PRINCIPALES: STOCK vs KARDEX -->
+    <div class="inventory-tabs-nav">
+      <button 
+        type="button"
+        class="tab-nav-btn" 
+        :class="{ active: currentTab === 'stock' }" 
+        @click="currentTab = 'stock'"
+      >
+        <Boxes :size="18" />
+        <span>Insumos & Stock Actual</span>
+        <span class="tab-pill">{{ inventoryItems.length }}</span>
+      </button>
+
+      <button 
+        type="button"
+        class="tab-nav-btn" 
+        :class="{ active: currentTab === 'kardex' }" 
+        @click="switchToKardexTab"
+      >
+        <ArrowLeftRight :size="18" />
+        <span>Kardex & Movimientos de Stock</span>
+        <span class="tab-pill kardex-pill" v-if="allMovements.length">{{ allMovements.length }}</span>
+      </button>
+    </div>
+
+    <!-- ===================== TAB 1: STOCK ACTUAL ===================== -->
+    <template v-if="currentTab === 'stock'">
+      <section class="summary-grid">
+        <article class="summary-card">
+          <div class="summary-icon-box bg-summary-brown">
+            <Boxes :size="24" />
+          </div>
+          <div>
+            <span class="summary-label">Total registros</span>
+            <strong class="summary-value">{{ stats.total }}</strong>
           <p class="summary-helper">Items de inventario cargados</p>
         </div>
       </article>
@@ -189,10 +216,12 @@
                     </button>
                   </td>
                   <td class="col-action">
-                    <button type="button" class="stock-action-btn" @click="openStockModal(item)">
-                      <Edit3 :size="15" />
-                      <span>Actualizar</span>
-                    </button>
+                    <div class="col-actions-wrap">
+                      <button type="button" class="stock-action-btn" @click="openStockModal(item)" title="Modificar cantidad de stock">
+                        <Edit3 :size="14" />
+                        <span>Stock</span>
+                      </button>
+                    </div>
                   </td>
                   <td class="col-updated">
                     <div class="meta-inline muted">
@@ -237,10 +266,12 @@
                   <Clock3 :size="14" />
                   <span>Actualizado: {{ item.updatedLabel }}</span>
                 </div>
-                <button type="button" class="stock-action-btn" @click="openStockModal(item)">
-                  <Edit3 :size="15" />
-                  <span>Actualizar stock</span>
-                </button>
+                <div class="mobile-actions-wrap">
+                  <button type="button" class="stock-action-btn" @click="openStockModal(item)">
+                    <Edit3 :size="14" />
+                    <span>Stock</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -301,33 +332,245 @@
 
       </aside>
     </section>
+  </template>
 
-    <Transition name="modal-fade">
-      <div v-if="isStockModalOpen" class="modal-backdrop" @click.self="closeStockModal">
-        <form class="stock-modal" @submit.prevent="submitStockUpdate">
-          <button type="button" class="modal-close" aria-label="Cerrar" @click="closeStockModal">
-            <X :size="20" />
-          </button>
-          <span class="eyebrow">Stock</span>
-          <h2>Actualizar cantidad</h2>
-          <p class="modal-product">{{ selectedStockItem?.productName }}</p>
-          <label class="field-label" for="new-stock-quantity">Nueva cantidad</label>
-          <input id="new-stock-quantity" v-model.number="newQuantity" type="number" min="0" class="form-input" />
-          <p class="helper-text">Cantidad actual: {{ selectedStockItem?.quantity ?? 0 }} {{ selectedStockItem?.formatName }}</p>
-          <button class="btn-primary" type="submit" :disabled="isSaving || newQuantity === null">
-            <RefreshCw :size="18" :class="{ spinning: isSaving }" />
-            <span>{{ isSaving ? 'Guardando' : 'Guardar cambio' }}</span>
-          </button>
-        </form>
+  <!-- ===================== TAB 2: KARDEX & MOVIMIENTOS ===================== -->
+  <section v-else-if="currentTab === 'kardex'" class="kardex-view-section">
+    <!-- KPIS DE KARDEX -->
+    <section class="summary-grid kardex-kpis">
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-brown">
+          <ArrowLeftRight :size="24" />
+        </div>
+        <div>
+          <span class="summary-label">Total Movimientos</span>
+          <strong class="summary-value">{{ kardexStats.total }}</strong>
+          <p class="summary-helper">Registros en el Kardex</p>
+        </div>
+      </article>
+
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-green">
+          <ArrowUpRight :size="24" />
+        </div>
+        <div>
+          <span class="summary-label">Entradas de Stock</span>
+          <strong class="summary-value">{{ kardexStats.entradas }}</strong>
+          <p class="summary-helper">Reposición, compras y ajustes</p>
+        </div>
+      </article>
+
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-pink">
+          <ArrowDownRight :size="24" />
+        </div>
+        <div>
+          <span class="summary-label">Salidas por Cocina</span>
+          <strong class="summary-value">{{ kardexStats.salidas }}</strong>
+          <p class="summary-helper">Descuentos por comandas preparadas</p>
+        </div>
+      </article>
+    </section>
+
+    <!-- BARRA DE HERRAMIENTAS KARDEX -->
+    <div class="panel-card toolbar-card">
+      <div class="toolbar-left">
+        <div class="search-box">
+          <Search :size="18" class="search-icon" />
+          <input
+            v-model="kardexSearch"
+            type="text"
+            placeholder="Buscar por insumo, concepto..."
+          />
+        </div>
+
+        <div class="select-box">
+          <Filter :size="18" class="select-icon" />
+          <select v-model="kardexTypeFilter">
+            <option value="">Todos los tipos</option>
+            <option value="Entrada">Solo Entradas</option>
+            <option value="Salida">Solo Salidas</option>
+          </select>
+        </div>
+
+        <div class="select-box">
+          <Package :size="18" class="select-icon" />
+          <select v-model="kardexIngredientFilter">
+            <option value="all">Todos los insumos</option>
+            <option v-for="item in inventoryItems" :key="item.id" :value="String(item.id)">
+              {{ item.productName }}
+            </option>
+          </select>
+        </div>
+
+        <button 
+          v-if="kardexIngredientFilter !== 'all' || kardexTypeFilter || kardexSearch" 
+          class="btn-reset-filters"
+          type="button"
+          @click="resetKardexFilters"
+        >
+          <X :size="15" />
+          <span>Limpiar filtros</span>
+        </button>
       </div>
-    </Transition>
+
+      <div class="toolbar-right">
+        <span class="results-chip">{{ filteredKardexMovements.length }} movimientos</span>
+        <button class="btn-refresh-kardex" type="button" @click="loadAllKardexMovements" :disabled="isLoadingKardex">
+          <RefreshCw :size="15" :class="{ spinning: isLoadingKardex }" />
+          <span>Refrescar</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- TABLA KARDEX -->
+    <div class="panel-card table-card">
+      <div v-if="isLoadingKardex" class="kardex-loading-panel">
+        <RefreshCw :size="28" class="spinning" />
+        <span>Cargando movimientos de Kardex...</span>
+      </div>
+
+      <div v-else-if="filteredKardexMovements.length === 0" class="kardex-empty-panel">
+        <ArrowLeftRight :size="44" />
+        <h3>No hay movimientos de stock registrados</h3>
+        <p>No se encontraron entradas ni salidas que coincidan con los filtros aplicados.</p>
+      </div>
+
+      <div v-else class="kardex-table-container">
+        <div class="table-wrapper desktop-table-only">
+          <table class="kardex-global-table">
+            <thead>
+              <tr>
+                <th style="width: 25%;">Insumo / Ingrediente</th>
+                <th style="width: 15%;">Tipo Movimiento</th>
+                <th style="width: 15%; text-align: center;">Cantidad</th>
+                <th style="width: 25%;">Fecha y Hora Exacta</th>
+                <th style="width: 20%;">Concepto / Origen</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="mov in paginatedKardexMovements" :key="mov.id_movimiento">
+                <td class="col-kardex-ingrediente">
+                  <strong>{{ mov.ingrediente?.nombre || getIngredientNameById(mov.id_ingrediente) }}</strong>
+                  <span class="kardex-unit">{{ mov.ingrediente?.unidad_medida || getIngredientFormatById(mov.id_ingrediente) }}</span>
+                </td>
+                <td>
+                  <span 
+                    class="mov-badge" 
+                    :class="mov.tipo_movimiento?.toLowerCase() === 'entrada' ? 'badge-entrada' : 'badge-salida'"
+                  >
+                    <ArrowUpRight v-if="mov.tipo_movimiento?.toLowerCase() === 'entrada'" :size="14" />
+                    <ArrowDownRight v-else :size="14" />
+                    {{ mov.tipo_movimiento?.toUpperCase() }}
+                  </span>
+                </td>
+                <td class="text-center mov-qty" :class="mov.tipo_movimiento?.toLowerCase() === 'entrada' ? 'qty-in' : 'qty-out'">
+                  <strong>{{ mov.tipo_movimiento?.toLowerCase() === 'entrada' ? '+' : '-' }}{{ Number(mov.cantidad) }}</strong>
+                </td>
+                <td class="col-kardex-datetime">
+                  <div class="datetime-badge">
+                    <Clock3 :size="14" />
+                    <span>{{ formatMovementDateTime(mov.fecha_movimiento, mov.created_at) }}</span>
+                  </div>
+                </td>
+                <td class="mov-concept">
+                  <span>{{ getMovementConcept(mov) }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- VISTA CARDS KARDEX PARA MÓVILES -->
+        <div class="mobile-kardex-cards">
+          <div v-for="mov in paginatedKardexMovements" :key="'mob-' + mov.id_movimiento" class="mobile-kardex-card">
+            <div class="mobile-kardex-header">
+              <div>
+                <strong>{{ mov.ingrediente?.nombre || getIngredientNameById(mov.id_ingrediente) }}</strong>
+                <span class="kardex-unit">{{ mov.ingrediente?.unidad_medida || getIngredientFormatById(mov.id_ingrediente) }}</span>
+              </div>
+              <span 
+                class="mov-badge" 
+                :class="mov.tipo_movimiento?.toLowerCase() === 'entrada' ? 'badge-entrada' : 'badge-salida'"
+              >
+                <ArrowUpRight v-if="mov.tipo_movimiento?.toLowerCase() === 'entrada'" :size="13" />
+                <ArrowDownRight v-else :size="13" />
+                {{ mov.tipo_movimiento?.toUpperCase() }}
+              </span>
+            </div>
+            <div class="mobile-kardex-body">
+              <div class="mobile-kardex-qty" :class="mov.tipo_movimiento?.toLowerCase() === 'entrada' ? 'qty-in' : 'qty-out'">
+                <span>Cantidad:</span>
+                <strong>{{ mov.tipo_movimiento?.toLowerCase() === 'entrada' ? '+' : '-' }}{{ Number(mov.cantidad) }}</strong>
+              </div>
+              <div class="datetime-badge">
+                <Clock3 :size="13" />
+                <span>{{ formatMovementDateTime(mov.fecha_movimiento, mov.created_at) }}</span>
+              </div>
+            </div>
+            <p class="mobile-kardex-concept">{{ getMovementConcept(mov) }}</p>
+          </div>
+        </div>
+
+        <!-- CONTROLES DE PAGINACIÓN KARDEX -->
+        <div v-if="totalKardexPages > 1" class="inventory-pagination">
+          <button 
+            type="button"
+            class="pagination-btn" 
+            :disabled="kardexCurrentPage === 1" 
+            @click="kardexCurrentPage--"
+          >
+            <ChevronLeft :size="18" />
+            <span>Anterior</span>
+          </button>
+          
+          <div class="pagination-info">
+            Página <strong>{{ kardexCurrentPage }}</strong> de <strong>{{ totalKardexPages }}</strong>
+          </div>
+
+          <button 
+            type="button"
+            class="pagination-btn" 
+            :disabled="kardexCurrentPage === totalKardexPages" 
+            @click="kardexCurrentPage++"
+          >
+            <span>Siguiente</span>
+            <ChevronRight :size="18" />
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <Transition name="modal-fade">
+    <div v-if="isStockModalOpen" class="modal-backdrop" @click.self="closeStockModal">
+      <form class="stock-modal" @submit.prevent="submitStockUpdate">
+        <button type="button" class="modal-close" aria-label="Cerrar" @click="closeStockModal">
+          <X :size="20" />
+        </button>
+        <span class="eyebrow">Stock</span>
+        <h2>Actualizar cantidad</h2>
+        <p class="modal-product">{{ selectedStockItem?.productName }}</p>
+        <label class="field-label" for="new-stock-quantity">Nueva cantidad</label>
+        <input id="new-stock-quantity" v-model.number="newQuantity" type="number" min="0" class="form-input" />
+        <p class="helper-text">Cantidad actual: {{ selectedStockItem?.quantity ?? 0 }} {{ selectedStockItem?.formatName }}</p>
+        <button class="btn-primary" type="submit" :disabled="isSaving || newQuantity === null">
+          <RefreshCw :size="18" :class="{ spinning: isSaving }" />
+          <span>{{ isSaving ? 'Guardando' : 'Guardar cambio' }}</span>
+        </button>
+      </form>
+    </div>
+  </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { AlertTriangle, ChevronLeft, ChevronRight, Clock3, Edit3, Filter, Layers3, Package, RefreshCw, Search, TrendingUp, X } from 'lucide-vue-next';
-import inventoryService, { type InventoryItem, type InventoryStatus } from '@/services/inventoryService';
+import { 
+  AlertTriangle, ArrowDownRight, ArrowLeftRight, ArrowUpRight, Boxes, ChevronLeft, ChevronRight, 
+  Clock3, Edit3, Filter, History, Layers3, Package, RefreshCw, Search, TrendingUp, X 
+} from 'lucide-vue-next';
+import inventoryService, { type InventoryItem, type InventoryStatus, type StockMovement } from '@/services/inventoryService';
 import { useNotification } from '@/composables/useNotification';
 
 const { notify } = useNotification();
@@ -336,6 +579,23 @@ const isLoading = ref(true);
 const isSaving = ref(false);
 const isStockModalOpen = ref(false);
 const selectedStockItem = ref<InventoryItem | null>(null);
+
+// Pestañas de Navegación
+const currentTab = ref<'stock' | 'kardex'>('stock');
+
+// Estado de Kardex Global
+const allMovements = ref<StockMovement[]>([]);
+const isLoadingKardex = ref(false);
+const kardexSearch = ref('');
+const kardexTypeFilter = ref<'' | 'Entrada' | 'Salida'>('');
+const kardexIngredientFilter = ref<string>('all');
+const kardexCurrentPage = ref(1);
+const kardexItemsPerPage = ref(12);
+
+watch([kardexSearch, kardexTypeFilter, kardexIngredientFilter], () => {
+  kardexCurrentPage.value = 1;
+});
+
 const errorMessage = ref('');
 const searchQuery = ref('');
 const statusFilter = ref<'all' | InventoryStatus>('all');
@@ -398,6 +658,111 @@ const closeStockModal = () => {
   selectedStockId.value = '';
 };
 
+// Acciones de Kardex en Pestaña
+const switchToKardexTab = async () => {
+  currentTab.value = 'kardex';
+  if (allMovements.value.length === 0) {
+    await loadAllKardexMovements();
+  }
+};
+
+const loadAllKardexMovements = async () => {
+  isLoadingKardex.value = true;
+  try {
+    allMovements.value = await inventoryService.getIngredientMovements(undefined, 300);
+  } catch (error) {
+    console.warn('Error al cargar movimientos de kardex:', error);
+  } finally {
+    isLoadingKardex.value = false;
+  }
+};
+
+const viewKardexForItem = async (item: InventoryItem) => {
+  currentTab.value = 'kardex';
+  kardexIngredientFilter.value = String(item.id);
+  kardexSearch.value = '';
+  kardexTypeFilter.value = '';
+  kardexCurrentPage.value = 1;
+  await loadAllKardexMovements();
+};
+
+const resetKardexFilters = () => {
+  kardexSearch.value = '';
+  kardexTypeFilter.value = '';
+  kardexIngredientFilter.value = 'all';
+  kardexCurrentPage.value = 1;
+};
+
+const formatMovementDateTime = (dateStr?: string, createdAtStr?: string) => {
+  const target = createdAtStr || dateStr;
+  if (!target) return 'Sin fecha';
+  try {
+    const d = new Date(target);
+    if (isNaN(d.getTime())) return target;
+    const fecha = d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const hora = d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return `${fecha} a las ${hora} hrs`;
+  } catch {
+    return target;
+  }
+};
+
+const getMovementConcept = (mov: StockMovement) => {
+  if (mov.tipo_movimiento?.toLowerCase() === 'salida') {
+    return 'Descuento por cocina / preparación';
+  }
+  return 'Ingreso / Ajuste manual de stock';
+};
+
+const getIngredientNameById = (id: number) => {
+  const found = inventoryItems.value.find(i => Number(i.id) === Number(id));
+  return found?.productName || `Insumo #${id}`;
+};
+
+const getIngredientFormatById = (id: number) => {
+  const found = inventoryItems.value.find(i => Number(i.id) === Number(id));
+  return found?.formatName || 'unid';
+};
+
+const kardexStats = computed(() => {
+  const total = allMovements.value.length;
+  const entradas = allMovements.value.filter(m => m.tipo_movimiento?.toLowerCase() === 'entrada').length;
+  const salidas = allMovements.value.filter(m => m.tipo_movimiento?.toLowerCase() === 'salida').length;
+  return { total, entradas, salidas };
+});
+
+const filteredKardexMovements = computed(() => {
+  let list = allMovements.value;
+
+  if (kardexIngredientFilter.value !== 'all') {
+    list = list.filter(m => String(m.id_ingrediente) === String(kardexIngredientFilter.value));
+  }
+
+  if (kardexTypeFilter.value) {
+    list = list.filter(m => m.tipo_movimiento?.toLowerCase() === kardexTypeFilter.value.toLowerCase());
+  }
+
+  if (kardexSearch.value.trim()) {
+    const q = kardexSearch.value.toLowerCase().trim();
+    list = list.filter(m => 
+      (m.ingrediente?.nombre || getIngredientNameById(m.id_ingrediente)).toLowerCase().includes(q) ||
+      (m.tipo_movimiento || '').toLowerCase().includes(q) ||
+      String(m.id_movimiento).includes(q)
+    );
+  }
+
+  return list;
+});
+
+const totalKardexPages = computed(() => {
+  return Math.ceil(filteredKardexMovements.value.length / kardexItemsPerPage.value) || 1;
+});
+
+const paginatedKardexMovements = computed(() => {
+  const start = (kardexCurrentPage.value - 1) * kardexItemsPerPage.value;
+  return filteredKardexMovements.value.slice(start, start + kardexItemsPerPage.value);
+});
+
 const toggleIngredientAvailability = async (item: InventoryItem) => {
   const nextState = !item.disponible;
   try {
@@ -438,7 +803,11 @@ const filteredItems = computed(() => {
   return inventoryItems.value.filter((item) => {
     const matchesQuery = !query || [item.productName, item.categoryName, item.formatName]
       .some((value) => value.toLowerCase().includes(query));
-    const matchesStatus = statusFilter.value === 'all' || item.status === statusFilter.value;
+    
+    let matchesStatus = statusFilter.value === 'all' || item.status === statusFilter.value;
+    if (statusFilter.value === 'ok') {
+      matchesStatus = item.status === 'ok' || item.status === 'over';
+    }
 
     return matchesQuery && matchesStatus;
   });
@@ -461,7 +830,7 @@ const stats = computed(() => {
 
   return {
     total: inventoryItems.value.length,
-    healthy: inventoryItems.value.filter((item) => item.status === 'ok').length,
+    healthy: inventoryItems.value.filter((item) => item.status === 'ok' || item.status === 'over').length,
     low: inventoryItems.value.filter((item) => item.status === 'low' || item.status === 'critical').length,
     formats: activeFormats.size,
   };
@@ -1551,5 +1920,345 @@ onMounted(() => {
 
 .pagination-info strong {
   color: var(--DC-brown);
+}
+
+/* ----------------------------------------------------
+   ESTILOS DE KARDEX Y MOVIMIENTOS DE STOCK
+---------------------------------------------------- */
+.col-actions-wrap,
+.mobile-actions-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.kardex-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.08);
+  color: #1d4ed8;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.kardex-action-btn:hover {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+/* ----------------------------------------------------
+   PESTAÑAS DE INVENTARIO (STOCK vs KARDEX)
+---------------------------------------------------- */
+.inventory-tabs-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #eee5d8;
+  padding-bottom: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.inventory-tabs-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 22px;
+  border: none;
+  background: transparent;
+  color: #7c7468;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  border-radius: 12px 12px 0 0;
+  position: relative;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.tab-nav-btn:hover {
+  color: var(--DC-brown);
+  background: rgba(255, 140, 0, 0.06);
+}
+
+.tab-nav-btn.active {
+  color: var(--DC-brown);
+  font-weight: 800;
+}
+
+.tab-nav-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--DC-orange);
+  border-radius: 3px 3px 0 0;
+}
+
+.tab-pill {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f0eae1;
+  color: #665b4f;
+  font-weight: 800;
+}
+
+.tab-nav-btn.active .tab-pill {
+  background: var(--DC-orange);
+  color: white;
+}
+
+.tab-pill.kardex-pill {
+  background: rgba(59, 130, 246, 0.15);
+  color: #1d4ed8;
+}
+
+.tab-nav-btn.active .tab-pill.kardex-pill {
+  background: #2563eb;
+  color: white;
+}
+
+/* ----------------------------------------------------
+   ESTILOS DE KARDEX GLOBAL
+---------------------------------------------------- */
+.kardex-view-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.bg-summary-green {
+  background: rgba(22, 163, 74, 0.12);
+  color: #16a34a;
+}
+
+.btn-reset-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-reset-filters:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.btn-refresh-kardex {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1.5px solid var(--DC-orange);
+  background: white;
+  color: var(--DC-brown);
+  font-weight: 800;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-refresh-kardex:hover:not(:disabled) {
+  background: var(--DC-orange);
+  color: white;
+}
+
+.kardex-loading-panel,
+.kardex-empty-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  padding: 4rem 1rem;
+  color: #777;
+  text-align: center;
+}
+
+.kardex-empty-panel h3 {
+  margin: 0;
+  color: var(--DC-brown);
+  font-size: 1.2rem;
+}
+
+.kardex-empty-panel p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.kardex-global-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.kardex-global-table th {
+  background: #faf8f5;
+  padding: 14px 16px;
+  color: #7c7468;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #ede7dd;
+  text-align: left;
+}
+
+.kardex-global-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f2ede4;
+  color: #3e3832;
+  vertical-align: middle;
+}
+
+.kardex-global-table tbody tr:hover {
+  background: rgba(255, 140, 0, 0.04);
+}
+
+.col-kardex-ingrediente {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kardex-unit {
+  font-size: 0.75rem;
+  color: #8a7e72;
+  font-weight: 600;
+}
+
+.col-kardex-datetime {
+  white-space: nowrap;
+}
+
+.datetime-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #f1ede7;
+  border-radius: 8px;
+  color: #5c5247;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.mov-concept {
+  font-size: 0.85rem;
+  color: #6b6257;
+}
+
+.mov-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.badge-entrada {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.badge-salida {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.mov-qty.qty-in {
+  color: #15803d;
+  font-weight: 800;
+}
+
+.mov-qty.qty-out {
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+/* CARDS KARDEX PARA DISPOSITIVOS MÓVILES */
+.mobile-kardex-cards {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-kardex-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 10px 0;
+  }
+
+  .mobile-kardex-card {
+    background: white;
+    border: 1px solid #ede7dd;
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+  }
+
+  .mobile-kardex-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .mobile-kardex-body {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-top: 1px dashed #f0eae1;
+    border-bottom: 1px dashed #f0eae1;
+  }
+
+  .mobile-kardex-qty {
+    display: flex;
+    gap: 6px;
+    font-size: 0.9rem;
+  }
+
+  .mobile-kardex-concept {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #888;
+  }
 }
 </style>

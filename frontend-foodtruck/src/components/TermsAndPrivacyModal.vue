@@ -46,7 +46,7 @@
           <h4>1. Responsable del Tratamiento de Datos</h4>
           <p>
             El responsable del tratamiento de los datos personales recopilados a través de esta plataforma web es 
-            <strong>Foodtruck J.Jairo</strong>. Nos comprometemos a resguardar la privacidad, confidencialidad e integridad de la información de nuestros clientes y trabajadores.
+            <strong>Foodtruck J.Junior</strong>. Nos comprometemos a resguardar la privacidad, confidencialidad e integridad de la información de nuestros clientes y trabajadores.
           </p>
 
           <h4>2. Finalidad del Tratamiento</h4>
@@ -82,7 +82,7 @@
 
           <h4>5. Confidencialidad y Terceros</h4>
           <p>
-            Foodtruck J.Jairo <strong>no vende, arrienda ni cede</strong> sus datos personales a terceros con fines publicitarios o comerciales ajenos a la operación de nuestro servicio.
+            Foodtruck J.Junior <strong>no vende, arrienda ni cede</strong> sus datos personales a terceros con fines publicitarios o comerciales ajenos a la operación de nuestro servicio.
           </p>
         </div>
 

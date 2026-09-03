@@ -65,16 +65,27 @@
         </div>
       </div>
       <div v-else class="products-grid">
-        <ProductCard 
-          v-for="item in filteredIceCreams" 
-          :key="item.name"
-          :name="item.name"
-          :category="item.category"
-          :categoryColor="item.color"
-          :image="item.image"
-          :price="getCardPrice(item)"
-          @view-details="openDetails(item)"
-        />
+        <template v-for="item in filteredIceCreams" :key="item.name">
+          <OfferCard
+            v-if="item.kind === 'offer'"
+            :name="item.name"
+            :image="item.image"
+            :price="item.displayPrice || getCardPrice(item)"
+            :display-hint="item.displayHint"
+            @view-details="openDetails(item)"
+          />
+
+          <ProductCard
+            v-else
+            :name="item.name"
+            :category="item.category"
+            :categoryColor="item.color"
+            :image="item.image"
+            :price="item.displayPrice || getCardPrice(item)"
+            :display-hint="item.displayHint"
+            @view-details="openDetails(item)"
+          />
+        </template>
       </div>
     </main>
 
@@ -111,6 +122,7 @@ import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import SearchBar from '@/components/SearchBar.vue'
 import ProductCard from '@/components/ProductCard.vue'
+import OfferCard from '@/components/OfferCard.vue'
 import CartModal from '@/components/CartModal.vue'
 import ProductDetailModal from '@/components/ProductDetailModal.vue';
 import LoginNoticeModal from '@/components/LoginNoticeModal.vue';
@@ -128,6 +140,7 @@ const { notify } = useNotification();
 // Estados reactivos
 const showScrollTop = ref(false);
 const isLoadingProducts = ref(true);
+const isRefreshingProducts = ref(false);
 const isCartOpen = ref(false);
 const isDetailOpen = ref(false);
 const isNoticeOpen = ref(false);
@@ -153,6 +166,8 @@ const loadShiftStatus = async () => {
 // Estados autenticación
 const isLoggedIn = ref(false); 
 const currentUser = ref<any>(null);
+
+  
 
 const totalCartQuantity = computed(() => {
   return cartItems.value.reduce((total, item) => total + item.quantity, 0);
@@ -233,6 +248,8 @@ const filteredIceCreams = computed(() => {
   return results;
 });
 
+
+
 // Abrir el modal de detalles
 const openDetails = (iceCream: any) => {
   selectedProduct.value = iceCream;
@@ -242,6 +259,11 @@ const openDetails = (iceCream: any) => {
 
 const getCardPrice = (product: any) => {
   if (!product.types?.length) return "Sin precio";
+
+  const uniqueSizes = new Set(
+    (product.sizes || []).map((size: any) => String(size || '').trim()).filter(Boolean)
+  );
+  const hasMultipleVariants = product.types.length > 1 || uniqueSizes.size > 1;
 
   let minPrice = Infinity;
   product.types.forEach((t: any) => {
@@ -255,39 +277,59 @@ const getCardPrice = (product: any) => {
 
   if (minPrice === Infinity) return "Sin precio";
 
-  if (product.sizes?.length > 1) {
+  if (hasMultipleVariants) {
     return `Desde $${minPrice.toLocaleString("es-CL")}`;
   }
 
   return `$${minPrice.toLocaleString("es-CL")}`;
 };
 
-/*
-const getCardPrice = (product: any) => {
-  if (!product || !product.types || product.types.length === 0) {
-    return 'Sin precio';
+const normalizeGroupedProduct = (product: any) => {
+  const uniqueSizes = Array.from(new Set(
+    (product.sizes || []).map((size: any) => String(size || '').trim()).filter(Boolean)
+  ));
+
+  const variantCount = product.types?.length || 0;
+  const hasMultipleSizes = uniqueSizes.length > 1;
+  const hasMultipleVariants = variantCount > 1;
+
+  let minPrice = Infinity;
+  (product.types || []).forEach((type: any) => {
+    Object.values(type.prices || {}).forEach((price: any) => {
+      const numeric = Number(price);
+      if (!isNaN(numeric) && numeric > 0 && numeric < minPrice) {
+        minPrice = numeric;
+      }
+    });
+  });
+
+  const displayPrice = minPrice === Infinity ? 'Sin precio' : (
+    hasMultipleSizes || hasMultipleVariants
+      ? `Desde $${Number(minPrice).toLocaleString('es-CL')}`
+      : `$${Number(minPrice).toLocaleString('es-CL')}`
+  );
+
+  let displayHint = '';
+  if (hasMultipleVariants && !hasMultipleSizes) {
+    displayHint = `${variantCount} variedades`;
+  } else if (hasMultipleSizes && !hasMultipleVariants) {
+    displayHint = `${uniqueSizes.length} tamaños`;
+  } else if (hasMultipleVariants && hasMultipleSizes) {
+    displayHint = `${variantCount} variedades · ${uniqueSizes.length} tamaños`;
   }
 
-  const priceMap = product.types[0].prices || {};
-  const defaultSize = Object.keys(priceMap)[0];
-  const activeSize = product.activeSize || defaultSize;
-  const selectedSize = activeSize ?? defaultSize;
-
-  if (!selectedSize) {
-    return 'Sin precio';
-  }
-
-  const priceValue = priceMap[selectedSize];
-
-  if (priceValue == null) {
-    return 'Sin precio';
-  }
-
-  return typeof priceValue === 'number'
-    ? `$${priceValue.toLocaleString('es-CL')}`
-    : String(priceValue);
+  return {
+    ...product,
+    kind: product.kind || 'catalog',
+    hasMultipleSizes,
+    hasMultipleVariants,
+    variantCount,
+    displayPrice,
+    displayHint,
+    minPrice: minPrice === Infinity ? null : minPrice
+  };
 };
-*/
+
 
 // Agregar un producto al carrito
 const addToCart = (purchaseItem: any) => {
@@ -358,7 +400,11 @@ const handleGoToLogin = () => {
 
 // Función para cargar los productos desde la API
 const fetchIceCreams = async () => {
+  if (isRefreshingProducts.value) return;
+
+  isRefreshingProducts.value = true;
   isLoadingProducts.value = true;
+
   try {
     const [productsRes, categoriesRes] = await Promise.all([
       productService.getPublicProducts(),
@@ -392,6 +438,8 @@ const fetchIceCreams = async () => {
       'Sándwich de Pollo': '#2980B9',
       'Papas & Chorrillanas': '#F1C40F',
       'Empanadas & Sopaipillas': '#E67E22',
+      'Bebidas frías': '#3498DB',
+      'Bebidas calientes': '#E74C3C',
       'Bebestibles & Jugos': '#3498DB'
     };
 
@@ -406,17 +454,20 @@ const fetchIceCreams = async () => {
       'Sándwich de Pollo': 'https://images.unsplash.com/photo-1606755962773-d324e0a13086?w=900',
       'Papas & Chorrillanas': 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=900',
       'Empanadas & Sopaipillas': 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=900',
-      'Bebestibles & Jugos': 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=900'
+      'Bebidas frías': 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=900',
+      'Bebidas calientes': 'https://images.unsplash.com/photo-1497636577773-f1231844b336?w=900'
     };
 
-    const groupableCategories = ['Vianesas', 'Ass', 'Churrascos', 'Lomitos'];
+    const groupableCategories = ['Vianesas', 'Ass', 'Churrascos', 'Lomitos', 'Bebidas frías', 'Bebidas calientes', 'Empanadas & Sopaipillas'];
     const groupedMap: Record<string, any> = {};
+
+    const normalizeSizeName = (value: any) => String(value ?? '').trim();
 
     activeDbProducts.forEach((prod: any) => {
       const catName = prod.categoria?.nombre_categoria || 'Varios';
       const isGroupable = groupableCategories.includes(catName);
       const groupKey = isGroupable ? catName : prod.nombre;
-      const prodImage = prod.imagen_url || prod.imagen || prod.image || categoryImages[catName] || 'https://images.unsplash.com/photo-1567620812782-f461bc805b46?w=900';
+      const prodImage = prod.imagen_url || prod.imagen || prod.image || categoryImages[catName] || '/src/assets/placeholder-food.webp';
 
       if (!groupedMap[groupKey]) {
         groupedMap[groupKey] = {
@@ -437,7 +488,33 @@ const fetchIceCreams = async () => {
 
       const pricesMap: Record<string, number> = {};
       (prod.tamaños || []).forEach((t: any) => {
-        pricesMap[t.nombre] = Number(t.pivot?.precio || 0);
+        const sizeName = normalizeSizeName(t.nombre);
+        if (!sizeName) return;
+
+        pricesMap[sizeName] = Number(t.pivot?.precio ?? t.precio ?? 0);
+
+        const hasSameSize = groupedMap[groupKey].sizes.some((existing: string) => existing.toLowerCase() === sizeName.toLowerCase());
+        if (!hasSameSize) {
+          groupedMap[groupKey].sizes.push(sizeName);
+        }
+
+        const sizeIdentifier = String(t.id_tamaño ?? sizeName).toLowerCase();
+        const hasSameTamaño = groupedMap[groupKey].tamaños_obj.some((existing: any) => {
+          const existingId = String(existing.id_tamaño ?? existing.nombre ?? '').toLowerCase();
+          return existingId === sizeIdentifier || normalizeSizeName(existing.nombre).toLowerCase() === sizeName.toLowerCase();
+        });
+
+        if (!hasSameTamaño) {
+          groupedMap[groupKey].tamaños_obj.push(t);
+        }
+      });
+
+      const normalizedPrices = Object.fromEntries(
+        groupedMap[groupKey].sizes.map((size: string) => [size, 0])
+      );
+
+      Object.entries(pricesMap).forEach(([sizeName, value]) => {
+        normalizedPrices[sizeName] = Number(value || 0);
       });
 
       groupedMap[groupKey].types.push({
@@ -446,26 +523,20 @@ const fetchIceCreams = async () => {
         desc: prod.descripcion,
         active: true,
         image: prodImage,
-        prices: pricesMap,
+        prices: normalizedPrices,
         tamaños_obj: prod.tamaños || [],
         producto_ingrediente: prod.ingredientes || []
       });
-
-      (prod.tamaños || []).forEach((t: any) => {
-        if (!groupedMap[groupKey].sizes.includes(t.nombre)) {
-          groupedMap[groupKey].sizes.push(t.nombre);
-        }
-        if (!groupedMap[groupKey].tamaños_obj.some((existing: any) => existing.id_tamaño === t.id_tamaño)) {
-          groupedMap[groupKey].tamaños_obj.push(t);
-        }
-      });
     });
 
-    iceCreams.value = Object.values(groupedMap).filter((g: any) => g.types && g.types.length > 0);
+    iceCreams.value = Object.values(groupedMap)
+      .filter((g: any) => g.types && g.types.length > 0)
+      .map((group: any) => normalizeGroupedProduct(group));
   } catch (error) {
     console.error('Error al cargar productos desde la API:', error);
   } finally {
     isLoadingProducts.value = false;
+    isRefreshingProducts.value = false;
   }
 };
 
@@ -480,13 +551,45 @@ const scrollToTop = () => {
   });
 };
 
+let productsRefreshTimer: number | undefined;
+
+const resetProductsRefresh = () => {
+  if (productsRefreshTimer) {
+    window.clearInterval(productsRefreshTimer);
+  }
+
+  productsRefreshTimer = window.setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      fetchIceCreams();
+    }
+  }, 60000);
+};
+
+watch(
+  () => router.currentRoute.value.path,
+  (currentPath) => {
+    checkAuthStatus();
+
+    if (currentPath === '/' || currentPath === '/home') {
+      fetchIceCreams();
+    }
+  },
+  { immediate: true }
+);
+
 onMounted(() => {
   loadShiftStatus();
   fetchIceCreams();
+  resetProductsRefresh();
   checkAuthStatus();
   window.addEventListener('scroll', handleScroll, { passive: true });
   window.addEventListener('storage', fetchIceCreams);
   window.addEventListener('focus', fetchIceCreams);
+  window.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      fetchIceCreams();
+    }
+  });
   window.addEventListener('foodtruck-products-update', fetchIceCreams);
 
   // Recuperación segura del estado persistido del carrito temporal
@@ -501,9 +604,14 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  if (productsRefreshTimer) {
+    window.clearInterval(productsRefreshTimer);
+  }
+
   window.removeEventListener('scroll', handleScroll);
   window.removeEventListener('storage', fetchIceCreams);
   window.removeEventListener('focus', fetchIceCreams);
+  window.removeEventListener('visibilitychange', fetchIceCreams);
   window.removeEventListener('foodtruck-products-update', fetchIceCreams);
 });
 

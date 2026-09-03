@@ -26,7 +26,7 @@ use App\Http\Controllers\VentaController;
 use Illuminate\Support\Facades\Route;
 
 // ==========================================
-// 1. AUTENTICACIÓN (LOGIN & REGISTRO)
+// 1. AUTENTICACIÓN (LOGIN & REGISTRO CON RATE LIMITING)
 // ==========================================
 Route::prefix('auth')->middleware('throttle:auth_limits')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
@@ -43,10 +43,8 @@ Route::prefix('auth')->middleware('throttle:auth_limits')->group(function () {
     });
 });
 
-Route::post('/auth/register', [AuthController::class, 'register']);
-Route::post('/usuarios_distribuidores', [AuthController::class, 'register']);
-Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+// Alias protegido con rate limit para distribuidores
+Route::post('/usuarios_distribuidores', [AuthController::class, 'register'])->middleware('throttle:auth_limits');
 
 // ==========================================
 // 2. RUTAS PÚBLICAS PARA MENÚ QR Y PEDIDOS DE CLIENTES
@@ -54,7 +52,6 @@ Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 Route::prefix('public')->group(function () {
     Route::get('/productos', [ProductoController::class, 'index']);
     Route::get('/productos/{id}', [ProductoController::class, 'show']);
-    Route::post('/productos/{id}/imagen', [ProductoController::class, 'uploadImage']);
     Route::get('/categorias', [CategoriaController::class, 'index']);
     Route::post('/pedidos', [PedidoPublicoController::class, 'storePublico']);
     Route::get('/pedidos/comanda/{numeroComanda}', [PedidoPublicoController::class, 'buscarPorComanda']);

@@ -10,7 +10,7 @@
           :key="index" 
           class="carousel-slide"
         >
-          <img :src="image" alt="Banner Foodtruck J.Jairo" class="carousel-image" />
+          <img :src="image" alt="Banner Foodtruck J.Junior" class="carousel-image" />
         </div>
       </div>
     </div>

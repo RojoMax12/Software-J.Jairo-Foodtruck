@@ -46,7 +46,7 @@ const isActive = (path: string) => {
         <div class="sidebar-header">
           <div class="brand-group">
             <img src="@/assets/logo_jairo.webp" alt="Logo" class="sidebar-logo" />
-            <span class="brand-name">J.Jairo</span>
+            <span class="brand-name">J.Junior</span>
           </div>
           <button class="btn-close" @click="emit('close')">
             <X :size="24" />
@@ -138,7 +138,7 @@ const isActive = (path: string) => {
               v-role="[1,3]"
             >
               <History :size="20" />
-              <span>Historial de Movimientos</span>
+              <span>Auditoría del Sistema</span>
             </button>
           </div>
         </nav>

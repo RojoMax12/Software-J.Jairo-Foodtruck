@@ -13,9 +13,9 @@ class MovimientosServices
         $this->movimientosRepository = $movimientosRepository;
     }
 
-    public function getAllMovimientos()
+    public function getAllMovimientos($idIngrediente = null, $limit = 100)
     {
-        return $this->movimientosRepository->getAllMovimientos();
+        return $this->movimientosRepository->getAllMovimientos($idIngrediente, $limit);
     }
 
     public function createMovimiento($data)

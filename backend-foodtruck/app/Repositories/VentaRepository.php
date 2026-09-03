@@ -30,7 +30,7 @@ class VentaRepository
     {
         $venta = Venta::find($id);
         if ($venta) {
-            return $venta->cajas;
+            return $venta->caja;
         }
         return null;
     }

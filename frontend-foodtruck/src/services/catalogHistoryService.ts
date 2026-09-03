@@ -2,13 +2,14 @@ import api from './api';
 
 export interface CatalogMovement {
     id: string | number;
-    tipo: 'producto' | 'categoria' | 'tamaño' | 'oferta' | 'precio' | 'stock';
-    accion: 'crear' | 'editar' | 'eliminar' | 'estado' | 'oferta';
+    tipo: 'producto' | 'categoria' | 'tamaño' | 'oferta' | 'precio' | 'stock' | 'pedido' | 'caja';
+    accion: 'crear' | 'editar' | 'eliminar' | 'estado' | 'oferta' | 'entregado' | 'cancelar' | 'pago' | 'apertura' | 'cierre';
     descripcion: string;
     entidad: string;
     detalle?: string;
     usuario: string;
     fecha: string;
+    monto?: number;
     badgeClass?: string;
 }
 
@@ -18,7 +19,7 @@ export const catalogHistoryService = {
     // 1. Obtener historial directamente desde la base de datos del Backend
     async fetchMovementsFromBackend(tipo?: string, search?: string): Promise<CatalogMovement[]> {
         try {
-            const params: Record<string, any> = { limit: 150 };
+            const params: Record<string, any> = { limit: 250 };
             if (tipo) params.tipo = tipo;
             if (search) params.search = search;
 
@@ -34,6 +35,7 @@ export const catalogHistoryService = {
                     entidad: m.entidad || '',
                     detalle: m.detalle || '',
                     usuario: m.usuario || 'Administrador',
+                    monto: m.monto ? Number(m.monto) : undefined,
                     fecha: m.fecha || m.created_at || new Date().toISOString()
                 }));
 

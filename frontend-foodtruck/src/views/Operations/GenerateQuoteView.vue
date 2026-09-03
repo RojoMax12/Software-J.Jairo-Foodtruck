@@ -16,7 +16,7 @@
           </span>
         </div>
         <p class="header-subtitle">
-          Punto de Venta · J.Jairo Foodtruck
+          Punto de Venta · J.Junior Foodtruck
           <span v-if="shiftWindow" class="header-shift-hours"> (Horario: {{ shiftWindow.hora_apertura }} - {{ shiftWindow.hora_cierre }} hrs)</span>
         </p>
       </div>
@@ -841,7 +841,7 @@ const fetchProducts = async () => {
         sizesMap[t.nombre] = Number(t.id_tamaño || t.id || 1);
       });
 
-      const prodImage = prod.imagen_url || prod.imagen || prod.image || categoryImages[catName] || 'https://images.unsplash.com/photo-1567620812782-f461bc805b46?w=900';
+      const prodImage = prod.imagen_url || prod.imagen || prod.image || categoryImages[catName] || '/src/assets/placeholder-food.webp';
 
       return {
         id: prod.id_producto,

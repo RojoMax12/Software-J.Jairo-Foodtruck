@@ -78,7 +78,7 @@ const handleResetPassword = async () => {
 
       <div class="forgot-card">
         <div class="logo-section">
-          <img src="../assets/logo_jairo.webp" alt="J.Jairo Logo" class="logo" />
+          <img src="../assets/logo_jairo.webp" alt="J.Junior Logo" class="logo" />
         </div>
 
         <div class="divider"></div>

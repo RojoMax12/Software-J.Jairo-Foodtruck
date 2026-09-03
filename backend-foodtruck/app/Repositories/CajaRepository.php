@@ -29,7 +29,8 @@ class CajaRepository
 
     public function getCajaByVentaId($idVenta)
     {
-        return Caja::where('id_venta', $idVenta)->first();
+        $venta = \App\Models\Venta::find($idVenta);
+        return $venta ? $venta->caja : null;
     }
 
     # Seters

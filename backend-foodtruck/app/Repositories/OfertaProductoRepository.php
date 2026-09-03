@@ -28,7 +28,7 @@ class OfertaProductoRepository
 
     public function getOfertaProductosByOfertaId($idOferta)
     {
-        return Oferta_producto::where('id_ofertas', $idOferta)->get();
+        return Oferta_producto::where('id_oferta', $idOferta)->get();
     }
 
     # Seters

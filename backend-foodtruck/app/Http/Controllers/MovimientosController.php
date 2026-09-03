@@ -14,9 +14,11 @@ class MovimientosController extends Controller
         $this->movimientosService = $movimientosService;
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json($this->movimientosService->getAllMovimientos());
+        $idIngrediente = $request->query('id_ingrediente');
+        $limit = (int) $request->query('limit', 100);
+        return response()->json($this->movimientosService->getAllMovimientos($idIngrediente, $limit));
     }
 
     public function show($id)

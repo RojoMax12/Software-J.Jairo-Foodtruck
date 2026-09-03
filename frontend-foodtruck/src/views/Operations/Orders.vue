@@ -44,10 +44,10 @@
 
       <div class="status-card">
         <div class="card-left">
-          <div class="icon-box bg-paid">
-            <CheckCircle :size="24" />
+          <div class="icon-box bg-unpaid">
+            <TrendingUp :size="24" />
           </div>
-          <span class="card-label">Total: $</span>
+          <span class="card-label">Venta Total ($)</span>
         </div>
         <div class="card-right">
           <span class="card-count">{{ formatPrice(stats.totalAmount) }}</span>
@@ -58,9 +58,9 @@
       <div class="status-card">
         <div class="card-left">
           <div class="icon-box bg-paid">
-            <CheckCircle :size="24" />
+            <DollarSign :size="24" />
           </div>
-          <span class="card-label">Total Pagados: $</span>
+          <span class="card-label">Total Recaudado ($)</span>
         </div>
         <div class="card-right">
           <span class="card-count">{{ formatPrice(stats.totalPaid) }}</span>
@@ -70,8 +70,8 @@
 
       <div class="status-card">
         <div class="card-left">
-          <div class="icon-box bg-preparation">
-            <Package :size="24" />
+          <div class="icon-box bg-paid">
+            <CheckCircle :size="24" />
           </div>
           <span class="card-label">Total Pagados</span>
         </div>
@@ -137,6 +137,14 @@
         <span>✓ Entregados</span>
         <span class="tab-count-pill">{{ countByStatus(4) }}</span>
       </button>
+      <button 
+        class="status-tab-btn tab-cancelled" 
+        :class="{ active: statusFilter === 'Cancelado' }" 
+        @click="selectStatus('Cancelado')"
+      >
+        <span>❌ Cancelados</span>
+        <span class="tab-count-pill">{{ countByStatus(5) }}</span>
+      </button>
     </div>
 
     <div class="main-table-card">
@@ -200,7 +208,7 @@
             @click="autoRefresh = !autoRefresh"
             :title="autoRefresh ? 'Auto-actualización en vivo activa (cada 20s)' : 'Auto-actualización pausada'"
           >
-            <RefreshCw :size="16" :class="{ spinning: isLoading }" />
+            <RefreshCw :size="16" :class="{ spinning: isLoading || isRefreshingBackground }" />
             <span>{{ autoRefresh ? `En vivo (${secondsCountdown}s)` : 'En vivo Pausado' }}</span>
           </button>
         </div>
@@ -253,7 +261,7 @@
                 <div class="empty-state">
                   <Package :size="48" class="empty-icon" />
                   <p>No se encontraron pedidos para este turno o filtros.</p>
-                  <button @click="fetchOrders" class="btn-retry">Actualizar datos</button>
+                  <button @click="() => fetchOrders()" class="btn-retry">Actualizar datos</button>
                 </div>
               </td>
             </tr>
@@ -321,7 +329,7 @@
         <div v-else-if="sortedOrders.length === 0" class="mobile-empty-state">
           <Package :size="40" class="empty-icon" />
           <p>No se encontraron pedidos para esta fecha o filtros.</p>
-          <button @click="fetchOrders" class="btn-retry">Actualizar datos</button>
+          <button @click="() => fetchOrders()" class="btn-retry">Actualizar datos</button>
         </div>
 
         <div v-else class="mobile-cards-list">
@@ -459,7 +467,7 @@
       :total="selectedOrder?.total"
       :raw-order="selectedOrder"
       @close="closeModal" 
-      @status-changed="fetchOrders"
+      @status-changed="() => fetchOrders(true)"
     />
   </div>
 </template>
@@ -471,13 +479,14 @@ import {
   ClipboardCheck, Package, Truck, CheckCircle, Search, Filter,
   ChevronDown, Calendar as CalendarIcon, Eye, ChevronsUpDown,
   RefreshCw, Clock, ArrowRight, ChevronLeft, ChevronRight, User, Phone,
-  Zap, History
+  Zap, History, TrendingUp, DollarSign
 } from 'lucide-vue-next';
 import orderService  from '@/services/orderService';
 import cashFlowService, { type ShiftWindow, fetchShiftWindowFromBackend } from '@/services/cashFlowService';
 
 const orders = ref<any[]>([]);
 const isLoading = ref(true);
+const isRefreshingBackground = ref(false);
 const autoRefresh = ref(true);
 const secondsCountdown = ref(20);
 const refreshInterval = ref<any>(null);
@@ -517,7 +526,7 @@ const advanceOrderStatus = async (order: any) => {
 
   try {
     await orderService.updateOrder(order.real_id, { id_estado_pedido: nextId });
-    await fetchOrders();
+    await fetchOrders(true);
   } catch (err) {
     console.error('Error al avanzar estado de pedido:', err);
   }
@@ -622,8 +631,13 @@ const statusMap = ref<Map<number, string>>(new Map([
   [8, 'Cancelado']
 ]));
 
-const fetchOrders = async () => {
-  isLoading.value = true;
+const fetchOrders = async (silent: boolean | unknown = false) => {
+  const isSilent = silent === true;
+  if (!isSilent && orders.value.length === 0) {
+    isLoading.value = true;
+  } else {
+    isRefreshingBackground.value = true;
+  }
 
   try {
     const res = await orderService.getOrders();
@@ -670,6 +684,7 @@ const fetchOrders = async () => {
     console.error('Error al cargar pedidos desde API:', error);
   } finally {
     isLoading.value = false;
+    isRefreshingBackground.value = false;
   }
 };
 
@@ -803,7 +818,7 @@ const openModal = (id: number | string) => {
 
 const closeModal = () => {
   isModalOpen.value = false;
-  fetchOrders();
+  fetchOrders(true);
 };
 
 const toggleStatusDropdown = () => {
@@ -940,23 +955,31 @@ watch([searchQuery, statusFilter, selectedDate, itemsPerPage], () => {
   currentPage.value = 1;
 });
 
+const handleVisibilityChange = () => {
+  if (!document.hidden && autoRefresh.value && !isModalOpen.value) {
+    fetchOrders(true);
+    secondsCountdown.value = 20;
+  }
+};
+
 onMounted(async () => {
   checkUserRole();
   window.addEventListener('click', closeDropdowns);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
   await Promise.all([
     loadShiftWindow(),
     fetchOrders()
   ]);
 
   refreshInterval.value = setInterval(() => {
-    if (autoRefresh.value && !isModalOpen.value) {
-      fetchOrders();
+    if (autoRefresh.value && !isModalOpen.value && !document.hidden) {
+      fetchOrders(true);
       secondsCountdown.value = 20;
     }
   }, 20000);
 
   countdownTimer.value = setInterval(() => {
-    if (autoRefresh.value && !isModalOpen.value) {
+    if (autoRefresh.value && !isModalOpen.value && !document.hidden) {
       secondsCountdown.value = secondsCountdown.value > 1 ? secondsCountdown.value - 1 : 20;
     }
   }, 1000);
@@ -964,6 +987,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('click', closeDropdowns);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
   if (refreshInterval.value) clearInterval(refreshInterval.value);
   if (countdownTimer.value) clearInterval(countdownTimer.value);
 });

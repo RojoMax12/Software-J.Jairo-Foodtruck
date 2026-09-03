@@ -6,9 +6,9 @@
       </button>
       
       <div class="brand-group" @click="goToHome">
-        <img src="@/assets/logo_jairo.webp" alt="J.Jairo Logo" class="brand-logo" />
+        <img src="@/assets/logo_jairo.webp" alt="J.Junior Logo" class="brand-logo" />
         <div class="brand-info">
-          <span class="brand-text">J.Jairo</span>
+          <span class="brand-text">J.Junior</span>
         </div>
       </div>
     </div>
@@ -271,16 +271,16 @@ const toggleSidebar = () => {
 
 @media (max-width: 768px) {
   .admin-navbar {
-    padding: 0 10px;
+    padding: 0 12px;
     height: 60px;
   }
   
   .nav-left { 
-    gap: 6px;
+    gap: 8px;
   } 
 
   .btn-menu {
-    padding: 8px;
+    padding: 6px;
   }
 
   .brand-logo { 
@@ -290,6 +290,22 @@ const toggleSidebar = () => {
   .brand-text {
     font-size: 1.15rem;
   }
+
+  .nav-right {
+    gap: 8px;
+  }
+
+  .preview-btn-label {
+    display: none;
+  }
+
+  .btn-preview {
+    padding: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    justify-content: center;
+  }
   
   .session-display {
     padding: 3px 8px;
@@ -298,8 +314,8 @@ const toggleSidebar = () => {
   }
 
   .user-avatar {
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
   }
 
   .user-role {
@@ -308,7 +324,7 @@ const toggleSidebar = () => {
 
   .user-name {
     font-size: 0.75rem;
-    max-width: 80px;
+    max-width: 75px;
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -319,19 +335,57 @@ const toggleSidebar = () => {
   }
 }
 
-@media (max-width: 480px) {
-  .brand-text {
-    font-size: 1rem;
-  }
-
+@media (max-width: 600px) {
   .user-details {
     display: none;
   }
 
   .session-display {
-    padding: 2px;
+    padding: 0;
     background: transparent;
     border: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .admin-navbar {
+    padding: 0 8px;
+  }
+
+  .nav-left {
+    gap: 4px;
+  }
+
+  .nav-right {
+    gap: 6px;
+  }
+
+  .brand-text {
+    font-size: 0.95rem;
+  }
+
+  .brand-logo {
+    height: 30px;
+  }
+
+  .btn-menu {
+    padding: 4px;
+  }
+
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 0.72rem;
+  }
+
+  .btn-logout-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .btn-preview {
+    width: 32px;
+    height: 32px;
   }
 }
 </style>

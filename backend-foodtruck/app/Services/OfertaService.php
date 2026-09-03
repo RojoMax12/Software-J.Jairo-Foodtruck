@@ -1,6 +1,9 @@
 <?php
 namespace App\Services;
+
+use App\Models\HistorialMovimiento;
 use App\Repositories\OfertaRepository;
+
 # Servicio Oferta
 class OfertaService
 {
@@ -17,7 +20,18 @@ class OfertaService
             throw new \InvalidArgumentException('El precio de oferta no puede ser negativo.');
         }
 
-        return $this->ofertaRepository->createOferta($data);
+        $oferta = $this->ofertaRepository->createOferta($data);
+        if ($oferta) {
+            HistorialMovimiento::registrar(
+                'oferta',
+                'crear',
+                'Nueva oferta promocional creada',
+                $oferta->nombre ?? ('Oferta #' . $oferta->id_ofertas),
+                'Precio de oferta: $' . number_format($oferta->precio_oferta ?? 0, 0, ',', '.'),
+                $oferta->precio_oferta ?? 0
+            );
+        }
+        return $oferta;
     }
 
     public function getAllOfertas()
@@ -46,11 +60,35 @@ class OfertaService
             throw new \InvalidArgumentException('El precio de oferta no puede ser negativo.');
         }
 
-        return $this->ofertaRepository->updateOferta($id, $data);
+        $ofAnterior = $this->ofertaRepository->getOfertaById($id);
+        $oferta = $this->ofertaRepository->updateOferta($id, $data);
+        if ($oferta) {
+            HistorialMovimiento::registrar(
+                'oferta',
+                'editar',
+                'Oferta promocional modificada',
+                $oferta->nombre ?? ($ofAnterior->nombre ?? "Oferta #$id"),
+                'Precio actualizado a $' . number_format($oferta->precio_oferta ?? 0, 0, ',', '.'),
+                $oferta->precio_oferta ?? 0
+            );
+        }
+        return $oferta;
     }
 
     public function deleteOfertaById($id)
     {
-        return $this->ofertaRepository->deleteOfertaById($id);
+        $of = $this->ofertaRepository->getOfertaById($id);
+        $nombre = $of ? ($of->nombre ?? "Oferta #$id") : "Oferta #$id";
+        $deleted = $this->ofertaRepository->deleteOfertaById($id);
+        if ($deleted) {
+            HistorialMovimiento::registrar(
+                'oferta',
+                'eliminar',
+                'Oferta promocional eliminada',
+                $nombre,
+                'Eliminada de promociones activas'
+            );
+        }
+        return $deleted;
     }
 }

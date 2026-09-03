@@ -26,13 +26,39 @@ class IngredienteController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'nombre' => 'required|string|max:150',
+            'descripcion' => 'nullable|string|max:255',
+            'cantidad_actual' => 'nullable|numeric|min:0',
+            'cantidad' => 'nullable|numeric|min:0',
+            'cantidad_minima' => 'nullable|numeric|min:0',
+            'fecha_de_ingreso' => 'nullable|date',
+            'disponible' => 'nullable|boolean',
+        ]);
+
+        if (isset($data['cantidad']) && !isset($data['cantidad_actual'])) {
+            $data['cantidad_actual'] = $data['cantidad'];
+        }
+
         return response()->json($this->ingredienteService->createIngrediente($data), 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'nombre' => 'sometimes|string|max:150',
+            'descripcion' => 'nullable|string|max:255',
+            'cantidad_actual' => 'sometimes|numeric|min:0',
+            'cantidad' => 'sometimes|numeric|min:0',
+            'cantidad_minima' => 'sometimes|numeric|min:0',
+            'fecha_de_ingreso' => 'nullable|date',
+            'disponible' => 'sometimes|boolean',
+        ]);
+
+        if (isset($data['cantidad']) && !isset($data['cantidad_actual'])) {
+            $data['cantidad_actual'] = $data['cantidad'];
+        }
+
         return response()->json($this->ingredienteService->updateIngrediente($id, $data));
     }
 

@@ -26,7 +26,15 @@ class CajaController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'id_usuario' => 'nullable|integer',
+            'fecha_apertura' => 'nullable|date',
+            'monto_inicial' => 'nullable|numeric|min:0',
+            'total_ventas' => 'nullable|numeric|min:0',
+            'total_recaudado' => 'nullable|numeric|min:0',
+            'estado' => 'nullable|string|in:abierta,cerrada',
+        ]);
+
         $user = $request->user();
         if (empty($data['id_usuario']) && $user) {
             $data['id_usuario'] = $user->id_usuario;
@@ -52,7 +60,14 @@ class CajaController extends Controller
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'fecha_cierre' => 'nullable|date',
+            'total_ventas' => 'nullable|numeric|min:0',
+            'total_recaudado' => 'nullable|numeric|min:0',
+            'estado' => 'nullable|string|in:abierta,cerrada',
+            'diferencia' => 'nullable|numeric',
+        ]);
+
         if (isset($data['total_recaudado']) && empty($data['fecha_cierre'])) {
             $data['fecha_cierre'] = now()->format('Y-m-d H:i:s');
             $data['estado'] = 'cerrada';
