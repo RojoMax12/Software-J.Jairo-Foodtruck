@@ -199,6 +199,7 @@ const router = createRouter({
   ],
 });
 
+// Guardián de Navegación y Roles
 router.beforeEach((to, from, next) => {
   if (to.meta.useLoader) {
     globalLoading.value = true;
@@ -206,19 +207,14 @@ router.beforeEach((to, from, next) => {
 
   const token = localStorage.getItem('token');
   let user: any = null;
-  
   try {
     const rawUser = localStorage.getItem('user');
-    if (rawUser && rawUser !== 'undefined') {
-      user = JSON.parse(rawUser);
-    }
-  } catch (error) {
-    console.error("Error parseando el usuario de localStorage:", error);
+    if (rawUser) user = JSON.parse(rawUser);
+  } catch {
     user = null;
   }
 
-  // Asegurar que si el rol no se puede leer, sea explícitamente null
-  const roleId = user && user.id_rol ? Number(user.id_rol) : null;
+  const roleId = user ? Number(user.id_rol) : null;
 
   // 1. Si ya está autenticado e intenta ir a login o registro
   if (token && (to.path === '/login' || to.path === '/register')) {
@@ -236,25 +232,20 @@ router.beforeEach((to, from, next) => {
 
   // 3. Si la ruta requiere roles específicos (ej: admin 1, cocina 3)
   if (to.meta.roles && Array.isArray(to.meta.roles)) {
-    // Si no hay token, redirigir al login
     if (!token) {
       return next({ path: '/login', query: { redirect: to.fullPath } });
     }
-    
-    // Si el rol es inválido o no está permitido en la ruta
-    if (roleId === null || !to.meta.roles.includes(roleId)) {
+    if (!roleId || !to.meta.roles.includes(roleId)) {
       if (roleId === 2) {
         return next('/mis-pedidos');
       } else if (roleId === 3) {
         return next('/general-home');
       } else {
-        // Evita enviar a '/' si el usuario no tiene permisos en absoluto para no ciclar
-        return next('/login'); 
+        return next('/');
       }
     }
   }
 
-  // Permite continuar si ninguna regla anterior detuvo la navegación
   next();
 });
 
