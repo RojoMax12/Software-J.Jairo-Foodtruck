@@ -37,8 +37,18 @@ class HorarioAtencionController extends Controller
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
-        $horarioAtencion = $this->horarioAtencionService->updateHorarioAtencion($id, $data);
+        $validated = $request->validate([
+            'hora_apertura' => ['sometimes', 'required', 'string', 'regex:/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/'],
+            'hora_cierre' => ['sometimes', 'required', 'string', 'regex:/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/'],
+            'minuto_colchon' => 'sometimes|nullable|integer|min:0|max:180',
+            'activo' => 'sometimes|boolean',
+        ]);
+
+        if ($request->user()) {
+            $validated['id_usuario'] = $request->user()->id_usuario ?? $request->user()->id;
+        }
+
+        $horarioAtencion = $this->horarioAtencionService->updateHorarioAtencion($id, $validated);
         if (!$horarioAtencion) {
             return response()->json(['message' => 'Horario de atención no encontrado'], 404);
         }
@@ -92,6 +102,7 @@ class HorarioAtencionController extends Controller
             'hora_cierre' => substr($window['hora_cierre'] ?? '00:30', 0, 5),
             'dia' => $window['dia'] ?? 'Hoy',
             'es_jornada_activa' => (bool)($window['is_active'] ?? false),
+            'es_dia_cerrado' => (bool)($window['is_day_off'] ?? false),
             'shift_date' => $shiftDate,
         ]);
     }

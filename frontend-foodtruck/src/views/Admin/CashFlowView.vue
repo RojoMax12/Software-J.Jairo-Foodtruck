@@ -140,6 +140,7 @@
             class="tab-btn"
             :class="{ active: currentTab === 'history' }"
             @click="currentTab = 'history'"
+            v-role="[1]"
           >
             <History :size="17" />
             <span>Historial de Arqueos ({{ closedSessions.length }})</span>
@@ -147,11 +148,11 @@
         </div>
 
         <div class="quick-action-buttons">
-          <button class="btn-quick-expense" @click="openQuickExpenseModal">
+          <button v-role="[1]" class="btn-quick-expense" @click="openQuickExpenseModal">
             <MinusCircle :size="16" />
             <span>Registrar Gasto / Egreso</span>
           </button>
-          <button class="btn-quick-income" @click="openQuickIncomeModal">
+          <button v-role="[1]" class="btn-quick-income" @click="openQuickIncomeModal">
             <PlusCircle :size="16" />
             <span>Registrar Ingreso Extra</span>
           </button>

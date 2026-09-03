@@ -224,7 +224,7 @@
               >
                 <span>
                   {{ isStoreClosed 
-                      ? 'Local Cerrado (Fuera de Horario)' 
+                      ? (shiftWindow?.es_dia_cerrado ? 'Local Cerrado Hoy (Día de Descanso)' : 'Local Cerrado (Fuera de Horario)')
                       : isLoading 
                         ? 'Enviando comanda...' 
                         : `Confirmar Pedido • ${totalEstimated}` 
@@ -409,7 +409,10 @@ const handleCancelQuotation = () => {
 
 const handleConfirmQuotation = async () => {
   if (isStoreClosed.value) {
-    triggerAlert(`El Foodtruck se encuentra cerrado en este momento. Horario de atención: ${shiftWindow.value?.hora_apertura || '19:00'} a ${shiftWindow.value?.hora_cierre || '00:30'} hrs.`);
+    const msg = shiftWindow.value?.es_dia_cerrado
+      ? 'El Foodtruck se encuentra cerrado hoy por ser día de descanso programado. No es posible realizar pedidos.'
+      : `El Foodtruck se encuentra cerrado en este momento. Horario de atención: ${shiftWindow.value?.hora_apertura || '19:00'} a ${shiftWindow.value?.hora_cierre || '00:30'} hrs.`;
+    triggerAlert(msg);
     return;
   }
 

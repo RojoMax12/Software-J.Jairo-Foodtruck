@@ -692,21 +692,27 @@ const saveOrder = (showNotification = true) => {
 
   const targetId = props.realId || props.orderId;
   if (targetId) {
-    orderService.updateOrder(targetId, {
+    const payload: any = {
       total: currentTotal,
       id_estado_pedido: localStatusId.value,
       id_estado_pago: localPaymentStatusId.value,
       metodo_pago: currentPaymentMethod.value,
       notas: orderNotes.value,
-      items: products.value.map((p: any) => ({
+    };
+
+    // Solo enviar el desglose de items al backend si los productos o sus ingredientes cambiaron efectivamente
+    if (hasPendingChanges.value) {
+      payload.items = products.value.map((p: any) => ({
         id_producto: p.catalogId || p.id,
         format: p.format,
         cantidad: p.quantity,
         precio_unitario: p.quantity ? Math.round(p.subtotal / p.quantity) : p.subtotal,
         removedIngredients: p.removedIngredients || [],
         addedExtras: p.addedExtras || []
-      }))
-    }).catch(err => {
+      }));
+    }
+
+    orderService.updateOrder(targetId, payload).catch(err => {
       console.error('Error al actualizar total de pedido en backend:', err);
     });
   }
@@ -868,6 +874,7 @@ const changeQty = (p: any, delta: number) => {
   const unitPrice = currentQuantity > 0 ? (Number(p.subtotal || 0) / currentQuantity) : 0;
   p.quantity = nextQuantity;
   p.subtotal = Math.round(nextQuantity * unitPrice);
+  hasPendingChanges.value = true;
   saveOrder(false);
 };
 
@@ -961,7 +968,7 @@ const confirmAddProduct = () => {
     });
   }
 
-  hasPendingChanges.value = false;
+  hasPendingChanges.value = true;
   saveOrder(false);
   closeAddModal();
 };
@@ -972,6 +979,7 @@ const removeExtraFromProduct = (productId: number | string, extraName: string) =
     const idx = prod.addedExtras.findIndex((e: any) => e.name === extraName);
     if (idx > -1) {
       prod.addedExtras.splice(idx, 1);
+      hasPendingChanges.value = true;
       saveOrder(false);
     }
   }
@@ -979,6 +987,7 @@ const removeExtraFromProduct = (productId: number | string, extraName: string) =
 
 const removeProduct = (id: any) => {
   products.value = products.value.filter(p => p.id !== id);
+  hasPendingChanges.value = true;
   saveOrder(false);
 };
 
@@ -991,6 +1000,7 @@ const toggleRemovedIngredient = (pid: any, ing: string) => {
     ? removed.filter((i: any) => i !== ing)
     : [...removed, ing];
 
+  hasPendingChanges.value = true;
   saveOrder(false);
 };
 

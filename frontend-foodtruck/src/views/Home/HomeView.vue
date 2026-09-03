@@ -14,7 +14,8 @@
     <ProductDetailModal 
       :isOpen="isDetailOpen" 
       :product="selectedProduct" 
-      @close="isDetailOpen = false" 
+      :isStoreOpen="isStoreOpen"
+      @close="closeDetails" 
       @add-to-cart="addToCart"
     />
 
@@ -35,12 +36,20 @@
             <strong v-if="isStoreOpen">
               🟢 ¡Estamos atendiendo en vivo!
             </strong>
+            <strong v-else-if="shiftWindow?.es_dia_cerrado">
+              🔴 Foodtruck cerrado hoy (Día de descanso)
+            </strong>
             <strong v-else>
               ⚪ Foodtruck cerrado en este momento
             </strong>
             <span class="store-hours-info">
-              🕒 Horario: {{ shiftWindow?.hora_apertura || '19:00' }} a {{ shiftWindow?.hora_cierre || '00:30' }} hrs
-              <template v-if="!isStoreOpen"> · ¡Te esperamos hoy a las {{ shiftWindow?.hora_apertura || '19:00' }}!</template>
+              <template v-if="shiftWindow?.es_dia_cerrado">
+                Hoy no se reciben pedidos. ¡Te esperamos en nuestro próximo día laboral!
+              </template>
+              <template v-else>
+                🕒 Horario: {{ shiftWindow?.hora_apertura || '19:00' }} a {{ shiftWindow?.hora_cierre || '00:30' }} hrs
+                <template v-if="!isStoreOpen"> · ¡Te esperamos hoy a las {{ shiftWindow?.hora_apertura || '19:00' }}!</template>
+              </template>
             </span>
           </div>
         </div>
@@ -256,6 +265,12 @@ const openDetails = (iceCream: any) => {
   isDetailOpen.value = true;
 };
 
+// Cerrar el modal de detalles y resetear producto seleccionado
+const closeDetails = () => {
+  isDetailOpen.value = false;
+  selectedProduct.value = null;
+};
+
 
 const getCardPrice = (product: any) => {
   if (!product.types?.length) return "Sin precio";
@@ -333,7 +348,15 @@ const normalizeGroupedProduct = (product: any) => {
 
 // Agregar un producto al carrito
 const addToCart = (purchaseItem: any) => {
-const baseProduct = iceCreams.value.find(p => p.name === purchaseItem.name);
+  if (!isStoreOpen.value) {
+    const msg = shiftWindow.value?.es_dia_cerrado
+      ? 'El Foodtruck se encuentra cerrado hoy por ser día de descanso. No es posible realizar pedidos.'
+      : 'El Foodtruck se encuentra cerrado en este momento. No es posible agregar productos al pedido.';
+    notify(msg, 'warning');
+    return;
+  }
+
+  const baseProduct = iceCreams.value.find(p => p.name === purchaseItem.name);
 
   if (baseProduct && !purchaseItem.id) {
     // Le inyectamos el ID exacto dependiendo del tamaño que eligió el usuario
@@ -382,6 +405,14 @@ const handleRemoveItem = (payload: { id: number, size: string }) => {
 };
 
 const goToQuotation = () => {
+  if (!isStoreOpen.value) {
+    const msg = shiftWindow.value?.es_dia_cerrado
+      ? 'El Foodtruck se encuentra cerrado hoy por ser día de descanso. No es posible realizar pedidos.'
+      : `El Foodtruck se encuentra cerrado en este momento. Horario de atención: ${shiftWindow.value?.hora_apertura || '19:00'} a ${shiftWindow.value?.hora_cierre || '00:30'} hrs.`;
+    notify(msg, 'warning');
+    return;
+  }
+
   if (cartItems.value.length === 0) {
     notify('Tu carrito está vacío.', 'warning');
     return;

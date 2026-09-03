@@ -21,6 +21,23 @@ const form = ref({
 
 const isLoading = ref(false)
 const errorMessage = ref('')
+const retrySecondsLeft = ref(0)
+let countdownTimer: any = null
+
+const startCountdown = (seconds: number) => {
+  if (countdownTimer) clearInterval(countdownTimer)
+  retrySecondsLeft.value = seconds
+  countdownTimer = setInterval(() => {
+    retrySecondsLeft.value--
+    if (retrySecondsLeft.value <= 0) {
+      clearInterval(countdownTimer)
+      countdownTimer = null
+      retrySecondsLeft.value = 0
+      errorMessage.value = ''
+    }
+  }, 1000)
+}
+
 const showSuccessModal = ref(false)
 const acceptTerms = ref(false)
 const showTermsModal = ref(false)
@@ -40,6 +57,8 @@ const goBack = () => {
 }
 
 const handleRegister = async () => {
+  if (retrySecondsLeft.value > 0) return
+
   // 1. Validaciones básicas antes de enviar
   if (!form.value.nombre.trim() || !form.value.correo_electronico.trim() || !form.value.contrasena.trim()) {
     errorMessage.value = 'Por favor, completa todos los campos obligatorios.'
@@ -68,7 +87,7 @@ const handleRegister = async () => {
     // 2. Llamada al backend
     const res = await authService.registerDistribuidor({
       nombre: form.value.nombre.trim(),
-      correo_electronico: form.value.correo_electronico.trim(),
+      correo_electronico: form.value.correo_electronico.trim().toLowerCase(),
       telefono: form.value.telefono.trim(),
       contrasena: form.value.contrasena
     })
@@ -87,8 +106,14 @@ const handleRegister = async () => {
     // 3. Éxito: Mostramos el modal
     showSuccessModal.value = true
   } catch (error: any) {
-    // 4. Error: Capturamos mensajes del backend (ej. "El correo_electronico ya existe")
-    errorMessage.value = error.response?.data?.message || 'Error al crear la cuenta. Intenta nuevamente.'
+    // 4. Error: Capturamos mensajes del backend
+    if (error.response?.status === 429) {
+      const waitSec = Number(error.response?.data?.retry_after || error.response?.headers?.['retry-after'] || 60)
+      startCountdown(waitSec)
+      errorMessage.value = error.response?.data?.message || `Has realizado demasiados intentos. Por favor, espera ${waitSec} segundos antes de volver a intentarlo.`
+    } else {
+      errorMessage.value = error.response?.data?.message || 'Error al crear la cuenta. Intenta nuevamente.'
+    }
   } finally {
     isLoading.value = false
   }
@@ -237,9 +262,9 @@ const goToLogin = () => {
           <button
             @click="handleRegister"
             class="btn btn-primary"
-            :disabled="isLoading || !acceptTerms"
+            :disabled="isLoading || !acceptTerms || retrySecondsLeft > 0"
           >
-            {{ isLoading ? 'PROCESANDO...' : 'CREAR CUENTA' }}
+            {{ retrySecondsLeft > 0 ? `ESPERA (${retrySecondsLeft}s)` : (isLoading ? 'PROCESANDO...' : 'CREAR CUENTA') }}
           </button>
         </div>
       </div>

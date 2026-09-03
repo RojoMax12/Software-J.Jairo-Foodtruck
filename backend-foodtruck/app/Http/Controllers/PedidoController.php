@@ -30,10 +30,20 @@ class PedidoController extends Controller
         $data = $request->all();
         $user = $request->user();
 
-        // Clientes regulares (Rol 2 o sin rol especial) solo pueden pedir durante el turno activo
-        if (!$user || $user->id_rol === 2) {
-            $pedidoRepo = app(\App\Repositories\PedidoRepository::class);
-            $window = $pedidoRepo->getShiftWindow();
+        $pedidoRepo = app(\App\Repositories\PedidoRepository::class);
+        $window = $pedidoRepo->getShiftWindow();
+
+        // 1. Si el día de hoy está desactivado por administración, nadie puede ingresar pedidos
+        if (!empty($window['is_day_off'])) {
+            return response()->json([
+                'success' => false,
+                'is_closed' => true,
+                'message' => 'No es posible ingresar pedidos: El día de hoy ha sido desactivado en la configuración de horarios (día de descanso programado).'
+            ], 422);
+        }
+
+        // 2. Clientes regulares (Rol 2 o sin autenticación) solo pueden pedir durante el turno activo
+        if (!$user || (int)$user->id_rol === 2) {
             if (empty($window['is_active'])) {
                 $apertura = substr($window['hora_apertura'] ?? '19:00', 0, 5);
                 $cierre = substr($window['hora_cierre'] ?? '00:30', 0, 5);

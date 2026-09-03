@@ -72,41 +72,41 @@ class PedidoRepository
 
         // 1. Horario de ayer (para madrugadas)
         $yesterdayDay = ($dayOfWeek + 6) % 7;
-        $horarioAyer = Horario_atencion::where('dia_semana', $yesterdayDay)
-            ->where('activo', true)
-            ->first();
+        $horarioAyer = Horario_atencion::where('dia_semana', $yesterdayDay)->first();
 
-        $horaAyerAp = $horarioAyer ? $horarioAyer->hora_apertura : '19:00:00';
-        $horaAyerCi = $horarioAyer ? $horarioAyer->hora_cierre : '00:30:00';
-        $colchonAyer = $horarioAyer ? (int)($horarioAyer->minuto_colchon ?? 30) : 30;
+        if ($horarioAyer && $horarioAyer->activo) {
+            $horaAyerAp = $horarioAyer->hora_apertura ?: '19:00:00';
+            $horaAyerCi = $horarioAyer->hora_cierre ?: '00:30:00';
+            $colchonAyer = (int)($horarioAyer->minuto_colchon ?? 30);
 
-        $partsAyerAp = explode(':', $horaAyerAp);
-        $partsAyerCi = explode(':', $horaAyerCi);
+            $partsAyerAp = explode(':', $horaAyerAp);
+            $partsAyerCi = explode(':', $horaAyerCi);
 
-        $yesterdayShiftStart = $now->copy()->subDay()->setTime((int)$partsAyerAp[0], (int)($partsAyerAp[1] ?? 0), 0);
-        $yesterdayShiftEnd = $now->copy()->subDay()->setTime((int)$partsAyerCi[0], (int)($partsAyerCi[1] ?? 0), 0);
+            $yesterdayShiftStart = $now->copy()->subDay()->setTime((int)$partsAyerAp[0], (int)($partsAyerAp[1] ?? 0), 0);
+            $yesterdayShiftEnd = $now->copy()->subDay()->setTime((int)$partsAyerCi[0], (int)($partsAyerCi[1] ?? 0), 0);
 
-        if ((int)$partsAyerCi[0] < (int)$partsAyerAp[0]) {
-            $yesterdayShiftEnd->addDay();
-        }
-        $yesterdayShiftEndWithBuffer = $yesterdayShiftEnd->copy()->addMinutes($colchonAyer);
+            if ((int)$partsAyerCi[0] < (int)$partsAyerAp[0]) {
+                $yesterdayShiftEnd->addDay();
+            }
+            $yesterdayShiftEndWithBuffer = $yesterdayShiftEnd->copy()->addMinutes($colchonAyer);
 
-        if ($now->lessThanOrEqualTo($yesterdayShiftEndWithBuffer) && $now->greaterThanOrEqualTo($yesterdayShiftStart)) {
-            return [
-                'start' => $yesterdayShiftStart,
-                'end' => $yesterdayShiftEndWithBuffer,
-                'hora_apertura' => $horaAyerAp,
-                'hora_cierre' => $horaAyerCi,
-                'dia' => 'Madrugada (Turno de ayer)',
-                'is_active' => true,
-                'shift_date' => $yesterdayShiftStart->format('Y-m-d')
-            ];
+            if ($now->lessThanOrEqualTo($yesterdayShiftEndWithBuffer) && $now->greaterThanOrEqualTo($yesterdayShiftStart)) {
+                return [
+                    'start' => $yesterdayShiftStart,
+                    'end' => $yesterdayShiftEndWithBuffer,
+                    'hora_apertura' => $horaAyerAp,
+                    'hora_cierre' => $horaAyerCi,
+                    'dia' => 'Madrugada (Turno de ayer)',
+                    'is_active' => true,
+                    'is_day_off' => false,
+                    'shift_date' => $yesterdayShiftStart->format('Y-m-d')
+                ];
+            }
         }
 
         // 2. Horario de hoy
-        $horarioHoy = Horario_atencion::where('dia_semana', $dayOfWeek)
-            ->where('activo', true)
-            ->first();
+        $horarioHoy = Horario_atencion::where('dia_semana', $dayOfWeek)->first();
+        $isDiaActivo = $horarioHoy ? (bool)$horarioHoy->activo : false;
 
         $horaHoyAp = $horarioHoy ? $horarioHoy->hora_apertura : '19:00:00';
         $horaHoyCi = $horarioHoy ? $horarioHoy->hora_cierre : '00:30:00';
@@ -123,6 +123,21 @@ class PedidoRepository
         }
         $todayShiftEndWithBuffer = $todayShiftEnd->copy()->addMinutes($colchonHoy);
 
+        // Si el día de hoy fue desactivado por el administrador:
+        if (!$isDiaActivo) {
+            return [
+                'start' => $todayShiftStart,
+                'end' => $todayShiftEndWithBuffer,
+                'hora_apertura' => $horaHoyAp,
+                'hora_cierre' => $horaHoyCi,
+                'dia' => 'Cerrado hoy (Día de descanso)',
+                'is_active' => false,
+                'is_day_off' => true,
+                'shift_date' => $todayShiftStart->format('Y-m-d')
+            ];
+        }
+
+        // Si hoy está activo y estamos dentro de la ventana de atención:
         if ($now->greaterThanOrEqualTo($todayShiftStart) && $now->lessThanOrEqualTo($todayShiftEndWithBuffer)) {
             return [
                 'start' => $todayShiftStart,
@@ -131,11 +146,12 @@ class PedidoRepository
                 'hora_cierre' => $horaHoyCi,
                 'dia' => 'Hoy',
                 'is_active' => true,
+                'is_day_off' => false,
                 'shift_date' => $todayShiftStart->format('Y-m-d')
             ];
         }
 
-        // 3. Durante el día antes de abrir: el turno es hoy cuando abra a su hora oficial
+        // 3. Durante el día antes de abrir:
         return [
             'start' => $todayShiftStart,
             'end' => $todayShiftEndWithBuffer,
@@ -143,6 +159,7 @@ class PedidoRepository
             'hora_cierre' => $horaHoyCi,
             'dia' => 'Hoy (Abre a las ' . substr($horaHoyAp, 0, 5) . ')',
             'is_active' => false,
+            'is_day_off' => false,
             'shift_date' => $todayShiftStart->format('Y-m-d')
         ];
     }
@@ -180,7 +197,8 @@ class PedidoRepository
                 'fin' => $window['end']->format('Y-m-d H:i:s'),
                 'hora_apertura' => substr($window['hora_apertura'] ?? '19:00', 0, 5),
                 'hora_cierre' => substr($window['hora_cierre'] ?? '00:30', 0, 5),
-                'es_jornada_activa' => now()->between($window['start'], $window['end'])
+                'es_jornada_activa' => (bool)($window['is_active'] ?? false),
+                'es_dia_cerrado' => (bool)($window['is_day_off'] ?? false)
             ]
         ];
     }
@@ -189,9 +207,17 @@ class PedidoRepository
     public function createPedido($data)
     {
         return DB::transaction(function () use ($data) {
+            $window = $this->getShiftWindow();
+            if (!empty($window['is_day_off'])) {
+                throw new \InvalidArgumentException('No es posible tomar pedidos: El día de hoy ha sido desactivado por administración (día de descanso).');
+            }
+
             $shiftStart = $this->getShiftStart();
-            $maxNumeroShift = Pedido::where('created_at', '>=', $shiftStart)->max('numero_pedido_dia') ?? 0;
-            $numeroPedidoDia = $maxNumeroShift + 1;
+            $ultimoPedidoShift = Pedido::where('created_at', '>=', $shiftStart)
+                ->orderBy('numero_pedido_dia', 'desc')
+                ->lockForUpdate()
+                ->first();
+            $numeroPedidoDia = $ultimoPedidoShift ? ((int)$ultimoPedidoShift->numero_pedido_dia + 1) : 1;
 
             $items = $data['items'] ?? ($data['detalles'] ?? []);
             $totalCalculado = 0;
@@ -247,9 +273,10 @@ class PedidoRepository
                         }
                     }
 
-                    // Fallback seguro si el catálogo no tiene precio configurado
-                    if ($precioBase <= 0 && isset($item['precio_unitario']) && is_numeric($item['precio_unitario'])) {
-                        $precioBase = (float)$item['precio_unitario'];
+                    // Blindaje de Seguridad: El precio debe provenir siempre del catálogo oficial de la BD
+                    if ($precioBase <= 0) {
+                        $prodNombre = $productoModel ? $productoModel->nombre : "ID #{$idProducto}";
+                        throw new \InvalidArgumentException("El producto \"{$prodNombre}\" no tiene un precio válido asignado en el catálogo.");
                     }
 
                     // 2. Calcular costo de extras / agregados cobrables
@@ -482,136 +509,140 @@ class PedidoRepository
     # Seters
     public function updatePedido($id, $data)
     {
-        $pedido = Pedido::find($id);
-        if (!$pedido) {
-            $pedido = $this->getPedidoBySearch($id);
-        }
-        if ($pedido) {
-            if (isset($data['items']) && is_array($data['items'])) {
-                $oldDetalles = Detalle_pedido::where('id_pedido', $pedido->id_pedido)->pluck('id_detalle_pedido');
-                Detalle_pedido_Ingrediente::whereIn('id_detalle_pedido', $oldDetalles)->delete();
-                Detalle_pedido::where('id_pedido', $pedido->id_pedido)->delete();
+        return DB::transaction(function () use ($id, $data) {
+            $pedido = Pedido::lockForUpdate()->find($id);
+            if (!$pedido) {
+                $pedido = $this->getPedidoBySearch($id);
+            }
+            if ($pedido) {
+                if (isset($data['items']) && is_array($data['items'])) {
+                    $oldDetalles = Detalle_pedido::where('id_pedido', $pedido->id_pedido)->pluck('id_detalle_pedido');
+                    Detalle_pedido_Ingrediente::whereIn('id_detalle_pedido', $oldDetalles)->delete();
+                    Detalle_pedido::where('id_pedido', $pedido->id_pedido)->delete();
 
-                $totalCalculadoUpdate = 0;
+                    $totalCalculadoUpdate = 0;
 
-                foreach ($data['items'] as $item) {
-                    $idProducto = $item['id_producto'] ?? $item['catalogId'] ?? $item['id'] ?? null;
-                    $idTamaño = $item['id_tamaño'] ?? $item['tamano_id'] ?? null;
-                    $cantidad = max(1, is_numeric($item['cantidad'] ?? ($item['quantity'] ?? 1)) ? (int)($item['cantidad'] ?? ($item['quantity'] ?? 1)) : 1);
+                    foreach ($data['items'] as $item) {
+                        $idProducto = $item['id_producto'] ?? $item['catalogId'] ?? $item['id'] ?? null;
+                        $idTamaño = $item['id_tamaño'] ?? $item['tamano_id'] ?? null;
+                        $cantidad = max(1, is_numeric($item['cantidad'] ?? ($item['quantity'] ?? 1)) ? (int)($item['cantidad'] ?? ($item['quantity'] ?? 1)) : 1);
 
-                    if (!$idTamaño && !empty($item['format'])) {
-                        $tamObj = Tamaño::where('nombre', $item['format'])->first();
-                        if ($tamObj) {
-                            $idTamaño = $tamObj->id_tamaño;
-                        }
-                    }
-
-                    if ($idProducto) {
-                        $productoModel = Producto::find($idProducto);
-                        $precioBase = 0;
-                        if ($productoModel) {
-                            $tamanoPrecio = Producto_Tamaño::where('id_producto', $idProducto)
-                                ->where('id_tamaño', $idTamaño)
-                                ->value('precio');
-
-                            if ($tamanoPrecio !== null && (float)$tamanoPrecio > 0) {
-                                $precioBase = (float)$tamanoPrecio;
-                            } else {
-                                $primerPrecio = Producto_Tamaño::where('id_producto', $idProducto)->value('precio');
-                                $precioBase = $primerPrecio ? (float)$primerPrecio : (float)($productoModel->precio ?? $productoModel->precio_base ?? 0);
+                        if (!$idTamaño && !empty($item['format'])) {
+                            $tamObj = Tamaño::where('nombre', $item['format'])->first();
+                            if ($tamObj) {
+                                $idTamaño = $tamObj->id_tamaño;
                             }
                         }
 
-                        if ($precioBase <= 0 && isset($item['precio_unitario']) && is_numeric($item['precio_unitario'])) {
-                            $precioBase = (float)$item['precio_unitario'];
+                        if ($idProducto) {
+                            $productoModel = Producto::find($idProducto);
+                            $precioBase = 0;
+                            if ($productoModel) {
+                                $tamanoPrecio = Producto_Tamaño::where('id_producto', $idProducto)
+                                    ->where('id_tamaño', $idTamaño)
+                                    ->value('precio');
+
+                                if ($tamanoPrecio !== null && (float)$tamanoPrecio > 0) {
+                                    $precioBase = (float)$tamanoPrecio;
+                                } else {
+                                    $primerPrecio = Producto_Tamaño::where('id_producto', $idProducto)->value('precio');
+                                    $precioBase = $primerPrecio ? (float)$primerPrecio : (float)($productoModel->precio ?? $productoModel->precio_base ?? 0);
+                                }
+                            }
+
+                            // Blindaje de Seguridad: Prevenir manipulación de precio en edición
+                            if ($precioBase <= 0) {
+                                $prodNombre = $productoModel ? $productoModel->nombre : "ID #{$idProducto}";
+                                throw new \InvalidArgumentException("El producto \"{$prodNombre}\" no tiene un precio válido asignado en el catálogo.");
+                            }
+
+                            $addedList = $item['addedExtras'] ?? ($item['agregados'] ?? ($item['agregadosDetails'] ?? []));
+                            $numExtras = is_array($addedList) ? count($addedList) : 0;
+                            $incluidos = (int)($productoModel->cantidad_incluida ?? 0);
+                            $precioExtra = (float)($productoModel->precio_ingrediente_extra ?? 0);
+                            $extrasCobrables = max(0, $numExtras - $incluidos);
+                            $costoExtras = $extrasCobrables * $precioExtra;
+
+                            $precioUnitarioFinal = $precioBase + $costoExtras;
+                            $totalCalculadoUpdate += ($precioUnitarioFinal * $cantidad);
+
+                            $detalle = Detalle_pedido::create([
+                                'id_pedido' => $pedido->id_pedido,
+                                'id_producto' => $idProducto,
+                                'id_tamaño' => $idTamaño,
+                                'cantidad' => $cantidad,
+                                'precio_unitario' => $precioUnitarioFinal,
+                            ]);
+
+                            $removedList = $item['removedIngredients'] ?? ($item['excluidos'] ?? ($item['excluidosDetails'] ?? []));
+                            $seenRemoved = [];
+                            foreach ($removedList as $rem) {
+                                $remId = is_array($rem) ? ($rem['id_ingrediente'] ?? $rem['id'] ?? null) : (is_numeric($rem) ? (int)$rem : null);
+                                if (!$remId) {
+                                    $remName = is_array($rem) ? ($rem['nombre'] ?? $rem['ingrediente'] ?? '') : $rem;
+                                    if ($remName && is_string($remName)) {
+                                        $remId = $this->resolverIdIngredienteDesdeNombre($remName);
+                                    }
+                                }
+
+                                if ($remId && !isset($seenRemoved[$remId])) {
+                                    $seenRemoved[$remId] = true;
+                                    Detalle_pedido_Ingrediente::create([
+                                        'id_detalle_pedido' => $detalle->id_detalle_pedido,
+                                        'id_ingrediente' => $remId,
+                                        'tipo_modificacion' => 'Exclusión',
+                                        'precio_aplicado' => 0,
+                                    ]);
+                                }
+                            }
+
+                            $seenAdded = [];
+                            foreach ($addedList as $ext) {
+                                $extId = is_array($ext) ? ($ext['id_ingrediente'] ?? $ext['id'] ?? null) : (is_numeric($ext) ? (int)$ext : null);
+                                if (!$extId) {
+                                    $extName = is_array($ext) ? ($ext['name'] ?? $ext['nombre'] ?? $ext['ingrediente'] ?? '') : $ext;
+                                    if ($extName && is_string($extName)) {
+                                        $extId = $this->resolverIdIngredienteDesdeNombre($extName);
+                                    }
+                                }
+
+                                if ($extId && !isset($seenAdded[$extId])) {
+                                    $seenAdded[$extId] = true;
+                                    Detalle_pedido_Ingrediente::create([
+                                        'id_detalle_pedido' => $detalle->id_detalle_pedido,
+                                        'id_ingrediente' => $extId,
+                                        'tipo_modificacion' => 'Agregado',
+                                        'precio_aplicado' => is_array($ext) ? ($ext['precio'] ?? $ext['price'] ?? 0) : 0,
+                                    ]);
+                                }
+                            }
                         }
+                    }
+                    $data['total'] = (int)$totalCalculadoUpdate;
+                    unset($data['items']);
+                }
 
-                        $addedList = $item['addedExtras'] ?? ($item['agregados'] ?? ($item['agregadosDetails'] ?? []));
-                        $numExtras = is_array($addedList) ? count($addedList) : 0;
-                        $incluidos = (int)($productoModel->cantidad_incluida ?? 0);
-                        $precioExtra = (float)($productoModel->precio_ingrediente_extra ?? 0);
-                        $extrasCobrables = max(0, $numExtras - $incluidos);
-                        $costoExtras = $extrasCobrables * $precioExtra;
-
-                        $precioUnitarioFinal = $precioBase + $costoExtras;
-                        $totalCalculadoUpdate += ($precioUnitarioFinal * $cantidad);
-
-                        $detalle = Detalle_pedido::create([
+                // Auto-asignar fecha_de_pago cuando se marca como Pagado (id_estado_pago = 2) y vincular venta
+                if (isset($data['id_estado_pago']) && (int)$data['id_estado_pago'] === 2) {
+                    if (!$pedido->fecha_de_pago) {
+                        $data['fecha_de_pago'] = now()->format('Y-m-d H:i:s');
+                    }
+                    $cajaActiva = Caja::where('estado', 'abierta')->latest()->first();
+                    if ($cajaActiva) {
+                        Venta::firstOrCreate([
                             'id_pedido' => $pedido->id_pedido,
-                            'id_producto' => $idProducto,
-                            'id_tamaño' => $idTamaño,
-                            'cantidad' => $cantidad,
-                            'precio_unitario' => $precioUnitarioFinal,
+                        ], [
+                            'id_caja' => $cajaActiva->id_caja,
                         ]);
-
-                        $removedList = $item['removedIngredients'] ?? ($item['excluidos'] ?? ($item['excluidosDetails'] ?? []));
-                        $seenRemoved = [];
-                        foreach ($removedList as $rem) {
-                            $remId = is_array($rem) ? ($rem['id_ingrediente'] ?? $rem['id'] ?? null) : (is_numeric($rem) ? (int)$rem : null);
-                            if (!$remId) {
-                                $remName = is_array($rem) ? ($rem['nombre'] ?? $rem['ingrediente'] ?? '') : $rem;
-                                if ($remName && is_string($remName)) {
-                                    $remId = $this->resolverIdIngredienteDesdeNombre($remName);
-                                }
-                            }
-
-                            if ($remId && !isset($seenRemoved[$remId])) {
-                                $seenRemoved[$remId] = true;
-                                Detalle_pedido_Ingrediente::create([
-                                    'id_detalle_pedido' => $detalle->id_detalle_pedido,
-                                    'id_ingrediente' => $remId,
-                                    'tipo_modificacion' => 'Exclusión',
-                                    'precio_aplicado' => 0,
-                                ]);
-                            }
-                        }
-
-                        $seenAdded = [];
-                        foreach ($addedList as $ext) {
-                            $extId = is_array($ext) ? ($ext['id_ingrediente'] ?? $ext['id'] ?? null) : (is_numeric($ext) ? (int)$ext : null);
-                            if (!$extId) {
-                                $extName = is_array($ext) ? ($ext['name'] ?? $ext['nombre'] ?? $ext['ingrediente'] ?? '') : $ext;
-                                if ($extName && is_string($extName)) {
-                                    $extId = $this->resolverIdIngredienteDesdeNombre($extName);
-                                }
-                            }
-
-                            if ($extId && !isset($seenAdded[$extId])) {
-                                $seenAdded[$extId] = true;
-                                Detalle_pedido_Ingrediente::create([
-                                    'id_detalle_pedido' => $detalle->id_detalle_pedido,
-                                    'id_ingrediente' => $extId,
-                                    'tipo_modificacion' => 'Agregado',
-                                    'precio_aplicado' => is_array($ext) ? ($ext['precio'] ?? $ext['price'] ?? 0) : 0,
-                                ]);
-                            }
-                        }
                     }
                 }
-                $data['total'] = (int)$totalCalculadoUpdate;
-                unset($data['items']);
+
+                $pedido->update($data);
+
+                return $this->getPedidoById($pedido->id_pedido);
             }
-
-            // Auto-asignar fecha_de_pago cuando se marca como Pagado (id_estado_pago = 2) y vincular venta
-            if (isset($data['id_estado_pago']) && (int)$data['id_estado_pago'] === 2) {
-                if (!$pedido->fecha_de_pago) {
-                    $data['fecha_de_pago'] = now()->format('Y-m-d H:i:s');
-                }
-                $cajaActiva = Caja::where('estado', 'abierta')->latest()->first();
-                if ($cajaActiva) {
-                    Venta::firstOrCreate([
-                        'id_pedido' => $pedido->id_pedido,
-                    ], [
-                        'id_caja' => $cajaActiva->id_caja,
-                    ]);
-                }
-            }
-
-            $pedido->update($data);
-
-            return $this->getPedidoById($pedido->id_pedido);
-        }
-        return null;
+            return null;
+        });
     }
 
     # Delete

@@ -4,6 +4,7 @@ namespace App\Services;
 use App\Models\HistorialMovimiento;
 use App\Models\Movimientos;
 use App\Repositories\IngredienteRepository;
+use Illuminate\Support\Facades\DB;
 
 # Servicio Ingrediente
 class IngredienteService
@@ -24,28 +25,30 @@ class IngredienteService
             throw new \InvalidArgumentException('La cantidad no puede ser negativa.');
         }
 
-        $ing = $this->ingredienteRepository->createIngrediente($data);
-        if ($ing) {
-            HistorialMovimiento::registrar(
-                'stock',
-                'crear',
-                'Nuevo ingrediente/stock agregado',
-                $ing->nombre,
-                'Stock inicial: ' . ($ing->cantidad_actual ?? $ing->cantidad ?? 0) . ' ' . ($ing->unidad_medida ?? 'uds')
-            );
+        return DB::transaction(function () use ($data) {
+            $ing = $this->ingredienteRepository->createIngrediente($data);
+            if ($ing) {
+                HistorialMovimiento::registrar(
+                    'stock',
+                    'crear',
+                    'Nuevo ingrediente/stock agregado',
+                    $ing->nombre,
+                    'Stock inicial: ' . ($ing->cantidad_actual ?? $ing->cantidad ?? 0) . ' ' . ($ing->unidad_medida ?? 'uds')
+                );
 
-            // Registrar movimiento de stock inicial en Kardex si aplica
-            $stockInicial = (float)($ing->cantidad_actual ?? $ing->cantidad ?? 0);
-            if ($stockInicial > 0) {
-                Movimientos::create([
-                    'id_ingrediente' => $ing->id_ingrediente,
-                    'cantidad' => $stockInicial,
-                    'tipo_movimiento' => 'Entrada',
-                    'fecha_movimiento' => now()->toDateString(),
-                ]);
+                // Registrar movimiento de stock inicial en Kardex si aplica
+                $stockInicial = (float)($ing->cantidad_actual ?? $ing->cantidad ?? 0);
+                if ($stockInicial > 0) {
+                    Movimientos::create([
+                        'id_ingrediente' => $ing->id_ingrediente,
+                        'cantidad' => $stockInicial,
+                        'tipo_movimiento' => 'Entrada',
+                        'fecha_movimiento' => now()->toDateString(),
+                    ]);
+                }
             }
-        }
-        return $ing;
+            return $ing;
+        });
     }
 
     public function getAllIngredientes()
@@ -86,44 +89,46 @@ class IngredienteService
             }
         }
 
-        $ingAnterior = $this->ingredienteRepository->getIngredienteById($id);
-        $stockAnterior = $ingAnterior ? (float)($ingAnterior->cantidad_actual ?? $ingAnterior->cantidad ?? 0) : 0;
+        return DB::transaction(function () use ($id, $data) {
+            $ingAnterior = $this->ingredienteRepository->getIngredienteById($id);
+            $stockAnterior = $ingAnterior ? (float)($ingAnterior->cantidad_actual ?? $ingAnterior->cantidad ?? 0) : 0;
 
-        $ing = $this->ingredienteRepository->updateIngrediente($id, $data);
-        if ($ing) {
-            $nombre = $ing->nombre ?? ($ingAnterior->nombre ?? "Ingrediente #$id");
-            $detalles = [];
-            if (isset($data['cantidad_actual'])) {
-                $detalles[] = 'Stock ajustado a: ' . $data['cantidad_actual'] . ' ' . ($ing->unidad_medida ?? 'uds');
-            }
-            if (isset($data['disponible'])) {
-                $detalles[] = $data['disponible'] ? 'Marcado disponible' : 'Marcado sin stock';
-            }
-            $detalleStr = !empty($detalles) ? implode(' · ', $detalles) : 'Modificación de ingrediente';
+            $ing = $this->ingredienteRepository->updateIngrediente($id, $data);
+            if ($ing) {
+                $nombre = $ing->nombre ?? ($ingAnterior->nombre ?? "Ingrediente #$id");
+                $detalles = [];
+                if (isset($data['cantidad_actual'])) {
+                    $detalles[] = 'Stock ajustado a: ' . $data['cantidad_actual'] . ' ' . ($ing->unidad_medida ?? 'uds');
+                }
+                if (isset($data['disponible'])) {
+                    $detalles[] = $data['disponible'] ? 'Marcado disponible' : 'Marcado sin stock';
+                }
+                $detalleStr = !empty($detalles) ? implode(' · ', $detalles) : 'Modificación de ingrediente';
 
-            HistorialMovimiento::registrar(
-                'stock',
-                'editar',
-                'Ajuste de stock / ingrediente',
-                $nombre,
-                $detalleStr
-            );
+                HistorialMovimiento::registrar(
+                    'stock',
+                    'editar',
+                    'Ajuste de stock / ingrediente',
+                    $nombre,
+                    $detalleStr
+                );
 
-            // Registrar movimiento en Kardex si hubo cambio de stock
-            if (isset($data['cantidad_actual'])) {
-                $stockNuevo = (float)$data['cantidad_actual'];
-                $diff = $stockNuevo - $stockAnterior;
-                if (abs($diff) > 0.001) {
-                    Movimientos::create([
-                        'id_ingrediente' => $id,
-                        'cantidad' => abs($diff),
-                        'tipo_movimiento' => $diff > 0 ? 'Entrada' : 'Salida',
-                        'fecha_movimiento' => now()->toDateString(),
-                    ]);
+                // Registrar movimiento en Kardex si hubo cambio de stock
+                if (isset($data['cantidad_actual'])) {
+                    $stockNuevo = (float)$data['cantidad_actual'];
+                    $diff = $stockNuevo - $stockAnterior;
+                    if (abs($diff) > 0.001) {
+                        Movimientos::create([
+                            'id_ingrediente' => $id,
+                            'cantidad' => abs($diff),
+                            'tipo_movimiento' => $diff > 0 ? 'Entrada' : 'Salida',
+                            'fecha_movimiento' => now()->toDateString(),
+                        ]);
+                    }
                 }
             }
-        }
-        return $ing;
+            return $ing;
+        });
     }
 
     public function deleteIngredienteById($id)

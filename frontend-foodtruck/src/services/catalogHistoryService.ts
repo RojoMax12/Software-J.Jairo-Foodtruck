@@ -112,18 +112,11 @@ export const catalogHistoryService = {
         return newRecord;
     },
 
-    // 4. Vaciar historial tanto en backend como local
+    // 4. Limpiar cache local de historial (solo cliente)
     async clearHistory(): Promise<void> {
-        try {
-            await api.delete('/historial_movimientos-clear');
-        } catch (err) {
-            console.warn('Error al vaciar historial en backend:', err);
-        }
-
         try {
             localStorage.removeItem(STORAGE_KEY);
         } catch {}
-
         window.dispatchEvent(new Event('foodtruck-catalog-movement'));
     }
 };

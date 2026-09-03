@@ -1,9 +1,9 @@
 <template>
   <Transition name="pop">
-    <div v-if="isOpen && product" class="modal-overlay" @click="$emit('close')">
+    <div v-if="isOpen && product" class="modal-overlay" @click="handleClose">
       <div class="modal-wrapper" @click.stop>
         
-        <button class="close-btn" @click="$emit('close')">
+        <button class="close-btn" @click="handleClose">
           <X :size="24" />
         </button>
 
@@ -143,10 +143,10 @@
 
               <button 
                 class="add-to-cart-btn" 
-                :disabled="!selectedType || !isTypeAvailable(selectedType)"
+                :disabled="!selectedType || !isTypeAvailable(selectedType) || props.isStoreOpen === false"
                 @click="handleAddToCart"
               >
-                <span class="btn-text">{{ isTypeAvailable(selectedType) ? 'AÑADIR' : 'DESACTIVADO' }}</span>
+                <span class="btn-text">{{ props.isStoreOpen === false ? 'LOCAL CERRADO' : (isTypeAvailable(selectedType) ? 'AÑADIR' : 'DESACTIVADO') }}</span>
                 <span class="btn-total">${{ totalPriceFormatted }}</span>
               </button>
             </div>
@@ -163,10 +163,13 @@
 import { ref, computed, watch } from 'vue';
 import { X, Plus, Minus } from 'lucide-vue-next';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   isOpen: boolean;
   product: any; 
-}>();
+  isStoreOpen?: boolean;
+}>(), {
+  isStoreOpen: true
+});
 
 const emit = defineEmits(['close', 'add-to-cart']);
 
@@ -222,20 +225,36 @@ const isTypeAvailable = (tipo: any) => {
   return true;
 };
 
-// Al cambiar el producto reseteamos estados
-watch(() => props.product, (newProduct) => {
-  if (newProduct && newProduct.types) {
-    const firstAvailable = newProduct.types.find((t: any) => isTypeAvailable(t));
+// Resetea el contador de cantidad y configuraciones a su estado inicial
+const resetModalState = () => {
+  quantity.value = 1;
+  excludedIngredients.value = [];
+  addedExtraIngredients.value = [];
+  if (props.product && props.product.types) {
+    const firstAvailable = props.product.types.find((t: any) => isTypeAvailable(t));
     const fallbackSize = firstAvailable
-      ? (newProduct.sizes?.[0] || getEffectiveSizeForType(firstAvailable) || '')
-      : (newProduct.sizes?.[0] || '');
+      ? (props.product.sizes?.[0] || getEffectiveSizeForType(firstAvailable) || '')
+      : (props.product.sizes?.[0] || '');
 
     selectedSize.value = fallbackSize;
-    selectedType.value = firstAvailable || newProduct.types[0] || null;
-    excludedIngredients.value = [];
-    addedExtraIngredients.value = [];
-    quantity.value = 1;
+    selectedType.value = firstAvailable || props.product.types[0] || null;
   }
+};
+
+const handleClose = () => {
+  resetModalState();
+  emit('close');
+};
+
+// Reiniciar cada vez que se abra/cierre el modal o cambie el producto
+watch(() => props.isOpen, (open) => {
+  if (open) {
+    resetModalState();
+  }
+});
+
+watch(() => props.product, () => {
+  resetModalState();
 }, { immediate: true });
 
 const getSizePrice = (sizeName: string) => {
@@ -431,7 +450,7 @@ const handleAddToCart = () => {
     agregadosDetails
   });
 
-  emit('close');
+  handleClose();
 };
 </script>
 

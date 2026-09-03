@@ -45,7 +45,7 @@ import { getUserInitials } from '@/composables/useUserInitials'
 const router = useRouter()
 const route = useRoute()
 const username = ref('Usuario')
-const userRoleName = ref('Administrador') 
+const userRoleName = ref('') 
 const roleId = ref<number | null>(null)   
 
 const checkAuth = () => {
@@ -60,9 +60,9 @@ const checkAuth = () => {
       if (rId === 1) {
         userRoleName.value = 'Administrador'
       } else if (rId === 2) {
-        userRoleName.value = 'Trabajador'
-      } else if (rId === 3) {
         userRoleName.value = 'Cliente'
+      } else if (rId === 3) {
+        userRoleName.value = 'Trabajador'
       } else {
         userRoleName.value = 'Staff'
       }

@@ -10,7 +10,9 @@ import {
   Images,
   FolderTree,
   Tag,
-  History
+  History,
+  Clock,
+  Tv
 } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 
@@ -81,7 +83,7 @@ const isActive = (path: string) => {
               class="nav-item" 
               :class="{ active: isActive('/general-home/admin/cash-flow') }"
               @click="navigateTo('/general-home/admin/cash-flow')"
-              v-role="[1]"
+              v-role="[1,3]"
             >
               <BadgeDollarSign :size="20" />
               <span>Caja</span>
@@ -97,7 +99,7 @@ const isActive = (path: string) => {
               <span>Inventario</span>
             </button>
 
-            <span class="section-title" style="margin-top: 10px;">Catálogo & Menú</span>
+            <span v-role="[1]" class="section-title" style="margin-top: 10px;">Catálogo & Menú</span>
 
             <button 
               class="nav-item" 
@@ -119,7 +121,7 @@ const isActive = (path: string) => {
               <span>Banners y Avisos</span>
             </button>
 
-            <span class="section-title" style="margin-top: 10px;">Administración</span>
+            <span v-role="[1]" class="section-title" style="margin-top: 10px;">Administración</span>
 
             <button 
               class="nav-item" 
@@ -133,13 +135,33 @@ const isActive = (path: string) => {
 
             <button 
               class="nav-item" 
+              :class="{ active: isActive('/general-home/admin/schedules') }"
+              @click="navigateTo('/general-home/admin/schedules')"
+              v-role="[1]"
+            >
+              <Clock :size="20" />
+              <span>Horarios y Colchón</span>
+            </button>
+
+            <button 
+              class="nav-item" 
               :class="{ active: isActive('/general-home/admin/history') }"
               @click="navigateTo('/general-home/admin/history')"
-              v-role="[1,3]"
+              v-role="[1]"
             >
               <History :size="20" />
               <span>Auditoría del Sistema</span>
             </button>
+
+            <a 
+              href="/menu-board" 
+              target="_blank" 
+              class="nav-item"
+              style="text-decoration: none;"
+            >
+              <Tv :size="20" />
+              <span>Menu Board (TV) ↗</span>
+            </a>
           </div>
         </nav>
 

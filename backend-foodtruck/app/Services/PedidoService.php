@@ -8,6 +8,7 @@ use App\Models\Movimientos;
 use App\Models\Pedido;
 use App\Models\Producto_ingrediente;
 use App\Repositories\PedidoRepository;
+use Illuminate\Support\Facades\DB;
 
 # Servicio Pedido
 class PedidoService
@@ -48,6 +49,73 @@ class PedidoService
         ]);
     }
 
+    private function itemsFueronModificados($pedido, array $nuevosItems)
+    {
+        $pedido->loadMissing(['detalles.ingredientes.ingrediente']);
+        $detalles = $pedido->detalles ?? collect();
+
+        if ($detalles->count() !== count($nuevosItems)) {
+            return true;
+        }
+
+        // Construir firmas únicas de los detalles actuales en base de datos
+        $existentes = $detalles->map(function ($d) {
+            $excluidos = ($d->ingredientes ?? collect())
+                ->filter(function ($m) {
+                    return $this->normalizarTipoModificacion($m->tipo_modificacion ?? '') === 'Exclusión';
+                })
+                ->pluck('id_ingrediente')
+                ->filter()
+                ->sort()
+                ->values()
+                ->all();
+
+            $agregados = ($d->ingredientes ?? collect())
+                ->filter(function ($m) {
+                    return $this->normalizarTipoModificacion($m->tipo_modificacion ?? '') === 'Agregado';
+                })
+                ->pluck('id_ingrediente')
+                ->filter()
+                ->sort()
+                ->values()
+                ->all();
+
+            return (int)$d->id_producto . ':' . (int)($d->id_tamaño ?? 0) . ':' . (int)$d->cantidad . ':' . implode(',', $excluidos) . ':' . implode(',', $agregados);
+        })->sort()->values()->all();
+
+        // Construir firmas únicas de los items entrantes
+        $nuevos = collect($nuevosItems)->map(function ($item) {
+            $rawProd = $item['id_producto'] ?? ($item['catalogId'] ?? ($item['id'] ?? 0));
+            if (is_string($rawProd) && strpos($rawProd, '_') !== false) {
+                $rawProd = explode('_', $rawProd)[0];
+            }
+            $prodId = (int)$rawProd;
+
+            $tamId = (int)($item['id_tamaño'] ?? ($item['tamano_id'] ?? 0));
+            $cant = max(1, (int)($item['cantidad'] ?? ($item['quantity'] ?? 1)));
+
+            $excluidos = [];
+            $rawExcl = $item['removedIngredients'] ?? ($item['excluidos'] ?? ($item['excluidosDetails'] ?? []));
+            foreach ($rawExcl as $rem) {
+                $remId = is_array($rem) ? ($rem['id_ingrediente'] ?? $rem['id'] ?? null) : (is_numeric($rem) ? (int)$rem : null);
+                if ($remId) $excluidos[] = (int)$remId;
+            }
+            sort($excluidos);
+
+            $agregados = [];
+            $rawAgre = $item['addedExtras'] ?? ($item['agregados'] ?? ($item['agregadosDetails'] ?? []));
+            foreach ($rawAgre as $ext) {
+                $extId = is_array($ext) ? ($ext['id_ingrediente'] ?? $ext['id'] ?? null) : (is_numeric($ext) ? (int)$ext : null);
+                if ($extId) $agregados[] = (int)$extId;
+            }
+            sort($agregados);
+
+            return $prodId . ':' . $tamId . ':' . $cant . ':' . implode(',', $excluidos) . ':' . implode(',', $agregados);
+        })->sort()->values()->all();
+
+        return $existentes !== $nuevos;
+    }
+
     public function __construct(PedidoRepository $pedidoRepository)
     {
         $this->pedidoRepository = $pedidoRepository;
@@ -80,97 +148,70 @@ class PedidoService
 
     public function descontarInventario($pedidoId)
     {
-        $pedido = Pedido::with(['detalles.ingredientes.ingrediente', 'detalles.producto'])->find($pedidoId);
-        if (!$pedido || $pedido->inventario_descontado) {
-            return;
-        }
+        return DB::transaction(function () use ($pedidoId) {
+            $pedido = Pedido::with(['detalles.ingredientes.ingrediente', 'detalles.producto'])
+                ->lockForUpdate()
+                ->find($pedidoId);
 
-        foreach ($pedido->detalles as $detalle) {
-            $productoId = $detalle->id_producto;
-            $tamanoId = $detalle->id_tamaño;
-            $cantComprada = max(1, (int)$detalle->cantidad);
+            if (!$pedido || $pedido->inventario_descontado) {
+                return;
+            }
 
-            // Obtener exclusiones de este detalle (por ID y por nombre)
-            $exclusiones = ($detalle->ingredientes ?? collect())
-                ->filter(function ($mod) {
-                    $tipo = $this->normalizarTipoModificacion($mod->tipo_modificacion ?? '');
-                    return $tipo === 'Exclusión';
-                });
+            foreach ($pedido->detalles as $detalle) {
+                $productoId = $detalle->id_producto;
+                $tamanoId = $detalle->id_tamaño;
+                $cantComprada = max(1, (int)$detalle->cantidad);
 
-            $excluidosIds = $exclusiones->pluck('id_ingrediente')->filter()->toArray();
-            $excluidosNombres = $exclusiones->map(function ($mod) {
-                return $this->normalizarNombreIngrediente($mod->ingrediente->nombre ?? '');
-            })->filter()->toArray();
+                // Obtener exclusiones de este detalle (por ID y por nombre)
+                $exclusiones = ($detalle->ingredientes ?? collect())
+                    ->filter(function ($mod) {
+                        $tipo = $this->normalizarTipoModificacion($mod->tipo_modificacion ?? '');
+                        return $tipo === 'Exclusión';
+                    });
 
-            // Receta base: ingredientes incluidos por defecto para el producto y tamaño
-            $recetaQuery = Producto_ingrediente::where('id_producto', $productoId)
-                ->where('incluido_por_defecto', true);
+                $excluidosIds = $exclusiones->pluck('id_ingrediente')->filter()->toArray();
+                $excluidosNombres = $exclusiones->map(function ($mod) {
+                    return $this->normalizarNombreIngrediente($mod->ingrediente->nombre ?? '');
+                })->filter()->toArray();
 
-            if ($tamanoId) {
-                $recetaTamano = (clone $recetaQuery)->where('id_tamaño', $tamanoId)->get();
-                if ($recetaTamano->isNotEmpty()) {
-                    $receta = $recetaTamano;
+                // Receta base: ingredientes incluidos por defecto para el producto y tamaño
+                $recetaQuery = Producto_ingrediente::where('id_producto', $productoId)
+                    ->where('incluido_por_defecto', true);
+
+                if ($tamanoId) {
+                    $recetaTamano = (clone $recetaQuery)->where('id_tamaño', $tamanoId)->get();
+                    if ($recetaTamano->isNotEmpty()) {
+                        $receta = $recetaTamano;
+                    } else {
+                        $receta = (clone $recetaQuery)->whereNull('id_tamaño')->get();
+                    }
                 } else {
                     $receta = (clone $recetaQuery)->whereNull('id_tamaño')->get();
                 }
-            } else {
-                $receta = (clone $recetaQuery)->whereNull('id_tamaño')->get();
-            }
 
-            // Fallback: si no encontró con los filtros anteriores, traer cualquier receta base del producto
-            if ($receta->isEmpty()) {
-                $receta = Producto_ingrediente::where('id_producto', $productoId)
-                    ->where('incluido_por_defecto', true)
-                    ->get();
-            }
-
-            // 1. Descontar ingredientes de la receta base (omitiendo los excluidos)
-            foreach ($receta as $itemReceta) {
-                $ingrediente = Ingrediente::find($itemReceta->id_ingrediente);
-                if (!$ingrediente) {
-                    continue;
+                // Fallback: si no encontró con los filtros anteriores, traer cualquier receta base del producto
+                if ($receta->isEmpty()) {
+                    $receta = Producto_ingrediente::where('id_producto', $productoId)
+                        ->where('incluido_por_defecto', true)
+                        ->get();
                 }
 
-                $nombreNorm = $this->normalizarNombreIngrediente($ingrediente->nombre);
+                // 1. Descontar ingredientes de la receta base (omitiendo los excluidos)
+                foreach ($receta as $itemReceta) {
+                    $ingrediente = Ingrediente::lockForUpdate()->find($itemReceta->id_ingrediente);
+                    if (!$ingrediente) {
+                        continue;
+                    }
 
-                // Si el ingrediente fue excluido por el cliente, NO se descuenta
-                if (in_array($itemReceta->id_ingrediente, $excluidosIds) || in_array($nombreNorm, $excluidosNombres)) {
-                    continue;
-                }
+                    $nombreNorm = $this->normalizarNombreIngrediente($ingrediente->nombre);
 
-                $cantReceta = (float)($itemReceta->cantidad ?? 1);
-                $descuentoTotal = $cantReceta * $cantComprada;
+                    // Si el ingrediente fue excluido por el cliente, NO se descuenta
+                    if (in_array($itemReceta->id_ingrediente, $excluidosIds) || in_array($nombreNorm, $excluidosNombres)) {
+                        continue;
+                    }
 
-                $ingrediente->cantidad_actual = max(0, (float)$ingrediente->cantidad_actual - $descuentoTotal);
-                if ($ingrediente->cantidad_actual <= 0) {
-                    $ingrediente->disponible = false;
-                }
-                $ingrediente->save();
-
-                // Registrar movimiento de salida
-                Movimientos::create([
-                    'id_ingrediente' => $ingrediente->id_ingrediente,
-                    'cantidad' => $descuentoTotal,
-                    'tipo_movimiento' => 'Salida',
-                    'fecha_movimiento' => now()->toDateString(),
-                ]);
-            }
-
-            // 2. Descontar agregados / extras personalizados
-            $agregados = ($detalle->ingredientes ?? collect())
-                ->filter(function ($mod) {
-                    $tipo = $this->normalizarTipoModificacion($mod->tipo_modificacion ?? '');
-                    return $tipo === 'Agregado';
-                });
-
-            foreach ($agregados as $itemAgregado) {
-                $ingrediente = $itemAgregado->id_ingrediente 
-                    ? Ingrediente::find($itemAgregado->id_ingrediente)
-                    : null;
-
-                if ($ingrediente) {
-                    $cantExtra = 1; // 1 porción extra por producto
-                    $descuentoTotal = $cantExtra * $cantComprada;
+                    $cantReceta = (float)($itemReceta->cantidad ?? 1);
+                    $descuentoTotal = $cantReceta * $cantComprada;
 
                     $ingrediente->cantidad_actual = max(0, (float)$ingrediente->cantidad_actual - $descuentoTotal);
                     if ($ingrediente->cantidad_actual <= 0) {
@@ -178,6 +219,7 @@ class PedidoService
                     }
                     $ingrediente->save();
 
+                    // Registrar movimiento de salida
                     Movimientos::create([
                         'id_ingrediente' => $ingrediente->id_ingrediente,
                         'cantidad' => $descuentoTotal,
@@ -185,101 +227,106 @@ class PedidoService
                         'fecha_movimiento' => now()->toDateString(),
                     ]);
                 }
-            }
-        }
 
-        $pedido->inventario_descontado = true;
-        $pedido->save();
+                // 2. Descontar agregados / extras personalizados
+                $agregados = ($detalle->ingredientes ?? collect())
+                    ->filter(function ($mod) {
+                        $tipo = $this->normalizarTipoModificacion($mod->tipo_modificacion ?? '');
+                        return $tipo === 'Agregado';
+                    });
+
+                foreach ($agregados as $itemAgregado) {
+                    $ingrediente = $itemAgregado->id_ingrediente 
+                        ? Ingrediente::lockForUpdate()->find($itemAgregado->id_ingrediente)
+                        : null;
+
+                    if ($ingrediente) {
+                        $cantExtra = 1; // 1 porción extra por producto
+                        $descuentoTotal = $cantExtra * $cantComprada;
+
+                        $ingrediente->cantidad_actual = max(0, (float)$ingrediente->cantidad_actual - $descuentoTotal);
+                        if ($ingrediente->cantidad_actual <= 0) {
+                            $ingrediente->disponible = false;
+                        }
+                        $ingrediente->save();
+
+                        Movimientos::create([
+                            'id_ingrediente' => $ingrediente->id_ingrediente,
+                            'cantidad' => $descuentoTotal,
+                            'tipo_movimiento' => 'Salida',
+                            'fecha_movimiento' => now()->toDateString(),
+                        ]);
+                    }
+                }
+            }
+
+            $pedido->inventario_descontado = true;
+            $pedido->save();
+        });
     }
 
     public function revertirInventario($pedidoId)
     {
-        $pedido = Pedido::with(['detalles.ingredientes.ingrediente', 'detalles.producto'])->find($pedidoId);
-        if (!$pedido || !$pedido->inventario_descontado) {
-            return;
-        }
+        return DB::transaction(function () use ($pedidoId) {
+            $pedido = Pedido::with(['detalles.ingredientes.ingrediente', 'detalles.producto'])
+                ->lockForUpdate()
+                ->find($pedidoId);
 
-        foreach ($pedido->detalles as $detalle) {
-            $productoId = $detalle->id_producto;
-            $tamanoId = $detalle->id_tamaño;
-            $cantComprada = max(1, (int)$detalle->cantidad);
+            if (!$pedido || !$pedido->inventario_descontado) {
+                return;
+            }
 
-            $exclusiones = ($detalle->ingredientes ?? collect())
-                ->filter(function ($mod) {
-                    $tipo = $this->normalizarTipoModificacion($mod->tipo_modificacion ?? '');
-                    return $tipo === 'Exclusión';
-                });
+            foreach ($pedido->detalles as $detalle) {
+                $productoId = $detalle->id_producto;
+                $tamanoId = $detalle->id_tamaño;
+                $cantComprada = max(1, (int)$detalle->cantidad);
 
-            $excluidosIds = $exclusiones->pluck('id_ingrediente')->filter()->toArray();
-            $excluidosNombres = $exclusiones->map(function ($mod) {
-                return $this->normalizarNombreIngrediente($mod->ingrediente->nombre ?? '');
-            })->filter()->toArray();
+                $exclusiones = ($detalle->ingredientes ?? collect())
+                    ->filter(function ($mod) {
+                        $tipo = $this->normalizarTipoModificacion($mod->tipo_modificacion ?? '');
+                        return $tipo === 'Exclusión';
+                    });
 
-            $recetaQuery = Producto_ingrediente::where('id_producto', $productoId)
-                ->where('incluido_por_defecto', true);
+                $excluidosIds = $exclusiones->pluck('id_ingrediente')->filter()->toArray();
+                $excluidosNombres = $exclusiones->map(function ($mod) {
+                    return $this->normalizarNombreIngrediente($mod->ingrediente->nombre ?? '');
+                })->filter()->toArray();
 
-            if ($tamanoId) {
-                $recetaTamano = (clone $recetaQuery)->where('id_tamaño', $tamanoId)->get();
-                if ($recetaTamano->isNotEmpty()) {
-                    $receta = $recetaTamano;
+                $recetaQuery = Producto_ingrediente::where('id_producto', $productoId)
+                    ->where('incluido_por_defecto', true);
+
+                if ($tamanoId) {
+                    $recetaTamano = (clone $recetaQuery)->where('id_tamaño', $tamanoId)->get();
+                    if ($recetaTamano->isNotEmpty()) {
+                        $receta = $recetaTamano;
+                    } else {
+                        $receta = (clone $recetaQuery)->whereNull('id_tamaño')->get();
+                    }
                 } else {
                     $receta = (clone $recetaQuery)->whereNull('id_tamaño')->get();
                 }
-            } else {
-                $receta = (clone $recetaQuery)->whereNull('id_tamaño')->get();
-            }
 
-            if ($receta->isEmpty()) {
-                $receta = Producto_ingrediente::where('id_producto', $productoId)
-                    ->where('incluido_por_defecto', true)
-                    ->get();
-            }
-
-            // 1. Revertir receta base no excluida
-            foreach ($receta as $itemReceta) {
-                $ingrediente = Ingrediente::find($itemReceta->id_ingrediente);
-                if (!$ingrediente) {
-                    continue;
+                if ($receta->isEmpty()) {
+                    $receta = Producto_ingrediente::where('id_producto', $productoId)
+                        ->where('incluido_por_defecto', true)
+                        ->get();
                 }
 
-                $nombreNorm = $this->normalizarNombreIngrediente($ingrediente->nombre);
+                // 1. Revertir receta base no excluida
+                foreach ($receta as $itemReceta) {
+                    $ingrediente = Ingrediente::lockForUpdate()->find($itemReceta->id_ingrediente);
+                    if (!$ingrediente) {
+                        continue;
+                    }
 
-                if (in_array($itemReceta->id_ingrediente, $excluidosIds) || in_array($nombreNorm, $excluidosNombres)) {
-                    continue;
-                }
+                    $nombreNorm = $this->normalizarNombreIngrediente($ingrediente->nombre);
 
-                $cantReceta = (float)($itemReceta->cantidad ?? 1);
-                $reversionTotal = $cantReceta * $cantComprada;
+                    if (in_array($itemReceta->id_ingrediente, $excluidosIds) || in_array($nombreNorm, $excluidosNombres)) {
+                        continue;
+                    }
 
-                $ingrediente->cantidad_actual = (float)$ingrediente->cantidad_actual + $reversionTotal;
-                if ($ingrediente->cantidad_actual > 0) {
-                    $ingrediente->disponible = true;
-                }
-                $ingrediente->save();
-
-                Movimientos::create([
-                    'id_ingrediente' => $ingrediente->id_ingrediente,
-                    'cantidad' => $reversionTotal,
-                    'tipo_movimiento' => 'Entrada',
-                    'fecha_movimiento' => now()->toDateString(),
-                ]);
-            }
-
-            // 2. Revertir agregados / extras
-            $agregados = ($detalle->ingredientes ?? collect())
-                ->filter(function ($mod) {
-                    $tipo = $this->normalizarTipoModificacion($mod->tipo_modificacion ?? '');
-                    return $tipo === 'Agregado';
-                });
-
-            foreach ($agregados as $itemAgregado) {
-                $ingrediente = $itemAgregado->id_ingrediente 
-                    ? Ingrediente::find($itemAgregado->id_ingrediente)
-                    : null;
-
-                if ($ingrediente) {
-                    $cantExtra = 1;
-                    $reversionTotal = $cantExtra * $cantComprada;
+                    $cantReceta = (float)($itemReceta->cantidad ?? 1);
+                    $reversionTotal = $cantReceta * $cantComprada;
 
                     $ingrediente->cantidad_actual = (float)$ingrediente->cantidad_actual + $reversionTotal;
                     if ($ingrediente->cantidad_actual > 0) {
@@ -294,11 +341,42 @@ class PedidoService
                         'fecha_movimiento' => now()->toDateString(),
                     ]);
                 }
-            }
-        }
 
-        $pedido->inventario_descontado = false;
-        $pedido->save();
+                // 2. Revertir agregados / extras
+                $agregados = ($detalle->ingredientes ?? collect())
+                    ->filter(function ($mod) {
+                        $tipo = $this->normalizarTipoModificacion($mod->tipo_modificacion ?? '');
+                        return $tipo === 'Agregado';
+                    });
+
+                foreach ($agregados as $itemAgregado) {
+                    $ingrediente = $itemAgregado->id_ingrediente 
+                        ? Ingrediente::lockForUpdate()->find($itemAgregado->id_ingrediente)
+                        : null;
+
+                    if ($ingrediente) {
+                        $cantExtra = 1;
+                        $reversionTotal = $cantExtra * $cantComprada;
+
+                        $ingrediente->cantidad_actual = (float)$ingrediente->cantidad_actual + $reversionTotal;
+                        if ($ingrediente->cantidad_actual > 0) {
+                            $ingrediente->disponible = true;
+                        }
+                        $ingrediente->save();
+
+                        Movimientos::create([
+                            'id_ingrediente' => $ingrediente->id_ingrediente,
+                            'cantidad' => $reversionTotal,
+                            'tipo_movimiento' => 'Entrada',
+                            'fecha_movimiento' => now()->toDateString(),
+                        ]);
+                    }
+                }
+            }
+
+            $pedido->inventario_descontado = false;
+            $pedido->save();
+        });
     }
 
     public function getAllPedidos($fecha = null)
@@ -356,8 +434,18 @@ class PedidoService
             }
         }
 
-        // Si se modifican los items y ya se había descontado stock, revertir el anterior primero
-        if (isset($data['items']) && is_array($data['items']) && $pedidoAnterior && $pedidoAnterior->inventario_descontado) {
+        // Verificar si los items realmente cambiaron respecto a la base de datos
+        $itemsRealmenteCambiaron = false;
+        if (isset($data['items']) && is_array($data['items']) && $pedidoAnterior) {
+            $itemsRealmenteCambiaron = $this->itemsFueronModificados($pedidoAnterior, $data['items']);
+            if (!$itemsRealmenteCambiaron) {
+                // Si los items son idénticos a los ya guardados, no borrar ni recrear detalles
+                unset($data['items']);
+            }
+        }
+
+        // Si se modifican los items de forma efectiva y ya se había descontado stock, revertir el anterior primero
+        if ($itemsRealmenteCambiaron && $pedidoAnterior && $pedidoAnterior->inventario_descontado) {
             $this->revertirInventario($pedidoAnterior->id_pedido);
         }
 

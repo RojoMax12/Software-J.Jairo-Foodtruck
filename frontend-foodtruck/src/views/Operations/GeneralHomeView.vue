@@ -31,7 +31,7 @@
         <p>Gestiona y revisa los insumos disponibles </p>
       </router-link>
 
-      <router-link v-role="[1]" to="/general-home/admin/cash-flow" class="admin-option-card">
+      <router-link v-role="[1,3]" to="/general-home/admin/cash-flow" class="admin-option-card">
         <div class="icon-container">
           <BadgeDollarSign :size="48" />
         </div>
@@ -63,13 +63,29 @@
         <h2>Personalizacion de la tienda</h2>
         <p>Gestiona la personalización del banner y de los avisos</p>
       </router-link>
+
+      <router-link v-role="[1]" to="/general-home/admin/schedules" class="admin-option-card">
+        <div class="icon-container">
+          <Clock :size="48" />
+        </div>
+        <h2>Horarios y Colchón</h2>
+        <p>Personaliza las horas de trabajo, días de apertura y el margen de colchón</p>
+      </router-link>
+
+      <a href="/menu-board" target="_blank" class="admin-option-card" style="text-decoration: none;">
+        <div class="icon-container">
+          <Tv :size="48" />
+        </div>
+        <h2>Menu Board Digital (TV) ↗</h2>
+        <p>Abre el tablero de precios en pantalla completa para proyectar en la televisión</p>
+      </a>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { BadgeDollarSign, ShoppingBag, Package, Store, Users, PackageSearch } from 'lucide-vue-next';
+import { BadgeDollarSign, ShoppingBag, Package, Store, Users, PackageSearch, Clock, Tv } from 'lucide-vue-next';
 
 const userRoleName = ref('Administración');
 const userName = ref('');

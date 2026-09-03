@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\PedidoService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class PedidoPublicoController extends Controller
 {
@@ -26,14 +27,20 @@ class PedidoPublicoController extends Controller
         if (empty($window['is_active'])) {
             $apertura = substr($window['hora_apertura'] ?? '19:00', 0, 5);
             $cierre = substr($window['hora_cierre'] ?? '00:30', 0, 5);
+            $isDayOff = !empty($window['is_day_off']);
+            $msg = $isDayOff
+                ? "El Foodtruck se encuentra cerrado hoy por ser día de descanso programado. ¡No es posible realizar pedidos hoy!"
+                : "El Foodtruck se encuentra cerrado en este momento. Nuestro horario de atención es de {$apertura} a {$cierre} hrs. ¡Te esperamos en nuestro próximo turno!";
+
             return response()->json([
                 'success' => false,
                 'is_closed' => true,
-                'message' => "El Foodtruck se encuentra cerrado en este momento. Nuestro horario de atención es de {$apertura} a {$cierre} hrs. ¡Te esperamos en nuestro próximo turno!",
+                'message' => $msg,
                 'horario' => [
                     'hora_apertura' => $apertura,
                     'hora_cierre' => $cierre,
-                    'dia' => $window['dia'] ?? 'Hoy'
+                    'dia' => $window['dia'] ?? 'Hoy',
+                    'es_dia_cerrado' => $isDayOff
                 ]
             ], 422);
         }
@@ -51,10 +58,19 @@ class PedidoPublicoController extends Controller
                 'message' => 'Pedido registrado exitosamente.',
                 'data' => $pedido
             ], 201);
-        } catch (\Exception $e) {
+        } catch (\InvalidArgumentException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al registrar pedido: ' . $e->getMessage()
+                'message' => $e->getMessage()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error al registrar pedido público: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'ip' => $request->ip()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un inconveniente al procesar tu pedido. Por favor, inténtalo nuevamente o consulta con nuestro personal.'
             ], 500);
         }
     }
@@ -83,9 +99,10 @@ class PedidoPublicoController extends Controller
                 'data' => $pedido
             ]);
         } catch (\Exception $e) {
+            Log::error("Error al consultar pedido ID #{$id}: " . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al consultar pedido: ' . $e->getMessage()
+                'message' => 'Ocurrió un inconveniente al consultar el pedido. Por favor, intenta más tarde.'
             ], 500);
         }
     }

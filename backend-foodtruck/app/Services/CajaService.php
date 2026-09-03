@@ -3,6 +3,7 @@ namespace App\Services;
 
 use App\Models\HistorialMovimiento;
 use App\Repositories\CajaRepository;
+use Illuminate\Support\Facades\DB;
 
 # Servicio Caja
 class CajaService
@@ -23,18 +24,20 @@ class CajaService
             throw new \InvalidArgumentException('El total recaudado no puede ser negativo.');
         }
 
-        $caja = $this->cajaRepository->createCaja($data);
-        if ($caja) {
-            HistorialMovimiento::registrar(
-                'caja',
-                'apertura',
-                'Apertura de turno de caja',
-                'Sesión de Caja #' . $caja->id_caja,
-                'Turno abierto con fondo de caja: $' . number_format($caja->fondo_inicial ?? 0, 0, ',', '.'),
-                $caja->fondo_inicial ?? 0
-            );
-        }
-        return $caja;
+        return DB::transaction(function () use ($data) {
+            $caja = $this->cajaRepository->createCaja($data);
+            if ($caja) {
+                HistorialMovimiento::registrar(
+                    'caja',
+                    'apertura',
+                    'Apertura de turno de caja',
+                    'Sesión de Caja #' . $caja->id_caja,
+                    'Turno abierto con fondo de caja: $' . number_format($caja->fondo_inicial ?? 0, 0, ',', '.'),
+                    $caja->fondo_inicial ?? 0
+                );
+            }
+            return $caja;
+        });
     }
 
     public function getAllCajas()
@@ -66,20 +69,22 @@ class CajaService
             throw new \InvalidArgumentException('El total recaudado no puede ser negativo.');
         }
 
-        $caja = $this->cajaRepository->updateCaja($id, $data);
-        if ($caja) {
-            if (isset($data['estado']) && $data['estado'] === 'cerrada') {
-                HistorialMovimiento::registrar(
-                    'caja',
-                    'cierre',
-                    'Cierre de turno y arqueo de caja',
-                    'Sesión de Caja #' . $caja->id_caja,
-                    'Ventas totales: $' . number_format($caja->total_ventas ?? 0, 0, ',', '.') . ' · Recaudado: $' . number_format($caja->total_recaudado ?? 0, 0, ',', '.'),
-                    $caja->total_recaudado ?? 0
-                );
+        return DB::transaction(function () use ($id, $data) {
+            $caja = $this->cajaRepository->updateCaja($id, $data);
+            if ($caja) {
+                if (isset($data['estado']) && $data['estado'] === 'cerrada') {
+                    HistorialMovimiento::registrar(
+                        'caja',
+                        'cierre',
+                        'Cierre de turno y arqueo de caja',
+                        'Sesión de Caja #' . $caja->id_caja,
+                        'Ventas totales: $' . number_format($caja->total_ventas ?? 0, 0, ',', '.') . ' · Recaudado: $' . number_format($caja->total_recaudado ?? 0, 0, ',', '.'),
+                        $caja->total_recaudado ?? 0
+                    );
+                }
             }
-        }
-        return $caja;
+            return $caja;
+        });
     }
 
     public function deleteCajaById($id)

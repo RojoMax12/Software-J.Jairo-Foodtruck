@@ -146,9 +146,21 @@ class ProductoController extends Controller
         $path = null;
 
         // 1. Si viene como archivo Multipart
-        if ($request->hasFile('imagen') || $request->hasFile('image') || $request->hasFile('file')) {
-            $file = $request->file('imagen') ?? $request->file('image') ?? $request->file('file');
-            $extension = $file->getClientOriginalExtension() ?: 'webp';
+        $fileKey = $request->hasFile('imagen') ? 'imagen' : ($request->hasFile('image') ? 'image' : ($request->hasFile('file') ? 'file' : null));
+        if ($fileKey) {
+            $request->validate([
+                $fileKey => 'required|file|image|mimes:jpeg,png,jpg,webp|max:5120',
+            ], [
+                "{$fileKey}.image" => 'El archivo debe ser una imagen válida.',
+                "{$fileKey}.mimes" => 'Solo se admiten formatos JPEG, PNG, JPG o WEBP.',
+                "{$fileKey}.max" => 'El tamaño de la imagen no puede superar los 5 MB.',
+            ]);
+
+            $file = $request->file($fileKey);
+            $extension = $file->guessExtension() ?: $file->getClientOriginalExtension() ?: 'webp';
+            if (!in_array(strtolower($extension), ['jpeg', 'jpg', 'png', 'webp'], true)) {
+                $extension = 'webp';
+            }
             $filename = 'prod_' . $id . '_' . time() . '.' . $extension;
             $path = $file->storeAs('productos', $filename, 'public');
         } 
@@ -156,9 +168,14 @@ class ProductoController extends Controller
         else if ($request->filled('imagen') || $request->filled('image')) {
             $raw = $request->input('imagen') ?? $request->input('image');
             if (str_starts_with($raw, 'data:image')) {
+                if (!preg_match('/^data:image\/(jpeg|png|jpg|webp);base64,/', $raw)) {
+                    return response()->json(['message' => 'El formato Base64 debe ser una imagen JPEG, PNG o WEBP válida.'], 422);
+                }
                 $path = $this->saveBase64Image($raw, 'prod_' . $id . '_' . time());
-            } elseif (str_starts_with($raw, 'http://') || str_starts_with($raw, 'https://')) {
+            } elseif (filter_var($raw, FILTER_VALIDATE_URL)) {
                 $path = $raw;
+            } else {
+                return response()->json(['message' => 'La URL o dato de imagen proporcionado no es válido.'], 422);
             }
         }
 
@@ -189,7 +206,20 @@ class ProductoController extends Controller
         @list(, $raw)      = explode(',', $raw);
         $imageData = base64_decode($raw);
 
-        $filename = $prefix . '_' . uniqid() . '.webp';
+        // Validar tamaño máximo del base64 (5MB = 5 * 1024 * 1024 bytes)
+        if ($imageData === false || strlen($imageData) > 5242880) {
+            throw new \InvalidArgumentException('La imagen en Base64 es inválida o supera los 5 MB.');
+        }
+
+        // Determinar extensión segura según el tipo MIME
+        $extension = 'webp';
+        if (str_contains($type, 'jpeg') || str_contains($type, 'jpg')) {
+            $extension = 'jpg';
+        } elseif (str_contains($type, 'png')) {
+            $extension = 'png';
+        }
+
+        $filename = $prefix . '_' . uniqid() . '.' . $extension;
         Storage::disk('public')->put('productos/' . $filename, $imageData);
 
         return 'productos/' . $filename;

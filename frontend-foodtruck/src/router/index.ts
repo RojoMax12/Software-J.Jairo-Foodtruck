@@ -57,6 +57,16 @@ const router = createRouter({
       component: () => import('@/views/Checkout/SuccesfulQuotationView.vue'),
       meta: { useLoader: true }
     },
+    {
+      path: '/menu-board',
+      name: 'menu-board',
+      component: () => import('@/views/Operations/MenuBoardView.vue'),
+      meta: { hideNavbar: true, useLoader: false }
+    },
+    {
+      path: '/tv-menu',
+      redirect: '/menu-board'
+    },
 
     // ==========================================
     // RUTAS DE CLIENTES / DISTRIBUIDOR (Rol 2, 1)
@@ -128,31 +138,31 @@ const router = createRouter({
       path: '/general-home/admin/product',
       name: 'general-home-admin-product',
       component: () => import('../views/Admin/ProductView.vue'),
-      meta: { useLoader: true, roles: [1, 3] }
+      meta: { useLoader: true, roles: [1] }
     },
     {
       path: '/general-home/admin/categories',
       name: 'general-home-admin-categories',
       component: () => import('../views/Admin/CategoryView.vue'),
-      meta: { useLoader: true, roles: [1, 3] }
+      meta: { useLoader: true, roles: [1] }
     },
     {
       path: '/general-home/admin/sizes',
       name: 'general-home-admin-sizes',
       component: () => import('../views/Admin/SizeView.vue'),
-      meta: { useLoader: true, roles: [1, 3] }
+      meta: { useLoader: true, roles: [1] }
     },
     {
       path: '/general-home/admin/history',
       name: 'general-home-admin-history',
       component: () => import('../views/Admin/CatalogHistoryView.vue'),
-      meta: { useLoader: true, roles: [1, 3] }
+      meta: { useLoader: true, roles: [1] }
     },
     {
       path: '/general-home/admin/banners',
       name: 'general-home-admin-banners',
       component: () => import('../views/Admin/BannersAndAnnouncementsView.vue'),
-      meta: { useLoader: true, roles: [1, 3] }
+      meta: { useLoader: true, roles: [1] }
     },
 
     // ==========================================
@@ -162,12 +172,18 @@ const router = createRouter({
       path: '/general-home/admin/cash-flow',
       name: 'general-home-admin-cash-flow',
       component: () => import('../views/Admin/CashFlowView.vue'),
-      meta: { useLoader: true, roles: [1] }
+      meta: { useLoader: true, roles: [1,3] }
     },
     {
       path: '/general-home/admin/worker',
       name: 'general-home-admin-worker',
       component: () => import('../views/Admin/WorkerView.vue'),
+      meta: { useLoader: true, roles: [1] }
+    },
+    {
+      path: '/general-home/admin/schedules',
+      name: 'general-home-admin-schedules',
+      component: () => import('../views/Admin/ScheduleView.vue'),
       meta: { useLoader: true, roles: [1] }
     },
 

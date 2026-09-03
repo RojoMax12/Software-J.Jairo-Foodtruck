@@ -95,6 +95,7 @@ export interface ShiftWindow {
   hora_cierre: string;
   dia: string;
   es_jornada_activa: boolean;
+  es_dia_cerrado?: boolean;
   shift_date: string;
 }
 

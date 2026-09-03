@@ -32,7 +32,7 @@
           
           <!-- Ubicación -->
           <li class="info-item">
-            <strong>Ubicación:</strong> Psj Oscar Castro 11012, La Pintana
+            <strong>Ubicación:</strong> Pje. Oscar Castro 11012, La Pintana
           </li>
         </ul>
       </div>

@@ -57,8 +57,14 @@
       </div>
     </header>
 
-    <!-- AVISO DE FUERA DE HORARIO PARA EL PERSONAL -->
-    <div v-if="shiftWindow && !shiftWindow.es_jornada_activa" class="pos-outside-shift-banner">
+    <!-- AVISO DE FUERA DE HORARIO O DÍA DESACTIVADO PARA EL PERSONAL -->
+    <div v-if="shiftWindow?.es_dia_cerrado" class="pos-outside-shift-banner pos-day-closed-banner" style="background: rgba(220, 38, 38, 0.15); border-color: rgba(220, 38, 38, 0.5); color: #f87171;">
+      <AlertTriangle :size="18" class="warning-icon" />
+      <span>
+        🚫 <strong>DÍA DESACTIVADO POR ADMINISTRACIÓN:</strong> Hoy es un día de descanso programado. La toma de pedidos está deshabilitada en todas las áreas del sistema.
+      </span>
+    </div>
+    <div v-else-if="shiftWindow && !shiftWindow.es_jornada_activa" class="pos-outside-shift-banner">
       <AlertTriangle :size="16" class="warning-icon" />
       <span>
         Atención: Estás operando <strong>fuera del horario de turno oficial ({{ shiftWindow.hora_apertura }} - {{ shiftWindow.hora_cierre }} hrs)</strong>. Las comandas ingresadas pertenecerán a la jornada del turno actual.
@@ -716,9 +722,14 @@
           <button type="button" class="btn-pos-secondary" :disabled="isSubmitting" @click="currentStep = 2">
             <ArrowLeft :size="18" /> Modificar Datos
           </button>
-          <button type="button" class="btn-pos-primary btn-confirm-order" :disabled="isSubmitting" @click="confirmQuote">
+          <button 
+            type="button" 
+            class="btn-pos-primary btn-confirm-order" 
+            :disabled="isSubmitting || Boolean(shiftWindow?.es_dia_cerrado)" 
+            @click="confirmQuote"
+          >
             <CheckCircle :size="18" />
-            <span>{{ isSubmitting ? 'Enviando a Cocina...' : 'Enviar Pedido a Cocina' }}</span>
+            <span>{{ shiftWindow?.es_dia_cerrado ? 'DÍA CERRADO (NO DISPONIBLE)' : (isSubmitting ? 'Enviando a Cocina...' : 'Enviar Pedido a Cocina') }}</span>
           </button>
         </div>
       </div>
@@ -1067,11 +1078,17 @@ const totalQuote = computed(() => `$${windowQuote.value.toLocaleString('es-CL')}
 const totalUnits = computed(() => cartItems.value.reduce((acc, item) => acc + item.quantity, 0));
 
 const goToStep2 = () => {
+  if (shiftWindow.value?.es_dia_cerrado) {
+    return notify('Atención: El día de hoy está desactivado por administración (día de descanso). No se permite tomar pedidos.', 'error');
+  }
   isMobileCartOpen.value = false;
   currentStep.value = 2;
 };
 
 const nextStep = () => {
+  if (shiftWindow.value?.es_dia_cerrado) {
+    return notify('Atención: El día de hoy está desactivado por administración (día de descanso). No se permite tomar pedidos.', 'error');
+  }
   if (currentStep.value === 1) {
     if (cartItems.value.length === 0) return notify('Debe añadir al menos un producto a la comanda.', 'warning');
     currentStep.value = 2;
@@ -1087,6 +1104,10 @@ const handlePhoneInput = () => {
 };
 
 const confirmQuote = async () => {
+  if (shiftWindow.value?.es_dia_cerrado) {
+    notify('No es posible tomar pedidos: El día de hoy se encuentra desactivado en la configuración de horarios.', 'error');
+    return;
+  }
   if (isSubmitting.value) return;
   isSubmitting.value = true;
   try {

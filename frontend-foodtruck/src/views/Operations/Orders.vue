@@ -11,7 +11,7 @@
         <div class="shift-banner-left">
           <div class="shift-live-indicator">
             <span class="live-dot" v-if="shiftWindow?.es_jornada_activa"></span>
-            <strong>{{ shiftWindow?.es_jornada_activa ? '🟢 TURNO EN VIVO' : '⚪ FUERA DE HORARIO' }}</strong>
+            <strong>{{ shiftWindow?.es_jornada_activa ? '🟢 TURNO EN VIVO' : (shiftWindow?.es_dia_cerrado ? '🔴 DÍA CERRADO (DESCANSO)' : '⚪ FUERA DE HORARIO') }}</strong>
             <span class="shift-day-tag">{{ shiftWindow?.dia || 'Hoy' }}</span>
           </div>
           <div class="shift-schedule-info">

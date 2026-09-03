@@ -47,9 +47,9 @@
           <button 
             @click="handleLogin" 
             class="btn btn-primary"
-            :disabled="isLoading"
+            :disabled="isLoading || retrySecondsLeft > 0"
           >
-            {{ isLoading ? 'INGRESANDO...' : 'INGRESAR' }}
+            {{ retrySecondsLeft > 0 ? `ESPERA (${retrySecondsLeft}s)` : (isLoading ? 'INGRESANDO...' : 'INGRESAR') }}
           </button>
 
           <router-link to="/forgot-password" class="forgot-password">
@@ -82,6 +82,22 @@ const password = ref('')
 const showPassword = ref(false)
 const isLoading = ref(false)
 const errorMessage = ref('')
+const retrySecondsLeft = ref(0)
+let countdownTimer: any = null
+
+const startCountdown = (seconds: number) => {
+  if (countdownTimer) clearInterval(countdownTimer)
+  retrySecondsLeft.value = seconds
+  countdownTimer = setInterval(() => {
+    retrySecondsLeft.value--
+    if (retrySecondsLeft.value <= 0) {
+      clearInterval(countdownTimer)
+      countdownTimer = null
+      retrySecondsLeft.value = 0
+      errorMessage.value = ''
+    }
+  }, 1000)
+}
 
 onMounted(() => {
   if (route.query.expired === '1') {
@@ -94,6 +110,8 @@ const goBack = () => {
 }
 
 const handleLogin = async () => {
+  if (retrySecondsLeft.value > 0) return
+
   if (!correo.value.trim() || !password.value.trim()) {
     errorMessage.value = 'Por favor, ingresa tu correo/usuario y contraseña.'
     return
@@ -103,7 +121,7 @@ const handleLogin = async () => {
   errorMessage.value = ''
 
   try {
-    const data = await authService.login(correo.value.trim(), password.value.trim())
+    const data = await authService.login(correo.value.trim().toLowerCase(), password.value.trim())
 
     const token = data.access_token || data.token
     const user = data.user || {}
@@ -121,9 +139,15 @@ const handleLogin = async () => {
     }
   } catch (error: any) {
     console.error('Login error:', error)
-    errorMessage.value = error.response?.data?.error 
-      || error.response?.data?.message 
-      || 'Credenciales incorrectas o error de conexión.'
+    if (error.response?.status === 429) {
+      const waitSec = Number(error.response?.data?.retry_after || error.response?.headers?.['retry-after'] || 60)
+      startCountdown(waitSec)
+      errorMessage.value = error.response?.data?.message || `Has realizado demasiados intentos. Por favor, espera ${waitSec} segundos antes de volver a intentarlo.`
+    } else {
+      errorMessage.value = error.response?.data?.error 
+        || error.response?.data?.message 
+        || 'Credenciales incorrectas o error de conexión.'
+    }
   } finally {
     isLoading.value = false
   }

@@ -74,7 +74,8 @@ class HistorialMovimientoController extends Controller
 
     public function clear()
     {
-        $this->service->clearAllHistorial();
-        return response()->json(['message' => 'Historial de auditoría vaciado correctamente']);
+        return response()->json([
+            'message' => 'El vaciado masivo de la pista de auditoría se encuentra deshabilitado por directivas de seguridad e inmutabilidad.'
+        ], 403);
     }
 }
