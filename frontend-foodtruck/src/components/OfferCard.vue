@@ -3,7 +3,7 @@
     <div class="offer-badge">Oferta</div>
 
     <div class="card-image">
-      <img :src="image" :alt="name" />
+      <img :src="image" :alt="name" :style="imageStyle" />
     </div>
 
     <div class="card-content">
@@ -20,9 +20,14 @@
 </template>
 
 <script setup lang="ts">
-withDefaults(defineProps<{
+import { computed } from 'vue';
+
+const props = withDefaults(defineProps<{
   name: string;
   image: string;
+  imagePosition?: string;
+  imageZoom?: number;
+  imageFit?: 'cover' | 'contain';
   price?: string | number;
   displayPrice?: string | number;
   displayHint?: string;
@@ -30,7 +35,16 @@ withDefaults(defineProps<{
   price: 'Sin precio',
   displayPrice: undefined,
   displayHint: undefined,
+  imagePosition: '50% 50%',
+  imageZoom: 1,
+  imageFit: 'cover',
 });
+
+const imageStyle = computed(() => ({
+  objectPosition: props.imagePosition,
+  objectFit: props.imageFit,
+  transform: `scale(${Math.max(1, props.imageZoom)})`,
+}));
 
 defineEmits(['view-details']);
 </script>

@@ -4,9 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Producto;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class ProductImageSeeder extends Seeder
 {
@@ -14,6 +11,7 @@ class ProductImageSeeder extends Seeder
     {
         $normalized = strtolower(trim($value));
         $normalized = preg_replace('/[\s_]+/', ' ', $normalized) ?? $normalized;
+
         $normalized = strtr($normalized, [
             'á' => 'a', 'à' => 'a', 'ä' => 'a', 'â' => 'a',
             'é' => 'e', 'è' => 'e', 'ë' => 'e', 'ê' => 'e',
@@ -26,8 +24,10 @@ class ProductImageSeeder extends Seeder
         return trim($normalized);
     }
 
-    protected function resolveProductImage(string $productName, array $productImages): ?string
-    {
+    protected function resolveProductImage(
+        string $productName,
+        array $productImages
+    ): mixed {
         $lookupKey = $this->normalizeProductName($productName);
 
         foreach ($productImages as $name => $image) {
@@ -39,131 +39,136 @@ class ProductImageSeeder extends Seeder
         return null;
     }
 
-    protected function resolveLocalImagePath(string $imageUrl, string $productName): ?string
-    {
-        if (empty($imageUrl)) {
-            return null;
-        }
-
-        if (preg_match('#^/?(?:storage/)?productos/.+#i', $imageUrl)) {
-            return ltrim((string) preg_replace('#^/?(?:storage/)?#', '', $imageUrl), '/');
-        }
-
-        if (str_starts_with($imageUrl, 'productos/')) {
-            return ltrim($imageUrl, '/');
-        }
-
-        if (str_starts_with($imageUrl, 'storage/')) {
-            return preg_replace('#^/?storage/?#', '', $imageUrl);
-        }
-
-        if (str_starts_with($imageUrl, '/storage/')) {
-            return preg_replace('#^/?storage/?#', '', ltrim($imageUrl, '/'));
-        }
-
-        if (str_starts_with($imageUrl, 'http://') || str_starts_with($imageUrl, 'https://')) {
-            $extension = pathinfo(parse_url($imageUrl, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION);
-            if (!in_array(strtolower($extension), ['jpg', 'jpeg', 'png', 'webp'], true)) {
-                $extension = 'jpg';
-            }
-
-            $fileName = Str::slug($productName) . '-' . Str::random(6) . '.' . $extension;
-            $destination = 'productos/' . $fileName;
-
-            Storage::disk('public')->makeDirectory('productos');
-
-            try {
-                $response = Http::timeout(30)->get($imageUrl);
-                if (!$response->successful()) {
-                    return null;
-                }
-
-                Storage::disk('public')->put($destination, $response->body());
-                return $destination;
-            } catch (\Throwable $e) {
-                return null;
-            }
-        }
-
-        return null;
-    }
-
     public function run(): void
     {
-        $categoryImages = [
-            'Vianesas' => 'https://images.unsplash.com/photo-1612392062798-7c7e16d7f49f?w=800&auto=format&fit=crop&q=80',
-            'Ass' => 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=800&auto=format&fit=crop&q=80',
-            'Churrascos' => 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=800&auto=format&fit=crop&q=80',
-            'Lomitos' => 'https://images.unsplash.com/photo-1509722747041-616f39b57569?w=800&auto=format&fit=crop&q=80',
-            'Hamburguesas' => 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&auto=format&fit=crop&q=80',
-            'Pizzas' => 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&auto=format&fit=crop&q=80',
-            'Fajitas' => 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=800&auto=format&fit=crop&q=80',
-            'Sándwich de Pollo' => 'https://images.unsplash.com/photo-1606755962773-d324e0a13086?w=800&auto=format&fit=crop&q=80',
-            'Papas & Chorrillanas' => 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=800&auto=format&fit=crop&q=80',
-            'Empanadas & Sopaipillas' => 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=800&auto=format&fit=crop&q=80',
-            'Bebidas frías' => 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=800&auto=format&fit=crop&q=80',
-            'Bebidas calientes' => 'https://images.unsplash.com/photo-1497636577773-f1231844b336?w=800&auto=format&fit=crop&q=80',
-            'Bebestibles & Jugos' => 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800&auto=format&fit=crop&q=80',
-            'Promos / Combos' => 'https://images.unsplash.com/photo-1561758033-d89a9ad46330?w=800&auto=format&fit=crop&q=80',
-        ];
-
         $productImages = [
-            'Sopaipilla' => 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=800&auto=format&fit=crop&q=80',
-            'Empanada Individual' => 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=800&auto=format&fit=crop&q=80',
-            'Empanadas Queso 4x$1.000' => 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=800&auto=format&fit=crop&q=80',
-            'Empanadas Variadas 3x$1.000' => 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=800&auto=format&fit=crop&q=80',
-            'Chorrillana Tradicional' => 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=800&auto=format&fit=crop&q=80',
-            'Vianesa Completo' => 'productos/Completo_Completo.webp',
-            'Vianesa Italiana' => 'productos/Completo_Italiano.webp',
-            'Vianesa Dinámica' => 'productos/Completo_Dinamico.webp',
-            'Ass Italiano' => 'productos/Ass_Italiano.webp',
-            'Ass Dinámico' => 'productos/Ass_Dinamico.webp',
-            'Ass Completo' => 'productos/Ass_Completo.webp',
-            'Ass Barros Luco' => 'productos/Ass_Barros_Luco.webp',
-            '2 Churrascos Promo' => 'productos/2_Churrascos_Promo.webp',
-            '2 Hamburguesas Simples Promo' => 'productos/2_Hamburguesas_Simples_Promo.webp',
-            '2 Hamburguesas Dobles Promo' => 'productos/2_Hamburguesas_Dobles_Promo.webp',
-       
 
+            // VIANESAS
+            'Vianesa Italiana' => 'productos/01-vianesa-italiana.jpg',
+            'Vianesa Completo' => 'productos/02-vianesa-completo.jpg',
+            'Vianesa Dinámica' => 'productos/03-vianesa-dinamica.jpg',
+
+            // ASS
+            'Ass Italiano' => 'productos/04-as-italiano.jpg',
+            'Ass Completo' => 'productos/05-as-completo.jpg',
+            'Ass Dinámico' => 'productos/06-as-dinamico.jpg',
+            'Ass Barros Luco' => 'productos/07-as-luco.jpg',
+
+            // CHURRASCOS
+            'Churrasco Italiano' => 'productos/08-churrasco-italiano.jpg',
+            'Churrasco Chacarero' => 'productos/09-churrasco-chacarero.jpg',
+            'Churrasco Barros Luco' => 'productos/10-churrasco-barros-luco.jpg',
+            'Churrasco Brasileño' => 'productos/11-churrasco-brasileno.jpg',
+            'Churrasco a lo Pobre' => 'productos/12-churrasco-a-lo-pobre.jpg',
+
+            // LOMITOS
+            'Lomito Italiano' => 'productos/13-lomito-italiano.jpg',
+            'Lomito Chacarero' => 'productos/14-lomito-chacarero.jpg',
+            'Lomito Barros Luco' => 'productos/15-lomito-barros-luco.jpg',
+
+            // HAMBURGUESAS
+            'Hamburguesa Casera' => 'productos/16-hamburguesa-casera.jpg',
+
+            // PIZZAS
+            'Pizza Artesanal' => 'productos/17-pizza-artesanal.jpg',
+
+            // FAJITAS
+            'Fajita' => 'productos/18-fajita.jpg',
+
+            // SÁNDWICH DE POLLO
+            'Sandwich de Pollo' => 'productos/19-sandwich-de-pollo.jpg',
+
+            // PAPAS & CHORRILLANAS
+            'Papas Fritas' => 'productos/20-papas-fritas.jpg',
+            'Salchipapas' => 'productos/21-salchipapas.jpg',
+            'Papas Supremas' => 'productos/22-papas-supremas.jpg',
+            'Chorrillana Tradicional' => 'productos/23-chorrillana.jpg',
+
+            // EMPANADAS & SOPAIPILLAS
+            'Sopaipilla' => 'productos/24-sopaipillas.jpg',
+            'Empanada Individual' => 'productos/25-empanada-individual.jpg',
+            'Empanadas Queso 4x$1.000' => 'productos/26-empanada-queso-4x1000.jpg',
+            'Empanadas Variadas 3x$1.000' => 'productos/27-empanadas-variadas-3x1000.jpg',
+
+            // BEBIDAS CALIENTES
+            'Té' => 'productos/28-te.jpg',
+            'Café' => 'productos/29-cafe.jpg',
+            'Café Express' => 'productos/30-cafe-espresso.jpg',
+
+            // BEBIDAS FRÍAS
+            'Agua Mineral' => 'productos/31-agua-mineral.jpg',
+            'Bebida en Lata' => 'productos/32-bebida-en-lata.jpg',
+            'Bebida 1L' => 'productos/33-bebida-1l.jpg',
+
+            // BEBESTIBLES & JUGOS
+            'Agua Max' => 'productos/34-agua-mas.jpg',
+            'Jugo Benedictino' => 'productos/35-jugo-benedictino.jpg',
+            'Jugo Del Valle' => 'productos/36-jugo-del-valle.jpg',
+
+            // PROMOCIONES
+            '2 Churrascos Promo' => 'productos/37-2-churrascos-promo.jpg',
+            '2 Hamburguesas Simples Promo' => 'productos/38-2-hamburguesas-simples-promo.jpg',
+            '2 Hamburguesas Dobles Promo' => 'productos/39-2-hamburguesas-dobles-promo.jpg',
         ];
 
-        foreach (Producto::with('categoria')->get() as $product) {
-            $currentImage = trim((string) ($product->imagen ?? ''));
-            $lookupKey = $this->normalizeProductName((string) $product->nombre);
+        // Punto focal opcional para imágenes recortadas con object-fit: cover.
+        $imagePositions = [
+            'Té' => '50% 60%',
+            'Café' => '75% 30%',
+            'Café Express' => '75% 50%',
+            'Agua Max' => '50% 60%',
+            'Jugo Benedictino' => '50% 60%',
+            'Jugo Del Valle' => '50% 60%',
+        ];
 
-            if (!empty($currentImage)) {
-                if (str_starts_with($currentImage, 'productos/') || str_starts_with($currentImage, '/productos/') || str_starts_with($currentImage, 'storage/')) {
-                    $normalizedCurrent = ltrim((string) preg_replace('#^/?(?:storage/)?#', '', $currentImage), '/');
-                    if ($product->imagen !== $normalizedCurrent) {
-                        $product->imagen = $normalizedCurrent;
-                        $product->save();
-                    }
-                    continue;
-                }
+        // Escala opcional: 1.00 es el tamaño original, 1.15 equivale a 15% de zoom.
+        $imageZooms = [
+            'Té' => 1.00,
+            'Café Express' => 1.00,
+        ];
 
-                if (str_starts_with($currentImage, 'http://') || str_starts_with($currentImage, 'https://')) {
-                    $localPath = $this->resolveLocalImagePath($currentImage, $product->nombre);
-                    if ($localPath && $product->imagen !== $localPath) {
-                        $product->imagen = $localPath;
-                        $product->save();
-                    }
-                    continue;
-                }
+            $imageFits = [
+                'Té' => 'cover',
+                'Café' => 'cover',
+                'Café Express' => 'cover',
+                'Jugo del valle' => 'cover',
+            ];
 
-                continue;
+        foreach (Producto::all() as $product) {
+            $imagePath = $this->resolveProductImage(
+                (string) $product->nombre,
+                $productImages
+            );
+            $imagePosition = $this->resolveProductImage(
+                (string) $product->nombre,
+                $imagePositions
+            );
+            $imageZoom = $this->resolveProductImage(
+                (string) $product->nombre,
+                $imageZooms
+            );
+                $imageFit = $this->resolveProductImage(
+                    (string) $product->nombre,
+                    $imageFits
+                );
+
+            if ($imagePath && $product->imagen !== $imagePath) {
+                $product->imagen = $imagePath;
             }
 
-            $imageUrl = $this->resolveProductImage((string) $product->nombre, $productImages);
-
-            if (empty($imageUrl)) {
-                $categoryName = $product->categoria ? $product->categoria->nombre_categoria : 'Varios';
-                $imageUrl = $categoryImages[$categoryName] ?? $categoryImages['Promos / Combos'];
+            if ($imagePosition && $product->imagen_posicion !== $imagePosition) {
+                $product->imagen_posicion = $imagePosition;
             }
 
-            $localPath = $this->resolveLocalImagePath($imageUrl, $product->nombre);
+            if ($imageZoom !== null && (float) $product->imagen_zoom !== (float) $imageZoom) {
+                $product->imagen_zoom = $imageZoom;
+            }
 
-            if ($localPath) {
-                $product->imagen = $localPath;
+                if ($imageFit && $product->imagen_ajuste !== $imageFit) {
+                    $product->imagen_ajuste = $imageFit;
+                }
+
+            if ($product->isDirty()) {
                 $product->save();
             }
         }

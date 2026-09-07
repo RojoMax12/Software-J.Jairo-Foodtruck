@@ -79,6 +79,9 @@
             v-if="item.kind === 'offer'"
             :name="item.name"
             :image="item.image"
+            :image-position="item.imagePosition"
+            :image-zoom="item.imageZoom"
+            :image-fit="item.imageFit"
             :price="item.displayPrice || getCardPrice(item)"
             :display-hint="item.displayHint"
             @view-details="openDetails(item)"
@@ -90,6 +93,9 @@
             :category="item.category"
             :categoryColor="item.color"
             :image="item.image"
+            :image-position="item.imagePosition"
+            :image-zoom="item.imageZoom"
+            :image-fit="item.imageFit"
             :price="item.displayPrice || getCardPrice(item)"
             :display-hint="item.displayHint"
             @view-details="openDetails(item)"
@@ -499,6 +505,9 @@ const fetchIceCreams = async () => {
       const isGroupable = groupableCategories.includes(catName);
       const groupKey = isGroupable ? catName : prod.nombre;
       const prodImage = prod.imagen_url || prod.imagen || prod.image || categoryImages[catName] || '/src/assets/placeholder-food.webp';
+      const prodImagePosition = prod.imagen_posicion || prod.imagePosition || '50% 50%';
+      const prodImageZoom = Number(prod.imagen_zoom || prod.imageZoom || 1);
+      const prodImageFit = prod.imagen_ajuste === 'contain' || prod.imageFit === 'contain' ? 'contain' : 'cover';
 
       if (!groupedMap[groupKey]) {
         groupedMap[groupKey] = {
@@ -507,6 +516,9 @@ const fetchIceCreams = async () => {
           category: catName,
           color: categoryColors[catName] || '#E28743',
           image: prodImage,
+          imagePosition: prodImagePosition,
+          imageZoom: prodImageZoom,
+          imageFit: prodImageFit,
           descripcion: prod.descripcion,
           tipo_armado: prod.tipo_armado,
           cantidad_incluida: prod.cantidad_incluida,
@@ -554,6 +566,9 @@ const fetchIceCreams = async () => {
         desc: prod.descripcion,
         active: true,
         image: prodImage,
+        imagePosition: prodImagePosition,
+        imageZoom: prodImageZoom,
+        imageFit: prodImageFit,
         prices: normalizedPrices,
         tamaños_obj: prod.tamaños || [],
         producto_ingrediente: prod.ingredientes || []

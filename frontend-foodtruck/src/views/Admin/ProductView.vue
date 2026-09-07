@@ -789,6 +789,7 @@
                                         :src="productForm.image"
                                         alt="Preview"
                                         class="live-card-img"
+                                        :style="{ objectPosition: productForm.imagePosition, objectFit: productForm.imageFit, transform: `scale(${Math.max(1, productForm.imageZoom)})` }"
                                         @error="handleImageError"
                                     />
                                     <div v-else class="live-card-placeholder">
@@ -890,6 +891,40 @@
                                         <X :size="14" />
                                     </button>
                                 </div>
+
+                                <label class="modal-label image-position-field">
+                                    <span>Presentación de la imagen</span>
+                                    <select v-model="productForm.imageFit" class="modal-input">
+                                        <option value="cover">Llenar marco (puede recortar)</option>
+                                        <option value="contain">Mostrar imagen completa</option>
+                                    </select>
+                                    <small class="field-help">Usa “imagen completa” para fotos como Té que no deben cortarse.</small>
+                                </label>
+
+                                <label class="modal-label image-position-field">
+                                    <span>Encuadre de la imagen</span>
+                                    <select v-model="productForm.imagePosition" class="modal-input">
+                                        <option value="50% 50%">Centro (50% 50%)</option>
+                                        <option value="50% 30%">Más arriba (50% 30%)</option>
+                                        <option value="50% 70%">Más abajo (50% 70%)</option>
+                                        <option value="30% 50%">Más a la izquierda (30% 50%)</option>
+                                        <option value="70% 50%">Más a la derecha (70% 50%)</option>
+                                    </select>
+                                    <small class="field-help">Ejemplo: 50% 30% muestra una zona más alta cuando la foto se recorta.</small>
+                                </label>
+
+                                <label class="modal-label image-position-field">
+                                    <span>Zoom de la imagen: {{ Math.round(productForm.imageZoom * 100) }}%</span>
+                                    <input
+                                        v-model.number="productForm.imageZoom"
+                                        type="range"
+                                        min="1"
+                                        max="1.6"
+                                        step="0.05"
+                                        class="image-zoom-range"
+                                    />
+                                    <small class="field-help">100% es el tamaño original; 115% aumenta la imagen un 15%.</small>
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -1117,6 +1152,9 @@ const productForm = ref({
     sizePrices: {} as Record<string, number>,
     selectedIngredients: [] as string[],
     image: '',
+    imagePosition: '50% 50%',
+    imageZoom: 1,
+    imageFit: 'cover' as 'cover' | 'contain',
     imageFile: null as File | null,
     active: true,
     inStock: true
@@ -1271,6 +1309,9 @@ const openCreateModal = () => {
         sizePrices: initialPrices,
         selectedIngredients: [],
         image: '',
+        imagePosition: '50% 50%',
+        imageZoom: 1,
+        imageFit: 'cover',
         imageFile: null,
         active: true,
         inStock: true
@@ -1299,6 +1340,9 @@ const openEditModal = (product: any) => {
         tipo_armado: product.tipo_armado || 'estandar',
         precio_ingrediente_extra: product.precio_ingrediente_extra || 0,
         image: product.image || '',
+        imagePosition: product.imagePosition || '50% 50%',
+        imageZoom: Number(product.imageZoom || 1),
+        imageFit: product.imageFit || 'cover',
         imageFile: null,
         active: product.active !== false,
         inStock: product.inStock !== false,
@@ -1326,6 +1370,9 @@ const submitCreateProduct = async () => {
     const localItem = {
         id: newId,
         image: productForm.value.image || '',
+        imagePosition: productForm.value.imagePosition,
+        imageZoom: productForm.value.imageZoom,
+        imageFit: productForm.value.imageFit,
         name: productForm.value.nombre,
         category: catName,
         price: Number(basePrice),
@@ -1350,7 +1397,10 @@ const submitCreateProduct = async () => {
             precio_ingrediente_extra: productForm.value.precio_ingrediente_extra || 0,
             activo: productForm.value.active,
             disponible: productForm.value.inStock,
-            imagen: productForm.value.image
+            imagen: productForm.value.image,
+            imagen_posicion: productForm.value.imagePosition,
+            imagen_zoom: productForm.value.imageZoom,
+            imagen_ajuste: productForm.value.imageFit,
         })
         const createdId = res.data?.id_producto || res.data?.id || newId
         localItem.id = createdId
@@ -1388,6 +1438,9 @@ const submitEditProduct = async () => {
         p.category = catName
         p.price = Number(basePrice)
         p.image = productForm.value.image || p.image
+        p.imagePosition = productForm.value.imagePosition
+        p.imageZoom = productForm.value.imageZoom
+        p.imageFit = productForm.value.imageFit
         p.sizes = [...productForm.value.selectedSizes]
         p.ingredients = [...productForm.value.selectedIngredients]
         p.active = productForm.value.active
@@ -1405,7 +1458,10 @@ const submitEditProduct = async () => {
             precio_ingrediente_extra: productForm.value.precio_ingrediente_extra || 0,
             activo: productForm.value.active,
             disponible: productForm.value.inStock,
-            imagen: productForm.value.image
+            imagen: productForm.value.image,
+            imagen_posicion: productForm.value.imagePosition,
+            imagen_zoom: productForm.value.imageZoom,
+            imagen_ajuste: productForm.value.imageFit,
         })
 
         if (productForm.value.imageFile) {
@@ -1542,6 +1598,9 @@ const loadCatalogData = async () => {
             return {
                 id: p.id_producto,
                 image: imgUrl,
+                imagePosition: p.imagen_posicion || '50% 50%',
+                imageZoom: Number(p.imagen_zoom || 1),
+                imageFit: p.imagen_ajuste || 'cover',
                 name: p.nombre,
                 category: catName,
                 price: Number(firstPrice),
