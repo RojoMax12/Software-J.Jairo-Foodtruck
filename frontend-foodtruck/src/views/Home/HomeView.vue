@@ -34,13 +34,13 @@
           <span class="store-status-dot"></span>
           <div class="store-status-text">
             <strong v-if="isStoreOpen">
-              🟢 ¡Estamos atendiendo en vivo!
+              ¡Estamos atendiendo en vivo!
             </strong>
             <strong v-else-if="shiftWindow?.es_dia_cerrado">
-              🔴 Foodtruck cerrado hoy (Día de descanso)
+              Foodtruck cerrado hoy (Día de descanso)
             </strong>
             <strong v-else>
-              ⚪ Foodtruck cerrado en este momento
+              Foodtruck cerrado en este momento
             </strong>
             <span class="store-hours-info">
               <template v-if="shiftWindow?.es_dia_cerrado">
