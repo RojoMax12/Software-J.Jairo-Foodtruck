@@ -21,6 +21,9 @@ class Producto extends Model
         'id_categoria',
         'descripcion',
         'imagen',
+        'imagen_posicion',
+        'imagen_zoom',
+        'imagen_ajuste',
         'activo',
         'disponible',
     ];
@@ -32,6 +35,7 @@ class Producto extends Model
     protected $casts = [
         'precio_ingrediente_extra' => 'integer',
         'tipo_armado' => 'string',
+        'imagen_zoom' => 'float',
         'cantidad_incluida' => 'integer',
         'activo' => 'boolean',
         'disponible' => 'boolean',
@@ -57,6 +61,11 @@ class Producto extends Model
         }
 
         return url('storage/' . $normalized);
+    }
+
+    public function getImagenPosicionAttribute($value): string
+    {
+        return $value ?: '50% 50%';
     }
 
     public function categoria()

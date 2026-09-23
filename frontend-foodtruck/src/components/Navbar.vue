@@ -30,7 +30,8 @@
           title="Consultar estado de mi pedido"
         >
           <Search :size="15" />
-          <span class="btn-label">Revisa tu pedido</span>
+          <span class="btn-label btn-label-full">Revisa tu pedido</span>
+          <span class="btn-label btn-label-short">Tu pedido</span>
         </button>
 
         <!-- PERFIL DE USUARIO / MENÚ DESPLEGABLE -->
@@ -295,6 +296,10 @@ watch(() => route.path, () => {
   white-space: nowrap;
 }
 
+.btn-label-short {
+  display: none;
+}
+
 .btn-my-orders {
   background-color: var(--DC-orange, #eb6e30);
   color: #ffffff;
@@ -538,13 +543,17 @@ watch(() => route.path, () => {
     letter-spacing: 0.5px;
   }
 
-  .btn-check-order .btn-label, 
+  .btn-check-order .btn-label-full, 
   .btn-my-orders .btn-label,
   .btn-login .btn-label {
     display: none;
   }
+
+  .btn-check-order .btn-label-short {
+    display: inline;
+    font-size: 0.74rem;
+  }
   
-  .btn-check-order, 
   .btn-my-orders,
   .btn-login {
     padding: 0;
@@ -552,6 +561,14 @@ watch(() => route.path, () => {
     height: 36px;
     border-radius: 50%;
     justify-content: center;
+  }
+
+  .btn-check-order {
+    padding: 6px 10px;
+    height: 36px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    gap: 4px;
   }
 
   .client-name {
@@ -581,11 +598,17 @@ watch(() => route.path, () => {
     font-size: 1.05rem;
   }
 
-  .btn-check-order, 
   .btn-my-orders,
   .btn-login {
     width: 32px;
     height: 32px;
+  }
+
+  .btn-check-order {
+    padding: 5px 8px;
+    height: 32px;
+    font-size: 0.7rem;
+    gap: 3px;
   }
 }
 </style>

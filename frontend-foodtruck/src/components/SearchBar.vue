@@ -46,7 +46,7 @@
             :class="{ 'is-active': props.modelValue === 'Papas & Chorrillanas' }"
             @click="toggleCategory('Papas & Chorrillanas')"
           >
-            <span class="badge-text">Papas &<br>Chorrillanas</span>
+            <span class="badge-text">Papas</span>
           </button>
           
           <button
