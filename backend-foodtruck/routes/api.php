@@ -19,6 +19,7 @@ use App\Http\Controllers\PedidoPublicoController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ProductoIngredienteController;
 use App\Http\Controllers\ProductoTamañoController;
+use App\Http\Controllers\PromocionController;
 use App\Http\Controllers\RolController;
 use App\Http\Controllers\TamañoController;
 use App\Http\Controllers\UsuarioController;
@@ -100,6 +101,9 @@ Route::middleware('jwt.auth')->group(function () {
         Route::apiResource('productos', ProductoController::class);
         Route::apiResource('producto_ingredientes', ProductoIngredienteController::class);
         Route::apiResource('producto_tamaños', ProductoTamañoController::class);
+        Route::apiResource('promociones', PromocionController::class)
+            ->only(['index', 'store', 'update', 'destroy'])
+            ->parameters(['promociones' => 'promocion']);
         Route::apiResource('ofertas', OfertaController::class);
         Route::apiResource('oferta_productos', OfertaProductoController::class);
         Route::apiResource('ingredientes', IngredienteController::class);

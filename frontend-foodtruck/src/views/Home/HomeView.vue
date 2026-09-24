@@ -540,6 +540,13 @@ const fetchIceCreams = async () => {
         }
       });
 
+      const promotionPrice = Number(prod.promocion_activa?.precio_promocional ?? 0);
+      if (promotionPrice > 0) {
+        Object.keys(pricesMap).forEach(sizeName => {
+          pricesMap[sizeName] = promotionPrice;
+        });
+      }
+
       const normalizedPrices = Object.fromEntries(
         groupedMap[groupKey].sizes.map((size: string) => [size, 0])
       );

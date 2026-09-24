@@ -44,6 +44,10 @@
                     <Plus :size="18" />
                     <span>Nuevo Formato / Tamaño</span>
                 </button>
+                <button v-else-if="activeTab === 'promotions'" class="primary-button" @click="openCreatePromotionModal">
+                    <Plus :size="18" />
+                    <span>Nueva Promoción</span>
+                </button>
             </div>
 
         </section>
@@ -78,6 +82,16 @@
                 <Tag :size="17" />
                 <span>Tamaños</span>
                 <span class="tab-pill">{{ sizesList.length }}</span>
+            </button>
+
+            <button
+                class="tab-nav-btn"
+                :class="{ active: activeTab === 'promotions' }"
+                @click="activeTab = 'promotions'"
+            >
+                <BadgePercent :size="17" />
+                <span>Promociones</span>
+                <span class="tab-pill">{{ promotions.length }}</span>
             </button>
         </div>
 
@@ -247,13 +261,6 @@
                                         <Pencil :size="17" />
                                     </button>
                                     <button
-                                        class="icon-button"
-                                        title="Gestionar oferta"
-                                        @click="openOfferModal(product)"
-                                    >
-                                        <BadgePercent :size="17" />
-                                    </button>
-                                    <button
                                         class="icon-button delete-btn"
                                         :class="{ 'already-inactive': !product.active }"
                                         :title="product.active ? 'Desactivar producto de la carta' : 'Producto ya inactivo'"
@@ -312,9 +319,6 @@
                             <div class="actions">
                                 <button class="icon-button" title="Editar" @click="openEditModal(product)">
                                     <Pencil :size="16" />
-                                </button>
-                                <button class="icon-button" title="Oferta" @click="openOfferModal(product)">
-                                    <BadgePercent :size="16" />
                                 </button>
                                 <button 
                                     class="icon-button delete-btn" 
@@ -488,6 +492,52 @@
                 <Tag :size="44" />
                 <h3>No se encontraron tamaños</h3>
                 <p>Agrega tamaños para ofrecer distintos formatos a tus clientes.</p>
+            </div>
+        </section>
+
+        <!-- ===================== TAB 4: PROMOCIONES ===================== -->
+        <section v-if="activeTab === 'promotions'" class="table-container">
+            <div class="table-toolbar">
+                <div class="search-box">
+                    <Search :size="17" />
+                    <input v-model="promotionSearch" type="text" placeholder="Buscar promoción o producto...">
+                    <button v-if="promotionSearch" class="clear-search-btn" @click="promotionSearch = ''"><X :size="14" /></button>
+                </div>
+                <div class="filters-inline">
+                    <button class="primary-button compact-btn" @click="openCreatePromotionModal">
+                        <Plus :size="16" />
+                        <span>Nueva Promoción</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="catalog-cards-grid" v-if="filteredPromotions.length > 0">
+                <div v-for="promotion in filteredPromotions" :key="promotion.id_promocion" class="catalog-entity-card promotion-card">
+                    <div class="entity-card-top">
+                        <div class="entity-icon-pill promotion-pill"><BadgePercent :size="22" /></div>
+                        <div class="entity-card-info">
+                            <h3 class="entity-title">{{ promotion.titulo }}</h3>
+                            <span class="entity-badge promotion-badge">{{ promotion.producto?.nombre || promotion.productName }}</span>
+                        </div>
+                    </div>
+                    <div class="promotion-price">{{ formatPrice(promotion.precio_promocional) }}</div>
+                    <p class="entity-desc">{{ promotion.descripcion || 'Promoción configurada para este producto.' }}</p>
+                    <div class="promotion-dates">{{ formatDate(promotion.fecha_inicio) }} - {{ formatDate(promotion.fecha_fin) }}</div>
+                    <div class="entity-card-actions">
+                        <span class="status-badge" :class="promotion.activo ? 'active' : 'inactive'">{{ promotion.activo ? 'Activa' : 'Inactiva' }}</span>
+                        <button class="btn-entity-action toggle" @click="togglePromotionStatus(promotion)" :title="promotion.activo ? 'Desactivar promoción' : 'Activar promoción'">
+                            <Power :size="14" />
+                            <span>{{ promotion.activo ? 'Desactivar' : 'Activar' }}</span>
+                        </button>
+                        <button class="btn-entity-action edit" @click="openEditPromotionModal(promotion)" title="Editar promoción"><Pencil :size="14" /><span>Editar</span></button>
+                        <button class="btn-entity-action delete" @click="handleDeletePromotion(promotion)" title="Eliminar promoción"><Trash2 :size="14" /><span>Eliminar</span></button>
+                    </div>
+                </div>
+            </div>
+            <div v-else class="empty-state-box">
+                <BadgePercent :size="44" />
+                <h3>No hay promociones configuradas</h3>
+                <p>Crea una promoción con producto, fechas, precio y un detalle opcional.</p>
             </div>
         </section>
 
@@ -1011,6 +1061,66 @@
             </div>
         </div>
 
+        <!-- MODAL PROMOCION CONFIGURABLE -->
+        <div v-if="isPromotionModalOpen" class="modal-backdrop" @click.self="isPromotionModalOpen = false">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <div class="modal-header-title">
+                        <div class="header-icon-pill"><BadgePercent :size="18" /></div>
+                        <div>
+                            <h3>{{ isEditingPromotion ? 'Editar Promoción' : 'Nueva Promoción' }}</h3>
+                            <p class="modal-header-desc">Define exactamente qué producto, precio y fechas tendrá la promoción</p>
+                        </div>
+                    </div>
+                    <button class="close-btn" @click="isPromotionModalOpen = false"><X :size="20" /></button>
+                </div>
+                <form class="modal-body" @submit.prevent="submitPromotion">
+                    <label class="modal-label">
+                        <span>Producto <span class="required">*</span></span>
+                        <select v-model.number="promotionForm.id_producto" class="modal-input" required>
+                            <option value="" disabled>Selecciona un producto</option>
+                            <option v-for="product in products" :key="product.id" :value="product.id">{{ product.name }}</option>
+                        </select>
+                    </label>
+                    <label class="modal-label">
+                        <span>Título de la promoción <span class="required">*</span></span>
+                        <input v-model="promotionForm.titulo" class="modal-input" required maxlength="120" placeholder="Ej: Completo italiano + bebida">
+                    </label>
+                    <div class="promotion-form-grid">
+                        <label class="modal-label">
+                            <span>Precio final promocional <span class="required">*</span></span>
+                            <input v-model.number="promotionForm.precio_promocional" class="modal-input" type="number" min="1" required placeholder="Ej: 1200">
+                        </label>
+                        <label class="modal-label">
+                            <span>Estado</span>
+                            <select v-model="promotionForm.activo" class="modal-input">
+                                <option :value="true">Activa</option>
+                                <option :value="false">Inactiva</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="promotion-form-grid">
+                        <label class="modal-label">
+                            <span>Fecha de inicio <span class="required">*</span></span>
+                            <input v-model="promotionForm.fecha_inicio" class="modal-input" type="date" required>
+                        </label>
+                        <label class="modal-label">
+                            <span>Fecha de término <span class="required">*</span></span>
+                            <input v-model="promotionForm.fecha_fin" class="modal-input" type="date" required :min="promotionForm.fecha_inicio">
+                        </label>
+                    </div>
+                    <label class="modal-label">
+                        <span>Detalle / beneficio adicional</span>
+                        <textarea v-model="promotionForm.descripcion" class="modal-input" rows="3" maxlength="500" placeholder="Ej: Incluye bebida en lata a elección"></textarea>
+                    </label>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" @click="isPromotionModalOpen = false">Cancelar</button>
+                        <button type="submit" class="btn-save"><Check :size="16" /><span>{{ isEditingPromotion ? 'Guardar Cambios' : 'Crear Promoción' }}</span></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
     </div>
 
 </template>
@@ -1023,6 +1133,7 @@ import productService from '@/services/productService'
 import categoryService from '@/services/categoryService'
 import sizeService from '@/services/sizeService'
 import stockService from '@/services/stockService'
+import promotionService from '@/services/promotionService'
 import { useNotification } from '@/composables/useNotification'
 import { useImageOptimizer } from '@/composables/useImageOptimizer'
 
@@ -1042,6 +1153,7 @@ import {
     PackageOpen,
     Pencil,
     Plus,
+    Power,
     Search,
     Sparkles,
     Tag,
@@ -1058,15 +1170,17 @@ const goToAudit = () => {
     router.push('/general-home/admin/history?tipo=producto')
 }
 
-const activeTab = ref<'products' | 'categories' | 'sizes'>('products')
+const activeTab = ref<'products' | 'categories' | 'sizes' | 'promotions'>('products')
 
 const isLoading = ref(true)
 const products = ref<any[]>([])
 const categoriesList = ref<any[]>([])
 const sizesList = ref<any[]>([])
+const promotions = ref<any[]>([])
 
 const categorySearch = ref('')
 const sizeSearch = ref('')
+const promotionSearch = ref('')
 
 // Category Modal State
 const isCategoryModalOpen = ref(false)
@@ -1096,6 +1210,8 @@ const availableIngredientsList = ref<string[]>([])
 const isProductModalOpen = ref(false)
 const isEditingProduct = ref(false)
 const isOfferModalOpen = ref(false)
+const isPromotionModalOpen = ref(false)
+const isEditingPromotion = ref(false)
 const selectedProductForAction = ref<any>(null)
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -1126,6 +1242,17 @@ const offerForm = ref({
     productId: 0,
     productName: '',
     discountPercent: 10
+})
+
+const promotionForm = ref({
+    id: 0,
+    id_producto: '' as string | number,
+    titulo: '',
+    descripcion: '',
+    precio_promocional: 0,
+    fecha_inicio: '',
+    fecha_fin: '',
+    activo: true
 })
 
 const formatPrice = (val: number | string) => {
@@ -1494,6 +1621,109 @@ const clearOffer = async () => {
     isOfferModalOpen.value = false
 }
 
+const formatDate = (value: string) => {
+    if (!value) return 'Sin fecha'
+    return new Date(`${value}T00:00:00`).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+const openCreatePromotionModal = () => {
+    isEditingPromotion.value = false
+    const today = new Date().toISOString().slice(0, 10)
+    promotionForm.value = {
+        id: 0,
+        id_producto: products.value[0]?.id || '',
+        titulo: '',
+        descripcion: '',
+        precio_promocional: 0,
+        fecha_inicio: today,
+        fecha_fin: today,
+        activo: true
+    }
+    isPromotionModalOpen.value = true
+}
+
+const openEditPromotionModal = (promotion: any) => {
+    isEditingPromotion.value = true
+    promotionForm.value = {
+        id: promotion.id_promocion,
+        id_producto: promotion.id_producto,
+        titulo: promotion.titulo,
+        descripcion: promotion.descripcion || '',
+        precio_promocional: Number(promotion.precio_promocional || 0),
+        fecha_inicio: String(promotion.fecha_inicio || '').slice(0, 10),
+        fecha_fin: String(promotion.fecha_fin || '').slice(0, 10),
+        activo: promotion.activo !== false
+    }
+    isPromotionModalOpen.value = true
+}
+
+const submitPromotion = async () => {
+    if (promotionForm.value.fecha_fin < promotionForm.value.fecha_inicio) {
+        notify('La fecha de término no puede ser anterior al inicio', 'warning')
+        return
+    }
+
+    const payload = {
+        id_producto: Number(promotionForm.value.id_producto),
+        titulo: promotionForm.value.titulo.trim(),
+        descripcion: promotionForm.value.descripcion.trim() || null,
+        precio_promocional: Number(promotionForm.value.precio_promocional),
+        fecha_inicio: promotionForm.value.fecha_inicio,
+        fecha_fin: promotionForm.value.fecha_fin,
+        activo: promotionForm.value.activo
+    }
+
+    try {
+        const response = isEditingPromotion.value
+            ? await promotionService.updatePromotion(promotionForm.value.id, payload)
+            : await promotionService.createPromotion(payload)
+        const saved = response.data
+        if (isEditingPromotion.value) {
+            const index = promotions.value.findIndex(item => item.id_promocion === promotionForm.value.id)
+            if (index >= 0) promotions.value[index] = saved
+        } else {
+            promotions.value.unshift(saved)
+        }
+        notify(isEditingPromotion.value ? 'Promoción actualizada' : 'Promoción creada exitosamente', 'success')
+        isPromotionModalOpen.value = false
+    } catch (error: any) {
+        notify(error?.response?.data?.message || 'No se pudo guardar la promoción', 'warning')
+    }
+}
+
+const togglePromotionStatus = async (promotion: any) => {
+    const nextStatus = !promotion.activo
+    const payload = {
+        id_producto: Number(promotion.id_producto),
+        titulo: promotion.titulo,
+        descripcion: promotion.descripcion || null,
+        precio_promocional: Number(promotion.precio_promocional),
+        fecha_inicio: String(promotion.fecha_inicio).slice(0, 10),
+        fecha_fin: String(promotion.fecha_fin).slice(0, 10),
+        activo: nextStatus
+    }
+
+    try {
+        const response = await promotionService.updatePromotion(promotion.id_promocion, payload)
+        const index = promotions.value.findIndex(item => item.id_promocion === promotion.id_promocion)
+        if (index >= 0) promotions.value[index] = response.data
+        notify(nextStatus ? 'Promoción activada' : 'Promoción desactivada', 'success')
+    } catch (error: any) {
+        notify(error?.response?.data?.message || 'No se pudo cambiar el estado de la promoción', 'warning')
+    }
+}
+
+const handleDeletePromotion = async (promotion: any) => {
+    if (!confirm(`¿Eliminar la promoción "${promotion.titulo}"?`)) return
+    try {
+        await promotionService.deletePromotion(promotion.id_promocion)
+        promotions.value = promotions.value.filter(item => item.id_promocion !== promotion.id_promocion)
+        notify('Promoción eliminada', 'warning')
+    } catch {
+        notify('No se pudo eliminar la promoción', 'warning')
+    }
+}
+
 const handleDeleteProduct = async (product: any) => {
     if (!product.active) {
         notify(`El producto "${product.name}" ya se encuentra inactivo en la carta.`, 'warning')
@@ -1515,20 +1745,23 @@ const handleDeleteProduct = async (product: any) => {
 const loadCatalogData = async () => {
     isLoading.value = true
     try {
-        const [prodsRes, catsRes, sizesRes, stocksRes] = await Promise.allSettled([
+        const [prodsRes, catsRes, sizesRes, stocksRes, promotionsRes] = await Promise.allSettled([
             productService.getPublicProducts(),
             categoryService.getPublicCategories(),
             sizeService.getSizes(),
-            stockService.getStocks()
+            stockService.getStocks(),
+            promotionService.getPromotions()
         ])
 
         const dbProds = prodsRes.status === 'fulfilled' ? prodsRes.value.data || [] : []
         const dbCats = catsRes.status === 'fulfilled' ? catsRes.value.data || [] : []
         const dbSizes = sizesRes.status === 'fulfilled' ? sizesRes.value.data || [] : []
         const dbStocks = stocksRes.status === 'fulfilled' ? stocksRes.value.data || [] : []
+        const dbPromotions = promotionsRes.status === 'fulfilled' ? promotionsRes.value.data || [] : []
 
         categoriesList.value = Array.isArray(dbCats) ? dbCats : []
         sizesList.value = Array.isArray(dbSizes) ? dbSizes : []
+        promotions.value = Array.isArray(dbPromotions) ? dbPromotions : []
         
         if (Array.isArray(dbStocks) && dbStocks.length > 0) {
             availableIngredientsList.value = dbStocks.map((i: any) => i.nombre).filter(Boolean)
@@ -1749,6 +1982,14 @@ const filteredSizes = computed(() => {
     return sizesList.value.filter((s: any) =>
         (s.nombre || '').toLowerCase().includes(q) ||
         (s.descripcion || '').toLowerCase().includes(q)
+    )
+})
+
+const filteredPromotions = computed(() => {
+    const query = promotionSearch.value.trim().toLowerCase()
+    if (!query) return promotions.value
+    return promotions.value.filter((promotion: any) =>
+        `${promotion.titulo} ${promotion.descripcion || ''} ${promotion.producto?.nombre || ''}`.toLowerCase().includes(query)
     )
 })
 
@@ -2357,7 +2598,7 @@ onMounted(async () => {
 }
 
 .action-eliminar {
-    background: #fee2e2;
+    margin-top: 10px;
     color: #991b1b;
 }
 
@@ -2369,6 +2610,46 @@ onMounted(async () => {
 .action-estado {
     background: #f3e8ff;
     color: #6b21a8;
+}
+
+.promotion-pill {
+    background: #fff7ed;
+    color: #ea580c;
+}
+
+.promotion-badge {
+    background: #fff1e8;
+    color: #c2410c;
+    max-width: 190px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.promotion-price {
+    color: var(--DC-brown, #513119);
+    font-size: 1.25rem;
+    font-weight: 900;
+}
+
+.promotion-dates {
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 8px 10px;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.promotion-card .entity-card-actions {
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.promotion-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
 }
 
 .timeline-box {
@@ -3081,10 +3362,6 @@ button:active{
 }
 
 @media(max-width:900px){
-
-    .content-grid{
-        grid-template-columns: 1fr;
-    }
 
     .page-header{
 

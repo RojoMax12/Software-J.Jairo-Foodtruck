@@ -256,7 +256,7 @@ class PedidoRepository
                     : 1);
 
                 if ($idProducto) {
-                    $productoModel = Producto::find($idProducto);
+                    $productoModel = Producto::with('promocionActiva')->find($idProducto);
 
                     // 1. Recalcular precio base del producto desde la BD
                     $precioBase = 0;
@@ -270,6 +270,10 @@ class PedidoRepository
                         } else {
                             $primerPrecio = Producto_Tamaño::where('id_producto', $idProducto)->value('precio');
                             $precioBase = $primerPrecio ? (float)$primerPrecio : (float)($productoModel->precio ?? $productoModel->precio_base ?? 0);
+                        }
+
+                        if ($productoModel->promocionActiva && (float)$productoModel->promocionActiva->precio_promocional >= 0) {
+                            $precioBase = (float)$productoModel->promocionActiva->precio_promocional;
                         }
                     }
 

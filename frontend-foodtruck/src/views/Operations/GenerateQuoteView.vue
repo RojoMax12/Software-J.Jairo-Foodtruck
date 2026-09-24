@@ -852,6 +852,13 @@ const fetchProducts = async () => {
         sizesMap[t.nombre] = Number(t.id_tamaño || t.id || 1);
       });
 
+      const promotionPrice = Number(prod.promocion_activa?.precio_promocional ?? 0);
+      if (promotionPrice > 0) {
+        Object.keys(pricesMap).forEach(sizeName => {
+          pricesMap[sizeName] = promotionPrice;
+        });
+      }
+
       const prodImage = prod.imagen_url || prod.imagen || prod.image || categoryImages[catName] || '/src/assets/placeholder-food.webp';
 
       return {

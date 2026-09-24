@@ -320,6 +320,13 @@ const loadProductsForTv = async () => {
         });
       }
 
+      const promotionPrice = Number(p.promocion_activa?.precio_promocional ?? 0);
+      if (promotionPrice > 0) {
+        sizePrices.forEach(sizePrice => {
+          sizePrice.price = promotionPrice;
+        });
+      }
+
       if (sizePrices.length === 0) {
         const flat = Number(p.precio || p.price || 0);
         if (flat > 0) {
@@ -349,7 +356,7 @@ const loadProductsForTv = async () => {
         hasMultiplePrices,
         singlePrice,
         sizePrices,
-        isOffer: Boolean(p.en_oferta || p.is_offer)
+        isOffer: Boolean(p.en_oferta || p.is_offer || promotionPrice > 0)
       };
     });
 

@@ -14,12 +14,12 @@ class ProductoRepository
     # Geters
     public function getAllProductos()
     {
-        return Producto::with(['categoria', 'tamaños', 'ingredientes.ingrediente', 'ingredientes.tamaño'])->get();
+        return Producto::with(['categoria', 'tamaños', 'ingredientes.ingrediente', 'ingredientes.tamaño', 'promocionActiva'])->get();
     }
 
     public function getProductoById($id)
     {
-        return Producto::with(['categoria', 'tamaños', 'ingredientes.ingrediente', 'ingredientes.tamaño'])->find($id);
+        return Producto::with(['categoria', 'tamaños', 'ingredientes.ingrediente', 'ingredientes.tamaño', 'promocionActiva'])->find($id);
     }
 
     public function getProductoByNombre($nombre)
