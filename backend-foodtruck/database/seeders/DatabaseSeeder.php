@@ -78,7 +78,9 @@ class DatabaseSeeder extends Seeder
             ['nombre_categoria' => 'Pizzas', 'descripcion_categoria' => 'Pizzas artesanales personalizables (incluyen 3 ingredientes)'],
             ['nombre_categoria' => 'Fajitas', 'descripcion_categoria' => 'Fajitas de pollo o carne personalizables (incluyen 3 ingredientes)'],
             ['nombre_categoria' => 'Sándwich de Pollo', 'descripcion_categoria' => 'Sándwiches preparados con pechuga de pollo'],
+            ['nombre_categoria' => 'Suprema de Pollo', 'descripcion_categoria' => 'Suprema de pollo'],
             ['nombre_categoria' => 'Papas & Chorrillanas', 'descripcion_categoria' => 'Papas fritas, salchipapas, papas supremas y chorrillanas'],
+            ['nombre_categoria' => 'Handroll', 'descripcion_categoria' => 'Handrolls de pollo y carne'],
             ['nombre_categoria' => 'Empanadas & Sopaipillas', 'descripcion_categoria' => 'Sopaipillas y empanadas variadas'],
             ['nombre_categoria' => 'Bebidas frías', 'descripcion_categoria' => 'Gaseosas, jugos, aguas minerales y bebidas energéticas'],
             ['nombre_categoria' => 'Bebidas calientes', 'descripcion_categoria' => ' Cafés, té, hierbas e infusiones calientes'],
@@ -104,8 +106,10 @@ class DatabaseSeeder extends Seeder
             'Doble',
             'Pollo',
             'Carne',
-            '4x $1.000',
+            'Mixta',
+            '2x $1.000',
             '3x $1.000',
+            '4x $1.000',
         ];
         foreach ($tamañosList as $nombreTamaño) {
             Tamaño::firstOrCreate(['nombre' => $nombreTamaño]);
@@ -152,6 +156,16 @@ class DatabaseSeeder extends Seeder
             ['nombre' => 'Pan XL', 'descripcion' => 'Pan XL', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
             ['nombre' => 'Chucrut', 'descripcion' => 'Chucrut tradicional', 'cantidad_actual' => 50, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
             ['nombre' => 'Salsa verde', 'descripcion' => 'Salsa verde tradicional', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Masa de pizzeta', 'descripcion' => 'Masa base para pizzeta', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Salsa de tomate', 'descripcion' => 'Salsa de tomate natural', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Oregano', 'descripcion' => 'Orégano deshidratado', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Ciboulette', 'descripcion' => 'Ciboulette fresco picado', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Salsa cheddar', 'descripcion' => 'Salsa de queso cheddar', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Suprema de pollo', 'descripcion' => 'Suprema de pollo empanizada', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Handroll', 'descripcion' => 'Handroll de sushi', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Arrollado', 'descripcion' => 'Arrollado primavera', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Empanada Pollo Mandarín', 'descripcion' => 'Empanada de pollo mandarín', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Empanada Carne Mandarin', 'descripcion' => 'Empanada de carne mandarín', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
         ];
 
         foreach ($ingredientes as $ingredienteData) {
@@ -313,7 +327,7 @@ class DatabaseSeeder extends Seeder
                 'ingredientes_defecto' => [
                     ['ingrediente' => 'Pan Chico', 'tamaño' => 'Chico', 'cantidad' => 1],
                     ['ingrediente' => 'Pan Grande', 'tamaño' => 'Grande', 'cantidad' => 1],
-                    'Carne', 'Queso gauda'
+                    'Carne', 'Queso gauda', 'Mayonesa'
                 ],
             ],
 
@@ -347,7 +361,7 @@ class DatabaseSeeder extends Seeder
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
                 'precios_por_tamaño' => ['Único' => 3700],
-                'ingredientes_defecto' => ['Pan Mediano', 'Carne', 'Queso gauda'],
+                'ingredientes_defecto' => ['Pan Mediano', 'Carne', 'Queso gauda', 'Mayonesa'],
             ],
             [
                 'nombre' => 'Churrasco Brasileño',
@@ -367,7 +381,7 @@ class DatabaseSeeder extends Seeder
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
                 'precios_por_tamaño' => ['Único' => 4000],
-                'ingredientes_defecto' => ['Pan Mediano', 'Carne', 'Cebolla', 'Huevo', 'Papas fritas'],
+                'ingredientes_defecto' => ['Pan Mediano', 'Carne', 'Cebolla', 'Huevo', 'Papas fritas', 'Mayonesa'],
             ],
 
             // --- LOMITOS ---
@@ -399,7 +413,7 @@ class DatabaseSeeder extends Seeder
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
                 'precios_por_tamaño' => ['Único' => 3600],
-                'ingredientes_defecto' => ['Pan Mediano', 'Lomito', 'Queso gauda'],
+                'ingredientes_defecto' => ['Pan Mediano', 'Lomito', 'Queso gauda', 'Mayonesa'],
             ],
 
             // --- HAMBURGUESAS (Personalizables, 3 ingredientes incluidos) ---
@@ -425,13 +439,13 @@ class DatabaseSeeder extends Seeder
 
             // --- PIZZAS (Personalizables, 3 ingredientes incluidos) ---
             [
-                'nombre' => 'Pizza Artesanal',
+                'nombre' => 'Pizza Familiar',
                 'categoria' => 'Pizzas',
-                'descripcion' => 'Pizza recién horneada personalizable. Incluye 3 ingredientes a elección ($1.000 ingrediente extra)',
+                'descripcion' => 'Pizza familiar recién horneada personalizable. Incluye 3 ingredientes a elección ($1.000 ingrediente extra)',
                 'tipo_armado' => 'Personalizable',
                 'cantidad_incluida' => 3,
                 'precio_ingrediente_extra' => 1000,
-                'precios_por_tamaño' => ['Chico' => 1700, 'Familiar' => 7500],
+                'precios_por_tamaño' => ['Familiar' => 7500],
                 'ingredientes_opcionales' => [
                     'Carne', 'Pollo', 'Lomito', 'Tocino', 'Vianesa', 'Longaniza',
                     'Cebolla', 'Pepinillo', 'Queso cheddar', 'Extra queso', 'Tomate',
@@ -440,17 +454,98 @@ class DatabaseSeeder extends Seeder
                 ],
             ],
 
+            [
+                'nombre' => 'Pizza Individual Napolitana',
+                'categoria' => 'Pizzas',
+                'descripcion' => 'Pizza individual recién horneada personalizable.',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 1700],
+                'ingredientes_defecto' => ['Masa de pizzeta', 'Salsa de tomate', 'Queso gauda', 'Tomate', 'Oregano'],
+            ],
+
+            [
+                'nombre' => 'Pizza Individual Pepperonni',
+                'categoria' => 'Pizzas',
+                'descripcion' => 'Pizza recién horneada personalizable.',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 1700],
+                'ingredientes_defecto' => ['Masa de pizzeta', 'Salsa de tomate', 'Queso gauda', 'Pepperoni', 'Oregano'],
+            ],
+
+            [
+                'nombre' => 'Pizza Individual Salame',
+                'categoria' => 'Pizzas',
+                'descripcion' => 'Pizza recién horneada personalizable.',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 1700],
+                'ingredientes_defecto' => ['Masa de pizzeta', 'Salsa de tomate', 'Queso gauda', 'Salame', 'Oregano'],
+            ],
+
             // --- FAJITAS (Personalizables, 3 ingredientes incluidos aparte de la proteína) ---
             [
-                'nombre' => 'Fajita',
+                'nombre' => 'Fajita de pollo',
                 'categoria' => 'Fajitas',
-                'descripcion' => 'Fajita de carne o pollo. Incluye 3 ingredientes a elección aparte de la proteína ($700 ingrediente extra)',
+                'descripcion' => 'Fajita de pollo. Incluye 3 ingredientes a elección aparte de la proteína ($700 ingrediente extra)',
                 'tipo_armado' => 'Personalizable',
                 'cantidad_incluida' => 3,
                 'precio_ingrediente_extra' => 700,
-                'precios_por_tamaño' => ['Pollo' => 3500, 'Carne' => 3500],
+                'precios_por_tamaño' => ['Pollo' => 3500],
                 'ingredientes_opcionales' => [
-                    'Carne', 'Pollo', 'Lomito', 'Tocino', 'Vianesa', 'Longaniza',
+                    'Tocino', 'Vianesa', 'Longaniza',
+                    'Cebolla', 'Tomate', 'Lechuga', 'Palta', 'Pepinillo', 'Champiñón',
+                    'Porotos verdes', 'Choclo', 'Aceitunas', 'Pimentón', 'Queso cheddar',
+                    'Queso gauda', 'Salame', 'Filetillo de pollo', 'Papa hilo', 'Papas fritas'
+                ],
+            ],
+
+            [
+                'nombre' => 'Fajita de carne',
+                'categoria' => 'Fajitas',
+                'descripcion' => 'Fajita de carne. Incluye 3 ingredientes a elección aparte de la proteína ($700 ingrediente extra)',
+                'tipo_armado' => 'Personalizable',
+                'cantidad_incluida' => 3,
+                'precio_ingrediente_extra' => 700,
+                'precios_por_tamaño' => ['Carne' => 3500],
+                'ingredientes_opcionales' => [
+                    'Tocino', 'Vianesa', 'Longaniza',
+                    'Cebolla', 'Tomate', 'Lechuga', 'Palta', 'Pepinillo', 'Champiñón',
+                    'Porotos verdes', 'Choclo', 'Aceitunas', 'Pimentón', 'Queso cheddar',
+                    'Queso gauda', 'Salame', 'Filetillo de pollo', 'Papa hilo', 'Papas fritas'
+                ],
+            ],
+
+            [
+                'nombre' => 'Fajita de lomito',
+                'categoria' => 'Fajitas',
+                'descripcion' => 'Fajita de lomito. Incluye 3 ingredientes a elección aparte de la proteína ($700 ingrediente extra)',
+                'tipo_armado' => 'Personalizable',
+                'cantidad_incluida' => 3,
+                'precio_ingrediente_extra' => 700,
+                'precios_por_tamaño' => ['Lomito' => 3500],
+                'ingredientes_opcionales' => [
+                    'Tocino', 'Vianesa', 'Longaniza',
+                    'Cebolla', 'Tomate', 'Lechuga', 'Palta', 'Pepinillo', 'Champiñón',
+                    'Porotos verdes', 'Choclo', 'Aceitunas', 'Pimentón', 'Queso cheddar',
+                    'Queso gauda', 'Salame', 'Filetillo de pollo', 'Papa hilo', 'Papas fritas'
+                ],
+            ],
+
+            [
+                'nombre' => 'Fajita mixta',
+                'categoria' => 'Fajitas',
+                'descripcion' => 'Fajita mixta. Incluye 3 ingredientes a elección aparte de la proteína ($700 ingrediente extra)',
+                'tipo_armado' => 'Personalizable',
+                'cantidad_incluida' => 3,
+                'precio_ingrediente_extra' => 700,
+                'precios_por_tamaño' => ['Mixta' => 4000],
+                'ingredientes_opcionales' => [
+                    'Tocino', 'Vianesa', 'Longaniza',
                     'Cebolla', 'Tomate', 'Lechuga', 'Palta', 'Pepinillo', 'Champiñón',
                     'Porotos verdes', 'Choclo', 'Aceitunas', 'Pimentón', 'Queso cheddar',
                     'Queso gauda', 'Salame', 'Filetillo de pollo', 'Papa hilo', 'Papas fritas'
@@ -459,14 +554,45 @@ class DatabaseSeeder extends Seeder
 
             // --- SANDWICH DE POLLO ---
             [
-                'nombre' => 'Sandwich de Pollo',
+                'nombre' => 'Sandwich de Pollo Italiano',
                 'categoria' => 'Sándwich de Pollo',
-                'descripcion' => 'Exquisito sándwich de pollo preparado',
+                'descripcion' => 'Exquisito sándwich de pechuga de pollo preparado',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
                 'precios_por_tamaño' => ['Único' => 3300],
                 'ingredientes_defecto' => ['Pan Mediano', 'Pollo', 'Tomate', 'Lechuga', 'Mayonesa'],
+            ],
+            [
+                'nombre' => 'Sandwich de Pollo Chacarero',
+                'categoria' => 'Sándwich de Pollo',
+                'descripcion' => 'Exquisito sándwich de pechuga de pollo preparado estilo chacarero',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 3700],
+                'ingredientes_defecto' => ['Pan Mediano', 'Carne', 'Tomate', 'Porotos verdes'],
+            ],
+            
+            // --- SUPREMA DE POLLO ---
+
+            [
+                'nombre' => 'Suprema de pollo',
+                'categoria' => 'Suprema de Pollo',
+                'descripcion' => 'Pollo apanado. Incluye 3 ingredientes a elección ($500 ingrediente extra)',
+                'tipo_armado' => 'Personalizable',
+                'cantidad_incluida' => 3,
+                'precio_ingrediente_extra' => 500,
+                'precios_por_tamaño' => ['Único' => 3300],
+                'ingredientes_defecto' => [
+                    'Pan Frica',
+                    ['ingrediente' => 'Suprema de pollo', 'tamaño' => 'Único', 'cantidad' => 1],
+                ],
+                'ingredientes_opcionales' => [
+                    'Queso cheddar', 'Queso gauda', 'Tocino', 'Cebolla', 'Papa hilo',
+                    'Papas fritas', 'Aros de cebolla', 'Tomate', 'Lechuga', 'Palta',
+                    'Pepinillo', 'Champiñón', 'Huevo', 'Choclo', 'Aceitunas'
+                ],
             ],
 
             // --- PAPAS & CHORRILLANAS ---
@@ -498,7 +624,17 @@ class DatabaseSeeder extends Seeder
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
                 'precios_por_tamaño' => ['Chico' => 6500, 'Grande' => 11000],
-                'ingredientes_defecto' => ['Papas fritas', 'Queso cheddar', 'Tocino'],
+                'ingredientes_defecto' => ['Papas fritas', 'Salsa cheddar', 'Carne', 'Ciboulette'],
+            ],
+            [
+                'nombre' => 'Papas y Filetillo',
+                'categoria' => 'Papas & Chorrillanas',
+                'descripcion' => 'Papas fritas con filetillo de pollo',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 4500],
+                'ingredientes_defecto' => ['Papas fritas', 'Filetillo de pollo'],
             ],
             [
                 'nombre' => 'Chorrillana Tradicional',
@@ -508,7 +644,30 @@ class DatabaseSeeder extends Seeder
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
                 'precios_por_tamaño' => ['Chico' => 7500, 'Grande' => 12500],
-                'ingredientes_defecto' => ['Papas fritas', 'Carne', 'Cebolla', 'Huevo'],
+                'ingredientes_defecto' => ['Papas fritas', 'Carne', 'Longaniza', 'Vianesa', 'Cebolla', 'Huevo'],
+            ],
+
+            // --- HANDROLL ---
+
+            [
+                'nombre' => 'Handroll Pollo',
+                'categoria' => 'Handroll',
+                'descripcion' => 'Rico handroll de pollo',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 3000],
+                'ingredientes_defecto' => ['Handroll'],
+            ],
+            [
+                'nombre' => 'Arrollado de Jamón y Queso',
+                'categoria' => 'Handroll',
+                'descripcion' => 'Delicioso arrollado de jamón y queso',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 600, '2x 1000' => 1000],
+                'ingredientes_defecto' => ['Arrollado'],
             ],
 
             // --- EMPANADAS & SOPAIPILLAS ---
@@ -522,13 +681,24 @@ class DatabaseSeeder extends Seeder
                 'precios_por_tamaño' => ['Único' => 300],
             ],
             [
-                'nombre' => 'Empanada Individual',
+                'nombre' => 'Empanada Pollo Mandarín',
                 'categoria' => 'Empanadas & Sopaipillas',
-                'descripcion' => 'Empanada frita (Queso, Queso aceituna, Jamón queso, Queso champiñón, Napolitana)',
+                'descripcion' => 'Empanada frita de pollo mandarín',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Único' => 550],
+                'precios_por_tamaño' => ['Único' => 600],
+                'ingredientes_defecto' => ['Empanada Pollo Mandarín'],
+            ],
+            [
+                'nombre' => 'Empanada Carne Mandarín',
+                'categoria' => 'Empanadas & Sopaipillas',
+                'descripcion' => 'Empanada frita de carne mandarín',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 600],
+                'ingredientes_defecto' => ['Empanada Carne Mandarin'],
             ],
             [
                 'nombre' => 'Empanadas Queso 4x$1.000',

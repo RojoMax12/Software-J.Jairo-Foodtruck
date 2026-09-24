@@ -9,7 +9,7 @@
 
         <div class="modal-grid">
           <div class="product-img-box">
-            <img :src="selectedProductImage" :alt="selectedType?.name || product.name" class="main-product-img" />
+            <img :src="selectedProductImage" :alt="selectedType?.name || product.name" class="main-product-img" :style="selectedProductImageStyle" />
           </div>
           
           <div class="product-info-box">
@@ -182,6 +182,24 @@ const quantity = ref(1);
 const selectedProductImage = computed(() => {
   return selectedType.value?.image || props.product?.image || '';
 });
+
+const selectedProductImagePosition = computed(() => {
+  return selectedType.value?.imagePosition || props.product?.imagePosition || '50% 50%';
+});
+
+const selectedProductImageZoom = computed(() => {
+  return Math.max(1, Number(selectedType.value?.imageZoom || props.product?.imageZoom || 1));
+});
+
+const selectedProductImageFit = computed(() => {
+  return selectedType.value?.imageFit || props.product?.imageFit || 'cover';
+});
+
+const selectedProductImageStyle = computed(() => ({
+  objectPosition: selectedProductImagePosition.value,
+  objectFit: selectedProductImageFit.value,
+  transform: `scale(${selectedProductImageZoom.value})`,
+}));
 
 const activeTypes = computed(() => {
   if (!props.product || !props.product.types) return [];
@@ -441,6 +459,9 @@ const handleAddToCart = () => {
       : props.product.name,
     category: props.product.category,
     image: props.product.image,
+    imagePosition: props.product.imagePosition || '50% 50%',
+    imageZoom: Number(props.product.imageZoom || 1),
+    imageFit: props.product.imageFit || 'cover',
     size: effectiveSize,
     quantity: quantity.value,
     price: currentPrice.value,
@@ -498,15 +519,27 @@ const handleAddToCart = () => {
   display: grid;
   grid-template-columns: 1fr 1.3fr;
   height: 100%;
+  align-items: stretch;
+  border: 2px solid blue;
 }
 
 .product-img-box {
   background-color: white;
+  width: 100%;
   height: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 2px solid red;
 }
 
 .main-product-img {
-  width: 100%; height: 100%; object-fit: cover;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
 }
 
 /* PANEL DERECHO (CONFIGURADOR) */
@@ -714,7 +747,7 @@ const handleAddToCart = () => {
   }
 
   .purchase-actions { 
-    flex-direction: row; 
+    flex-direction: row;
     margin-top: 8px;
     padding-top: 10px;
     gap: 10px;
@@ -727,7 +760,7 @@ const handleAddToCart = () => {
   .add-to-cart-btn { flex: 1; padding: 10px 14px; box-sizing: border-box; }
 }
 
-@media (max-height: 600px) {
+@media (max-width: 768px) and (max-height: 600px) {
   .modal-wrapper {
     height: 96vh;
     max-height: 96vh;

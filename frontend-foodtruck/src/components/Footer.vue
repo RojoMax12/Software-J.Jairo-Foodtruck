@@ -32,7 +32,22 @@
           
           <!-- Ubicación -->
           <li class="info-item">
-            <strong>Ubicación:</strong> Pje. Oscar Castro 11012, La Pintana
+            <strong>Ubicación:</strong>
+            <a 
+              href="https://www.google.com/maps/search/?api=1&query=Pje.+Oscar+Castro+11012,+La+Pintana" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              class="location-link"
+              title="Ver en Google Maps"
+            >
+              <div class="location-item">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="location-icon">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+                <span>Pje. Oscar Castro 11012, La Pintana</span>
+              </div>
+            </a>
           </li>
         </ul>
       </div>
@@ -166,7 +181,8 @@
   align-items: center; 
 }
 
-.social-link {
+.social-link,
+.location-link {
   color: #ffffff;
   text-decoration: none;
   font-size: 0.95rem;
@@ -175,18 +191,21 @@
   width: fit-content;
 }
 
-.social-item {
+.social-item,
+.location-item {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.social-link:hover {
+.social-link:hover,
+.location-link:hover {
   color: #E28743;
   transform: translateY(-2px); 
 }
 
-.social-icon {
+.social-icon,
+.location-icon {
   stroke: currentColor;
 }
 

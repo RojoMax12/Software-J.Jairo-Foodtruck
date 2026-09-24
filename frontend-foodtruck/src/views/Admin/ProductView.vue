@@ -839,6 +839,7 @@
                                         :src="productForm.image"
                                         alt="Preview"
                                         class="live-card-img"
+                                        :style="{ objectPosition: productForm.imagePosition, objectFit: productForm.imageFit, transform: `scale(${Math.max(1, productForm.imageZoom)})` }"
                                         @error="handleImageError"
                                     />
                                     <div v-else class="live-card-placeholder">
@@ -939,6 +940,30 @@
                                     >
                                         <X :size="14" />
                                     </button>
+                                </div>
+
+                                <div class="image-customize-section">
+                                    <button
+                                        v-if="productForm.image"
+                                        type="button"
+                                        class="btn-customize-image"
+                                        @click="openImageCustomizer"
+                                    >
+                                        <SlidersHorizontal :size="16" />
+                                        <div class="customize-btn-text">
+                                            <strong>Personalizar Imagen</strong>
+                                            <span>Ajustar encuadre, zoom y presentación</span>
+                                        </div>
+                                    </button>
+                                    <div v-if="productForm.image && (productForm.imageFit !== 'cover' || productForm.imagePosition !== '50% 50%' || productForm.imageZoom !== 1)" class="image-customization-summary">
+                                        <span class="customization-tag" v-if="productForm.imageFit === 'contain'">📐 Completa</span>
+                                        <span class="customization-tag" v-if="productForm.imagePosition !== '50% 50%'">🎯 {{ getCurrentPositionLabel }}</span>
+                                        <span class="customization-tag" v-if="productForm.imageZoom !== 1">🔍 {{ Math.round(productForm.imageZoom * 100) }}%</span>
+                                    </div>
+                                    <p v-if="!productForm.image" class="customize-placeholder-text">
+                                        <SlidersHorizontal :size="14" />
+                                        <span>Sube una imagen para personalizar su encuadre</span>
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -1061,6 +1086,7 @@
             </div>
         </div>
 
+<<<<<<< HEAD
         <!-- MODAL PROMOCION CONFIGURABLE -->
         <div v-if="isPromotionModalOpen" class="modal-backdrop" @click.self="isPromotionModalOpen = false">
             <div class="modal-card">
@@ -1118,6 +1144,166 @@
                         <button type="submit" class="btn-save"><Check :size="16" /><span>{{ isEditingPromotion ? 'Guardar Cambios' : 'Crear Promoción' }}</span></button>
                     </div>
                 </form>
+=======
+        <!-- MODAL PERSONALIZAR IMAGEN -->
+        <div v-if="isImageCustomizerOpen" class="modal-backdrop customizer-backdrop" @click.self="cancelImageCustomization">
+            <div class="modal-card customizer-modal-card">
+                <div class="modal-header customizer-header">
+                    <div class="modal-header-title">
+                        <div class="header-icon-pill customizer-icon-pill"><SlidersHorizontal :size="18" /></div>
+                        <div>
+                            <h3>Personalizar Imagen</h3>
+                            <p class="modal-header-desc">Ajusta cómo se muestra la fotografía del producto en toda la aplicación</p>
+                        </div>
+                    </div>
+                    <button class="close-btn" @click="cancelImageCustomization"><X :size="20" /></button>
+                </div>
+
+                <div class="customizer-body">
+                    <div class="customizer-columns">
+                        <!-- Columna Izquierda: Vista previa grande -->
+                        <div class="customizer-preview-section">
+                            <div class="customizer-preview-label">
+                                <Eye :size="13" />
+                                <span>Vista previa con ajustes</span>
+                                <span class="live-pill">En vivo</span>
+                            </div>
+                            <div class="customizer-preview-large" :class="{ 'checkerboard-bg': productForm.imageFit === 'contain' }">
+                                <img
+                                    :src="productForm.image"
+                                    alt="Preview personalización"
+                                    class="customizer-preview-img"
+                                    :style="{
+                                        objectPosition: productForm.imagePosition,
+                                        objectFit: productForm.imageFit,
+                                        transform: 'scale(' + Math.max(1, productForm.imageZoom) + ')'
+                                    }"
+                                />
+                            </div>
+
+                            <div class="customizer-mini-card-section">
+                                <span class="customizer-mini-label">
+                                    <PackageOpen :size="12" />
+                                    Así se verá en el menú
+                                </span>
+                                <div class="customizer-mini-card">
+                                    <div class="mini-card-img-wrap">
+                                        <img
+                                            :src="productForm.image"
+                                            alt="Mini preview"
+                                            class="mini-card-img"
+                                            :style="{
+                                                objectPosition: productForm.imagePosition,
+                                                objectFit: productForm.imageFit,
+                                                transform: 'scale(' + Math.max(1, productForm.imageZoom) + ')'
+                                            }"
+                                        />
+                                    </div>
+                                    <div class="mini-card-info">
+                                        <strong>{{ productForm.nombre || 'Producto' }}</strong>
+                                        <span>{{ formatPrice(getPreviewPrice) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Columna Derecha: Controles -->
+                        <div class="customizer-controls">
+                            <div class="customizer-control-group">
+                                <div class="control-group-header">
+                                    <ImageIcon :size="15" />
+                                    <span>Presentación</span>
+                                </div>
+                                <p class="control-help-text">Define cómo se ajusta la fotografía dentro del marco visible.</p>
+                                <div class="control-options-grid">
+                                    <button
+                                        type="button"
+                                        class="control-option-btn"
+                                        :class="{ active: productForm.imageFit === 'cover' }"
+                                        @click="productForm.imageFit = 'cover'"
+                                    >
+                                        <span class="control-option-icon">🖼️</span>
+                                        <span class="control-option-label">Llenar marco</span>
+                                        <span class="control-option-desc">Puede recortar bordes</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="control-option-btn"
+                                        :class="{ active: productForm.imageFit === 'contain' }"
+                                        @click="productForm.imageFit = 'contain'"
+                                    >
+                                        <span class="control-option-icon">📐</span>
+                                        <span class="control-option-label">Imagen completa</span>
+                                        <span class="control-option-desc">Sin recortar nada</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="customizer-control-group">
+                                <div class="control-group-header">
+                                    <Move :size="15" />
+                                    <span>Encuadre</span>
+                                </div>
+                                <p class="control-help-text">Elige qué zona de la foto se muestra cuando se recorta.</p>
+                                <div class="position-grid-wrapper">
+                                    <div class="position-grid">
+                                        <button
+                                            v-for="pos in imagePositionOptions"
+                                            :key="pos.value"
+                                            type="button"
+                                            class="position-grid-btn"
+                                            :class="{ active: productForm.imagePosition === pos.value }"
+                                            @click="productForm.imagePosition = pos.value"
+                                            :title="pos.label"
+                                        >
+                                            <span class="position-dot"></span>
+                                        </button>
+                                    </div>
+                                    <span class="position-current-label">{{ getCurrentPositionLabel }}</span>
+                                </div>
+                            </div>
+
+                            <div class="customizer-control-group">
+                                <div class="control-group-header">
+                                    <ZoomIn :size="15" />
+                                    <span>Zoom</span>
+                                    <span class="zoom-value-badge">{{ Math.round(productForm.imageZoom * 100) }}%</span>
+                                </div>
+                                <p class="control-help-text">Amplía la imagen para enfocar el detalle principal.</p>
+                                <div class="zoom-slider-wrapper">
+                                    <span class="zoom-label-end">100%</span>
+                                    <input
+                                        v-model.number="productForm.imageZoom"
+                                        type="range"
+                                        min="1"
+                                        max="1.6"
+                                        step="0.05"
+                                        class="customizer-zoom-range"
+                                    />
+                                    <span class="zoom-label-end">160%</span>
+                                </div>
+                                <button
+                                    v-if="productForm.imageZoom !== 1"
+                                    type="button"
+                                    class="btn-reset-zoom"
+                                    @click="productForm.imageZoom = 1"
+                                >
+                                    <RotateCw :size="12" />
+                                    <span>Restablecer zoom</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" @click="cancelImageCustomization">Cancelar</button>
+                    <button type="button" class="btn-save" @click="applyImageCustomization">
+                        <Check :size="16" />
+                        <span>Aplicar Personalización</span>
+                    </button>
+                </div>
+>>>>>>> main
             </div>
         </div>
 
@@ -1150,16 +1336,23 @@ import {
     History,
     Image as ImageIcon,
     MoreVertical,
+    Move,
     PackageOpen,
     Pencil,
     Plus,
+<<<<<<< HEAD
     Power,
+=======
+    RotateCw,
+>>>>>>> main
     Search,
+    SlidersHorizontal,
     Sparkles,
     Tag,
     Trash2,
     UploadCloud,
-    X
+    X,
+    ZoomIn
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -1233,6 +1426,9 @@ const productForm = ref({
     sizePrices: {} as Record<string, number>,
     selectedIngredients: [] as string[],
     image: '',
+    imagePosition: '50% 50%',
+    imageZoom: 1,
+    imageFit: 'cover' as 'cover' | 'contain',
     imageFile: null as File | null,
     active: true,
     inStock: true
@@ -1398,6 +1594,9 @@ const openCreateModal = () => {
         sizePrices: initialPrices,
         selectedIngredients: [],
         image: '',
+        imagePosition: '50% 50%',
+        imageZoom: 1,
+        imageFit: 'cover',
         imageFile: null,
         active: true,
         inStock: true
@@ -1426,6 +1625,9 @@ const openEditModal = (product: any) => {
         tipo_armado: product.tipo_armado || 'estandar',
         precio_ingrediente_extra: product.precio_ingrediente_extra || 0,
         image: product.image || '',
+        imagePosition: product.imagePosition || '50% 50%',
+        imageZoom: Number(product.imageZoom || 1),
+        imageFit: product.imageFit || 'cover',
         imageFile: null,
         active: product.active !== false,
         inStock: product.inStock !== false,
@@ -1453,6 +1655,9 @@ const submitCreateProduct = async () => {
     const localItem = {
         id: newId,
         image: productForm.value.image || '',
+        imagePosition: productForm.value.imagePosition,
+        imageZoom: productForm.value.imageZoom,
+        imageFit: productForm.value.imageFit,
         name: productForm.value.nombre,
         category: catName,
         price: Number(basePrice),
@@ -1477,7 +1682,10 @@ const submitCreateProduct = async () => {
             precio_ingrediente_extra: productForm.value.precio_ingrediente_extra || 0,
             activo: productForm.value.active,
             disponible: productForm.value.inStock,
-            imagen: productForm.value.image
+            imagen: productForm.value.image,
+            imagen_posicion: productForm.value.imagePosition,
+            imagen_zoom: productForm.value.imageZoom,
+            imagen_ajuste: productForm.value.imageFit,
         })
         const createdId = res.data?.id_producto || res.data?.id || newId
         localItem.id = createdId
@@ -1515,6 +1723,9 @@ const submitEditProduct = async () => {
         p.category = catName
         p.price = Number(basePrice)
         p.image = productForm.value.image || p.image
+        p.imagePosition = productForm.value.imagePosition
+        p.imageZoom = productForm.value.imageZoom
+        p.imageFit = productForm.value.imageFit
         p.sizes = [...productForm.value.selectedSizes]
         p.ingredients = [...productForm.value.selectedIngredients]
         p.active = productForm.value.active
@@ -1532,7 +1743,10 @@ const submitEditProduct = async () => {
             precio_ingrediente_extra: productForm.value.precio_ingrediente_extra || 0,
             activo: productForm.value.active,
             disponible: productForm.value.inStock,
-            imagen: productForm.value.image
+            imagen: productForm.value.image,
+            imagen_posicion: productForm.value.imagePosition,
+            imagen_zoom: productForm.value.imageZoom,
+            imagen_ajuste: productForm.value.imageFit,
         })
 
         if (productForm.value.imageFile) {
@@ -1775,6 +1989,9 @@ const loadCatalogData = async () => {
             return {
                 id: p.id_producto,
                 image: imgUrl,
+                imagePosition: p.imagen_posicion || '50% 50%',
+                imageZoom: Number(p.imagen_zoom || 1),
+                imageFit: p.imagen_ajuste || 'cover',
                 name: p.nombre,
                 category: catName,
                 price: Number(firstPrice),
@@ -2134,6 +2351,54 @@ const handleDeleteSize = async (sz: any) => {
     } catch {
         notify('Tamaño eliminado', 'warning')
     }
+}
+
+// ==========================================
+// IMAGE CUSTOMIZER MODAL
+// ==========================================
+const isImageCustomizerOpen = ref(false)
+const imageCustomizerSnapshot = ref({
+    imagePosition: '50% 50%',
+    imageZoom: 1,
+    imageFit: 'cover' as 'cover' | 'contain'
+})
+
+const imagePositionOptions = [
+    { value: '30% 30%', label: 'Arriba izquierda' },
+    { value: '50% 30%', label: 'Arriba centro' },
+    { value: '70% 30%', label: 'Arriba derecha' },
+    { value: '30% 50%', label: 'Centro izquierda' },
+    { value: '50% 50%', label: 'Centro' },
+    { value: '70% 50%', label: 'Centro derecha' },
+    { value: '30% 70%', label: 'Abajo izquierda' },
+    { value: '50% 70%', label: 'Abajo centro' },
+    { value: '70% 70%', label: 'Abajo derecha' },
+]
+
+const getCurrentPositionLabel = computed(() => {
+    const found = imagePositionOptions.find(opt => opt.value === productForm.value.imagePosition)
+    return found ? found.label : productForm.value.imagePosition
+})
+
+const openImageCustomizer = () => {
+    imageCustomizerSnapshot.value = {
+        imagePosition: productForm.value.imagePosition,
+        imageZoom: productForm.value.imageZoom,
+        imageFit: productForm.value.imageFit
+    }
+    isImageCustomizerOpen.value = true
+}
+
+const applyImageCustomization = () => {
+    isImageCustomizerOpen.value = false
+    notify('Personalización de imagen aplicada', 'success')
+}
+
+const cancelImageCustomization = () => {
+    productForm.value.imagePosition = imageCustomizerSnapshot.value.imagePosition
+    productForm.value.imageZoom = imageCustomizerSnapshot.value.imageZoom
+    productForm.value.imageFit = imageCustomizerSnapshot.value.imageFit as 'cover' | 'contain'
+    isImageCustomizerOpen.value = false
 }
 
 // ==========================================
@@ -3496,7 +3761,7 @@ button:active{
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 9999;
+    z-index: 1000;
     padding: 20px;
 }
 
@@ -4665,6 +4930,554 @@ textarea.modal-input {
 
     .modal-form-wrapper {
         max-height: calc(94vh - 65px);
+    }
+}
+
+/* ==========================================================
+   MODAL PERSONALIZAR IMAGEN
+========================================================== */
+
+.customizer-backdrop {
+    z-index: 1100;
+}
+
+.customizer-modal-card {
+    max-width: 920px;
+    width: 92vw;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.customizer-header {
+    border-bottom: 1px solid #f0eae1;
+}
+
+.customizer-icon-pill {
+    background: linear-gradient(135deg, #fff4e6 0%, #ffe8cc 100%);
+    color: var(--DC-orange, #e28743);
+}
+
+.customizer-body {
+    overflow-y: auto;
+    padding: 24px;
+    flex: 1;
+}
+
+.customizer-columns {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 24px;
+    align-items: start;
+}
+
+/* Preview Section */
+.customizer-preview-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.customizer-preview-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--DC-brown, #513119);
+}
+
+.customizer-preview-large {
+    position: relative;
+    width: 100%;
+    height: 280px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #f5eee6;
+    border: 2px solid #ece5dc;
+    box-shadow:
+        0 8px 32px rgba(81, 49, 25, 0.08),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+    transition: box-shadow 0.3s ease;
+}
+
+.customizer-preview-large:hover {
+    box-shadow:
+        0 12px 40px rgba(81, 49, 25, 0.12),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.checkerboard-bg {
+    background-image:
+        linear-gradient(45deg, #e8e1d7 25%, transparent 25%),
+        linear-gradient(-45deg, #e8e1d7 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #e8e1d7 75%),
+        linear-gradient(-45deg, transparent 75%, #e8e1d7 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+    background-color: #f5eee6;
+}
+
+.customizer-preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Mini Card Preview */
+.customizer-mini-card-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.customizer-mini-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #64748b;
+}
+
+.customizer-mini-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: white;
+    border: 1px solid #ece5dc;
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: box-shadow 0.2s;
+}
+
+.customizer-mini-card:hover {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
+}
+
+.mini-card-img-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #f5eee6;
+    flex-shrink: 0;
+}
+
+.mini-card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mini-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mini-card-info strong {
+    font-size: 0.88rem;
+    color: #1e293b;
+    font-weight: 800;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+}
+
+.mini-card-info span {
+    font-size: 0.82rem;
+    font-weight: 900;
+    color: var(--DC-orange, #e28743);
+}
+
+/* Controls Panel */
+.customizer-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.customizer-control-group {
+    background: #fdfbf7;
+    border: 1px solid #f0eae1;
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.customizer-control-group:hover {
+    border-color: #e0d7cc;
+    box-shadow: 0 2px 10px rgba(81, 49, 25, 0.04);
+}
+
+.control-group-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: var(--DC-brown, #513119);
+}
+
+.control-group-header svg {
+    color: var(--DC-orange, #e28743);
+}
+
+.control-help-text {
+    margin: 0;
+    font-size: 0.76rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+/* Option cards (Presentación) */
+.control-options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.control-option-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 8px;
+    border-radius: 12px;
+    border: 2px solid #e2e8f0;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.control-option-btn:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    transform: translateY(-1px);
+}
+
+.control-option-btn.active {
+    border-color: var(--DC-orange, #e28743);
+    background: #fff9f2;
+    box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.12);
+}
+
+.control-option-icon {
+    font-size: 1.3rem;
+    line-height: 1;
+}
+
+.control-option-label {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #334155;
+}
+
+.control-option-desc {
+    font-size: 0.68rem;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.control-option-btn.active .control-option-label {
+    color: var(--DC-brown, #513119);
+}
+
+/* Position Grid (3x3) */
+.position-grid-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.position-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    width: 120px;
+    height: 120px;
+    background: linear-gradient(135deg, #f1f5f9 0%, #e8e2d8 100%);
+    border: 2px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 8px;
+}
+
+.position-grid-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.position-grid-btn:hover {
+    background: #fff4e6;
+    transform: scale(1.12);
+    box-shadow: 0 2px 6px rgba(226, 135, 67, 0.2);
+}
+
+.position-grid-btn.active {
+    background: var(--DC-orange, #e28743);
+    box-shadow: 0 3px 10px rgba(226, 135, 67, 0.4);
+    transform: scale(1.08);
+}
+
+.position-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    transition: all 0.2s ease;
+}
+
+.position-grid-btn:hover .position-dot {
+    background: var(--DC-orange, #e28743);
+    width: 9px;
+    height: 9px;
+}
+
+.position-grid-btn.active .position-dot {
+    background: white;
+    width: 10px;
+    height: 10px;
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
+}
+
+.position-current-label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #64748b;
+    text-align: center;
+    background: #f8fafc;
+    padding: 3px 12px;
+    border-radius: 999px;
+    border: 1px solid #e2e8f0;
+}
+
+/* Zoom Slider */
+.zoom-value-badge {
+    margin-left: auto;
+    background: linear-gradient(135deg, #fff4e6 0%, #ffe8cc 100%);
+    color: var(--DC-orange, #e28743);
+    font-size: 0.72rem;
+    font-weight: 900;
+    padding: 2px 10px;
+    border-radius: 999px;
+    border: 1px solid #fde8d0;
+}
+
+.zoom-slider-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.zoom-label-end {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #94a3b8;
+    white-space: nowrap;
+    min-width: 32px;
+}
+
+.customizer-zoom-range {
+    flex: 1;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: linear-gradient(90deg, #e2e8f0 0%, #fde8d0 50%, #f5c89c 100%);
+    border-radius: 999px;
+    outline: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.customizer-zoom-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--DC-orange, #e28743);
+    border: 3px solid white;
+    box-shadow: 0 2px 10px rgba(226, 135, 67, 0.35);
+    cursor: grab;
+    transition: box-shadow 0.2s, transform 0.15s;
+}
+
+.customizer-zoom-range::-webkit-slider-thumb:hover {
+    box-shadow: 0 3px 14px rgba(226, 135, 67, 0.5);
+    transform: scale(1.1);
+}
+
+.customizer-zoom-range::-webkit-slider-thumb:active {
+    cursor: grabbing;
+    transform: scale(0.95);
+}
+
+.customizer-zoom-range::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--DC-orange, #e28743);
+    border: 3px solid white;
+    box-shadow: 0 2px 10px rgba(226, 135, 67, 0.35);
+    cursor: grab;
+}
+
+.btn-reset-zoom {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    align-self: flex-start;
+    padding: 5px 12px;
+    border-radius: 8px;
+    border: 1px dashed #cbd5e1;
+    background: transparent;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-reset-zoom:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    color: #334155;
+}
+
+/* ========================================
+   Customize Image Button (in product modal)
+======================================== */
+
+.image-customize-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.btn-customize-image {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 2px solid #e8e2d8;
+    background: linear-gradient(135deg, #fdfbf7 0%, #fff9f2 100%);
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.btn-customize-image:hover {
+    border-color: var(--DC-orange, #e28743);
+    background: linear-gradient(135deg, #fff9f2 0%, #fff4e6 100%);
+    box-shadow: 0 4px 18px rgba(226, 135, 67, 0.14);
+    transform: translateY(-1px);
+}
+
+.btn-customize-image > svg {
+    color: var(--DC-orange, #e28743);
+    flex-shrink: 0;
+}
+
+.customize-btn-text {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.customize-btn-text strong {
+    font-size: 0.86rem;
+    color: var(--DC-brown, #513119);
+}
+
+.customize-btn-text span {
+    font-size: 0.74rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.image-customization-summary {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.customization-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #fff4e6;
+    border: 1px solid #fde8d0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--DC-brown, #513119);
+}
+
+.customize-placeholder-text {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    font-weight: 600;
+    font-style: italic;
+}
+
+.customize-placeholder-text svg {
+    color: #cbd5e1;
+    flex-shrink: 0;
+}
+
+/* Responsividad del customizer */
+@media (max-width: 768px) {
+    .customizer-modal-card {
+        max-width: 100%;
+        width: 100%;
+        max-height: 96vh;
+        border-radius: 18px !important;
+    }
+
+    .customizer-body {
+        padding: 14px;
+    }
+
+    .customizer-columns {
+        grid-template-columns: 1fr !important;
+        gap: 16px;
+    }
+
+    .customizer-preview-large {
+        height: 200px;
+    }
+
+    .control-options-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .position-grid {
+        width: 110px;
+        height: 110px;
     }
 }
 </style>
