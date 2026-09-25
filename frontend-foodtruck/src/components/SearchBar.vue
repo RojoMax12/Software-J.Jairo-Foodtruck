@@ -3,25 +3,26 @@
     <div class="divider"></div>
     
     <div class="search-controls">
-      
       <!-- 🔍 BUSCADOR DE TEXTO PRINCIPAL -->
       <div class="search-input-wrapper">
-        <Search class="search-icon" :size="20" />
+        <Search class="search-icon" :size="18" />
         <input 
           type="text" 
           :value="searchQuery"
           @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
           placeholder="¿Qué se te antoja hoy? Busca por nombre o ingrediente..." 
           class="search-input" 
+          aria-label="Buscar producto o ingrediente"
         />
         <button 
           v-if="searchQuery" 
+          type="button"
           class="clear-search-btn" 
           @click="emit('update:searchQuery', '')"
           title="Limpiar búsqueda"
           aria-label="Limpiar búsqueda"
         >
-          <X :size="16" />
+          <X :size="15" />
         </button>
       </div>
 
@@ -31,69 +32,86 @@
           <span class="active-filter-text">
             Categoría activa: <strong>{{ props.modelValue }}</strong>
           </span>
-          <button class="clear-filter-btn" @click="toggleCategory('Todas')">
-            <X :size="14" />
+          <button type="button" class="clear-filter-btn" @click="toggleCategory('Todas')">
+            <X :size="13" />
             <span>Ver todas las categorías</span>
           </button>
         </div>
       </Transition>
 
-      <!-- 🍟 CATEGORÍAS (EN PC: FILA CENTRADA Y ELEGANTE. EN MÓVIL: CARRUSEL TÁCTIL) -->
-      <div class="categories-scroll-container">
-        <div class="inputs-group">
+      <!-- 🍟 CARRUSEL DE CATEGORÍAS EN FILA ÚNICA CON NAVEGACIÓN DESKTOP Y SWIPE MÓVIL -->
+      <div 
+        class="categories-carousel-wrapper"
+        :class="{
+          'has-scroll-left': canScrollLeft,
+          'has-scroll-right': canScrollRight
+        }"
+      >
+        <!-- Flecha Anterior (Desktop) -->
+        <Transition name="fade-scale">
           <button
-            class="badge-button color-papas"
-            :class="{ 'is-active': props.modelValue === 'Papas & Chorrillanas' }"
-            @click="toggleCategory('Papas & Chorrillanas')"
+            v-if="canScrollLeft"
+            type="button"
+            class="carousel-nav-btn prev-btn"
+            aria-label="Ver categorías anteriores"
+            title="Categorías anteriores"
+            @click="scrollCategories(-1)"
           >
-            <span class="badge-text">Papas</span>
+            <ChevronLeft :size="20" :stroke-width="2.5" />
           </button>
-          
-          <button
-            class="badge-button color-vianesas"
-            :class="{ 'is-active': props.modelValue === 'Vianesas' }"
-            @click="toggleCategory('Vianesas')"
-          >
-            <span class="badge-text">Vianesas</span>
-          </button>
+        </Transition>
 
-          <button
-            class="badge-button color-sanguches"
-            :class="{ 'is-active': props.modelValue === 'Sánguches / Bajones' }"
-            @click="toggleCategory('Sánguches / Bajones')"
-          >
-            <span class="badge-text">Sánguches<br></span>
-          </button>
+        <!-- Track horizontal de 1 sola fila con scroll suave -->
+        <div 
+          ref="scrollContainerRef"
+          class="categories-scroll-container"
+          @scroll.passive="updateScrollButtons"
+        >
+          <div class="inputs-group">
+            <!-- 1. Botón exclusivo de Promociones con contador dinámico de fuego -->
+            <button
+              type="button"
+              class="badge-button color-promos"
+              :class="{ 'is-active': props.modelValue === 'Promos' || props.modelValue === 'Promos/Combos' }"
+              :aria-pressed="props.modelValue === 'Promos' || props.modelValue === 'Promos/Combos'"
+              @click="toggleCategory('Promos')"
+            >
+              <span v-if="(props.promotionsCount || 0) > 0" class="badge-fire-tag">
+                {{ props.promotionsCount }}
+              </span>
+              <span class="badge-text">Promos</span>
+            </button>
 
-          <button
-            class="badge-button color-promos"
-            :class="{ 'is-active': props.modelValue === 'Promos/Combos' }"
-            @click="toggleCategory('Promos/Combos')"
-          >
-            <span v-if="(props.promotionsCount || 0) > 0" class="badge-fire-tag">
-              {{ props.promotionsCount }}
-            </span>
-            <span class="badge-text">Promos<br></span>
-          </button>
-          
-          <button
-            class="badge-button color-masas"
-            :class="{ 'is-active': props.modelValue === 'Masas' }"
-            @click="toggleCategory('Masas')"
-          >
-            <span class="badge-text">Masas</span>
-          </button>
-
-          <button
-            class="badge-button color-bebestibles"
-            :class="{ 'is-active': props.modelValue === 'Bebestibles' }"
-            @click="toggleCategory('Bebestibles')"
-          >
-            <span class="badge-text">Bebestibles</span>
-          </button>
+            <!-- 2. Botones de Categorías Dinámicas cargadas desde el backend -->
+            <button
+              v-for="(cat, idx) in displayCategories"
+              :key="cat.id || cat.nombre_categoria"
+              type="button"
+              class="badge-button dynamic-category-badge"
+              :style="{ '--badge-gradient': getCategoryGradient(cat, idx) }"
+              :class="{ 'is-active': props.modelValue === cat.nombre_categoria }"
+              :aria-pressed="props.modelValue === cat.nombre_categoria"
+              @click="toggleCategory(cat.nombre_categoria)"
+            >
+              <span class="badge-text">{{ formatCategoryName(cat.nombre_categoria) }}</span>
+            </button>
+          </div>
         </div>
-      </div>
 
+        <!-- Flecha Siguiente (Desktop) -->
+        <Transition name="fade-scale">
+          <button
+            v-if="canScrollRight"
+            type="button"
+            class="carousel-nav-btn next-btn"
+            aria-label="Ver más categorías"
+            title="Más categorías"
+            @click="scrollCategories(1)"
+          >
+            <ChevronRight :size="20" :stroke-width="2.5" />
+          </button>
+        </Transition>
+      </div>
     </div>
 
     <div class="divider"></div>
@@ -101,7 +119,8 @@
 </template>
 
 <script setup lang="ts">
-import { Search, X } from 'lucide-vue-next';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { Search, X, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 
 const props = defineProps<{
   modelValue: string;
@@ -110,16 +129,149 @@ const props = defineProps<{
   promotionsCount?: number;
 }>();
 
-const emit = defineEmits(['update:modelValue', 'update:searchQuery']);
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: string): void;
+  (e: 'update:searchQuery', value: string): void;
+}>();
+
+const scrollContainerRef = ref<HTMLElement | null>(null);
+const canScrollLeft = ref(false);
+const canScrollRight = ref(false);
+
+const updateScrollButtons = () => {
+  const el = scrollContainerRef.value;
+  if (!el) return;
+  canScrollLeft.value = el.scrollLeft > 6;
+  canScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 6;
+};
+
+const scrollCategories = (direction: number) => {
+  const el = scrollContainerRef.value;
+  if (!el) return;
+  const scrollAmount = Math.max(260, Math.floor(el.clientWidth * 0.65)) * direction;
+  el.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+};
+
+const scrollToActiveCategory = () => {
+  nextTick(() => {
+    const el = scrollContainerRef.value;
+    if (!el) return;
+    const activeBtn = el.querySelector('.badge-button.is-active') as HTMLElement | null;
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  });
+};
+
+// Excluir categoría 'Promos / Combos' del loop de categorías para evitar duplicar el botón de Promos
+const displayCategories = computed(() => {
+  if (!props.categories || !props.categories.length) return [];
+  return props.categories.filter((cat: any) => {
+    const name = String(cat.nombre_categoria || '').toLowerCase().trim();
+    return !name.includes('promo') && !name.includes('combo');
+  });
+});
+
+// Paleta de gradientes conocidos para categorías estándar
+const KNOWN_GRADIENTS: Record<string, string> = {
+  'papas & chorrillanas': 'linear-gradient(135deg, #e43351 0%, #f65c52 50%, #f67c46 100%)',
+  'vianesas': 'linear-gradient(135deg, #ff9100, #ff6d00)',
+  'ass': 'linear-gradient(135deg, #c0392b, #962d22)',
+  'churrascos': 'linear-gradient(135deg, #00b0ff, #0072ff)',
+  'lomitos': 'linear-gradient(135deg, #8e44ad, #6c3483)',
+  'hamburguesas': 'linear-gradient(135deg, #27ae60, #1e8449)',
+  'pizzas': 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+  'fajitas': 'linear-gradient(135deg, #16a085, #117a65)',
+  'sándwich de pollo': 'linear-gradient(135deg, #2980b9, #1f618d)',
+  'suprema de pollo': 'linear-gradient(135deg, #d35400, #a04000)',
+  'handroll': 'linear-gradient(135deg, #06b6d4, #0891b2)',
+  'empanadas & sopaipillas': 'linear-gradient(135deg, #e67e22, #d35400)',
+  'bebidas frías': 'linear-gradient(135deg, #ec4899 0%, #d80056 100%)',
+  'bebidas calientes': 'linear-gradient(135deg, #e74c3c, #c0392b)',
+  'bebestibles & jugos': 'linear-gradient(135deg, #ec4899 0%, #d80056 100%)'
+};
+
+// Paleta dinámica para cualquier nueva categoría creada por API/Admin
+const DYNAMIC_PALETTE = [
+  'linear-gradient(135deg, #ff9100, #ff6d00)',
+  'linear-gradient(135deg, #00b0ff, #0072ff)',
+  'linear-gradient(135deg, #e43351 0%, #f65c52 50%, #f67c46 100%)',
+  'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+  'linear-gradient(135deg, #ec4899 0%, #d80056 100%)',
+  'linear-gradient(135deg, #10b981, #059669)',
+  'linear-gradient(135deg, #27ae60, #1e8449)',
+  'linear-gradient(135deg, #f59e0b, #d97706)',
+  'linear-gradient(135deg, #06b6d4, #0891b2)',
+  'linear-gradient(135deg, #6366f1, #4338ca)',
+  'linear-gradient(135deg, #14b8a6, #0f766e)',
+  'linear-gradient(135deg, #f43f5e, #be123c)'
+];
+
+const getCategoryGradient = (cat: any, idx: number): string => {
+  const nameLow = String(cat.nombre_categoria || '').toLowerCase().trim();
+  if (KNOWN_GRADIENTS[nameLow]) {
+    return KNOWN_GRADIENTS[nameLow];
+  }
+  const id = Number(cat.id ?? cat.id_categoria);
+  if (!isNaN(id) && id > 0) {
+    return DYNAMIC_PALETTE[(id - 1) % DYNAMIC_PALETTE.length];
+  }
+  return DYNAMIC_PALETTE[idx % DYNAMIC_PALETTE.length];
+};
+
+// Títulos amigables y legibles para los badges redondos
+const SHORT_NAMES: Record<string, string> = {
+  'Papas & Chorrillanas': 'Papas',
+  'Empanadas & Sopaipillas': 'Empanadas',
+  'Sándwich de Pollo': 'Pollo',
+  'Suprema de Pollo': 'Suprema',
+  'Bebidas frías': 'Bebidas Frías',
+  'Bebidas calientes': 'Bebidas Calientes',
+  'Bebestibles & Jugos': 'Bebestibles'
+};
+
+const formatCategoryName = (name: string): string => {
+  if (!name) return '';
+  const clean = name.trim();
+  return SHORT_NAMES[clean] || clean;
+};
 
 const toggleCategory = (category: string) => {
   emit('update:modelValue', props.modelValue === category ? 'Todas' : category);
 };
+
+// Auto-centrar la categoría activa al cambiar
+watch(() => props.modelValue, () => {
+  scrollToActiveCategory();
+});
+
+// Actualizar estado de las flechas cuando cambia la lista de categorías
+watch(() => displayCategories.value, () => {
+  nextTick(() => {
+    updateScrollButtons();
+  });
+}, { immediate: true });
+
+onMounted(() => {
+  nextTick(() => {
+    updateScrollButtons();
+    scrollToActiveCategory();
+  });
+  window.addEventListener('resize', updateScrollButtons);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateScrollButtons);
+});
 </script>
 
 <style scoped>
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 .search-section {
-  margin-bottom: 25px;
+  margin-bottom: 1.5rem;
   width: 100%;
 }
 
@@ -127,53 +279,53 @@ const toggleCategory = (category: string) => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
-  padding: 10px 0;
+  gap: 1.15rem;
+  padding: 0.65rem 0;
   width: 100%;
-  box-sizing: border-box;
 }
 
-/* 🔍 BUSCADOR DE TEXTO PRINCIPAL */
+/* 🔍 BUSCADOR DE TEXTO */
 .search-input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
   width: 100%;
-  max-width: 560px;
+  max-width: 580px;
   margin: 0 auto;
 }
 
 .search-input {
   width: 100%; 
-  padding: 14px 44px 14px 48px;
-  border-radius: 50px;
-  border: 2px solid #5a3614;
+  padding: 0.85rem 2.75rem 0.85rem 2.85rem;
+  border-radius: 999px;
+  border: 1.5px solid rgba(81, 49, 25, 0.2);
   background-color: #ffffff;
   outline: none;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  color: var(--DC-gray, #322c44);
-  box-shadow: 0 4px 14px rgba(90, 54, 20, 0.08);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  box-sizing: border-box;
+  color: var(--DC-gray, #2c2724);
+  box-shadow: 0 4px 16px rgba(26, 14, 5, 0.05);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: inherit;
 }
 
 .search-input:focus {
   border-color: var(--DC-orange, #e28743);
-  box-shadow: 0 6px 20px rgba(226, 135, 67, 0.25);
+  box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.18), 0 6px 20px rgba(226, 135, 67, 0.12);
 }
 
 .search-input::placeholder {
-  color: #a09aa8;
+  color: var(--DC-text-gray, #7c7468);
   font-weight: 500;
+  opacity: 0.85;
 }
 
 .search-icon {
   position: absolute;
-  left: 18px;
-  color: #5a3614;
+  left: 1.15rem;
+  color: var(--DC-brown, #513119);
   pointer-events: none; 
-  transition: color 0.2s;
+  transition: color 0.2s ease;
 }
 
 .search-input:focus ~ .search-icon {
@@ -182,24 +334,25 @@ const toggleCategory = (category: string) => {
 
 .clear-search-btn {
   position: absolute;
-  right: 14px;
-  background: #f1ede8;
-  border: none;
+  right: 0.85rem;
+  background: var(--DC-bg-gray, #f8f6f3);
+  border: 1px solid rgba(81, 49, 25, 0.1);
   width: 28px;
   height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #513119;
+  color: var(--DC-brown, #513119);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .clear-search-btn:hover {
   background-color: var(--DC-orange, #e28743);
-  color: white;
-  transform: scale(1.1);
+  border-color: var(--DC-orange, #e28743);
+  color: #ffffff;
+  transform: scale(1.08);
 }
 
 /* 🏷️ BARRA DE FILTRO ACTIVO */
@@ -207,15 +360,15 @@ const toggleCategory = (category: string) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #fff6ee;
-  border: 1.5px solid #fcd3b2;
-  padding: 8px 18px;
-  border-radius: 50px;
-  font-size: 0.88rem;
-  color: #513119;
+  gap: 0.75rem;
+  background-color: #fffdfa;
+  border: 1.5px solid rgba(226, 135, 67, 0.35);
+  padding: 0.55rem 1.15rem;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  color: var(--DC-brown, #513119);
   width: 100%;
-  max-width: 560px;
-  box-sizing: border-box;
+  max-width: 580px;
 }
 
 .active-filter-text strong {
@@ -224,48 +377,107 @@ const toggleCategory = (category: string) => {
 }
 
 .clear-filter-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: white;
-  border: 1.5px solid #e28743;
-  color: #e28743;
-  padding: 4px 12px;
-  border-radius: 20px;
+  gap: 5px;
+  background: #ffffff;
+  border: 1.5px solid var(--DC-orange, #e28743);
+  color: var(--DC-orange, #e28743);
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
   font-weight: 800;
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .clear-filter-btn:hover {
-  background: #e28743;
-  color: white;
-  transform: scale(1.04);
+  background: var(--DC-orange, #e28743);
+  color: #ffffff;
+  transform: translateY(-1px);
 }
 
-/* 🍟 CONTENEDOR DE CATEGORÍAS EN PC (FILA ESPACIOSA Y CENTRADA) */
+/* 🍟 CARRUSEL DE CATEGORÍAS EN FILA ÚNICA */
+.categories-carousel-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 0 0.5rem;
+}
+
+.carousel-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 12;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid rgba(81, 49, 25, 0.15);
+  box-shadow: 0 4px 14px rgba(26, 14, 5, 0.16);
+  color: var(--DC-brown, #513119);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.carousel-nav-btn:hover {
+  background-color: var(--DC-orange, #e28743);
+  border-color: var(--DC-orange, #e28743);
+  color: #ffffff;
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 6px 18px rgba(226, 135, 67, 0.4);
+}
+
+.carousel-nav-btn:active {
+  transform: translateY(-50%) scale(0.94);
+}
+
+.carousel-nav-btn.prev-btn {
+  left: -12px;
+}
+
+.carousel-nav-btn.next-btn {
+  right: -12px;
+}
+
 .categories-scroll-container {
   width: 100%;
   display: flex;
-  justify-content: center;
-  overflow: visible;
-  padding-top: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.5rem 0.25rem 0.75rem 0.25rem;
+}
+
+.categories-scroll-container::-webkit-scrollbar {
+  display: none;
 }
 
 .inputs-group {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 18px;
-  flex-wrap: wrap;
-  width: 100%;
+  justify-content: safe center;
+  gap: 1.15rem;
+  flex-wrap: nowrap; /* FILA ÚNICA: NUNCA SE EXTIENDE HACIA ABAJO */
+  width: max-content;
+  min-width: 100%;
+  padding: 0 0.5rem;
 }
 
 .badge-button {
   position: relative;
-  width: 115px;
-  height: 115px;
+  width: 105px;
+  height: 105px;
   border: none;
   background: none;
   cursor: pointer;
@@ -275,24 +487,24 @@ const toggleCategory = (category: string) => {
   padding: 0;
   flex-shrink: 0;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  filter: drop-shadow(0px 4px 8px rgba(0, 0, 0, 0.2));
+  filter: drop-shadow(0 4px 10px rgba(26, 14, 5, 0.18));
 }
 
 .badge-button:hover {
-  transform: translateY(-4px) scale(1.06) rotate(1.5deg);
-  filter: drop-shadow(0px 8px 16px rgba(0, 0, 0, 0.3));
+  transform: translateY(-4px) scale(1.05) rotate(1deg);
+  filter: drop-shadow(0 8px 16px rgba(26, 14, 5, 0.25));
 }
 
 .badge-button.is-active {
   transform: scale(1.06);
-  filter: drop-shadow(0px 6px 14px rgba(230, 140, 38, 0.651));
+  filter: drop-shadow(0 6px 16px rgba(226, 135, 67, 0.65));
 }
 
 .badge-button::before {
   content: '';
   position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background-color: #000000;
+  inset: 0;
+  background-color: #1a0f05;
   mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50 0 L55 9 L65 3 L67 13 L77 10 L76 21 L86 21 L83 31 L92 34 L87 43 L94 49 L87 56 L92 65 L83 68 L86 78 L76 78 L77 89 L67 86 L65 96 L55 90 L50 100 L45 90 L35 96 L33 86 L23 89 L24 78 L14 78 L17 68 L8 65 L13 56 L6 49 L13 43 L8 34 L17 31 L14 21 L24 21 L23 10 L33 13 L35 3 L45 9 Z' /></svg>") no-repeat center / contain;
   -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50 0 L55 9 L65 3 L67 13 L77 10 L76 21 L86 21 L83 31 L92 34 L87 43 L94 49 L87 56 L92 65 L83 68 L86 78 L76 78 L77 89 L67 86 L65 96 L55 90 L50 100 L45 90 L35 96 L33 86 L23 89 L24 78 L14 78 L17 68 L8 65 L13 56 L6 49 L13 43 L8 34 L17 31 L14 21 L24 21 L23 10 L33 13 L35 3 L45 9 Z' /></svg>") no-repeat center / contain;
   z-index: 1;
@@ -301,9 +513,10 @@ const toggleCategory = (category: string) => {
 .badge-button::after {
   content: '';
   position: absolute;
-  top: 4px; left: 4px; right: 4px; bottom: 4px;
+  inset: 4px;
   mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50 0 L55 9 L65 3 L67 13 L77 10 L76 21 L86 21 L83 31 L92 34 L87 43 L94 49 L87 56 L92 65 L83 68 L86 78 L76 78 L77 89 L67 86 L65 96 L55 90 L50 100 L45 90 L35 96 L33 86 L23 89 L24 78 L14 78 L17 68 L8 65 L13 56 L6 49 L13 43 L8 34 L17 31 L14 21 L24 21 L23 10 L33 13 L35 3 L45 9 Z' /></svg>") no-repeat center / contain;
   -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50 0 L55 9 L65 3 L67 13 L77 10 L76 21 L86 21 L83 31 L92 34 L87 43 L94 49 L87 56 L92 65 L83 68 L86 78 L76 78 L77 89 L67 86 L65 96 L55 90 L50 100 L45 90 L35 96 L33 86 L23 89 L24 78 L14 78 L17 68 L8 65 L13 56 L6 49 L13 43 L8 34 L17 31 L14 21 L24 21 L23 10 L33 13 L35 3 L45 9 Z' /></svg>") no-repeat center / contain;
+  background: var(--badge-gradient, linear-gradient(135deg, #ff9100, #ff6d00));
   z-index: 2;
 }
 
@@ -311,85 +524,108 @@ const toggleCategory = (category: string) => {
   position: relative;
   z-index: 3;
   color: #ffffff;
-  font-family: 'Verdana', sans-serif;
-  font-size: 0.75rem;
-  font-weight: 550;
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
   text-align: center;
-  line-height: 1.1;
-  padding: 8px;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.6);
+  line-height: 1.15;
+  padding: 6px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   pointer-events: none;
+  user-select: none;
+  word-break: break-word;
+  max-width: 90px;
 }
 
 .badge-fire-tag {
   position: absolute;
-  top: -6px;
-  right: -4px;
+  top: -5px;
+  right: -3px;
   z-index: 10;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: white;
+  background: var(--DC-pink, #d80056);
+  color: #ffffff;
   font-size: 0.68rem;
   font-weight: 900;
   padding: 2px 7px;
   border-radius: 999px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  box-shadow: 0 2px 6px rgba(216, 0, 86, 0.4);
   border: 1.5px solid #ffffff;
   animation: pulse-fire 2s infinite ease-in-out;
 }
 
 @keyframes pulse-fire {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.12); }
+  50% { transform: scale(1.1); }
 }
 
-.color-papas::after { background: linear-gradient(135deg, #e43351 0%, #f65c52 50%, #f67c46 100%); }
-.color-vianesas::after { background: linear-gradient(135deg, #ff9100, #ff6d00); }
-.color-sanguches::after { background: linear-gradient(135deg, #00b0ff, #0072ff); }
-.color-promos::after { background: linear-gradient(135deg, #00e676, #00a200); }
-.color-masas::after { background: linear-gradient(135deg, #7c4dff, #651fff); }
-.color-bebestibles::after { background: linear-gradient(135deg, #d80056 0%, #e60045 50%, #f5003b 100%); }
+.color-promos::after { 
+  background: linear-gradient(135deg, #10b981, #059669); 
+}
 
 .divider {
-  height: 3px;
-  background-color: #5a3614;
+  height: 1.5px;
+  background-color: rgba(81, 49, 25, 0.12);
   width: 100%;
-  margin: 12px 0;
+  margin: 0.75rem 0;
 }
 
 /* ANIMACIONES */
-.fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.25s ease; }
-.fade-slide-enter-from, .fade-slide-leave-to { opacity: 0; transform: translateY(-6px); }
+.fade-slide-enter-active, 
+.fade-slide-leave-active { 
+  transition: opacity 0.2s ease, transform 0.2s ease; 
+}
 
-/* 📱 DISEÑO MÓVIL (PANTALLAS PEQUEÑAS < 768px): BUSCADOR 100% Y CARRUSEL TÁCTIL ABAJO */
+.fade-slide-enter-from, 
+.fade-slide-leave-to { 
+  opacity: 0; 
+  transform: translateY(-4px); 
+}
+
+.fade-scale-enter-active,
+.fade-scale-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fade-scale-enter-from,
+.fade-scale-leave-to {
+  opacity: 0;
+  transform: translateY(-50%) scale(0.7);
+}
+
+/* 📱 RESPONSIVO MÓVIL */
 @media (max-width: 768px) {
-  .search-controls {
-    gap: 12px;
-    padding: 6px 0;
+  .carousel-nav-btn {
+    display: none !important;
   }
 
-  .search-input-wrapper {
+  .categories-carousel-wrapper {
+    padding: 0;
     max-width: 100%;
   }
 
+  .search-controls {
+    gap: 0.85rem;
+    padding: 0.35rem 0;
+  }
+
   .search-input {
-    padding: 13px 40px 13px 44px;
-    font-size: 0.94rem;
-    border-radius: 20px;
+    padding: 0.75rem 2.5rem 0.75rem 2.6rem;
+    font-size: 0.9rem;
   }
 
   .search-icon {
-    left: 14px;
-    width: 18px;
-    height: 18px;
+    left: 1rem;
+    width: 16px;
+    height: 16px;
   }
 
   .categories-scroll-container {
-    width: 100%;
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
     overflow-x: auto;
     justify-content: flex-start;
-    padding: 2px 0 6px 0;
+    padding: 0.35rem 1rem 0.75rem 1rem;
     scrollbar-width: none;
-    -ms-overflow-style: none;
     -webkit-overflow-scrolling: touch;
   }
 
@@ -401,7 +637,7 @@ const toggleCategory = (category: string) => {
     flex-wrap: nowrap;
     justify-content: flex-start;
     width: max-content;
-    gap: 10px;
+    gap: 0.75rem;
   }
 
   .badge-button {
@@ -411,19 +647,18 @@ const toggleCategory = (category: string) => {
 
   .badge-text {
     font-size: 0.68rem;
-    padding: 4px;
-    line-height: 1.05;
+    padding: 3px;
   }
 
   .active-filter-bar {
     max-width: 100%;
-    border-radius: 16px;
-    padding: 6px 12px;
-    font-size: 0.82rem;
+    border-radius: 14px;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.78rem;
   }
 
   .divider {
-    margin: 8px 0;
+    margin: 0.5rem 0;
   }
 }
 </style>

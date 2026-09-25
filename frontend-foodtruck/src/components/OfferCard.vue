@@ -1,7 +1,10 @@
 <template>
   <div class="offer-card">
     <div class="offer-badge">
-      <span v-if="discountPercent">-{{ discountPercent }}%</span>
+      <span v-if="promoBadgeText && promoBadgeText !== 'Promoción' && promoBadgeText !== 'Oferta'">
+        {{ promoBadgeText }} <template v-if="discountPercent">(-{{ discountPercent }}%)</template>
+      </span>
+      <span v-else-if="discountPercent">-{{ discountPercent }}%</span>
       <span v-else>{{ promoBadgeText || 'Oferta' }}</span>
     </div>
 

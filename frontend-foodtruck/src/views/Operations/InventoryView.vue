@@ -1,6 +1,6 @@
 <template>
   <div class="inventory-view">
-    <!-- ENCABEZADO SUPERIOR LIMPIO (SIN BOTÓN) -->
+    <!-- ENCABEZADO SUPERIOR CON BOTÓN AGREGAR INSUMO -->
     <header class="inventory-header">
       <div class="header-copy">
         <h1>Inventario</h1>
@@ -112,6 +112,15 @@
               <!-- ACCIONES DE TABLA: RESULTADOS Y ACTUALIZAR -->
               <div class="toolbar-right">
                 <span class="results-chip">{{ filteredItems.length }} resultados</span>
+                <button 
+                  class="btn-table-action btn-add-quick" 
+                  type="button" 
+                  @click="openAddInsumoModal"
+                  title="Registrar nuevo insumo"
+                >
+                  <Plus :size="15" />
+                  <span>Nuevo Insumo</span>
+                </button>
                 <button 
                   class="btn-table-action" 
                   type="button" 
@@ -577,6 +586,106 @@
         </form>
       </div>
     </Transition>
+
+    <!-- MODAL AGREGAR INSUMO -->
+    <Transition name="modal-fade">
+      <div v-if="isAddInsumoModalOpen" class="modal-backdrop" @click.self="closeAddInsumoModal">
+        <form class="insumo-modal" @submit.prevent="submitCreateInsumo">
+          <button type="button" class="modal-close" aria-label="Cerrar" @click="closeAddInsumoModal">
+            <X :size="20" />
+          </button>
+          
+          <div class="modal-header-section">
+            <div class="header-icon-box">
+              <Boxes :size="20" />
+            </div>
+            <div>
+              <span class="eyebrow">Gestión de Catálogo</span>
+              <h2>Agregar Nuevo Insumo</h2>
+              <p class="modal-desc">Registra un nuevo ingrediente o material en el stock</p>
+            </div>
+          </div>
+
+          <div class="insumo-form-body">
+            <div class="form-group">
+              <label class="field-label" for="insumo-nombre">
+                Nombre del Insumo / Ingrediente <span class="required">*</span>
+              </label>
+              <input 
+                id="insumo-nombre"
+                v-model="newInsumoForm.nombre" 
+                type="text" 
+                required 
+                placeholder="Ej: Pan Brioche, Carne Smash 150g, Salsa BBQ..." 
+                class="form-input" 
+              />
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="field-label" for="insumo-cantidad">
+                  Stock Inicial (Unidades)
+                </label>
+                <input 
+                  id="insumo-cantidad"
+                  v-model.number="newInsumoForm.cantidad_actual" 
+                  type="number" 
+                  min="0" 
+                  class="form-input" 
+                  placeholder="0"
+                />
+              </div>
+
+              <div class="form-group">
+                <label class="field-label" for="insumo-minimo">
+                  Stock Mínimo (Alerta)
+                </label>
+                <input 
+                  id="insumo-minimo"
+                  v-model.number="newInsumoForm.cantidad_minima" 
+                  type="number" 
+                  min="0" 
+                  class="form-input" 
+                  placeholder="5"
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="field-label" for="insumo-descripcion">
+                Descripción / Notas (Opcional)
+              </label>
+              <textarea 
+                id="insumo-descripcion"
+                v-model="newInsumoForm.descripcion" 
+                rows="2" 
+                placeholder="Proveedor, marca, formato o especificaciones..." 
+                class="form-input form-textarea"
+              ></textarea>
+            </div>
+
+            <label class="insumo-toggle-label">
+              <div class="toggle-info">
+                <strong>Disponible para Cocina / Menú</strong>
+                <span>El insumo figurará activo para preparaciones</span>
+              </div>
+              <input type="checkbox" v-model="newInsumoForm.disponible" class="modern-checkbox" />
+            </label>
+          </div>
+
+          <div class="insumo-modal-actions">
+            <button type="button" class="btn-cancel" @click="closeAddInsumoModal" :disabled="isCreatingInsumo">
+              Cancelar
+            </button>
+            <button class="btn-primary btn-submit-insumo" type="submit" :disabled="isCreatingInsumo || !newInsumoForm.nombre.trim()">
+              <Plus v-if="!isCreatingInsumo" :size="18" />
+              <RefreshCw v-else :size="18" class="spinning" />
+              <span>{{ isCreatingInsumo ? 'Guardando Insumo...' : 'Crear Insumo' }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -584,7 +693,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { 
   AlertTriangle, ArrowDownRight, ArrowLeftRight, ArrowUpRight, Boxes, ChevronLeft, ChevronRight, 
-  Clock3, Edit3, Filter, Layers3, Package, RefreshCw, Search, TrendingUp, X 
+  Clock3, Edit3, Filter, Layers3, Package, Plus, RefreshCw, Search, Sparkles, TrendingUp, X 
 } from 'lucide-vue-next';
 import inventoryService, { type InventoryItem, type InventoryStatus, type StockMovement } from '@/services/inventoryService';
 import { useNotification } from '@/composables/useNotification';
@@ -595,6 +704,16 @@ const isLoading = ref(true);
 const isSaving = ref(false);
 const isStockModalOpen = ref(false);
 const selectedStockItem = ref<InventoryItem | null>(null);
+
+const isAddInsumoModalOpen = ref(false);
+const isCreatingInsumo = ref(false);
+const newInsumoForm = ref({
+  nombre: '',
+  descripcion: '',
+  cantidad_actual: 0,
+  cantidad_minima: 5,
+  disponible: true,
+});
 
 const currentTab = ref<'stock' | 'kardex'>('stock');
 
@@ -670,6 +789,52 @@ const closeStockModal = () => {
   isStockModalOpen.value = false;
   selectedStockItem.value = null;
   selectedStockId.value = '';
+};
+
+const openAddInsumoModal = () => {
+  newInsumoForm.value = {
+    nombre: '',
+    descripcion: '',
+    cantidad_actual: 0,
+    cantidad_minima: 5,
+    disponible: true,
+  };
+  isAddInsumoModalOpen.value = true;
+};
+
+const closeAddInsumoModal = () => {
+  if (isCreatingInsumo.value) return;
+  isAddInsumoModalOpen.value = false;
+};
+
+const submitCreateInsumo = async () => {
+  if (!newInsumoForm.value.nombre.trim()) {
+    notify('El nombre del insumo es obligatorio', 'warning');
+    return;
+  }
+  isCreatingInsumo.value = true;
+  try {
+    await inventoryService.createInventoryItem({
+      nombre: newInsumoForm.value.nombre.trim(),
+      descripcion: newInsumoForm.value.descripcion?.trim() || undefined,
+      cantidad_actual: Number(newInsumoForm.value.cantidad_actual || 0),
+      cantidad_minima: Number(newInsumoForm.value.cantidad_minima || 0),
+      disponible: newInsumoForm.value.disponible,
+      fecha_de_ingreso: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    });
+    notify(`Insumo "${newInsumoForm.value.nombre}" agregado con éxito al inventario`, 'success');
+    isAddInsumoModalOpen.value = false;
+    await fetchInventory();
+    if (allMovements.value.length > 0) {
+      await loadAllKardexMovements();
+    }
+  } catch (error: any) {
+    console.error('Error al crear insumo:', error);
+    const msg = error?.response?.data?.message || 'Error al registrar el insumo en el inventario';
+    notify(msg, 'warning');
+  } finally {
+    isCreatingInsumo.value = false;
+  }
 };
 
 const switchToKardexTab = async () => {
@@ -849,16 +1014,58 @@ onMounted(() => {
   padding: 1.5rem 1.5rem 3rem;
 }
 
-/* ENCABEZADO SIN BOTÓN */
+/* ENCABEZADO CON BOTÓN AGREGAR INSUMO */
 .inventory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 1.25rem;
 }
 
 .header-copy h1 {
   color: var(--DC-brown);
   font-size: 2.2rem;
-  line-height: 1;
+  line-height: 1.1;
+  margin: 0 0 0.25rem 0;
+}
+
+.header-subtitle {
   margin: 0;
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.9rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn-add-insumo {
+  padding: 0.65rem 1.25rem;
+  font-size: 0.88rem;
+  font-weight: 800;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(226, 135, 67, 0.25);
+}
+
+.btn-add-insumo:hover {
+  background: var(--DC-brown);
+  transform: translateY(-1px);
+}
+
+.btn-add-quick {
+  background: rgba(226, 135, 67, 0.1) !important;
+  border-color: rgba(226, 135, 67, 0.3) !important;
+  color: var(--DC-orange) !important;
+}
+
+.btn-add-quick:hover {
+  background: var(--DC-orange) !important;
+  border-color: var(--DC-orange) !important;
+  color: white !important;
 }
 
 /* ====================================================
@@ -1682,6 +1889,145 @@ onMounted(() => {
   gap: 0.5rem;
   cursor: pointer;
   font-weight: 800;
+}
+
+/* MODAL AGREGAR INSUMO */
+.insumo-modal {
+  position: relative;
+  width: min(100%, 480px);
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  padding: 1.6rem;
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 20px 60px rgba(26, 14, 5, 0.25);
+}
+
+.modal-header-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(226, 135, 67, 0.12);
+  color: var(--DC-orange);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.modal-header-section h2 {
+  margin: 0.1rem 0;
+  color: var(--DC-brown);
+  font-size: 1.25rem;
+}
+
+.modal-desc {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--DC-text-gray);
+}
+
+.insumo-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+}
+
+.required {
+  color: #dc2626;
+}
+
+.insumo-toggle-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.9rem;
+  background: var(--DC-bg-gray);
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.insumo-toggle-label:hover {
+  background: #ede6dc;
+}
+
+.toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.toggle-info strong {
+  font-size: 0.82rem;
+  color: var(--DC-brown);
+}
+
+.toggle-info span {
+  font-size: 0.72rem;
+  color: var(--DC-text-gray);
+}
+
+.modern-checkbox {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--DC-orange);
+  cursor: pointer;
+}
+
+.insumo-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+.btn-cancel {
+  padding: 0.65rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(81, 49, 25, 0.15);
+  background: white;
+  color: var(--DC-text-gray);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: var(--DC-bg-gray);
+  color: var(--DC-brown);
+}
+
+.btn-submit-insumo {
+  padding: 0.65rem 1.25rem;
+  font-size: 0.85rem;
 }
 
 /* SKELETON */

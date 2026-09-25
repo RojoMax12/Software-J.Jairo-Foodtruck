@@ -1,242 +1,296 @@
 <template>
-  <footer class="footer-container">
-    <div class="footer-grid">
-      <!-- 1. Sección Marca -->
-      <div class="footer-brand">
-        <h3 class="brand-title">
-          <div class="footer-logo-box">
-            <img src="@/assets/logo_jairo.png" alt="Logo" class="footer-logo"/>
+  <footer class="footer-container" role="contentinfo">
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <!-- 1. IDENTIDAD DE MARCA -->
+        <div class="footer-col footer-brand">
+          <div class="brand-title">
+            <img src="@/assets/logo_jairo.webp" alt="Foodtruck J.Junior Logo" class="footer-logo" />
+            <span class="brand-text-styled">J.Junior</span>
           </div>
-          <span class="brand-text-styled">J.Junior</span>
-        </h3>
-        <p class="brand-description">
-          ¡Te esperamos para tu bajón!
-        </p>
-      </div>
+          <p class="brand-tagline">
+            Comida rápida artesanal, sándwiches, vienesas y el mejor bajón en tu mesa.
+          </p>
+        </div>
 
-      <!-- 2. Sección Soporte (Compactada en una sola lista estructural) -->
-      <div class="footer-info-section">
-        <h4 class="section-subtitle">Información</h4>
-        <ul class="info-list">
-          <!-- Soporte -->
-          <li class="info-item">
-            <strong>Teléfono:</strong> +569 39320226
-          </li>
-          
-          <!-- Horarios -->
-          <li class="info-item item-group">
-            <strong>Horarios de atención:</strong>
-            <span>Dom a Jue: 19:00 - 1:00</span>
-            <span>Vie y Sáb: 19:00 - 2:00</span>
-          </li>
-          
-          <!-- Ubicación -->
-          <li class="info-item">
-            <strong>Ubicación:</strong>
+        <!-- 2. INFORMACIÓN Y HORARIOS -->
+        <div class="footer-col footer-info">
+          <h4 class="section-subtitle">Atención & Contacto</h4>
+          <ul class="info-list">
+            <li class="info-item">
+              <Phone :size="15" class="info-icon" />
+              <span>+56 9 3932 0226</span>
+            </li>
+            
+            <li class="info-item">
+              <Clock :size="15" class="info-icon" />
+              <div class="schedule-lines">
+                <span>Dom a Jue: 19:00 - 01:00 hrs</span>
+                <span>Vie y Sáb: 19:00 - 02:00 hrs</span>
+              </div>
+            </li>
+            
+            <li class="info-item">
+              <MapPin :size="15" class="info-icon" />
+              <a 
+                href="https://www.google.com/maps/search/?api=1&query=Pje.+Oscar+Castro+11012,+La+Pintana" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                class="location-link"
+                title="Abrir dirección en Google Maps"
+              >
+                Pje. Oscar Castro 11012, La Pintana
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 3. REDES SOCIALES -->
+        <div class="footer-col footer-social">
+          <h4 class="section-subtitle">Síguenos</h4>
+          <p class="social-hint">Conoce nuestras promociones y combos diarios:</p>
+          <div class="social-links">
             <a 
-              href="https://www.google.com/maps/search/?api=1&query=Pje.+Oscar+Castro+11012,+La+Pintana" 
+              href="https://www.instagram.com/j.junior_foodtruck/?hl=es" 
               target="_blank" 
               rel="noopener noreferrer" 
-              class="location-link"
-              title="Ver en Google Maps"
+              class="social-button"
+              aria-label="Instagram de J.Junior"
             >
-              <div class="location-item">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="location-icon">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                  <circle cx="12" cy="10" r="3"></circle>
-                </svg>
-                <span>Pje. Oscar Castro 11012, La Pintana</span>
-              </div>
+              <Instagram :size="18" />
+              <span>@j.junior_foodtruck</span>
             </a>
-          </li>
-        </ul>
-      </div>
-
-      <!-- 3. Sección Redes Sociales -->
-      <div class="footer-social-section">
-        <h4 class="section-subtitle">Síguenos</h4>
-        <div class="social-links">
-          <a href="https://www.instagram.com/j.junior_foodtruck/?hl=es" target="_blank" class="social-link">
-            <div class="social-item">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="social-icon">
-                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-              </svg>
-              <span>Instagram</span>
-            </div>
-          </a>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Línea final de derechos de autor -->
-    <div class="footer-bottom">
-      <p>© 2026 J.Junior. Todos los derechos reservados.</p>
+      <!-- COPYRIGHT INFERIOR -->
+      <div class="footer-bottom">
+        <p>© 2026 J.Junior Foodtruck. Todos los derechos reservados.</p>
+      </div>
     </div>
   </footer>
 </template>
 
+<script setup lang="ts">
+import { Phone, Clock, MapPin, Instagram } from 'lucide-vue-next'
+</script>
+
 <style scoped>
-.footer-container {
-  background-color: #5a3614; 
-  color: #f1f3f5;
-  font-family: 'Inter', sans-serif;
-  padding: 3rem 1.5rem 1.5rem 1.5rem;
-  border-top: 1px solid #eeedee;
-  margin-top: auto; 
-  width: 100%;
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
-.footer-grid {
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 40px;
-  padding-bottom: 20px;
-  max-width: 100%;
-  overflow-x: hidden;
+.footer-container {
+  background-color: var(--DC-brown, #513119);
+  background-image: linear-gradient(180deg, #513119 0%, #3e2411 100%);
+  color: #f1f3f5;
+  font-family: inherit;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: auto;
+  width: 100%;
+  padding: 3rem 1.5rem 1.75rem;
 }
 
-.footer-brand,
-.footer-info-section,
-.footer-social-section {
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  align-items: center; 
-  text-align: center;  
+  gap: 2.25rem;
 }
 
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+/* MARCA Y LOGO */
 .brand-title {
-  margin: 0 0 12px 0;
   display: flex;
   align-items: center;
-  gap: 10px; 
+  gap: 10px;
+  cursor: default;
+  user-select: none;
+}
+
+.footer-logo {
+  height: 42px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 .brand-text-styled {
-  font-size: clamp(1.4rem, 4vw, 1.8rem);
+  font-size: clamp(1.4rem, 2.5vw, 1.8rem);
   font-weight: 900;
   font-style: italic;
   font-family: 'Arial Black', Impact, sans-serif;
   color: #ffffff;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  text-shadow: 
-    -2px -2px 0 #000,  2px -2px 0 #000, -2px  2px 0 #000,  2px  2px 0 #000,
-    -2px  0px 0 #000,  2px  0px 0 #000,  0px -2px 0 #000,  0px  2px 0 #000;
-}
-
-.brand-description {
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: #ffffff;
+  letter-spacing: 0.5px;
   margin: 0;
-  max-width: 280px;
+  white-space: nowrap;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
-/* Título de sección unificado y limpio */
+.brand-tagline {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.78);
+  margin: 0;
+  max-width: 320px;
+}
+
+/* SUBTÍTULOS DE SECCIÓN */
 .section-subtitle {
-  font-size: 1.1rem;
-  font-weight: 750;
-  color: #F4E1D2; 
-  margin: 0 0 12px 0; /* Espaciado inferior controlado */
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--DC-orange, #e28743);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
 }
 
-/* Lista limpia y compacta */
+/* LISTA DE INFORMACIÓN */
 .info-list {
   list-style: none;
   padding: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  align-items: center; 
-  gap: 14px; /* Separación uniforme entre bloques de información */
-  font-size: 0.95rem;
-  color: #f1f3f5;
+  gap: 0.75rem;
 }
 
 .info-item {
   display: flex;
-  color: #dddddd;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1.4;
+}
+
+.info-icon {
+  color: var(--DC-orange, #e28743);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.schedule-lines {
+  display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 2px;
 }
 
-/* Agrupación especial para que los horarios no se dispersen */
-.item-group span {
-  font-size: 0.9rem;
-  color: #dddddd;
+.location-link {
+  color: rgba(255, 255, 255, 0.88);
+  text-decoration: none;
+  transition: color 0.15s ease;
 }
 
-.info-list strong {
-  color: #E28743; 
+.location-link:hover {
+  color: var(--DC-orange, #e28743);
+  text-decoration: underline;
+}
+
+/* REDES SOCIALES */
+.social-hint {
+  font-size: 0.84rem;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0;
+  line-height: 1.4;
 }
 
 .social-links {
   display: flex;
   flex-direction: column;
-  align-items: center; 
+  gap: 0.5rem;
 }
 
-.social-link,
-.location-link {
-  color: #ffffff;
-  text-decoration: none;
-  font-size: 0.95rem;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  width: fit-content;
-}
-
-.social-item,
-.location-item {
-  display: flex;
+.social-button {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  text-decoration: none;
+  padding: 0.55rem 0.95rem;
+  border-radius: 12px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  width: fit-content;
+  transition: all 0.2s ease;
 }
 
-.social-link:hover,
-.location-link:hover {
-  color: #E28743;
-  transform: translateY(-2px); 
+.social-button:hover {
+  background: var(--DC-orange, #e28743);
+  border-color: var(--DC-orange, #e28743);
+  transform: translateY(-1px);
 }
 
-.social-icon,
-.location-icon {
-  stroke: currentColor;
-}
-
+/* COPYRIGHT INFERIOR */
 .footer-bottom {
-  max-width: 1200px;
-  margin: 0 auto;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-  padding-top: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 1.25rem;
   text-align: center;
-  font-size: 0.85rem;
-  color: #dddddd;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
 }
 
-.footer-logo-box {
-  display: flex;
-  align-items: center;
+.footer-bottom p {
+  margin: 0;
 }
 
-.footer-logo {
-  width: 45px;
-  height: 45px;
-  object-fit: contain;
-}
-
-@media (max-width: 768px) {
-  .footer-container {
-    padding: 2rem 1rem 1.5rem 1rem;
-  }
-  
+/* RESPONSIVO */
+@media (max-width: 860px) {
   .footer-grid {
-    gap: 25px; /* Menor separación en móviles */
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    text-align: center;
+  }
+
+  .footer-col {
+    align-items: center;
+  }
+
+  .brand-title {
+    justify-content: center;
+  }
+
+  .brand-tagline {
+    max-width: 420px;
+  }
+
+  .info-item {
+    justify-content: center;
+  }
+
+  .social-button {
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer-container {
+    padding: 2.25rem 1rem 1.5rem;
+  }
+
+  .footer-logo {
+    height: 36px;
+  }
+
+  .brand-text-styled {
+    font-size: 1.35rem;
   }
 }
 </style>

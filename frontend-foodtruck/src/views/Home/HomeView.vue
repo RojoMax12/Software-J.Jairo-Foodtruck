@@ -200,7 +200,19 @@ const totalCartQuantity = computed(() => {
 });
 
 const activePromotionsCount = computed(() => {
-  return catalogProducts.value.filter(item => Boolean(item.hasPromotion || item.kind === 'offer' || item.promocion_activa)).length;
+  return catalogProducts.value.filter(item => {
+    const catLow = String(item.category ?? '').toLowerCase();
+    const nameLow = String(item.name ?? '').toLowerCase();
+    return Boolean(
+      item.hasPromotion || 
+      item.kind === 'offer' || 
+      item.promocion_activa || 
+      catLow.includes('promo') || 
+      nameLow.includes('promo') || 
+      catLow.includes('combo') || 
+      nameLow.includes('combo')
+    );
+  }).length;
 });
 
 // Filtro por categoría y texto
@@ -209,32 +221,48 @@ const filteredProducts = computed(() => {
   const selected = selectedCategory.value?.trim().toLowerCase() || '';
 
   if (selected && selected !== 'todas') {
-    results = results.filter((item) => {
-      if (selected === 'promos/combos' || selected === 'promos' || selected === 'promociones') {
+    if (selected === 'promos/combos' || selected === 'promos' || selected === 'promociones') {
+      results = results.filter((item) => {
         const catLow = String(item.category ?? '').toLowerCase();
         const nameLow = String(item.name ?? '').toLowerCase();
-        return Boolean(item.hasPromotion || item.kind === 'offer' || item.promocion_activa || catLow.includes('promo') || nameLow.includes('promo') || catLow.includes('combo') || nameLow.includes('combo'));
-      }
-
-      const category = String(item.category ?? '').toLowerCase();
-      const name = String(item.name ?? '').toLowerCase();
-
-      const keywords: Record<string, string[]> = {
-        'papas & chorrillanas': ['completo', 'papas', 'chorrillana'],
-        'vianesas': ['vianesa', 'vienesa'],
-        'sánguches / bajones': ['sanguche', 'bajon', 'churrasco'],
-        'masas': ['masa', 'pizza'],
-        'bebestibles': ['bebida', 'bebestible']
-      };
-
-      const matches = keywords[selected] || [];
-      return category.includes(selected) || name.includes(selected) || matches.some(k => category.includes(k) || name.includes(k));
-    });
+        return Boolean(
+          item.hasPromotion || 
+          item.kind === 'offer' || 
+          item.promocion_activa || 
+          catLow.includes('promo') || 
+          nameLow.includes('promo') || 
+          catLow.includes('combo') || 
+          nameLow.includes('combo')
+        );
+      });
+    } else {
+      // Coincidencia directa y limpia con la categoría del producto (desde la API)
+      results = results.filter((item) => {
+        const itemCat = String(item.category ?? '').trim().toLowerCase();
+        return itemCat === selected || itemCat.includes(selected);
+      });
+    }
   }
 
   if (searchQueryText.value.trim() !== '') {
-    const q = searchQueryText.value.toLowerCase();
-    results = results.filter(item => item.name.toLowerCase().includes(q));
+    const q = searchQueryText.value.toLowerCase().trim();
+    results = results.filter(item => {
+      const nameMatch = String(item.name || '').toLowerCase().includes(q);
+      const catMatch = String(item.category || '').toLowerCase().includes(q);
+      const descMatch = String(item.descripcion || '').toLowerCase().includes(q);
+      const typesMatch = (item.types || []).some((t: any) => 
+        String(t.name || '').toLowerCase().includes(q) || 
+        String(t.desc || '').toLowerCase().includes(q)
+      );
+      return nameMatch || catMatch || descMatch || typesMatch;
+    });
+  }
+
+  // En la vista general "Todas", mostrar primero las promociones y ofertas para máxima visibilidad
+  if (!selected || selected === 'todas') {
+    const offers = results.filter(item => item.kind === 'offer' || item.hasPromotion);
+    const regulars = results.filter(item => !(item.kind === 'offer' || item.hasPromotion));
+    return [...offers, ...regulars];
   }
 
   return results;
@@ -277,6 +305,34 @@ const getCardPrice = (product: any) => {
   return `$${minPrice.toLocaleString("es-CL")}`;
 };
 
+const isPromotionActive = (promo: any): boolean => {
+  if (!promo) return false;
+  if (promo.activo === false || promo.activo === 0 || promo.activo === '0') return false;
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const todayStr = `${year}-${month}-${day}`;
+
+  const startStr = String(promo.fecha_inicio || '').trim().slice(0, 10);
+  const endStr = String(promo.fecha_fin || '').trim().slice(0, 10);
+
+  let shiftDateStr = todayStr;
+  if (now.getHours() < 6) {
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const yYear = yesterday.getFullYear();
+    const yMonth = String(yesterday.getMonth() + 1).padStart(2, '0');
+    const yDay = String(yesterday.getDate()).padStart(2, '0');
+    shiftDateStr = `${yYear}-${yMonth}-${yDay}`;
+  }
+
+  const matchesToday = (!startStr || startStr <= todayStr) && (!endStr || endStr >= todayStr);
+  const matchesShift = (!startStr || startStr <= shiftDateStr) && (!endStr || endStr >= shiftDateStr);
+
+  return matchesToday || matchesShift;
+};
+
 const normalizeGroupedProduct = (product: any) => {
   const uniqueSizes = Array.from(new Set(
     (product.sizes || []).map((size: any) => String(size || '').trim()).filter(Boolean)
@@ -308,7 +364,7 @@ const normalizeGroupedProduct = (product: any) => {
         if (numeric < minPrice) minPrice = numeric;
         if (isPromoType) {
           const orig = Number(type.originalPrices?.[sizeKey] ?? numeric);
-          if (orig > numeric && numeric < minPromoPrice) {
+          if (numeric < minPromoPrice) {
             minPromoPrice = numeric;
             minPromoOriginalPrice = orig;
           }
@@ -324,9 +380,13 @@ const normalizeGroupedProduct = (product: any) => {
     });
   });
 
+  const catLow = String(product.category ?? '').toLowerCase();
+  const nameLow = String(product.name ?? '').toLowerCase();
+  const isCategoryPromo = catLow.includes('promo') || catLow.includes('combo') || nameLow.includes('promo') || nameLow.includes('combo');
+
   const hasPromoDiscount = minPromoOriginalPrice < Infinity && minPromoOriginalPrice > minPromoPrice;
   const hasGeneralDiscount = minOriginalPrice < Infinity && minOriginalPrice > minPrice;
-  const hasDiscount = hasAnyPromotion && (hasPromoDiscount || hasGeneralDiscount);
+  const hasDiscount = (hasAnyPromotion || isCategoryPromo) && (hasPromoDiscount || hasGeneralDiscount);
 
   const effectiveMinPrice = hasPromoDiscount ? minPromoPrice : minPrice;
   const effectiveMinOriginalPrice = hasPromoDiscount ? minPromoOriginalPrice : minOriginalPrice;
@@ -356,12 +416,14 @@ const normalizeGroupedProduct = (product: any) => {
     displayHint = `${variantCount} variedades · ${uniqueSizes.length} tamaños`;
   }
 
+  const isOffer = hasAnyPromotion || isCategoryPromo;
+
   return {
     ...product,
-    kind: hasAnyPromotion ? 'offer' : (product.kind || 'catalog'),
-    hasPromotion: hasAnyPromotion,
+    kind: isOffer ? 'offer' : (product.kind || 'catalog'),
+    hasPromotion: isOffer,
     promocion_activa: activePromoObj,
-    promocionTitulo: promoTitle || 'Promoción',
+    promocionTitulo: promoTitle || (isCategoryPromo ? 'Combo / Promo' : 'Promoción'),
     originalPrice: originalDisplayPrice,
     discountPercent,
     hasMultipleSizes,
@@ -461,10 +523,11 @@ const fetchCatalogProducts = async () => {
 
     categoriesList.value = dbCategories.map((c: any) => ({
       id: c.id_categoria,
-      nombre_categoria: c.nombre_categoria
+      nombre_categoria: c.nombre_categoria,
+      descripcion_categoria: c.descripcion_categoria
     }));
 
-    const categoryColors: Record<string, string> = {
+    const KNOWN_CATEGORY_COLORS: Record<string, string> = {
       'Vianesas': '#E28743',
       'Ass': '#C0392B',
       'Churrascos': '#D35400',
@@ -473,11 +536,31 @@ const fetchCatalogProducts = async () => {
       'Pizzas': '#F39C12',
       'Fajitas': '#16A085',
       'Sándwich de Pollo': '#2980B9',
+      'Suprema de Pollo': '#D35400',
       'Papas & Chorrillanas': '#F1C40F',
+      'Handroll': '#06B6D4',
       'Empanadas & Sopaipillas': '#E67E22',
       'Bebidas frías': '#3498DB',
       'Bebidas calientes': '#E74C3C',
       'Bebestibles & Jugos': '#3498DB'
+    };
+
+    const resolveCategoryColor = (catName: string, catId?: number): string => {
+      if (KNOWN_CATEGORY_COLORS[catName]) return KNOWN_CATEGORY_COLORS[catName];
+      const PALETTE = [
+        '#E28743', '#C0392B', '#D35400', '#8E44AD', '#27AE60',
+        '#F39C12', '#16A085', '#2980B9', '#F1C40F', '#E67E22',
+        '#3498DB', '#E74C3C', '#06B6D4', '#8B5CF6', '#EC4899'
+      ];
+      if (catId && !isNaN(catId) && catId > 0) {
+        return PALETTE[(catId - 1) % PALETTE.length];
+      }
+      let hash = 0;
+      const str = String(catName || '');
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return PALETTE[Math.abs(hash) % PALETTE.length];
     };
 
     const groupableCategories = ['Vianesas', 'Ass', 'Churrascos', 'Lomitos', 'Bebidas frías', 'Bebidas calientes', 'Empanadas & Sopaipillas'];
@@ -487,8 +570,17 @@ const fetchCatalogProducts = async () => {
 
     activeDbProducts.forEach((prod: any) => {
       const catName = prod.categoria?.nombre_categoria || 'Varios';
-      const isGroupable = groupableCategories.includes(catName);
-      const groupKey = isGroupable ? catName : prod.nombre;
+      const activePromo = prod.promocion_activa || prod.promocionActiva || null;
+      const isPromoValid = isPromotionActive(activePromo);
+      const isPersonalizable = String(prod.tipo_armado || '').toLowerCase() === 'personalizable' || Number(prod.cantidad_incluida || 0) > 0;
+
+      // Si el producto tiene un grupo asignado explícito (ej: 'Hamburguesas', 'Vianesas')
+      // o pertenece a una categoría tradicional agrupable, se agrupa en esa tarjeta.
+      // Si tiene promoción activa válida, se muestra con su propia tarjeta destacada de oferta.
+      const hasExplicitGroup = Boolean(prod.grupo && String(prod.grupo).trim() !== '');
+      const groupTitle = hasExplicitGroup ? String(prod.grupo).trim() : (groupableCategories.includes(catName) ? catName : null);
+      const isGroupable = Boolean(groupTitle) && !isPromoValid && !isPersonalizable;
+      const groupKey = isGroupable ? groupTitle! : prod.nombre;
       const prodImage = prod.imagen_url || prod.imagen || prod.image || '/src/assets/placeholder-food.webp';
       const prodImagePosition = prod.imagen_posicion || prod.imagePosition || '50% 50%';
       const prodImageZoom = Number(prod.imagen_zoom || prod.imageZoom || 1);
@@ -497,9 +589,10 @@ const fetchCatalogProducts = async () => {
       if (!groupedMap[groupKey]) {
         groupedMap[groupKey] = {
           id: prod.id_producto,
-          name: isGroupable ? catName : prod.nombre,
+          name: isGroupable ? groupTitle! : prod.nombre,
           category: catName,
-          color: categoryColors[catName] || '#E28743',
+          grupo: prod.grupo || '',
+          color: resolveCategoryColor(catName, prod.categoria?.id_categoria),
           image: prodImage,
           imagePosition: prodImagePosition,
           imageZoom: prodImageZoom,
@@ -551,17 +644,6 @@ const fetchCatalogProducts = async () => {
         }
       }
 
-      const activePromo = prod.promocion_activa || prod.promocionActiva || null;
-      let isPromoValid = false;
-      if (activePromo && activePromo.activo !== false && activePromo.activo !== 0) {
-        const now = new Date();
-        const start = activePromo.fecha_inicio ? new Date(activePromo.fecha_inicio) : null;
-        const end = activePromo.fecha_fin ? new Date(activePromo.fecha_fin) : null;
-        const startOk = !start || isNaN(start.getTime()) || start <= now;
-        const endOk = !end || isNaN(end.getTime()) || end >= now;
-        isPromoValid = startOk && endOk;
-      }
-
       const promotionPrice = isPromoValid ? Number(activePromo?.precio_promocional ?? 0) : 0;
       if (promotionPrice > 0) {
         Object.keys(pricesMap).forEach(sizeName => {
@@ -591,7 +673,11 @@ const fetchCatalogProducts = async () => {
       groupedMap[groupKey].types.push({
         id: prod.id_producto,
         name: prod.nombre,
+        grupo: prod.grupo || '',
         desc: prod.descripcion,
+        tipo_armado: prod.tipo_armado,
+        cantidad_incluida: prod.cantidad_incluida,
+        precio_ingrediente_extra: prod.precio_ingrediente_extra,
         active: true,
         image: prodImage,
         imagePosition: prodImagePosition,

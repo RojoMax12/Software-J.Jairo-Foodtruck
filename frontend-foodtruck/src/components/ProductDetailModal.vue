@@ -108,17 +108,43 @@
                 </div>
               </div>
 
-              <!-- 4. Agregados Extra / Opcionales (Solo para productos personalizables) -->
-              <div v-if="optionalExtraIngredients.length > 0" class="config-section">
-                <p class="section-subtitle">
-                  Agregados opcionales 
-                  <span v-if="product.cantidad_incluida > 0" class="subtitle-hint">
-                    (Incluye {{ product.cantidad_incluida }} gratis, extra +${{ Number(product.precio_ingrediente_extra).toLocaleString('es-CL') }})
-                  </span>
-                  <span v-else-if="product.precio_ingrediente_extra > 0" class="subtitle-hint">
-                    (+$${{ Number(product.precio_ingrediente_extra).toLocaleString('es-CL') }} c/u)
-                  </span>:
+              <!-- 4. Agregados Extra / Opcionales (Para productos personalizables y con ingredientes a elección) -->
+              <div v-if="optionalExtraIngredients.length > 0" class="config-section" :class="{ 'required-highlight': minRequiredIngredients > 0 && !isIngredientsSelectionValid }">
+                <div class="section-title-wrap">
+                  <p class="section-subtitle">
+                    <template v-if="minRequiredIngredients > 0">
+                      {{ (product.sizes?.length > 1 ? 1 : 0) + (activeTypes?.length > 1 ? 1 : 0) + (visibleRecipeIngredients.length > 0 ? 1 : 0) + 1 }}. Elige tus ingredientes:
+                    </template>
+                    <template v-else>
+                      Agregados opcionales:
+                    </template>
+                  </p>
+
+                  <!-- Badge de estado de ingredientes requeridos -->
+                  <div v-if="minRequiredIngredients > 0" class="required-status-badge" :class="isIngredientsSelectionValid ? 'status-ok' : 'status-pending'">
+                    <template v-if="!isIngredientsSelectionValid">
+                      <span>Faltan {{ remainingRequiredIngredients }} por elegir</span>
+                      <span class="count-pill">{{ addedExtraIngredients.length }}/{{ minRequiredIngredients }}</span>
+                    </template>
+                    <template v-else-if="addedExtraIngredients.length === minRequiredIngredients">
+                      <span>✓ {{ minRequiredIngredients }} ingredientes incluidos</span>
+                    </template>
+                    <template v-else>
+                      <span>✓ {{ minRequiredIngredients }} incluidos + {{ addedExtraIngredients.length - minRequiredIngredients }} extra</span>
+                    </template>
+                  </div>
+                </div>
+
+                <p v-if="minRequiredIngredients > 0" class="required-helper-text">
+                  <span class="required-star">*</span> <strong>Obligatorio:</strong> Debes elegir al menos {{ minRequiredIngredients }} ingredientes (incluidos con el producto).
+                  <template v-if="extraPricePerUnit > 0">
+                    Ingredientes extra adicionales: +${{ extraPricePerUnit.toLocaleString('es-CL') }} c/u.
+                  </template>
                 </p>
+                <p v-else-if="extraPricePerUnit > 0" class="subtitle-hint">
+                  (+${{ extraPricePerUnit.toLocaleString('es-CL') }} c/u)
+                </p>
+
                 <div class="ingredients-list">
                   <label 
                     v-for="pi in optionalExtraIngredients" 
@@ -158,10 +184,18 @@
 
               <button 
                 class="add-to-cart-btn" 
-                :disabled="!selectedType || !isTypeAvailable(selectedType) || props.isStoreOpen === false"
+                :disabled="!selectedType || !isTypeAvailable(selectedType) || props.isStoreOpen === false || !isIngredientsSelectionValid"
+                :class="{ 'btn-pending-selection': !isIngredientsSelectionValid && isTypeAvailable(selectedType) && props.isStoreOpen !== false }"
                 @click="handleAddToCart"
               >
-                <span class="btn-text">{{ props.isStoreOpen === false ? 'LOCAL CERRADO' : (isTypeAvailable(selectedType) ? 'AÑADIR' : 'DESACTIVADO') }}</span>
+                <span class="btn-text">
+                  <template v-if="props.isStoreOpen === false">LOCAL CERRADO</template>
+                  <template v-else-if="!isTypeAvailable(selectedType)">DESACTIVADO</template>
+                  <template v-else-if="!isIngredientsSelectionValid">
+                    ELIGE {{ remainingRequiredIngredients }} INGREDIENTE{{ remainingRequiredCountText }} MÁS ({{ addedExtraIngredients.length }}/{{ minRequiredIngredients }})
+                  </template>
+                  <template v-else>AÑADIR AL PEDIDO</template>
+                </span>
                 <div class="btn-total-box">
                   <span v-if="originalTotalPriceFormatted" class="btn-original-total">${{ originalTotalPriceFormatted }}</span>
                   <span class="btn-total">${{ totalPriceFormatted }}</span>
@@ -180,6 +214,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { X, Plus, Minus } from 'lucide-vue-next';
+import { useNotification } from '@/composables/useNotification';
+
+const { notify } = useNotification();
 
 const props = withDefaults(defineProps<{
   isOpen: boolean;
@@ -409,13 +446,48 @@ const optionalExtraIngredients = computed(() => {
 const increaseQuantity = () => quantity.value++;
 const decreaseQuantity = () => { if (quantity.value > 1) quantity.value--; };
 
+const isPersonalizableProduct = computed(() => {
+  const tipo = String(selectedType.value?.tipo_armado ?? props.product?.tipo_armado ?? '').toLowerCase();
+  const cat = String(props.product?.category ?? '').toLowerCase();
+  const name = String(selectedType.value?.name ?? props.product?.name ?? '').toLowerCase();
+
+  return tipo === 'personalizable' || 
+         cat.includes('hamburguesa') || 
+         cat.includes('fajita') || 
+         (cat.includes('pizza') && name.includes('familiar')) ||
+         Number(selectedType.value?.cantidad_incluida ?? props.product?.cantidad_incluida ?? 0) > 0;
+});
+
+const minRequiredIngredients = computed(() => {
+  if (!isPersonalizableProduct.value) return 0;
+  const count = Number(selectedType.value?.cantidad_incluida ?? props.product?.cantidad_incluida ?? 0);
+  return count > 0 ? count : 3;
+});
+
+const remainingRequiredIngredients = computed(() => {
+  if (minRequiredIngredients.value <= 0) return 0;
+  return Math.max(0, minRequiredIngredients.value - addedExtraIngredients.value.length);
+});
+
+const remainingRequiredCountText = computed(() => {
+  return remainingRequiredIngredients.value === 1 ? '' : 'S';
+});
+
+const isIngredientsSelectionValid = computed(() => {
+  if (minRequiredIngredients.value <= 0) return true;
+  return addedExtraIngredients.value.length >= minRequiredIngredients.value;
+});
+
+const extraPricePerUnit = computed(() => {
+  return Number(selectedType.value?.precio_ingrediente_extra ?? props.product?.precio_ingrediente_extra ?? 0);
+});
+
 // Cálculo del costo adicional por agregados opcionales
 const extraIngredientsCost = computed(() => {
   const extraCount = addedExtraIngredients.value.length;
-  const includedCount = props.product?.cantidad_incluida || 0;
+  const includedCount = minRequiredIngredients.value || Number(props.product?.cantidad_incluida || 0);
   const billableExtras = Math.max(0, extraCount - includedCount);
-  const extraPrice = Number(props.product?.precio_ingrediente_extra || 0);
-  return billableExtras * extraPrice;
+  return billableExtras * extraPricePerUnit.value;
 });
 
 const hasTypeDiscount = (tipo: any) => {
@@ -471,6 +543,14 @@ const selectedSizeId = computed(() => {
 
 const handleAddToCart = () => {
   if (!selectedType.value || !isTypeAvailable(selectedType.value)) return;
+
+  if (!isIngredientsSelectionValid.value) {
+    notify(
+      `Debes seleccionar al menos ${minRequiredIngredients.value} ingredientes para agregar este producto. Te faltan ${remainingRequiredIngredients.value}.`,
+      'warning'
+    );
+    return;
+  }
 
   const effectiveSize = selectedSize.value || getEffectiveSizeForType(selectedType.value);
   const exclusionKey = [...excludedIngredients.value].sort().join('-');
@@ -569,7 +649,6 @@ const handleAddToCart = () => {
   grid-template-columns: 1fr 1.3fr;
   height: 100%;
   align-items: stretch;
-  border: 2px solid blue;
 }
 
 .product-img-box {
@@ -754,6 +833,83 @@ const handleAddToCart = () => {
 .btn-total-box { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
 .btn-original-total { font-size: 0.78rem; color: rgba(255, 255, 255, 0.75); text-decoration: line-through; font-weight: 700; }
 .btn-total { font-weight: 900; font-size: 1.2rem; }
+
+/* ESTILOS PARA VALIDACIÓN DE INGREDIENTES REQUERIDOS */
+.section-title-wrap {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.required-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  transition: all 0.25s ease;
+}
+
+.required-status-badge.status-pending {
+  background-color: #fff3cd;
+  color: #b45309;
+  border: 1.5px solid #fcd34d;
+  animation: pulse-border 2s infinite ease-in-out;
+}
+
+.required-status-badge.status-ok {
+  background-color: #d1fae5;
+  color: #065f46;
+  border: 1.5px solid #6ee7b7;
+}
+
+.count-pill {
+  background: rgba(0, 0, 0, 0.1);
+  padding: 1px 7px;
+  border-radius: 10px;
+}
+
+.required-helper-text {
+  font-size: 0.8rem;
+  color: #4b5563;
+  margin: 0 0 10px 0;
+  line-height: 1.3;
+}
+
+.required-star {
+  color: #dc2626;
+  font-weight: 900;
+}
+
+.add-to-cart-btn.btn-pending-selection {
+  background-color: #d97706 !important;
+  color: #ffffff !important;
+  opacity: 0.95;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.3) !important;
+  cursor: pointer;
+}
+
+.add-to-cart-btn.btn-pending-selection:hover {
+  background-color: #b45309 !important;
+  transform: translateY(-1px);
+}
+
+.config-section.required-highlight {
+  background: #fffbeb;
+  border-radius: 12px;
+  padding: 12px;
+  border: 1.5px dashed #f59e0b;
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: #fcd34d; }
+  50% { border-color: #f59e0b; }
+}
 
 /* ANIMACIONES */
 .pop-enter-active, .pop-leave-active { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }

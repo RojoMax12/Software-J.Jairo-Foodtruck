@@ -1,51 +1,46 @@
 <template>
   <div class="quotation-page">
-    
-    <Transition name="toast-fade">
-      <div v-if="showToast" class="dc-toast-alert">
-        <div class="toast-content">
-          <AlertTriangle class="toast-icon-vec" color="white" :size="22" />
-          <span class="toast-text">{{ errorMessage }}</span>
-        </div>
-      </div>
-    </Transition>
-
     <main class="quotation-container">
+      <!-- CABECERA -->
       <div class="title-section">
-        <h2 class="main-title">Resumen de tu Pedido</h2>
-        <p class="main-subtitle">Revisa tus datos y productos antes de confirmar.</p>
+        <h1 class="main-title">Resumen de tu Pedido</h1>
+        <p class="main-subtitle">Revisa tus datos de contacto y productos antes de enviar la comanda a cocina.</p>
       </div>
 
       <!-- AVISO DE LOCAL CERRADO / FUERA DE HORARIO -->
-      <div v-if="isStoreClosed" class="store-closed-checkout-banner">
-        <div class="closed-banner-left">
-          <AlertTriangle :size="24" class="closed-icon" />
-          <div class="closed-text-box">
-            <strong>Foodtruck cerrado en este momento</strong>
-            <span>Nuestro horario de atención es de <strong>{{ shiftWindow?.hora_apertura || '19:00' }} a {{ shiftWindow?.hora_cierre || '00:30' }} hrs</strong>. No es posible procesar pedidos fuera de turno. ¡Te esperamos en nuestro próximo turno!</span>
-          </div>
+      <section v-if="isStoreClosed" class="store-closed-card">
+        <div class="closed-indicator-bubble">
+          <AlertTriangle :size="20" />
         </div>
-      </div>
+        <div class="closed-content-text">
+          <strong>Foodtruck cerrado en este momento</strong>
+          <p>
+            Nuestro horario de atención oficial es de 
+            <b>{{ shiftWindow?.hora_apertura || '19:00' }} a {{ shiftWindow?.hora_cierre || '00:30' }} hrs</b>. 
+            No es posible enviar comandas fuera de turno. ¡Te esperamos en nuestra próxima jornada!
+          </p>
+        </div>
+      </section>
 
       <div class="quotation-grid">
         <!-- COLUMNA IZQUIERDA: DATOS DEL CLIENTE Y MÉTODO DE PAGO -->
         <section class="forms-column">
-          <!-- AVISO DE SESIÓN INICIADA O INVITACIÓN -->
-          <div v-if="isLoggedIn" class="user-session-card">
+          <!-- AVISO DE SESIÓN O INVITACIÓN -->
+          <div v-if="isLoggedIn" class="session-state-card active">
             <div class="session-badge">
               <CheckCircle2 :size="16" class="session-icon" />
               <span>Sesión activa: <strong>{{ loggedUserName }}</strong></span>
             </div>
-            <span class="session-hint">Datos autocompletados. Tu compra se acumulará en tu historial.</span>
+            <span class="session-hint">Tus datos se autocompletaron y este pedido se guardará en tu cuenta.</span>
           </div>
 
-          <div v-else class="user-login-prompt-banner">
+          <div v-else class="session-state-card prompt">
             <div class="prompt-content">
               <Sparkles :size="16" class="prompt-icon" />
               <span>
                 ¿Ya tienes cuenta? 
                 <router-link to="/login" class="prompt-link">Inicia sesión</router-link> 
-                para autocompletar tus datos y ver tu historial.
+                para acumular tus compras en tu historial.
               </span>
             </div>
           </div>
@@ -53,54 +48,58 @@
           <!-- DATOS DE CONTACTO -->
           <div class="form-card">
             <h3 class="card-title">
-              <User :size="18" class="title-icon" />
+              <User :size="17" class="title-icon" />
               <span>¿Quién recibe el pedido?</span>
             </h3>
 
             <div class="name-inputs-grid">
-              <div class="input-field">
-                <label class="input-label">Nombre</label>
+              <div class="form-field">
+                <label class="field-label" for="quote-first-name">Nombre <span class="required">*</span></label>
                 <input 
+                  id="quote-first-name"
                   v-model="firstName" 
                   type="text" 
                   placeholder="Tu nombre" 
-                  class="friendly-input" 
+                  class="custom-input" 
                   @input="handleFirstNameCacheSync" 
                 />
               </div>
 
-              <div class="input-field">
-                <label class="input-label">Apellido</label>
+              <div class="form-field">
+                <label class="field-label" for="quote-last-name">Apellido <span class="required">*</span></label>
                 <input 
+                  id="quote-last-name"
                   v-model="lastName" 
                   type="text" 
                   placeholder="Tu apellido" 
-                  class="friendly-input" 
+                  class="custom-input" 
                   @input="handleLastNameCacheSync" 
                 />
               </div>
             </div>
 
-            <div class="input-field phone-field">
-              <label class="input-label">Teléfono de contacto</label>
-              <div class="phone-input-box">
-                <span class="phone-prefix-tag">+56 9</span>
+            <div class="form-field phone-field">
+              <label class="field-label" for="quote-phone">Teléfono Móvil (WhatsApp) <span class="required">*</span></label>
+              <div class="phone-input-group">
+                <span class="phone-prefix">+56 9</span>
                 <input 
+                  id="quote-phone"
                   v-model="phone" 
                   type="tel" 
                   placeholder="1234 5678" 
-                  class="phone-real-input" 
+                  class="custom-input phone-real-input" 
                   maxlength="8"
                 />
               </div>
+              <span class="field-hint">Te notificaremos por WhatsApp cuando tu pedido esté listo.</span>
             </div>
           </div>
 
           <!-- SELECCIÓN DE MÉTODO DE PAGO -->
           <div class="form-card">
             <h3 class="card-title">
-              <CreditCard :size="18" class="title-icon" />
-              <span>Método de pago</span>
+              <CreditCard :size="17" class="title-icon" />
+              <span>Método de pago al recibir</span>
             </h3>
 
             <div class="payment-options-grid">
@@ -147,23 +146,24 @@
           </div>
         </section>
 
-        <!-- COLUMNA DERECHA: DETALLE DEL PEDIDO Y CONFIRMACIÓN -->
+        <!-- COLUMNA DERECHA: RESUMEN DEL PEDIDO -->
         <section class="summary-column">
-          <div class="summary-card">
+          <div class="form-card summary-card">
             <h3 class="card-title">
-              <ShoppingBag :size="18" class="title-icon" />
-              <span>Tus productos seleccionados</span>
+              <ShoppingBag :size="17" class="title-icon" />
+              <span>Tus productos seleccionados ({{ totalItemsCount }})</span>
             </h3>
 
             <div class="cart-box-container">
               <div v-if="quotationItems.length === 0" class="empty-box-state">
-                No tienes productos en el carrito.
+                <p>No tienes productos en el carrito.</p>
+                <router-link to="/" class="btn-return-link">Volver a la carta</router-link>
               </div>
               
               <div 
                 v-else 
                 v-for="item in quotationItems" 
-                :key="item.id + '-' + item.size" 
+                :key="getItemKey(item)" 
                 class="checkout-item-card"
               >
                 <img :src="item.image || boxPlaceholderImage" :alt="item.name" class="item-thumb" />
@@ -171,23 +171,25 @@
                 <div class="item-info">
                   <div class="item-name-row">
                     <span class="item-name">{{ item.fullName || item.name }}</span>
-                    <span class="item-price-tag">${{ (item.price * item.quantity).toLocaleString('es-CL') }}</span>
+                    <strong class="item-price-tag">${{ formatPrice((item.price || 0) * (item.quantity || 1)) }}</strong>
                   </div>
                   
                   <div class="item-tags-row">
                     <span class="item-qty-badge">x{{ item.quantity }}</span>
-                    <span v-if="item.size && item.size !== 'Único'" class="item-size-tag">{{ item.size }}</span>
+                    <span v-if="item.size && item.size !== 'Único' && item.size !== 'Normal'" class="item-size-tag">
+                      {{ item.size }}
+                    </span>
                   </div>
 
                   <!-- EXCLUSIONES -->
-                  <div v-if="item.excluidos && item.excluidos.length > 0" class="exclusions-box">
+                  <div v-if="item.excluidos && item.excluidos.length > 0" class="customizations-row">
                     <span v-for="ing in item.excluidos" :key="ing" class="exclusion-badge">
                       Sin {{ ing }}
                     </span>
                   </div>
 
                   <!-- AGREGADOS -->
-                  <div v-if="item.agregados && item.agregados.length > 0" class="additions-box">
+                  <div v-if="item.agregados && item.agregados.length > 0" class="customizations-row">
                     <span v-for="ing in item.agregados" :key="ing" class="addition-badge">
                       + {{ ing }}
                     </span>
@@ -196,46 +198,48 @@
               </div>
             </div>
 
-            <!-- TOTAL DISPLAY -->
+            <!-- TOTAL ESTIMADO -->
             <div class="total-display-box">
               <span class="total-label">Total a pagar:</span>
-              <span class="total-value">{{ totalEstimated }}</span>
+              <strong class="total-value">{{ totalEstimated }}</strong>
             </div>
 
             <!-- NOTA DE PRIVACIDAD LEY 21.719 -->
             <div class="checkout-privacy-note">
               <ShieldCheck :size="15" class="privacy-icon" />
               <span>
-                Tus datos son protegidos conforme a la 
+                Tus datos personales están protegidos conforme a la 
                 <button type="button" class="btn-privacy-link" @click="showPrivacyModal = true">
                   Ley N° 21.719
                 </button>.
               </span>
             </div>
 
-            <!-- BOTONES DE ACCIÓN -->
+            <!-- BOTONES DE CONFIRMACIÓN -->
             <div class="action-row">
               <button 
+                type="button"
                 class="btn-confirm-cotizacion" 
                 :class="{ 'btn-disabled-closed': isStoreClosed }"
-                @click="handleConfirmQuotation"
                 :disabled="isLoading || quotationItems.length === 0 || isStoreClosed"
-                :title="isStoreClosed ? 'El local se encuentra cerrado' : ''"
+                @click="handleConfirmQuotation"
               >
+                <RefreshCw v-if="isLoading" :size="18" class="spinning" />
                 <span>
                   {{ isStoreClosed 
-                      ? (shiftWindow?.es_dia_cerrado ? 'Local Cerrado Hoy (Día de Descanso)' : 'Local Cerrado (Fuera de Horario)')
+                      ? (shiftWindow?.es_dia_cerrado ? 'Local Cerrado Hoy (Descanso)' : 'Local Cerrado (Fuera de Horario)')
                       : isLoading 
-                        ? 'Enviando comanda...' 
+                        ? 'Enviando comanda a cocina...' 
                         : `Confirmar Pedido • ${totalEstimated}` 
                   }}
                 </span>
               </button>
 
               <button 
+                type="button"
                 class="btn-cancel-cotizacion" 
-                @click="handleCancelQuotation"
                 :disabled="isLoading"
+                @click="handleCancelQuotation"
               >
                 Volver a la carta
               </button>
@@ -258,10 +262,9 @@ import { useRouter } from 'vue-router'
 import { 
   AlertTriangle, ShieldCheck, CheckCircle2, 
   Sparkles, User, CreditCard, Banknote, 
-  Smartphone, ShoppingBag 
+  Smartphone, ShoppingBag, RefreshCw 
 } from 'lucide-vue-next'
 import boxPlaceholderImage from '@/assets/logo_jairo.webp'
-import quoteService from '@/services/quoteService'
 import orderService from '@/services/orderService'
 import TermsAndPrivacyModal from '@/components/TermsAndPrivacyModal.vue'
 import cashFlowService, { type ShiftWindow } from '@/services/cashFlowService'
@@ -270,7 +273,7 @@ import { useNotification } from '@/composables/useNotification'
 const router = useRouter()
 const { notify } = useNotification()
 
-// --- ESTADOS REACTIVOS ---
+// Estados reactivos
 const phone = ref('')
 const firstName = ref('')
 const lastName = ref('')
@@ -283,18 +286,27 @@ const loggedUserName = ref('')
 
 const shiftWindow = ref<ShiftWindow | null>(null)
 const isStoreClosed = computed(() => shiftWindow.value !== null && shiftWindow.value.es_jornada_activa === false)
-
 const quotationItems = ref<any[]>([])
-const errorMessage = ref('')
-const showToast = ref(false)
 
-const triggerAlert = (message: string) => {
-  errorMessage.value = message
-  showToast.value = true
-  setTimeout(() => { showToast.value = false }, 4000)
+const formatPrice = (price: number | string) => {
+  const num = typeof price === 'string' ? Number(price.replace(/[^0-9]/g, '')) : Number(price || 0)
+  return num.toLocaleString('es-CL')
 }
 
-// Extrae exactamente los 8 dígitos requeridos para el input (el badge tiene '+56 9')
+const totalItemsCount = computed(() => {
+  return quotationItems.value.reduce((acc, item) => acc + (Number(item.quantity) || 1), 0)
+})
+
+const totalEstimated = computed(() => {
+  const totalRaw = quotationItems.value.reduce((sum, item) => {
+    const cleanPrice = typeof item.price === 'string'
+      ? Number(item.price.replace(/[^0-9]/g, ''))
+      : Number(item.price || 0)
+    return sum + (cleanPrice * (Number(item.quantity) || 1))
+  }, 0)
+  return `$${totalRaw.toLocaleString('es-CL')}`
+})
+
 const extract8DigitPhone = (rawPhone: any): string => {
   if (!rawPhone) return ''
   let digits = String(rawPhone).replace(/\D/g, '')
@@ -302,15 +314,12 @@ const extract8DigitPhone = (rawPhone: any): string => {
   if (digits.startsWith('56') && digits.length >= 10) {
     digits = digits.slice(2)
   }
-
   if (digits.startsWith('9') && (digits.length === 9 || digits.length > 8)) {
     digits = digits.slice(1)
   }
-
   if (digits.length > 8) {
     digits = digits.slice(-8)
   }
-
   return digits
 }
 
@@ -321,20 +330,23 @@ const sanitizePhoneForDB = (rawPhone: string): string => {
   if (digits.length === 8) {
     return '9' + digits
   }
-
   if (digits.length === 9 && digits.startsWith('9')) {
     return digits
   }
-
   if (digits.startsWith('56') && digits.length >= 11) {
     return digits.slice(2)
   }
-
   return digits
 }
 
 const handleFirstNameCacheSync = () => localStorage.setItem('dicreme_temp_first_name', firstName.value.trim())
 const handleLastNameCacheSync = () => localStorage.setItem('dicreme_temp_last_name', lastName.value.trim())
+
+const getItemKey = (item: any) => {
+  const ex = Array.isArray(item.excluidos) ? item.excluidos.join('-') : ''
+  const ag = Array.isArray(item.agregados) ? item.agregados.join('-') : ''
+  return `${item.id}-${item.size || 'default'}-${ex}-${ag}`
+}
 
 onMounted(async () => {
   const savedCart = localStorage.getItem('dicreme_temp_cart')
@@ -342,11 +354,11 @@ onMounted(async () => {
     try {
       quotationItems.value = JSON.parse(savedCart)
     } catch (e) {
-      console.error('Error parseando carrito:', e)
+      console.error('Error parseando carrito guardado:', e)
     }
   }
-  
-  // 1. Cargar datos de usuario autenticado
+
+  // 1. Cargar usuario en sesión
   const userParsed = localStorage.getItem('user')
   if (userParsed) {
     try {
@@ -355,7 +367,6 @@ onMounted(async () => {
       loggedUserName.value = userObj.nombre || userObj.nombre_empresa || 'Cliente'
       isLoggedIn.value = true
 
-      // Autocompletar nombre y apellido
       const fullName = (userObj.nombre || userObj.nombre_empresa || '').trim()
       if (fullName) {
         const parts = fullName.split(' ')
@@ -367,7 +378,6 @@ onMounted(async () => {
         }
       }
 
-      // Autocompletar teléfono quitando el '9' inicial y '+56'
       const rawUserPhone = userObj.telefono || ''
       if (rawUserPhone) {
         phone.value = extract8DigitPhone(rawUserPhone)
@@ -377,30 +387,20 @@ onMounted(async () => {
     }
   }
 
-  // 2. Si no había sesión, cargar de caché temporal si existe
+  // 2. Caché para usuarios sin cuenta
   if (!isLoggedIn.value) {
     const cachedFirstName = localStorage.getItem('dicreme_temp_first_name')
     const cachedLastName = localStorage.getItem('dicreme_temp_last_name')
-    if (cachedFirstName !== null && !firstName.value) firstName.value = cachedFirstName
-    if (cachedLastName !== null && !lastName.value) lastName.value = cachedLastName
+    if (cachedFirstName && !firstName.value) firstName.value = cachedFirstName
+    if (cachedLastName && !lastName.value) lastName.value = cachedLastName
   }
 
-  // 3. Consultar horario de turno
+  // 3. Consultar turno y horario
   try {
     shiftWindow.value = await cashFlowService.fetchShiftWindowFromBackend()
   } catch (e) {
     console.warn('Error al obtener horario en checkout:', e)
   }
-})
-
-const totalEstimated = computed(() => {
-  const totalRaw = quotationItems.value.reduce((sum, item) => {
-    const cleanPrice = typeof item.price === 'string'
-      ? Number(item.price.replace(/[^0-9]/g, ''))
-      : Number(item.price || 0)
-    return sum + (cleanPrice * (item.quantity || 1))
-  }, 0)
-  return `$${totalRaw.toLocaleString('es-CL')}`
 })
 
 const handleCancelQuotation = () => {
@@ -410,32 +410,40 @@ const handleCancelQuotation = () => {
 const handleConfirmQuotation = async () => {
   if (isStoreClosed.value) {
     const msg = shiftWindow.value?.es_dia_cerrado
-      ? 'El Foodtruck se encuentra cerrado hoy por ser día de descanso programado. No es posible realizar pedidos.'
-      : `El Foodtruck se encuentra cerrado en este momento. Horario de atención: ${shiftWindow.value?.hora_apertura || '19:00'} a ${shiftWindow.value?.hora_cierre || '00:30'} hrs.`;
-    triggerAlert(msg);
-    return;
+      ? 'El foodtruck se encuentra cerrado hoy por ser día de descanso programado.'
+      : `El foodtruck está cerrado. Horario de atención: ${shiftWindow.value?.hora_apertura || '19:00'} a ${shiftWindow.value?.hora_cierre || '00:30'} hrs.`
+    notify(msg, 'warning')
+    return
   }
 
-  if (!firstName.value.trim()) { triggerAlert('Por favor, ingresa tu nombre.'); return; }
-  if (!lastName.value.trim()) { triggerAlert('Por favor, ingresa tu apellido.'); return; }
-  if (!phone.value.trim()) { triggerAlert('Por favor, ingresa tu número telefónico.'); return; }
+  if (!firstName.value.trim()) { notify('Por favor, ingresa tu nombre.', 'warning'); return }
+  if (!lastName.value.trim()) { notify('Por favor, ingresa tu apellido.', 'warning'); return }
+  if (!phone.value.trim()) { notify('Por favor, ingresa tu número telefónico.', 'warning'); return }
 
-  const cleanPhone = sanitizePhoneForDB(phone.value);
+  const cleanPhone = sanitizePhoneForDB(phone.value)
   if (!cleanPhone || cleanPhone.length !== 9 || !cleanPhone.startsWith('9')) {
-    triggerAlert('Por favor, ingresa un número de teléfono válido de 8 dígitos.');
-    return;
+    notify('Ingresa un número telefónico móvil válido de 8 dígitos.', 'warning')
+    return
   }
 
-  if (!selectedPaymentMethod.value) { triggerAlert('Selecciona un método de pago.'); return; }
+  if (!selectedPaymentMethod.value) {
+    notify('Selecciona un método de pago para recibir.', 'warning')
+    return
+  }
 
-  isLoading.value = true;
+  if (quotationItems.value.length === 0) {
+    notify('Tu carrito está vacío.', 'warning')
+    return
+  }
+
+  isLoading.value = true
 
   const calculatedTotal = quotationItems.value.reduce((sum, item) => {
     const cleanPrice = typeof item.price === 'string'
       ? Number(item.price.replace(/[^0-9]/g, ''))
-      : Number(item.price || 0);
-    return sum + (cleanPrice * (item.quantity || 1));
-  }, 0);
+      : Number(item.price || 0)
+    return sum + (cleanPrice * (Number(item.quantity) || 1))
+  }, 0)
 
   const orderPayload = {
     nombre_persona: `${firstName.value.trim()} ${lastName.value.trim()}`,
@@ -448,15 +456,16 @@ const handleConfirmQuotation = async () => {
     detalles: quotationItems.value.map(item => {
       const unitPrice = typeof item.price === 'string'
         ? Number(item.price.replace(/[^0-9]/g, ''))
-        : Number(item.price || 0);
+        : Number(item.price || 0)
 
-      const rawExcluidosList = item.excluidos || item.exclusiones || item.ingredientesRemovidos || [];
-      const rawAgregadosList = item.agregados || item.extras || [];
+      const rawExcluidosList = item.excluidos || item.exclusiones || []
+      const rawAgregadosList = item.agregados || item.extras || []
+      
       const cleanProdId = item.id_producto 
         ? Number(item.id_producto) 
         : (typeof item.id === 'number' 
             ? item.id 
-            : parseInt(String(item.id || '1').split('_')[0] || '1', 10) || 1);
+            : parseInt(String(item.id || '1').split('_')[0] || '1', 10) || 1)
 
       const cleanTamanoId = item.id_tamaño 
         ? Number(item.id_tamaño)
@@ -464,7 +473,7 @@ const handleConfirmQuotation = async () => {
             ? item.tamano_id
             : (typeof item.id_tamano === 'number'
                 ? item.id_tamano
-                : parseInt(String(item.tamano_id || item.id_tamaño || item.id_tamano || '1').split('_')[0] || '1', 10) || 1));
+                : parseInt(String(item.tamano_id || item.id_tamaño || item.id_tamano || '1').split('_')[0] || '1', 10) || 1))
 
       return {
         id_producto: cleanProdId,
@@ -476,69 +485,37 @@ const handleConfirmQuotation = async () => {
         excluidos: rawExcluidosList,
         agregados: rawAgregadosList,
         opciones_seleccionadas: [
-          ...(item.tamaño ? [{ tipo: 'Tamaño', valor: item.tamaño }] : []),
           ...(item.size ? [{ tipo: 'Tamaño', valor: item.size }] : []),
-          ...(item.exclusiones ? item.exclusiones.map((ex: string) => ({ tipo: 'Exclusión', ingrediente: ex })) : []),
-          ...(item.ingredientesRemovidos ? item.ingredientesRemovidos.map((ex: string) => ({ tipo: 'Sin', ingrediente: ex })) : []),
-          ...(item.agregadosDetails ? item.agregadosDetails.map((ag: any) => ({
-            id_ingrediente: ag.id_ingrediente || null,
+          ...rawExcluidosList.map((ex: any) => ({
+            tipo: 'Exclusión',
+            ingrediente: typeof ex === 'object' ? (ex.nombre || ex.name || '') : String(ex)
+          })),
+          ...rawAgregadosList.map((ag: any) => ({
             tipo: 'Agregado',
-            precio: 0,
-            ingrediente: ag.nombre || ag.name || (typeof ag === 'string' ? ag : '')
-          })) : []),
-          ...((item.agregados && (!item.agregadosDetails || !item.agregadosDetails.length)) ? item.agregados.map((ag: string) => ({
-            tipo: 'Agregado',
-            precio: 0,
-            ingrediente: ag
-          })) : []),
-          ...(item.excluidosDetails && item.excluidosDetails.length
-            ? item.excluidosDetails.map((ex: any) => ({
-                id_ingrediente: ex.id_ingrediente || null,
-                tipo: 'Exclusión',
-                precio: 0,
-                ingrediente: ex.nombre || ex.name || (typeof ex === 'string' ? ex : '')
-              }))
-            : rawExcluidosList.map((ex: any) => ({
-                id_ingrediente: typeof ex === 'object' ? (ex.id_ingrediente || ex.id || null) : null,
-                tipo: 'Exclusión',
-                precio: 0,
-                ingrediente: typeof ex === 'object' ? (ex.nombre || ex.name || '') : String(ex)
-              }))
-          ),
-          ...(item.agregadosDetails && item.agregadosDetails.length
-            ? item.agregadosDetails.map((ag: any) => ({
-                id_ingrediente: ag.id_ingrediente || null,
-                tipo: 'Agregado',
-                precio: Number(ag.precio || ag.price || 0),
-                ingrediente: ag.nombre || ag.name || (typeof ag === 'string' ? ag : '')
-              }))
-            : rawAgregadosList.map((ag: any) => ({
-                id_ingrediente: typeof ag === 'object' ? (ag.id_ingrediente || ag.id || null) : null,
-                tipo: 'Agregado',
-                precio: typeof ag === 'object' ? Number(ag.precio || ag.price || 0) : 0,
-                ingrediente: typeof ag === 'object' ? (ag.nombre || ag.name || '') : String(ag)
-              }))
-          )
+            precio: typeof ag === 'object' ? Number(ag.precio || ag.price || 0) : 0,
+            ingrediente: typeof ag === 'object' ? (ag.nombre || ag.name || '') : String(ag)
+          }))
         ]
-      };
+      }
     })
-  };
+  }
 
   try {
-    let res: any;
+    let res: any
     if (userId.value) {
-      res = await orderService.createOrder(orderPayload).catch(() => orderService.createPublicOrder(orderPayload));
+      res = await orderService.createOrder(orderPayload).catch(() => orderService.createPublicOrder(orderPayload))
     } else {
-      res = await orderService.createPublicOrder(orderPayload);
+      res = await orderService.createPublicOrder(orderPayload)
     }
 
-    const createdOrder = res?.data?.data || res?.data || {};
+    const createdOrder = res?.data?.data || res?.data || {}
 
-    localStorage.removeItem('dicreme_temp_cart');
-    localStorage.removeItem('dicreme_temp_first_name');
-    localStorage.removeItem('dicreme_temp_last_name');
+    localStorage.removeItem('dicreme_temp_cart')
+    localStorage.removeItem('dicreme_temp_first_name')
+    localStorage.removeItem('dicreme_temp_last_name')
 
-    const now = new Date();
+    const now = new Date()
+    notify('¡Pedido enviado a cocina con éxito!', 'success')
     router.push({
       path: '/cotizacion-exitosa',
       query: {
@@ -546,141 +523,148 @@ const handleConfirmQuotation = async () => {
         fecha: now.toLocaleDateString('es-CL'),
         hora: now.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
       }
-    });
+    })
   } catch (err: any) {
-    console.error('Error enviando pedido:', err);
-    const apiMsg = err.response?.data?.message || 'Hubo un problema al procesar tu pedido. Por favor intenta de nuevo.';
-    triggerAlert(apiMsg);
+    console.error('Error enviando pedido:', err)
+    const apiMsg = err.response?.data?.message || 'Hubo un problema al procesar tu pedido. Intenta nuevamente.'
+    notify(apiMsg, 'error')
   } finally {
-    isLoading.value = false;
+    isLoading.value = false
   }
-};
+}
 </script>
 
 <style scoped>
-.store-closed-checkout-banner {
-  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
-  border: 2px solid #fed7aa;
-  border-radius: 16px;
-  padding: 16px 20px;
-  margin-bottom: 24px;
-  box-shadow: 0 4px 14px rgba(226, 135, 67, 0.08);
-}
-
-.closed-banner-left {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-}
-
-.closed-icon {
-  color: #c2410c;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.closed-text-box {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.closed-text-box strong {
-  font-size: 1rem;
-  color: #9a3412;
-}
-
-.closed-text-box span {
-  font-size: 0.88rem;
-  color: #7c2d12;
-  line-height: 1.4;
-}
-
-.btn-disabled-closed {
-  background-color: #94a3b8 !important;
-  cursor: not-allowed !important;
-  opacity: 0.85;
-}
-
-.quotation-page {
-  background-color: var(--DC-bg-gray, #f5ebe0);
-  min-height: 100vh;
-  font-family: var(--font-main, sans-serif);
-  padding: 30px 16px 80px 16px;
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
+.quotation-page {
+  background-color: var(--DC-bg-gray, #f8f6f3);
+  min-height: 100vh;
+  padding: 2rem 1.25rem 4rem;
+}
+
 .quotation-container {
-  max-width: 1000px;
+  max-width: 1060px;
   margin: 0 auto;
 }
 
+/* CABECERA */
 .title-section {
-  margin-bottom: 24px;
+  margin-bottom: 1.5rem;
 }
 
 .main-title {
-  font-size: 1.6rem;
+  font-size: 1.85rem;
   font-weight: 900;
   color: var(--DC-brown, #513119);
-  margin: 0 0 4px 0;
-  letter-spacing: -0.3px;
+  margin: 0 0 0.35rem 0;
+  line-height: 1.15;
 }
 
 .main-subtitle {
-  font-size: 0.88rem;
-  color: var(--DC-text-gray, #6e6a75);
+  font-size: 0.92rem;
+  color: var(--DC-text-gray, #7c7468);
   margin: 0;
 }
 
+/* AVISO LOCAL CERRADO */
+.store-closed-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  border-left: 5px solid var(--DC-orange, #e28743);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  box-shadow: 0 4px 16px rgba(26, 14, 5, 0.04);
+}
+
+.closed-indicator-bubble {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(226, 135, 67, 0.15);
+  color: var(--DC-orange, #e28743);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.closed-content-text strong {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--DC-brown, #513119);
+  margin-bottom: 0.2rem;
+}
+
+.closed-content-text p {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--DC-text-gray, #7c7468);
+  line-height: 1.45;
+}
+
+/* LAYOUT EN 2 COLUMNAS */
 .quotation-grid {
   display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 24px;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 1.5rem;
   align-items: start;
 }
 
-/* CARDS GENERALES */
-.form-card, .summary-card {
+/* TARJETAS FORMULARIO & RESUMEN */
+.form-card {
   background: #ffffff;
   border-radius: 18px;
-  padding: 20px;
-  border: 1px solid rgba(81, 49, 25, 0.12);
-  box-shadow: 0 4px 14px rgba(81, 49, 25, 0.04);
-  margin-bottom: 18px;
+  padding: 1.4rem;
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  box-shadow: 0 4px 18px rgba(26, 14, 5, 0.04);
+  margin-bottom: 1.25rem;
 }
 
 .card-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 1rem;
+  gap: 7px;
+  font-size: 0.95rem;
   font-weight: 800;
   color: var(--DC-brown, #513119);
-  margin: 0 0 16px 0;
+  margin: 0 0 1.15rem 0;
 }
 
 .title-icon {
   color: var(--DC-orange, #e28743);
 }
 
-/* SESIÓN */
-.user-session-card {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
+/* ESTADOS DE SESIÓN */
+.session-state-card {
   border-radius: 14px;
-  padding: 12px 16px;
-  margin-bottom: 16px;
+  padding: 0.85rem 1.1rem;
+  margin-bottom: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
+}
+
+.session-state-card.active {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.session-state-card.prompt {
+  background: #fffdfa;
+  border: 1.5px solid rgba(226, 135, 67, 0.3);
 }
 
 .session-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.86rem;
+  font-size: 0.84rem;
   font-weight: 700;
   color: #15803d;
 }
@@ -694,20 +678,12 @@ const handleConfirmQuotation = async () => {
   color: #166534;
 }
 
-.user-login-prompt-banner {
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
-  border-radius: 14px;
-  padding: 12px 16px;
-  margin-bottom: 16px;
-}
-
 .prompt-content {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 0.84rem;
-  color: #9a3412;
+  color: var(--DC-brown, #513119);
 }
 
 .prompt-icon {
@@ -721,94 +697,99 @@ const handleConfirmQuotation = async () => {
   text-decoration: underline;
 }
 
-/* INPUTS DE FORMULARIO */
+/* INPUTS */
 .name-inputs-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 0.85rem;
+  margin-bottom: 0.85rem;
 }
 
-.input-field {
+.form-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0.35rem;
+  width: 100%;
 }
 
-.input-label {
+.field-label {
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--DC-brown, #513119);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
-.friendly-input {
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(81, 49, 25, 0.18);
-  font-size: 0.88rem;
-  font-family: inherit;
+.field-label .required {
+  color: #dc2626;
+}
+
+.field-hint {
+  font-size: 0.72rem;
+  color: var(--DC-text-gray, #7c7468);
+  margin-top: 2px;
+}
+
+.custom-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1.5px solid rgba(81, 49, 25, 0.12);
+  background-color: var(--DC-bg-gray, #f8f6f3);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--DC-gray, #2c2724);
   outline: none;
-  transition: all 0.2s;
-  color: var(--DC-gray, #322c44);
+  transition: all 0.2s ease;
+  font-family: inherit;
 }
 
-.friendly-input:focus {
+.custom-input:focus {
+  background-color: #ffffff;
   border-color: var(--DC-orange, #e28743);
-  box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.15);
+  box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.16);
 }
 
-.phone-field {
-  margin-bottom: 4px;
-}
-
-.phone-input-box {
+.phone-input-group {
   display: flex;
   align-items: center;
-  border: 1px solid rgba(81, 49, 25, 0.18);
-  border-radius: 10px;
-  background: #ffffff;
+  border: 1.5px solid rgba(81, 49, 25, 0.12);
+  border-radius: 12px;
+  background: var(--DC-bg-gray, #f8f6f3);
   overflow: hidden;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
-.phone-input-box:focus-within {
+.phone-input-group:focus-within {
+  background-color: #ffffff;
   border-color: var(--DC-orange, #e28743);
-  box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.15);
+  box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.16);
 }
 
-.phone-prefix-tag {
+.phone-prefix {
   background: rgba(81, 49, 25, 0.08);
-  padding: 12px 18px;
-  min-width: 72px;
-  text-align: center;
-  font-size: 0.95rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
   font-weight: 800;
   color: var(--DC-brown, #513119);
-  border-right: 1.5px solid rgba(81, 49, 25, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
+  border-right: 1.5px solid rgba(81, 49, 25, 0.12);
+  user-select: none;
 }
 
 .phone-real-input {
-  flex: 1;
-  padding: 12px 16px;
   border: none;
-  outline: none;
-  font-size: 1rem;
-  font-family: inherit;
+  background: transparent;
+  padding: 0.75rem 1rem;
   letter-spacing: 1.5px;
-  color: var(--DC-gray, #322c44);
 }
 
-/* MÉTODO DE PAGO EN TARJETAS */
+.phone-real-input:focus {
+  box-shadow: none;
+}
+
+/* OPCIONES DE PAGO */
 .payment-options-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
 }
 
 .payment-option-card {
@@ -817,28 +798,28 @@ const handleConfirmQuotation = async () => {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 14px 10px;
+  padding: 1rem 0.75rem;
   border-radius: 12px;
-  background: #ffffff;
-  border: 1.5px solid rgba(81, 49, 25, 0.15);
+  background: var(--DC-bg-gray, #f8f6f3);
+  border: 1.5px solid rgba(81, 49, 25, 0.1);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .payment-option-card:hover {
-  background: #fff8f3;
+  background: #ffffff;
   border-color: var(--DC-orange, #e28743);
 }
 
 .payment-option-card.active {
-  background: #fff8f3;
+  background: #fffdfa;
   border-color: var(--DC-orange, #e28743);
-  color: var(--DC-orange, #e28743);
-  box-shadow: 0 2px 10px rgba(226, 135, 67, 0.2);
+  box-shadow: 0 4px 14px rgba(226, 135, 67, 0.18);
 }
 
 .pay-icon {
-  color: var(--DC-text-gray, #6e6a75);
+  color: var(--DC-text-gray, #7c7468);
+  transition: color 0.2s ease;
 }
 
 .payment-option-card.active .pay-icon {
@@ -846,49 +827,79 @@ const handleConfirmQuotation = async () => {
 }
 
 .pay-title {
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   font-weight: 800;
-  color: var(--DC-brown, #513119);
+  color: var(--DC-gray, #2c2724);
 }
 
 .payment-option-card.active .pay-title {
   color: var(--DC-orange, #e28743);
 }
 
-/* PRODUCTOS EN RESUMEN */
+/* LISTADO DE ITEMS */
 .cart-box-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
   max-height: 380px;
   overflow-y: auto;
   padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(81, 49, 25, 0.2) transparent;
+}
+
+.cart-box-container::-webkit-scrollbar {
+  width: 5px;
+}
+
+.cart-box-container::-webkit-scrollbar-thumb {
+  background: rgba(81, 49, 25, 0.2);
+  border-radius: 999px;
+}
+
+.empty-box-state {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.88rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn-return-link {
+  color: var(--DC-orange, #e28743);
+  font-weight: 800;
+  text-decoration: underline;
+  font-size: 0.84rem;
 }
 
 .checkout-item-card {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px;
-  background: #fdfbf8;
-  border-radius: 12px;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--DC-bg-gray, #f8f6f3);
+  border-radius: 14px;
   border: 1px solid rgba(81, 49, 25, 0.08);
 }
 
 .item-thumb {
-  width: 52px;
-  height: 52px;
+  width: 54px;
+  height: 54px;
   border-radius: 10px;
   object-fit: cover;
   background: #ffffff;
+  flex-shrink: 0;
 }
 
 .item-info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
 }
 
@@ -897,101 +908,105 @@ const handleConfirmQuotation = async () => {
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  min-width: 0;
 }
 
 .item-name {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 800;
-  color: var(--DC-brown, #513119);
-  min-width: 0;
-  word-break: break-word;
+  color: var(--DC-gray, #2c2724);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .item-price-tag {
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   font-weight: 900;
   color: var(--DC-orange, #e28743);
-  flex-shrink: 0;
   white-space: nowrap;
 }
 
 .item-tags-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  margin-top: 2px;
 }
 
 .item-qty-badge {
-  font-size: 0.76rem;
-  font-weight: 800;
-  background: var(--button-color, #F4E1D2);
-  color: var(--button-text, #513119);
+  font-size: 0.72rem;
+  font-weight: 900;
+  background: rgba(226, 135, 67, 0.15);
+  color: var(--DC-orange, #e28743);
   padding: 1px 6px;
   border-radius: 6px;
 }
 
 .item-size-tag {
-  font-size: 0.76rem;
-  color: var(--DC-text-gray, #6e6a75);
-  font-weight: 600;
+  font-size: 0.72rem;
+  color: var(--DC-text-gray, #7c7468);
+  font-weight: 700;
 }
 
-.exclusions-box, .additions-box {
+.customizations-row {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .exclusion-badge {
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: 0.65rem;
+  font-weight: 800;
   background: #fee2e2;
   color: #dc2626;
   padding: 1px 6px;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .addition-badge {
-  font-size: 0.7rem;
-  font-weight: 700;
-  background: #dbeafe;
+  background-color: #dbeafe;
   color: #1d4ed8;
+  font-size: 0.65rem;
+  font-weight: 800;
   padding: 1px 6px;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
+/* TOTAL */
 .total-display-box {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: 1rem 1.25rem;
   background: var(--DC-brown, #513119);
-  border-radius: 12px;
+  border-radius: 14px;
   color: #ffffff;
-  margin-bottom: 14px;
+  margin-bottom: 1rem;
 }
 
 .total-label {
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: #eedccf;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .total-value {
-  font-size: 1.4rem;
+  font-size: 1.45rem;
   font-weight: 900;
   color: var(--DC-orange, #e28743);
+  line-height: 1;
 }
 
+/* NOTA LEY 21.719 */
 .checkout-privacy-note {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.76rem;
-  color: var(--DC-text-gray, #6e6a75);
-  margin-bottom: 14px;
+  font-size: 0.74rem;
+  color: var(--DC-text-gray, #7c7468);
+  margin-bottom: 1.15rem;
   line-height: 1.4;
 }
 
@@ -1010,178 +1025,109 @@ const handleConfirmQuotation = async () => {
   cursor: pointer;
 }
 
+/* ACCIONES DE CONFIRMACIÓN */
 .action-row {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.65rem;
 }
 
 .btn-confirm-cotizacion {
-  padding: 14px;
+  padding: 0.95rem 1.25rem;
   border-radius: 12px;
   background: var(--DC-orange, #e28743);
   color: #ffffff;
   border: none;
-  font-size: 1rem;
-  font-weight: 900;
+  font-size: 0.95rem;
+  font-weight: 800;
   cursor: pointer;
-  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   box-shadow: 0 4px 14px rgba(226, 135, 67, 0.3);
+  transition: all 0.2s ease;
 }
 
 .btn-confirm-cotizacion:hover:not(:disabled) {
   background: var(--DC-brown, #513119);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(81, 49, 25, 0.25);
+  box-shadow: 0 6px 18px rgba(81, 49, 25, 0.25);
+}
+
+.btn-confirm-cotizacion:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.btn-disabled-closed {
+  background-color: #cbd5e1 !important;
+  color: #64748b !important;
 }
 
 .btn-cancel-cotizacion {
-  padding: 10px;
+  padding: 0.65rem;
   background: transparent;
   border: none;
-  color: var(--DC-text-gray, #6e6a75);
-  font-size: 0.86rem;
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.84rem;
   font-weight: 700;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color 0.15s ease;
 }
 
 .btn-cancel-cotizacion:hover {
   color: var(--DC-brown, #513119);
 }
 
-/* TOAST */
-.dc-toast-alert {
-  position: fixed;
-  top: 24px;
-  right: 24px;
-  z-index: 10000;
-  background: #dc2626;
-  color: #ffffff;
-  padding: 12px 18px;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+.spinning {
+  animation: spin 0.9s linear infinite;
 }
 
-.toast-content {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.88rem;
-  font-weight: 700;
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-/* RESPONSIVE */
-@media (max-width: 820px) {
+/* RESPONSIVO */
+@media (max-width: 860px) {
   .quotation-grid {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 1.25rem;
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 580px) {
   .quotation-page {
-    padding: 16px 12px 60px 12px;
-  }
-
-  .title-section {
-    margin-bottom: 16px;
-  }
-
-  .main-title {
-    font-size: 1.35rem;
-  }
-
-  .main-subtitle {
-    font-size: 0.82rem;
-  }
-
-  .store-closed-checkout-banner {
-    padding: 14px;
-    border-radius: 14px;
-    margin-bottom: 16px;
-  }
-
-  .closed-banner-left {
-    gap: 10px;
-  }
-
-  .closed-text-box strong {
-    font-size: 0.92rem;
-  }
-
-  .closed-text-box span {
-    font-size: 0.82rem;
-  }
-
-  .form-card, 
-  .summary-card {
-    padding: 16px 14px;
-    border-radius: 14px;
-    margin-bottom: 14px;
-  }
-
-  .card-title {
-    font-size: 0.92rem;
-    margin-bottom: 12px;
+    padding: 1.25rem 0.85rem 3rem;
   }
 
   .name-inputs-grid {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 0.75rem;
   }
 
-  .phone-prefix-tag {
-    padding: 10px 14px;
-    min-width: 64px;
-    font-size: 0.9rem;
+  .form-card {
+    padding: 1.15rem 1rem;
   }
 
-  .phone-real-input {
-    padding: 10px 14px;
-    font-size: 0.95rem;
+  .payment-options-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .payment-option-card {
+    padding: 0.75rem 0.5rem;
   }
 
   .total-display-box {
-    padding: 12px 14px;
-  }
-
-  .total-label {
-    font-size: 0.88rem;
+    padding: 0.85rem 1rem;
   }
 
   .total-value {
     font-size: 1.25rem;
-  }
-
-  .btn-confirm-cotizacion {
-    padding: 13px;
-    font-size: 0.95rem;
-  }
-}
-
-@media (max-width: 400px) {
-  .payment-options-grid {
-    gap: 6px;
-  }
-
-  .payment-option-card {
-    padding: 10px 6px;
-    gap: 4px;
-  }
-
-  .pay-title {
-    font-size: 0.76rem;
-  }
-
-  .item-thumb {
-    width: 44px;
-    height: 44px;
-  }
-
-  .checkout-item-card {
-    padding: 8px;
-    gap: 8px;
   }
 }
 </style>

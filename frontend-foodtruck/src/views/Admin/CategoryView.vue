@@ -268,14 +268,7 @@ onMounted(async () => {
         const dbCats = catsRes.status === 'fulfilled' ? catsRes.value.data || [] : []
         const dbProds = prodsRes.status === 'fulfilled' ? prodsRes.value.data || [] : []
 
-        categoriesList.value = dbCats.length ? dbCats : [
-            { id_categoria: 1, nombre_categoria: 'Hamburguesas', descripcion_categoria: 'Hamburguesas smash dobles y triples con papas' },
-            { id_categoria: 2, nombre_categoria: 'Vianesas & Completos', descripcion_categoria: 'Completos italianos, dinámicos y especiales' },
-            { id_categoria: 3, nombre_categoria: 'Churrascos & Lomitos', descripcion_categoria: 'Sándwiches en pan frica con carne de primera' },
-            { id_categoria: 4, nombre_categoria: 'Papas & Acompañamientos', descripcion_categoria: 'Papas fritas clásicas, con queso cheddar y salchipapas' },
-            { id_categoria: 5, nombre_categoria: 'Bebestibles & Jugos', descripcion_categoria: 'Bebidas en lata, aguas y jugos naturales' }
-        ]
-
+        categoriesList.value = dbCats
         productsList.value = dbProds
     } catch (e) {
         console.error('Error cargando categorías:', e)

@@ -212,6 +212,17 @@ const getInventoryItems = async (): Promise<InventoryItem[]> => {
 
 export default {
   getInventoryItems,
+  async createInventoryItem(data: {
+    nombre: string;
+    descripcion?: string;
+    cantidad_actual: number;
+    cantidad_minima: number;
+    fecha_de_ingreso?: string;
+    disponible?: boolean;
+  }) {
+    const res = await stockService.createStock(data);
+    return res.data;
+  },
   async updateInventoryQuantity(stockId: number, quantity: number) {
     await stockService.updateStock(stockId, {
       cantidad_actual: quantity,

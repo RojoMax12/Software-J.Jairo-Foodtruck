@@ -1353,6 +1353,18 @@ const addActiveVariantToCart = () => {
   if (!activeVariant.value) return;
 
   const isPersonalizable = isPersonalizableProduct.value;
+  if (isPersonalizable) {
+    const includedCount = activeVariant.value.cantidad_incluida || 3;
+    if (addedExtraIngredients.value.length < includedCount) {
+      const missing = includedCount - addedExtraIngredients.value.length;
+      notify(
+        `Debes seleccionar al menos ${includedCount} ingredientes para este producto. Te faltan ${missing}.`,
+        'warning'
+      );
+      return;
+    }
+  }
+
   const exclusionKey = [...new Set(excludedIngredients.value)].sort().join('-');
   const additionKey = [...new Set(addedExtraIngredients.value)].sort().join('-');
   const cartItemId = `${activeVariant.value.type.id}_${activeVariant.value.size}_${exclusionKey}_${additionKey}`;

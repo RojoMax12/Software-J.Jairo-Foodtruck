@@ -19,6 +19,7 @@ class Producto extends Model
         'tipo_armado',
         'cantidad_incluida',
         'id_categoria',
+        'grupo',
         'descripcion',
         'imagen',
         'imagen_posicion',

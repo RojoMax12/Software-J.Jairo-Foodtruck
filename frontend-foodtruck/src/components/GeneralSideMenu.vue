@@ -7,16 +7,15 @@ import {
   Store, 
   Users, 
   PackageSearch, 
-  Images,
-  FolderTree,
-  Tag,
+  Palette,
   History,
   Clock,
-  Tv
+  Tv,
+  ExternalLink
 } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 
-const props = defineProps<{
+defineProps<{
   isOpen: boolean
 }>()
 
@@ -42,22 +41,23 @@ const isActive = (path: string) => {
       <div v-if="isOpen" class="sidebar-overlay" @click="emit('close')"></div>
     </Transition>
 
-    <!-- Sidebar -->
+    <!-- Sidebar lateral -->
     <Transition name="slide">
       <aside v-if="isOpen" class="admin-sidebar">
         <div class="sidebar-header">
-          <div class="brand-group">
-            <img src="@/assets/logo_jairo.webp" alt="Logo" class="sidebar-logo" />
+          <div class="brand-group" @click="navigateTo('/general-home')">
+            <img src="@/assets/logo_jairo.webp" alt="Foodtruck J.Junior Logo" class="sidebar-logo" />
             <span class="brand-name">J.Junior</span>
           </div>
-          <button class="btn-close" @click="emit('close')">
-            <X :size="24" />
+          <button class="btn-close" @click="emit('close')" title="Cerrar menú">
+            <X :size="20" />
           </button>
         </div>
 
         <nav class="sidebar-nav">
+          <!-- SECCIÓN: OPERACIONES -->
           <div class="nav-section">
-            <span class="section-title">Operaciones</span>
+            <span class="section-title">Operaciones Diarias</span>
             
             <button 
               class="nav-item" 
@@ -65,8 +65,8 @@ const isActive = (path: string) => {
               @click="navigateTo('/general-home/orders')"
               v-role="[1,3]"
             >
-              <ShoppingBag :size="20" />
-              <span>Pedidos</span>
+              <ShoppingBag :size="18" class="nav-icon" />
+              <span>Pedidos & Comandas</span>
             </button>
 
             <button 
@@ -75,8 +75,8 @@ const isActive = (path: string) => {
               @click="navigateTo('/general-home/generate-quote')"
               v-role="[1,3]"
             >
-              <Store :size="20" />
-              <span>Generar pedido</span>
+              <Store :size="18" class="nav-icon" />
+              <span>Generar Pedido</span>
             </button>
 
             <button 
@@ -85,8 +85,8 @@ const isActive = (path: string) => {
               @click="navigateTo('/general-home/admin/cash-flow')"
               v-role="[1,3]"
             >
-              <BadgeDollarSign :size="20" />
-              <span>Caja</span>
+              <BadgeDollarSign :size="18" class="nav-icon" />
+              <span>Caja & Turnos</span>
             </button>
 
             <button 
@@ -95,41 +95,44 @@ const isActive = (path: string) => {
               @click="navigateTo('/general-home/inventory')"
               v-role="[1,3]"
             >
-              <Package :size="20" />
-              <span>Inventario</span>
+              <Package :size="18" class="nav-icon" />
+              <span>Stock & Kardex</span>
             </button>
+          </div>
 
-            <span v-role="[1]" class="section-title" style="margin-top: 10px;">Catálogo & Menú</span>
+          <!-- SECCIÓN: CATÁLOGO Y PERSONALIZACIÓN -->
+          <div class="nav-section" v-role="[1]">
+            <span class="section-title">Catálogo & Tienda</span>
 
             <button 
               class="nav-item" 
               :class="{ active: isActive('/general-home/admin/product') }"
               @click="navigateTo('/general-home/admin/product')"
-              v-role="[1]"
             >
-              <PackageSearch :size="20" />
-              <span>Gestión de catálogo</span>
+              <PackageSearch :size="18" class="nav-icon" />
+              <span>Catálogo & Carta</span>
             </button>
 
             <button 
               class="nav-item" 
               :class="{ active: isActive('/general-home/admin/banners') }"
               @click="navigateTo('/general-home/admin/banners')"
-              v-role="[1]"
             >
-              <Images :size="20" />
-              <span>Banners y avisos</span>
+              <Palette :size="18" class="nav-icon" />
+              <span>Banners & Avisos</span>
             </button>
+          </div>
 
-            <span v-role="[1]" class="section-title" style="margin-top: 10px;">Administración</span>
+          <!-- SECCIÓN: ADMINISTRACIÓN Y CONTROL -->
+          <div class="nav-section" v-role="[1]">
+            <span class="section-title">Configuración & Control</span>
 
             <button 
               class="nav-item" 
               :class="{ active: isActive('/general-home/admin/worker') }"
               @click="navigateTo('/general-home/admin/worker')"
-              v-role="[1]"
             >
-              <Users :size="20" />
+              <Users :size="18" class="nav-icon" />
               <span>Trabajadores</span>
             </button>
 
@@ -137,36 +140,35 @@ const isActive = (path: string) => {
               class="nav-item" 
               :class="{ active: isActive('/general-home/admin/schedules') }"
               @click="navigateTo('/general-home/admin/schedules')"
-              v-role="[1]"
             >
-              <Clock :size="20" />
-              <span>Horarios de atención</span>
+              <Clock :size="18" class="nav-icon" />
+              <span>Horarios de Atención</span>
             </button>
 
             <button 
               class="nav-item" 
               :class="{ active: isActive('/general-home/admin/history') }"
               @click="navigateTo('/general-home/admin/history')"
-              v-role="[1]"
             >
-              <History :size="20" />
-              <span>Auditoría del sistema</span>
+              <History :size="18" class="nav-icon" />
+              <span>Auditoría del Sistema</span>
             </button>
 
             <a 
               href="/menu-board" 
               target="_blank" 
-              class="nav-item"
-              style="text-decoration: none;"
+              rel="noopener noreferrer"
+              class="nav-item menu-tv-item"
             >
-              <Tv :size="20" />
-              <span>Menu board (TV) ↗</span>
+              <Tv :size="18" class="nav-icon" />
+              <span>Menu Board (TV)</span>
+              <ExternalLink :size="13" class="external-icon" />
             </a>
           </div>
         </nav>
 
         <div class="sidebar-footer">
-          <span class="version-text">J.Junior</span>
+          <span class="version-text">J.Junior 1.0</span>
         </div>
       </aside>
     </Transition>
@@ -174,14 +176,17 @@ const isActive = (path: string) => {
 </template>
 
 <style scoped>
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 .sidebar-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(2px);
+  background-color: rgba(35, 20, 10, 0.55);
+  backdrop-filter: blur(3px);
   z-index: 1001;
 }
 
@@ -189,138 +194,196 @@ const isActive = (path: string) => {
   position: fixed;
   top: 0;
   left: 0;
-  width: 280px;
+  width: 290px;
   height: 100vh;
-  background-color: var(--button-color);
+  background-color: #ffffff;
   z-index: 1002;
   display: flex;
   flex-direction: column;
-  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 8px 0 30px rgba(26, 14, 5, 0.16);
+  border-right: 1px solid rgba(81, 49, 25, 0.08);
 }
 
+/* HEADER DEL SIDEBAR */
 .sidebar-header {
-  padding: 20px;
+  padding: 1.15rem 1.25rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid black;
+  background-color: var(--DC-brown, #513119);
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .brand-group {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
 }
 
 .sidebar-logo {
-  height: 40px;
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
 }
 
 .brand-name {
   color: #ffffff;
   font-family: 'Arial Black', Impact, sans-serif;
   font-style: italic;
-  
-  font-size: 1.4rem; 
-  
+  font-size: 1.35rem; 
   font-weight: 900;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   margin: 0;
   white-space: nowrap;
-
-  /* Sombras reducidas de 3px a 2px para que el borde negro no aplaste el texto */
-  text-shadow: 
-    -2px -2px 0 #000,  2px -2px 0 #000, -2px  2px 0 #000,  2px  2px 0 #000,
-    -2px  0px 0 #000,  2px  0px 0 #000,  0px -2px 0 #000,  0px  2px 0 #000,
-    4px  4px 0px rgba(0, 0, 0, 0.4);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
 .btn-close {
-  background: none;
+  background: rgba(255, 255, 255, 0.12);
   border: none;
-  color: var(--button-text);
+  color: #ffffff;
   cursor: pointer;
-  padding: 5px;
+  padding: 6px;
   border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.2s ease;
 }
 
 .btn-close:hover {
-  background-color: var(--DC-orange);
-  color: var(--button-color);
+  background-color: var(--DC-orange, #e28743);
+  transform: rotate(90deg);
 }
 
+/* NAVEGACIÓN Y SECCIONES */
 .sidebar-nav {
   flex: 1;
-  padding: 20px 0;
+  padding: 1.25rem 0.85rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(81, 49, 25, 0.2) transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 5px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background-color: rgba(81, 49, 25, 0.2);
+  border-radius: 999px;
 }
 
 .nav-section {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 0 12px;
 }
 
 .section-title {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #9793a0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--DC-text-gray, #7c7468);
   text-transform: uppercase;
-  margin-left: 12px;
-  margin-bottom: 8px;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.05em;
+  padding: 0 0.75rem;
+  margin-bottom: 4px;
 }
 
 .nav-item {
-  background: none;
+  background: transparent;
   border: none;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 0.65rem 0.85rem;
   border-radius: 12px;
-  color: var(--button-text);
-  font-weight: 600;
+  color: var(--DC-gray, #2c2724);
+  font-size: 0.86rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   text-align: left;
+  text-decoration: none;
+  width: 100%;
+}
+
+.nav-icon {
+  color: var(--DC-brown, #513119);
+  transition: transform 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
 }
 
 .nav-item:hover {
-  background-color: var(--DC-orange);
-  color: var(--button-color);
+  background-color: var(--DC-bg-gray, #f8f6f3);
+  color: var(--DC-orange, #e28743);
+  transform: translateX(3px);
+}
+
+.nav-item:hover .nav-icon {
+  color: var(--DC-orange, #e28743);
 }
 
 .nav-item.active {
-  background-color: var(--DC-orange);
-  color: var(--button-color);
+  background-color: #fff4e6;
+  color: var(--DC-orange, #e28743);
+  font-weight: 800;
 }
 
+.nav-item.active .nav-icon {
+  color: var(--DC-orange, #e28743);
+}
+
+.menu-tv-item {
+  position: relative;
+  justify-content: flex-start;
+}
+
+.external-icon {
+  margin-left: auto;
+  opacity: 0.55;
+}
+
+/* FOOTER */
 .sidebar-footer {
-  padding: 20px;
-  border-top: 1px solid #eeedee;
+  padding: 1rem;
+  border-top: 1px solid rgba(81, 49, 25, 0.08);
   text-align: center;
+  background-color: #fffdfa;
 }
 
 .version-text {
-  font-size: 0.75rem;
-  color: #9793a0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--DC-text-gray, #7c7468);
 }
 
-/* Transitions */
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s ease;
+/* TRANSICIONES */
+.fade-enter-active, 
+.fade-leave-active {
+  transition: opacity 0.25s ease;
 }
-.fade-enter-from, .fade-leave-to {
+
+.fade-enter-from, 
+.fade-leave-to {
   opacity: 0;
 }
 
-.slide-enter-active, .slide-leave-active {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.slide-enter-active, 
+.slide-leave-active {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.slide-enter-from, .slide-leave-to {
+
+.slide-enter-from, 
+.slide-leave-to {
   transform: translateX(-100%);
 }
 </style>

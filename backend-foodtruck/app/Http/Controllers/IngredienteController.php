@@ -40,6 +40,10 @@ class IngredienteController extends Controller
             $data['cantidad_actual'] = $data['cantidad'];
         }
 
+        if (empty($data['fecha_de_ingreso'])) {
+            $data['fecha_de_ingreso'] = now();
+        }
+
         return response()->json($this->ingredienteService->createIngrediente($data), 201);
     }
 

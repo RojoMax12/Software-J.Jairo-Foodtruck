@@ -2,10 +2,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
-  Calendar, Search, RotateCcw, RotateCw, 
-  Receipt, Clock, ShoppingBag, Eye, 
-  CheckCircle2, AlertCircle, ChevronDown, 
-  Sparkles, ArrowRight, Utensils
+  Calendar, RotateCw, Clock, 
+  AlertCircle, ChevronDown, 
+  ArrowRight, Utensils, Receipt
 } from 'lucide-vue-next' 
 import orderService from '@/services/orderService'
 import { useNotification } from '@/composables/useNotification'
@@ -18,7 +17,7 @@ const ordersList = ref<any[]>([])
 const isLoading = ref(true)
 const errorMessage = ref('')
 
-// Filtros simplificados y limpios
+// Filtros simplificados
 const selectedPreset = ref<'all' | 'today' | '7days' | 'this_month' | 'custom'>('all')
 const showCustomDates = ref(false)
 const fechaInicio = ref('')
@@ -28,7 +27,7 @@ const selectedStatusFilter = ref<string>('all')
 
 const fallbackUserCompany = ref('Cliente')
 
-// Carga optimizada de pedidos
+// Carga de pedidos
 const fetchOrders = async () => {
   try {
     isLoading.value = true
@@ -50,7 +49,7 @@ const fetchOrders = async () => {
         distributorId = userObj.id_usuario ?? userObj.id ?? null
         fallbackUserCompany.value = userObj.nombre || userObj.nombre_empresa || 'Cliente'
       } catch (e) {
-        console.error('Error parsing user session:', e)
+        console.error('Error parseando sesión de usuario:', e)
       }
     }
 
@@ -65,8 +64,8 @@ const fetchOrders = async () => {
     ordersList.value = Array.isArray(data) ? data : []
 
   } catch (error: any) {
-    console.error('Error fetching client orders:', error)
-    errorMessage.value = 'No pudimos cargar tus pedidos. Por favor, intenta de nuevo.'
+    console.error('Error cargando historial de pedidos:', error)
+    errorMessage.value = 'No pudimos cargar tus compras. Por favor intenta de nuevo.'
   } finally {
     isLoading.value = false
   }
@@ -120,7 +119,7 @@ const resetFilters = () => {
   fetchOrders()
 }
 
-// Paginación y scroll progresivo
+// Paginación progresiva
 const visibleCount = ref(6)
 
 // Filtrado reactivo en frontend
@@ -146,12 +145,11 @@ const filteredOrders = computed(() => {
   })
 })
 
-// Lista mostrada con límite progresivo para scroll óptimo
 const displayedOrders = computed(() => {
   return filteredOrders.value.slice(0, visibleCount.value)
 })
 
-// Mapeo amigable con el estado REAL de la base de datos
+// Mapeo semántico de estados de orden
 const getOrderStatusInfo = (order: any) => {
   const realName = order?.estado_pedido?.nombre || order?.estado_nombre || order?.nombre_estado || ''
   const statusId = Number(order?.id_estado_pedido || order?.estado_id || 1)
@@ -173,7 +171,6 @@ const getOrderStatusInfo = (order: any) => {
     return { label: realName, class: 'status-pending' }
   }
 
-  // Fallback por ID si no viene el nombre
   switch (statusId) {
     case 1:
       return { label: 'Pendiente', class: 'status-pending' }
@@ -190,7 +187,6 @@ const getOrderStatusInfo = (order: any) => {
   }
 }
 
-// Formateo de fecha amigable (ej: "Hoy a las 21:30" o "30 Ago, 21:30")
 const formatFriendlyDate = (dateString: string) => {
   if (!dateString) return ''
   const date = new Date(dateString)
@@ -214,10 +210,10 @@ const formatCurrency = (value: any) => {
   return `$${safeValue.toLocaleString('es-CL')}`
 }
 
-// 🔁 REPETIR PEDIDO EN 1 CLIC
+// 🔁 REPETIR PEDIDO EN 1 CLIC (Integrado con CartModal / QuotationView)
 const repeatOrder = (order: any) => {
   if (!order || !order.detalles || order.detalles.length === 0) {
-    notify('Este pedido no tiene productos para repetir.', 'warning')
+    notify('Este pedido no contiene productos disponibles para repetir.', 'warning')
     return
   }
 
@@ -246,14 +242,13 @@ const repeatOrder = (order: any) => {
       ? Number(det.precio_unitario.replace(/[^0-9.]/g, ''))
       : Number(det.precio_unitario || 0)
 
-    const sizeName = det.tamano?.nombre_tamaño || det.tamaño?.nombre_tamaño || (det.id_tamaño === 1 ? 'Único' : '')
+    const sizeName = det.tamano?.nombre_tamaño || det.tamaño?.nombre_tamaño || (det.id_tamaño === 1 ? 'Único' : 'Normal')
 
     return {
-      id: det.id_producto || prod.id_producto,
-      id_producto: det.id_producto || prod.id_producto,
-      productId: det.id_producto || prod.id_producto,
-      name: prod.nombre || 'Producto',
-      fullName: `${prod.nombre || 'Producto'} ${sizeName}`.trim(),
+      id: det.id_producto || prod.id_producto || det.id || 1,
+      id_producto: det.id_producto || prod.id_producto || det.id || 1,
+      name: prod.nombre || det.nombre_producto || 'Producto',
+      fullName: `${prod.nombre || det.nombre_producto || 'Producto'}${sizeName && sizeName !== 'Único' && sizeName !== 'Normal' ? ` (${sizeName})` : ''}`.trim(),
       category: prod.categoria?.nombre || 'Foodtruck',
       price: unitPrice,
       quantity: Number(det.cantidad || 1),
@@ -281,16 +276,14 @@ onMounted(() => {
 <template>
   <div class="my-orders-view">
     <div class="orders-container">
-      <!-- HEADER LIMPIO -->
-      <div class="view-header">
-        <div class="header-text">
-          <h1 class="title">Mis Pedidos</h1>
-          <p class="subtitle">Consulta tus compras anteriores o repite tu pedido favorito en 1 clic.</p>
-        </div>
-      </div>
+      <!-- HEADER PRINCIPAL -->
+      <header class="view-header">
+        <h1 class="title">Mis Pedidos</h1>
+        <p class="subtitle">Revisa el historial de tus compras o repite tu pedido favorito en 1 clic.</p>
+      </header>
 
       <!-- BARRA DE FILTROS AMIGABLE -->
-      <div class="filters-bar">
+      <section class="filters-bar" aria-label="Filtros de búsqueda de compras">
         <!-- CHIPS DE ACCESO RÁPIDO -->
         <div class="chips-scroll">
           <button 
@@ -337,52 +330,52 @@ onMounted(() => {
           </button>
         </div>
 
-        <!-- RANGO PERSONALIZADO DESPLEGABLE (SOLO SI SE ACTIVA) -->
+        <!-- RANGO PERSONALIZADO DESPLEGABLE -->
         <Transition name="expand">
           <div v-if="showCustomDates" class="custom-date-drawer">
             <div class="date-input-group">
-              <label>Desde:</label>
-              <input type="date" v-model="fechaInicio" class="date-picker" @change="handleCustomDateChange" />
+              <label for="date-start">Desde:</label>
+              <input id="date-start" type="date" v-model="fechaInicio" class="date-picker" @change="handleCustomDateChange" />
             </div>
             <div class="date-input-group">
-              <label>Hasta:</label>
-              <input type="date" v-model="fechaFin" class="date-picker" @change="handleCustomDateChange" />
+              <label for="date-end">Hasta:</label>
+              <input id="date-end" type="date" v-model="fechaFin" class="date-picker" @change="handleCustomDateChange" />
             </div>
             <button type="button" class="btn-clear-date" @click="resetFilters">
               Limpiar
             </button>
           </div>
         </Transition>
-      </div>
+      </section>
 
       <!-- ESTADO DE CARGA -->
-      <div v-if="isLoading" class="loading-state">
+      <div v-if="isLoading" class="loading-state" role="status">
         <div class="food-icon-pulse">
-          <Utensils :size="32" />
+          <Utensils :size="28" />
         </div>
         <p>Cargando tus pedidos...</p>
       </div>
 
       <!-- ESTADO DE ERROR -->
-      <div v-else-if="errorMessage" class="state-card error-card">
+      <div v-else-if="errorMessage" class="state-card error-card" role="alert">
         <AlertCircle :size="32" class="state-icon error-icon" />
         <p class="state-msg">{{ errorMessage }}</p>
-        <button class="btn-action-primary" @click="fetchOrders">Reintentar</button>
+        <button type="button" class="btn-action-primary" @click="fetchOrders">Reintentar</button>
       </div>
 
       <!-- ESTADO VACÍO -->
       <div v-else-if="filteredOrders.length === 0" class="state-card empty-card">
         <div class="empty-icon-circle">
-          <Receipt :size="40" />
+          <Receipt :size="36" />
         </div>
         <h3 class="empty-title">No hay pedidos en este periodo</h3>
         <p class="empty-desc">No encontramos compras registradas con los filtros seleccionados.</p>
-        <button class="btn-action-primary" @click="resetFilters">Ver todos mis pedidos</button>
+        <button type="button" class="btn-action-primary" @click="resetFilters">Ver todos mis pedidos</button>
       </div>
 
-      <!-- LISTA AMIGABLE DE PEDIDOS CON SCROLL Y CARGA PROGRESIVA -->
+      <!-- LISTA DE PEDIDOS -->
       <div v-else class="orders-list">
-        <div 
+        <article 
           v-for="order in displayedOrders" 
           :key="order.id_pedido ?? order.id" 
           class="order-card"
@@ -399,7 +392,7 @@ onMounted(() => {
               </span>
             </div>
 
-            <!-- BADGE DE ESTADO REAL -->
+            <!-- BADGE DE ESTADO -->
             <span class="status-pill" :class="getOrderStatusInfo(order).class">
               {{ getOrderStatusInfo(order).label }}
             </span>
@@ -416,7 +409,7 @@ onMounted(() => {
                 <div class="item-name-group">
                   <span class="item-quantity">{{ item.cantidad }}x</span>
                   <span class="item-product-name">{{ item.producto?.nombre ?? item.nombre_producto ?? 'Producto' }}</span>
-                  <span class="item-size-badge" v-if="item.tamano?.nombre_tamaño && item.tamano.nombre_tamaño !== 'Único'">
+                  <span class="item-size-badge" v-if="item.tamano?.nombre_tamaño && item.tamano.nombre_tamaño !== 'Único' && item.tamano.nombre_tamaño !== 'Normal'">
                     ({{ item.tamano.nombre_tamaño }})
                   </span>
                 </div>
@@ -427,9 +420,9 @@ onMounted(() => {
                     v-for="mod in item.ingredientes" 
                     :key="mod.id_ingrediente"
                     class="mini-mod-chip"
-                    :class="(mod.tipo_modificacion || '').toLowerCase().includes('exclu') ? 'mod-sin' : 'mod-con'"
+                    :class="(mod.tipo_modificacion || mod.tipo || '').toLowerCase().includes('exclu') ? 'mod-sin' : 'mod-con'"
                   >
-                    {{ (mod.tipo_modificacion || '').toLowerCase().includes('exclu') ? 'Sin' : '+' }} 
+                    {{ (mod.tipo_modificacion || mod.tipo || '').toLowerCase().includes('exclu') ? 'Sin' : '+' }} 
                     {{ mod.ingrediente?.nombre || mod.nombre }}
                   </span>
                 </div>
@@ -437,44 +430,44 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- PIE DE TARJETA CON TOTAL Y BOTÓN DE REPETIR -->
+          <!-- PIE DE TARJETA CON TOTAL Y ACCIONES -->
           <div class="card-footer">
             <div class="footer-total">
               <span class="total-caption">Total:</span>
-              <span class="total-price">{{ formatCurrency(order.total ?? order.monto_final ?? 0) }}</span>
+              <strong class="total-price">{{ formatCurrency(order.total ?? order.monto_final ?? 0) }}</strong>
             </div>
 
             <div class="footer-actions">
-              <!-- BOTÓN REPETIR PEDIDO (DESTACADO Y RÁPIDO) -->
+              <!-- BOTÓN REPETIR PEDIDO -->
               <button 
                 type="button" 
                 class="btn-repeat-action" 
                 @click="repeatOrder(order)"
-                title="Hacer este mismo pedido ahora"
+                title="Cargar estos mismos productos al carrito"
               >
-                <RotateCw :size="15" />
+                <RotateCw :size="14" />
                 <span>Pedir de nuevo</span>
               </button>
 
-              <!-- LINK VER SEGUIMIENTO -->
+              <!-- LINK VER SEGUIMIENTO / TRACKER -->
               <button 
                 type="button" 
                 class="btn-tracking-link" 
                 @click="router.push(`/pedido/${order.id_pedido ?? order.id}`)"
-                title="Ver estado en vivo"
+                title="Ver estado de preparación en vivo"
               >
                 <span>Detalle</span>
-                <ArrowRight :size="14" />
+                <ArrowRight :size="13" />
               </button>
             </div>
           </div>
-        </div>
+        </article>
 
-        <!-- BOTÓN MOSTRAR MÁS PEDIDOS (SI LA LISTA CRECE) -->
+        <!-- CARGAR MÁS PEDIDOS -->
         <div v-if="filteredOrders.length > visibleCount" class="load-more-container">
           <button type="button" class="btn-load-more" @click="visibleCount += 6">
             <span>Mostrar más pedidos (viendo {{ displayedOrders.length }} de {{ filteredOrders.length }})</span>
-            <ChevronDown :size="16" />
+            <ChevronDown :size="15" />
           </button>
         </div>
       </div>
@@ -483,41 +476,44 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.my-orders-view {
-  background-color: var(--DC-bg-gray, #f5ebe0);
-  min-height: 100vh;
-  padding: 24px 16px 80px 16px;
-  font-family: var(--font-main, sans-serif);
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
+.my-orders-view {
+  background-color: var(--DC-bg-gray, #f8f6f3);
+  min-height: 100vh;
+  padding: 2rem 1.25rem 4rem;
+  font-family: inherit;
+}
+
 .orders-container {
-  max-width: 760px;
+  max-width: 780px;
   margin: 0 auto;
 }
 
 /* HEADER */
 .view-header {
-  margin-bottom: 20px;
+  margin-bottom: 1.5rem;
 }
 
 .title {
-  font-size: 1.6rem;
+  font-size: 1.85rem;
   font-weight: 900;
   color: var(--DC-brown, #513119);
-  margin: 0 0 4px 0;
-  letter-spacing: -0.3px;
+  margin: 0 0 0.35rem 0;
+  line-height: 1.15;
 }
 
 .subtitle {
-  font-size: 0.88rem;
-  color: var(--DC-text-gray, #6e6a75);
+  font-size: 0.9rem;
+  color: var(--DC-text-gray, #7c7468);
   margin: 0;
 }
 
-/* FILTROS RÁPIDOS (CHIPS) */
+/* FILTROS RÁPIDOS */
 .filters-bar {
-  margin-bottom: 24px;
+  margin-bottom: 1.5rem;
 }
 
 .chips-scroll {
@@ -525,7 +521,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   overflow-x: auto;
-  padding-bottom: 6px;
+  padding-bottom: 4px;
   scrollbar-width: none;
 }
 
@@ -537,51 +533,51 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 0.5rem 1rem;
   border-radius: 999px;
   background: #ffffff;
-  border: 1.5px solid rgba(81, 49, 25, 0.15);
+  border: 1.5px solid rgba(81, 49, 25, 0.12);
   color: var(--DC-brown, #513119);
-  font-size: 0.84rem;
-  font-weight: 700;
+  font-size: 0.82rem;
+  font-weight: 800;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.2s ease;
 }
 
 .filter-chip:hover {
-  background: #fff8f3;
+  background: #fffdfa;
   border-color: var(--DC-orange, #e28743);
-  color: var(--DC-brown, #513119);
+  color: var(--DC-orange, #e28743);
 }
 
 .filter-chip.active {
   background: var(--DC-orange, #e28743);
   color: #ffffff;
   border-color: var(--DC-orange, #e28743);
-  box-shadow: 0 3px 10px rgba(226, 135, 67, 0.3);
+  box-shadow: 0 3px 10px rgba(226, 135, 67, 0.25);
 }
 
 .chip-custom {
-  padding-right: 12px;
+  padding-right: 0.85rem;
 }
 
 .chip-custom .rotate {
   transform: rotate(180deg);
 }
 
-/* CAJÓN DE FECHAS PERSONALIZADAS */
+/* CAJÓN DE FECHAS */
 .custom-date-drawer {
   background: #ffffff;
   border-radius: 14px;
-  padding: 14px;
-  border: 1px solid rgba(81, 49, 25, 0.15);
-  margin-top: 10px;
+  padding: 0.85rem 1.15rem;
+  border: 1px solid rgba(81, 49, 25, 0.12);
+  margin-top: 0.65rem;
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  box-shadow: 0 4px 12px rgba(81, 49, 25, 0.05);
+  box-shadow: 0 4px 14px rgba(26, 14, 5, 0.04);
 }
 
 .date-input-group {
@@ -594,134 +590,137 @@ onMounted(() => {
 }
 
 .date-picker {
-  padding: 6px 10px;
+  padding: 0.4rem 0.65rem;
   border-radius: 8px;
-  border: 1px solid rgba(81, 49, 25, 0.2);
+  border: 1px solid rgba(81, 49, 25, 0.16);
   font-size: 0.82rem;
   outline: none;
   font-family: inherit;
-  color: var(--DC-brown, #513119);
+  color: var(--DC-gray, #2c2724);
+  background: var(--DC-bg-gray, #f8f6f3);
 }
 
 .date-picker:focus {
   border-color: var(--DC-orange, #e28743);
+  background: #ffffff;
 }
 
 .btn-clear-date {
-  background: var(--button-color, #F4E1D2);
-  border: none;
-  padding: 6px 12px;
+  background: var(--DC-bg-gray, #f8f6f3);
+  border: 1px solid rgba(81, 49, 25, 0.12);
+  padding: 0.4rem 0.85rem;
   border-radius: 8px;
-  color: var(--button-text, #513119);
+  color: var(--DC-brown, #513119);
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .btn-clear-date:hover {
   background: var(--DC-orange, #e28743);
+  border-color: var(--DC-orange, #e28743);
   color: #ffffff;
 }
 
 /* ESTADOS */
-.loading-state, .state-card {
+.loading-state, 
+.state-card {
   background: #ffffff;
-  border-radius: 20px;
-  padding: 50px 20px;
+  border-radius: 18px;
+  padding: 3rem 1.5rem;
   text-align: center;
-  border: 1px solid rgba(81, 49, 25, 0.12);
+  border: 1px solid rgba(81, 49, 25, 0.08);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin-top: 10px;
-  box-shadow: 0 4px 14px rgba(81, 49, 25, 0.04);
+  box-shadow: 0 4px 16px rgba(26, 14, 5, 0.04);
 }
 
 .food-icon-pulse {
-  width: 60px;
-  height: 60px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   background: rgba(226, 135, 67, 0.12);
   color: var(--DC-orange, #e28743);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   animation: softPulse 1.6s ease-in-out infinite;
-  margin-bottom: 14px;
+  margin-bottom: 0.85rem;
 }
 
 @keyframes softPulse {
   0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.08); opacity: 0.75; }
+  50% { transform: scale(1.06); opacity: 0.8; }
 }
 
 .empty-icon-circle {
-  width: 72px;
-  height: 72px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
-  background: #fdfaf6;
+  background: var(--DC-bg-gray, #f8f6f3);
   color: var(--DC-orange, #e28743);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 14px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 0.85rem;
 }
 
 .empty-title {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 800;
   color: var(--DC-brown, #513119);
-  margin: 0 0 6px 0;
+  margin: 0 0 0.35rem 0;
 }
 
 .empty-desc {
-  font-size: 0.86rem;
-  color: var(--DC-text-gray, #6e6a75);
-  margin: 0 0 18px 0;
-  max-width: 360px;
+  font-size: 0.84rem;
+  color: var(--DC-text-gray, #7c7468);
+  margin: 0 0 1.25rem 0;
+  max-width: 320px;
+  line-height: 1.4;
 }
 
 .btn-action-primary {
-  padding: 10px 20px;
-  border-radius: 12px;
+  padding: 0.65rem 1.25rem;
+  border-radius: 10px;
   background: var(--DC-orange, #e28743);
   color: #ffffff;
   border: none;
   font-weight: 800;
-  font-size: 0.86rem;
+  font-size: 0.84rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .btn-action-primary:hover {
   background: var(--DC-brown, #513119);
+  transform: translateY(-1px);
 }
 
-/* LISTA Y TARJETAS DE PEDIDOS */
+/* LISTADO DE TARJETAS */
 .orders-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 1rem;
 }
 
 .order-card {
   background: #ffffff;
-  border-radius: 18px;
-  border: 1px solid rgba(81, 49, 25, 0.12);
-  box-shadow: 0 4px 14px rgba(81, 49, 25, 0.04);
+  border-radius: 16px;
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  box-shadow: 0 2px 10px rgba(26, 14, 5, 0.03);
   overflow: hidden;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .order-card:hover {
-  box-shadow: 0 8px 24px rgba(81, 49, 25, 0.08);
-  border-color: rgba(226, 135, 67, 0.35);
+  box-shadow: 0 6px 20px rgba(26, 14, 5, 0.06);
+  border-color: rgba(226, 135, 67, 0.3);
 }
 
 .card-header {
-  padding: 14px 18px;
+  padding: 0.85rem 1.15rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -737,15 +736,15 @@ onMounted(() => {
 .order-chip-num {
   background: var(--DC-brown, #513119);
   color: #ffffff;
-  font-size: 0.8rem;
-  font-weight: 800;
-  padding: 2px 8px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  padding: 2px 7px;
   border-radius: 6px;
 }
 
 .order-date-text {
   font-size: 0.82rem;
-  color: var(--DC-text-gray, #6e6a75);
+  color: var(--DC-text-gray, #7c7468);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -756,56 +755,60 @@ onMounted(() => {
   color: var(--DC-orange, #e28743);
 }
 
-/* STATUS PILLS */
+/* PÍLDORAS DE ESTADO */
 .status-pill {
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 800;
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .status-cooking {
-  background: #fff7ed;
+  background: #fff4e6;
   color: #c2410c;
-  border: 1px solid #ffedd5;
+  border: 1px solid #fed7aa;
 }
 
 .status-ready {
   background: #eff6ff;
   color: #1d4ed8;
-  border: 1px solid #dbeafe;
+  border: 1px solid #bfdbfe;
 }
 
 .status-delivered {
-  background: #f0fdf4;
+  background: #dcfce7;
   color: #15803d;
-  border: 1px solid #dcfce7;
+  border: 1px solid #bbf7d0;
 }
 
 .status-pending {
-  background: #fffbeb;
-  color: #b45309;
-  border: 1px solid #fef3c7;
+  background: #fefce8;
+  color: #a16207;
+  border: 1px solid #fef08a;
 }
 
 .status-cancelled {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fee2e2;
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
 }
 
-/* BODY */
+/* CUERPO */
 .card-body {
-  padding: 16px 18px;
+  padding: 1rem 1.15rem;
 }
 
 .items-summary-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   max-height: 220px;
   overflow-y: auto;
   padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(81, 49, 25, 0.2) transparent;
 }
 
 .items-summary-list::-webkit-scrollbar {
@@ -813,7 +816,7 @@ onMounted(() => {
 }
 
 .items-summary-list::-webkit-scrollbar-thumb {
-  background: rgba(226, 135, 67, 0.4);
+  background: rgba(81, 49, 25, 0.2);
   border-radius: 4px;
 }
 
@@ -827,14 +830,14 @@ onMounted(() => {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  font-size: 0.94rem;
-  color: var(--DC-gray, #322c44);
+  font-size: 0.9rem;
+  color: var(--DC-gray, #2c2724);
 }
 
 .item-quantity {
   font-weight: 800;
   color: var(--DC-orange, #e28743);
-  font-size: 0.88rem;
+  font-size: 0.84rem;
 }
 
 .item-product-name {
@@ -842,8 +845,8 @@ onMounted(() => {
 }
 
 .item-size-badge {
-  font-size: 0.78rem;
-  color: var(--DC-text-gray, #6e6a75);
+  font-size: 0.74rem;
+  color: var(--DC-text-gray, #7c7468);
   font-weight: 600;
 }
 
@@ -852,14 +855,14 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 2px;
-  padding-left: 20px;
+  padding-left: 18px;
 }
 
 .mini-mod-chip {
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 1px 7px;
-  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
 }
 
 .mod-sin {
@@ -874,8 +877,8 @@ onMounted(() => {
 
 /* FOOTER */
 .card-footer {
-  padding: 14px 18px;
-  background: #fcf9f5;
+  padding: 0.85rem 1.15rem;
+  background: #fffdfa;
   border-top: 1px solid rgba(81, 49, 25, 0.06);
   display: flex;
   align-items: center;
@@ -891,13 +894,15 @@ onMounted(() => {
 }
 
 .total-caption {
-  font-size: 0.8rem;
-  color: var(--DC-text-gray, #6e6a75);
-  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--DC-text-gray, #7c7468);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .total-price {
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   font-weight: 900;
   color: var(--DC-brown, #513119);
 }
@@ -905,19 +910,19 @@ onMounted(() => {
 .footer-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .btn-repeat-action {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 10px;
+  gap: 5px;
+  padding: 0.45rem 0.95rem;
+  border-radius: 8px;
   background: var(--DC-orange, #e28743);
   color: #ffffff;
   border: none;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   font-weight: 800;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -927,34 +932,64 @@ onMounted(() => {
 .btn-repeat-action:hover {
   background: var(--DC-brown, #513119);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(81, 49, 25, 0.3);
 }
 
 .btn-tracking-link {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: var(--button-color, #F4E1D2);
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  background: #ffffff;
   border: 1px solid rgba(81, 49, 25, 0.15);
-  color: var(--button-text, #513119);
-  font-size: 0.82rem;
+  color: var(--DC-brown, #513119);
+  font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .btn-tracking-link:hover {
-  background: var(--DC-orange, #e28743);
-  color: #ffffff;
+  background: var(--DC-bg-gray, #f8f6f3);
+  border-color: var(--DC-orange, #e28743);
+  color: var(--DC-orange, #e28743);
 }
 
-/* TRANSITIONS */
+/* CARGAR MÁS */
+.load-more-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.btn-load-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.75rem 1.4rem;
+  background: #ffffff;
+  border: 1.5px solid rgba(81, 49, 25, 0.14);
+  border-radius: 999px;
+  color: var(--DC-brown, #513119);
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(26, 14, 5, 0.04);
+  transition: all 0.2s ease;
+}
+
+.btn-load-more:hover {
+  background: #fffdfa;
+  border-color: var(--DC-orange, #e28743);
+  color: var(--DC-orange, #e28743);
+  transform: translateY(-1px);
+}
+
+/* TRANSICIÓN EXPAND */
 .expand-enter-active,
 .expand-leave-active {
   transition: all 0.25s ease-out;
-  max-height: 100px;
+  max-height: 120px;
   opacity: 1;
   overflow: hidden;
 }
@@ -968,42 +1003,11 @@ onMounted(() => {
   margin-top: 0;
 }
 
-/* BOTÓN CARGAR MÁS */
-.load-more-container {
-  display: flex;
-  justify-content: center;
-  margin-top: 14px;
-}
-
-.btn-load-more {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: #ffffff;
-  border: 1.5px solid rgba(81, 49, 25, 0.18);
-  border-radius: 999px;
-  color: var(--DC-brown, #513119);
-  font-size: 0.88rem;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(81, 49, 25, 0.05);
-  transition: all 0.2s ease;
-}
-
-.btn-load-more:hover {
-  background: #fff8f3;
-  border-color: var(--DC-orange, #e28743);
-  color: var(--DC-orange, #e28743);
-  transform: translateY(-1px);
-}
-
-/* RESPONSIVE */
 @media (max-width: 540px) {
   .card-footer {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    gap: 10px;
   }
 
   .footer-actions {

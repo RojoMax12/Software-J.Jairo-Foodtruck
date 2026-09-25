@@ -25,10 +25,6 @@
           <Plus :size="18" />
           <span>Nuevo Tamaño</span>
         </button>
-        <button v-else-if="activeTab === 'promotions'" class="btn-primary" @click="openCreatePromotionModal">
-          <Plus :size="18" />
-          <span>Nueva Promoción</span>
-        </button>
       </div>
     </header>
 
@@ -896,14 +892,24 @@
     </div>
 
     <!-- MODAL PRODUCTO -->
+    <!-- MODAL PRODUCTO / VARIEDAD REDISEÑADO -->
     <div v-if="isProductModalOpen" class="modal-backdrop" @click.self="isProductModalOpen = false">
-      <div class="modal-card modal-card-wide">
+      <div class="modal-card modal-card-wide product-editor-modal">
+        <!-- Header -->
         <div class="modal-header">
           <div class="modal-header-title">
             <div class="header-icon-pill"><Plus :size="18" /></div>
             <div>
-              <h3>{{ isEditingProduct ? 'Editar Producto' : 'Crear Nuevo Producto' }}</h3>
-              <p class="modal-header-desc">Configura precios por formato, receta base y fotografía</p>
+              <div class="header-title-row">
+                <h3>{{ isEditingProduct ? 'Editar Producto / Variedad' : 'Crear Nuevo Producto / Variedad' }}</h3>
+                <span v-if="productForm.es_agrupado" class="mode-badge-pill grouped">
+                  Variedad de: {{ productForm.grupo || getProductCategoryName }}
+                </span>
+                <span v-else class="mode-badge-pill individual">
+                  Tarjeta Individual
+                </span>
+              </div>
+              <p class="modal-header-desc">Configura visualización en la carta, formatos, precios e ingredientes</p>
             </div>
           </div>
           <button class="close-btn" @click="isProductModalOpen = false"><X :size="18" /></button>
@@ -911,24 +917,27 @@
 
         <form class="modal-form-wrapper" @submit.prevent="isEditingProduct ? submitEditProduct() : submitCreateProduct()">
           <div class="modal-columns-grid">
+            <!-- Columna Izquierda: Formulario -->
             <div class="modal-form-col">
+              
+              <!-- 1. Datos Principales -->
               <div class="modal-section-group">
-                <span class="group-legend"><Sparkles :size="14" /> 1. Datos Principales</span>
+                <span class="group-legend"><Sparkles :size="15" /> 1. Datos Principales</span>
                 
                 <label class="modal-label">
-                  <span>Nombre del Producto <span class="required">*</span></span>
+                  <span>Nombre del Producto / Sabor <span class="required">*</span></span>
                   <input
                     v-model="productForm.nombre"
                     type="text"
                     required
-                    placeholder="Ej: Hamburguesa Doble Cheddar Bacon"
+                    placeholder="Ej: Italiano, Doble Cheddar Bacon, Napolitana..."
                     class="modal-input"
                   />
                 </label>
 
                 <div class="modal-row">
                   <label class="modal-label">
-                    <span>Categoría <span class="required">*</span></span>
+                    <span>Categoría de la Carta <span class="required">*</span></span>
                     <select v-model="productForm.id_categoria" required class="modal-input">
                       <option value="" disabled>Selecciona una categoría</option>
                       <option v-for="cat in categoriesList" :key="cat.id_categoria || cat.id" :value="cat.id_categoria || cat.id">
@@ -953,14 +962,89 @@
                     v-model="productForm.descripcion"
                     rows="2"
                     required
-                    placeholder="Descripción detallada de la receta..."
+                    placeholder="Describe los ingredientes principales o características de esta variedad..."
                     class="modal-input"
                   ></textarea>
                 </label>
               </div>
 
+              <!-- 2. Agrupación en el Menú (LA MEJORA SOLICITADA) -->
+              <div class="modal-section-group grouping-section">
+                <span class="group-legend"><Layers :size="15" /> 2. Visualización en la Carta de Clientes</span>
+                <p class="section-guide-text">
+                  Decide si este producto crea su propia tarjeta independiente en la portada o si se agrupa como variedad dentro de otra tarjeta existente:
+                </p>
+
+                <div class="grouping-toggle-grid">
+                  <button
+                    type="button"
+                    class="grouping-choice-btn"
+                    :class="{ active: !productForm.es_agrupado }"
+                    @click="setGroupedMode(false)"
+                  >
+                    <div class="choice-icon">🎴</div>
+                    <div class="choice-texts">
+                      <strong>Tarjeta Individual Propia</strong>
+                      <span>Aparece como una tarjeta independiente con su propia foto en la portada.</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="grouping-choice-btn"
+                    :class="{ active: productForm.es_agrupado }"
+                    @click="setGroupedMode(true)"
+                  >
+                    <div class="choice-icon">📚</div>
+                    <div class="choice-texts">
+                      <strong>Agrupar como Variedad</strong>
+                      <span>Se une dentro de una tarjeta existente (no crea una tarjeta nueva).</span>
+                    </div>
+                  </button>
+                </div>
+
+                <!-- Sub-panel al elegir Agrupar como Variedad -->
+                <Transition name="fade-slide">
+                  <div v-if="productForm.es_agrupado" class="group-select-subpanel">
+                    <label class="modal-label">
+                      <span>Tarjeta o Grupo del Menú donde se mostrará:</span>
+                      <div class="group-input-combobox">
+                        <select 
+                          v-model="productForm.grupo" 
+                          class="modal-input select-group-box"
+                        >
+                          <option value="" disabled>Selecciona tarjeta existente...</option>
+                          <option 
+                            v-for="grp in availableCardGroups" 
+                            :key="grp" 
+                            :value="grp"
+                          >
+                            Tarjeta: "{{ grp }}"
+                          </option>
+                        </select>
+                        <input
+                          v-model="productForm.grupo"
+                          type="text"
+                          placeholder="O escribe nuevo nombre de tarjeta..."
+                          class="modal-input custom-group-input"
+                        />
+                      </div>
+                    </label>
+
+                    <div class="grouping-info-hint">
+                      <Sparkles :size="14" />
+                      <span>
+                        Los clientes verán una única tarjeta llamada <strong>"{{ productForm.grupo || getProductCategoryName }}"</strong> y al abrirla podrán elegir <strong>"{{ productForm.nombre || 'esta variedad' }}"</strong> entre sus opciones.
+                      </span>
+                    </div>
+                  </div>
+                </Transition>
+              </div>
+
+              <!-- 3. Formatos y Precios -->
               <div class="modal-section-group">
-                <span class="group-legend"><Tag :size="14" /> 2. Formatos y Precios</span>
+                <span class="group-legend"><Tag :size="15" /> 3. Formatos y Precios</span>
+                <p class="section-guide-text">Selecciona los tamaños disponibles para este producto y define su precio:</p>
                 <div class="chip-selector">
                   <button 
                     v-for="sz in availableSizesList" 
@@ -994,8 +1078,9 @@
                 </div>
               </div>
 
+              <!-- 4. Receta e Ingredientes -->
               <div class="modal-section-group">
-                <span class="group-legend"><FolderTree :size="14" /> 3. Receta e Ingredientes</span>
+                <span class="group-legend"><FolderTree :size="15" /> 4. Receta e Ingredientes</span>
                 <div class="chip-selector wrap">
                   <button 
                     v-for="ing in availableIngredientsList" 
@@ -1014,7 +1099,7 @@
                   <input 
                     v-model="newCustomIngredient" 
                     type="text" 
-                    placeholder="Añadir otro ingrediente..." 
+                    placeholder="Añadir otro ingrediente a la lista..." 
                     class="modal-input inline-input"
                     @keydown.enter.prevent="addCustomIngredient()"
                   />
@@ -1024,28 +1109,44 @@
                   </button>
                 </div>
 
-                <label class="modal-label" style="margin-top: 10px;">
-                  <span>Recargo por Ingrediente Extra ($)</span>
-                  <div class="price-input-wrapper">
-                    <span class="currency-symbol">+$</span>
+                <div class="modal-row" style="margin-top: 10px;">
+                  <label class="modal-label">
+                    <span>Recargo por Ingrediente Extra ($)</span>
+                    <div class="price-input-wrapper">
+                      <span class="currency-symbol">+$</span>
+                      <input 
+                        v-model.number="productForm.precio_ingrediente_extra" 
+                        type="number" 
+                        min="0" 
+                        step="100" 
+                        placeholder="Ej: 500" 
+                        class="modal-input price-input"
+                      />
+                    </div>
+                  </label>
+
+                  <label v-if="productForm.tipo_armado === 'personalizable'" class="modal-label">
+                    <span>Ingredientes Incluidos a Elección</span>
                     <input 
-                      v-model.number="productForm.precio_ingrediente_extra" 
+                      v-model.number="productForm.cantidad_incluida" 
                       type="number" 
-                      min="0" 
-                      step="100" 
-                      placeholder="Ej: 800" 
-                      class="modal-input price-input"
+                      min="1" 
+                      max="10" 
+                      placeholder="Ej: 3" 
+                      class="modal-input"
                     />
-                  </div>
-                </label>
+                  </label>
+                </div>
               </div>
 
+              <!-- 5. Disponibilidad y Stock -->
               <div class="modal-section-group">
+                <span class="group-legend"><Eye :size="15" /> 5. Disponibilidad</span>
                 <div class="modal-row toggles-row">
                   <label class="toggle-availability-label">
                     <div class="toggle-text">
                       <strong>Visible en Menú</strong>
-                      <span>Público para clientes</span>
+                      <span>Público para los clientes</span>
                     </div>
                     <input type="checkbox" v-model="productForm.active" class="modern-toggle" />
                   </label>
@@ -1053,7 +1154,7 @@
                   <label class="toggle-availability-label">
                     <div class="toggle-text">
                       <strong>En Stock</strong>
-                      <span>Disponible hoy</span>
+                      <span>Disponible hoy para pedidos</span>
                     </div>
                     <input type="checkbox" v-model="productForm.inStock" class="modern-toggle" />
                   </label>
@@ -1061,13 +1162,14 @@
               </div>
             </div>
 
-            <!-- Preview y Foto -->
+            <!-- Columna Derecha: Vista Previa Realista y Fotografía -->
             <div class="modal-preview-col">
               <div class="preview-header-bar">
                 <span class="preview-badge"><Eye :size="13" /> Vista Previa en Menú</span>
                 <span class="live-pill">En vivo</span>
               </div>
 
+              <!-- Tarjeta idéntica a la del Home -->
               <div class="live-product-card">
                 <div class="live-card-img-wrap">
                   <img
@@ -1083,12 +1185,27 @@
                     <span>Sin fotografía</span>
                   </div>
                   <span class="live-card-category">{{ getProductCategoryName }}</span>
+                  <span v-if="productForm.es_agrupado" class="live-card-group-badge">
+                    Variedad en "{{ productForm.grupo || getProductCategoryName }}"
+                  </span>
                 </div>
 
                 <div class="live-card-body">
                   <h4 class="live-card-title">{{ productForm.nombre || 'Nombre del producto...' }}</h4>
                   <p class="live-card-desc">{{ productForm.descripcion || 'Descripción del producto...' }}</p>
                   
+                  <div v-if="productForm.selectedSizes.length > 0" class="live-card-sizes-pills">
+                    <span 
+                      v-for="sz in productForm.selectedSizes" 
+                      :key="sz" 
+                      class="mini-size-pill"
+                      :class="{ active: previewActiveSize === sz }"
+                      @click="previewActiveSize = sz"
+                    >
+                      {{ sz }}
+                    </span>
+                  </div>
+
                   <div class="live-card-footer">
                     <span class="live-card-price">{{ formatPrice(getPreviewPrice) }}</span>
                     <span class="live-card-status" :class="productForm.active ? 'status-active' : 'status-inactive'">
@@ -1098,6 +1215,7 @@
                 </div>
               </div>
 
+              <!-- Controles de Imagen -->
               <div class="image-upload-box">
                 <div
                   class="dropzone-area"
@@ -1112,8 +1230,9 @@
                     <span>Optimizando a WebP...</span>
                   </div>
                   <div v-else class="dropzone-content">
-                    <UploadCloud :size="20" />
-                    <span>{{ productForm.image ? 'Cambiar fotografía' : 'Arrastra o haz clic para subir foto' }}</span>
+                    <UploadCloud :size="22" />
+                    <span class="dropzone-title">{{ productForm.image ? 'Cambiar fotografía' : 'Subir foto del producto' }}</span>
+                    <span class="dropzone-sub">Arrastra o haz clic (Se optimiza a WebP)</span>
                   </div>
                 </div>
 
@@ -1129,7 +1248,7 @@
                   <input
                     v-model="productForm.image"
                     type="url"
-                    placeholder="O pegar URL directa..."
+                    placeholder="O pegar URL directa de imagen..."
                     class="modal-input input-url"
                   />
                   <button
@@ -1362,6 +1481,7 @@ import {
   History,
   Image as ImageIcon,
   LayoutGrid,
+  Layers,
   PackageOpen,
   Pencil,
   Plus,
@@ -1369,6 +1489,7 @@ import {
   Search,
   SlidersHorizontal,
   Sparkles,
+  Square,
   Tag,
   Trash2,
   UploadCloud,
@@ -1436,6 +1557,9 @@ const productForm = ref({
   id: 0,
   nombre: '',
   id_categoria: '' as string | number,
+  es_agrupado: false,
+  grupo: '',
+  cantidad_incluida: 0,
   precio_base: 0,
   descripcion: '',
   tipo_armado: 'estandar',
@@ -1451,6 +1575,30 @@ const productForm = ref({
   active: true,
   inStock: true
 })
+
+const availableCardGroups = computed(() => {
+  const selectedCat = categoriesList.value.find((c: any) => String(c.id_categoria || c.id) === String(productForm.value.id_categoria))
+  const catName = selectedCat?.nombre_categoria || ''
+  const groups = new Set<string>()
+  if (catName) {
+    groups.add(catName)
+  }
+  products.value.forEach((p: any) => {
+    if (!catName || p.category === catName) {
+      if (p.grupo && String(p.grupo).trim()) {
+        groups.add(String(p.grupo).trim())
+      }
+    }
+  })
+  return Array.from(groups)
+})
+
+const setGroupedMode = (grouped: boolean) => {
+  productForm.value.es_agrupado = grouped
+  if (grouped && !productForm.value.grupo) {
+    productForm.value.grupo = getProductCategoryName.value
+  }
+}
 
 const promotionForm = ref({
   id: 0,
@@ -1587,6 +1735,9 @@ const openCreateModal = () => {
     id: 0,
     nombre: '',
     id_categoria: defaultCat,
+    es_agrupado: false,
+    grupo: '',
+    cantidad_incluida: 0,
     precio_base: 4500,
     descripcion: '',
     tipo_armado: 'estandar',
@@ -1616,11 +1767,15 @@ const openEditModal = (product: any) => {
   })
 
   const foundCat = categoriesList.value.find((c: any) => c.nombre_categoria === product.category)
+  const hasGroup = Boolean(product.grupo && String(product.grupo).trim() !== '')
 
   productForm.value = {
     id: product.id,
     nombre: product.name,
     id_categoria: foundCat?.id_categoria || foundCat?.id || categoriesList.value[0]?.id_categoria || '',
+    es_agrupado: hasGroup,
+    grupo: product.grupo || '',
+    cantidad_incluida: Number(product.cantidad_incluida || 0),
     precio_base: product.price || 4500,
     descripcion: product.descripcion || product.name || '',
     tipo_armado: product.tipo_armado || 'estandar',
@@ -1653,6 +1808,14 @@ const submitCreateProduct = async () => {
 
   const basePrice = preciosTamanos[0]?.precio || productForm.value.precio_base || 4500
 
+  const assignedGroup = productForm.value.es_agrupado
+    ? (productForm.value.grupo?.trim() || catName)
+    : ''
+
+  const includedCount = Number(
+    productForm.value.cantidad_incluida || (productForm.value.tipo_armado === 'personalizable' ? 3 : 0)
+  )
+
   const localItem = {
     id: newId,
     image: productForm.value.image || '',
@@ -1661,6 +1824,11 @@ const submitCreateProduct = async () => {
     imageFit: productForm.value.imageFit,
     name: productForm.value.nombre,
     category: catName,
+    grupo: assignedGroup,
+    cantidad_incluida: includedCount,
+    tipo_armado: productForm.value.tipo_armado,
+    precio_ingrediente_extra: productForm.value.precio_ingrediente_extra || 0,
+    descripcion: productForm.value.descripcion,
     price: Number(basePrice),
     ingredients: [...productForm.value.selectedIngredients],
     sizes: [...productForm.value.selectedSizes],
@@ -1675,11 +1843,12 @@ const submitCreateProduct = async () => {
     const res = await productService.createProduct({
       nombre: productForm.value.nombre,
       id_categoria: productForm.value.id_categoria,
+      grupo: assignedGroup || null,
       precio_base: basePrice,
       precios_tamanos: preciosTamanos,
       descripcion: productForm.value.descripcion || productForm.value.nombre,
       tipo_armado: productForm.value.tipo_armado,
-      cantidad_incluida: 1,
+      cantidad_incluida: includedCount,
       precio_ingrediente_extra: productForm.value.precio_ingrediente_extra || 0,
       activo: productForm.value.active,
       disponible: productForm.value.inStock,
@@ -1719,9 +1888,22 @@ const submitEditProduct = async () => {
   }))
   const basePrice = preciosTamanos[0]?.precio || productForm.value.precio_base || 4500
 
+  const assignedGroup = productForm.value.es_agrupado
+    ? (productForm.value.grupo?.trim() || catName)
+    : ''
+
+  const includedCount = Number(
+    productForm.value.cantidad_incluida || (productForm.value.tipo_armado === 'personalizable' ? 3 : 0)
+  )
+
   if (p) {
     p.name = productForm.value.nombre
     p.category = catName
+    p.grupo = assignedGroup
+    p.cantidad_incluida = includedCount
+    p.tipo_armado = productForm.value.tipo_armado
+    p.descripcion = productForm.value.descripcion
+    p.precio_ingrediente_extra = productForm.value.precio_ingrediente_extra || 0
     p.price = Number(basePrice)
     p.image = productForm.value.image || p.image
     p.imagePosition = productForm.value.imagePosition
@@ -1737,10 +1919,12 @@ const submitEditProduct = async () => {
     const updateRes = await productService.updateProduct(productForm.value.id, {
       nombre: productForm.value.nombre,
       id_categoria: productForm.value.id_categoria,
+      grupo: assignedGroup || null,
       precio_base: basePrice,
       precios_tamanos: preciosTamanos,
       descripcion: productForm.value.descripcion || productForm.value.nombre,
       tipo_armado: productForm.value.tipo_armado,
+      cantidad_incluida: includedCount,
       precio_ingrediente_extra: productForm.value.precio_ingrediente_extra || 0,
       activo: productForm.value.active,
       disponible: productForm.value.inStock,
@@ -1858,6 +2042,7 @@ const submitPromotion = async () => {
       promotions.value.unshift(saved)
     }
     notify(isEditingPromotion.value ? 'Promoción actualizada' : 'Promoción creada exitosamente', 'success')
+    window.dispatchEvent(new Event('foodtruck-products-update'))
     isPromotionModalOpen.value = false
   } catch (error: any) {
     notify(error?.response?.data?.message || 'No se pudo guardar la promoción', 'warning')
@@ -1880,6 +2065,7 @@ const togglePromotionStatus = async (promotion: any) => {
     const response = await promotionService.updatePromotion(promotion.id_promocion, payload)
     const index = promotions.value.findIndex(item => item.id_promocion === promotion.id_promocion)
     if (index >= 0) promotions.value[index] = response.data
+    window.dispatchEvent(new Event('foodtruck-products-update'))
     notify(nextStatus ? 'Promoción activada' : 'Promoción desactivada', 'success')
   } catch (error: any) {
     notify(error?.response?.data?.message || 'No se pudo cambiar el estado de la promoción', 'warning')
@@ -1891,6 +2077,7 @@ const handleDeletePromotion = async (promotion: any) => {
   try {
     await promotionService.deletePromotion(promotion.id_promocion)
     promotions.value = promotions.value.filter(item => item.id_promocion !== promotion.id_promocion)
+    window.dispatchEvent(new Event('foodtruck-products-update'))
     notify('Promoción eliminada', 'warning')
   } catch {
     notify('No se pudo eliminar la promoción', 'warning')
@@ -2115,6 +2302,8 @@ const loadCatalogData = async () => {
         imageFit: p.imagen_ajuste || 'cover',
         name: p.nombre,
         category: catName,
+        grupo: p.grupo || '',
+        cantidad_incluida: Number(p.cantidad_incluida || 0),
         price: Number(firstPrice),
         ingredients: (p.ingredientes || []).map((i: any) => i.ingrediente?.nombre || 'Ingrediente'),
         sizes: (p.tamaños || []).map((t: any) => t.nombre),
@@ -3393,10 +3582,14 @@ onMounted(async () => {
 }
 
 .modal-card-wide {
-  width: min(100%, 880px);
+  width: min(96vw, 1020px);
   max-height: 90vh;
   display: flex;
   flex-direction: column;
+}
+
+.product-editor-modal {
+  width: min(96vw, 1020px);
 }
 
 .modal-header {
@@ -3748,6 +3941,293 @@ onMounted(async () => {
   cursor: pointer;
 }
 
+/* ====================================================
+   SECCIÓN DE AGRUPACIÓN Y VISTA PREVIA MEJORADA
+==================================================== */
+.grouping-section {
+  border: 1.5px solid rgba(226, 135, 67, 0.25) !important;
+  background: linear-gradient(180deg, #fffdfa 0%, #ffffff 100%) !important;
+}
+
+.header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.mode-badge-pill {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 999px;
+  letter-spacing: 0.2px;
+}
+
+.mode-solo,
+.mode-badge-pill.individual {
+  background: rgba(81, 49, 25, 0.08);
+  color: var(--DC-brown, #513119);
+}
+
+.mode-grouped,
+.mode-badge-pill.grouped {
+  background: rgba(226, 135, 67, 0.15);
+  color: var(--DC-orange, #e28743);
+  border: 1px solid rgba(226, 135, 67, 0.35);
+}
+
+.section-subtext {
+  font-size: 0.78rem;
+  color: var(--DC-text-gray, #7c7468);
+  margin: 0;
+  line-height: 1.35;
+}
+
+.grouping-toggle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.grouping-choice-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  background: white;
+  border: 1.5px solid rgba(81, 49, 25, 0.12);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.grouping-choice-btn:hover {
+  border-color: var(--DC-orange, #e28743);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(81, 49, 25, 0.06);
+}
+
+.grouping-choice-btn.active {
+  border-color: var(--DC-orange, #e28743);
+  background: #fff8f2;
+  box-shadow: 0 0 0 2px rgba(226, 135, 67, 0.2);
+}
+
+.choice-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--DC-bg-gray, #f8f6f3);
+  color: var(--DC-brown, #513119);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.grouping-choice-btn.active .choice-icon {
+  background: var(--DC-orange, #e28743);
+  color: white;
+}
+
+.choice-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.choice-title {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--DC-brown, #513119);
+}
+
+.choice-desc {
+  font-size: 0.72rem;
+  color: var(--DC-text-gray, #7c7468);
+  line-height: 1.25;
+}
+
+.group-select-subpanel {
+  margin-top: 0.25rem;
+  padding: 0.85rem;
+  background: var(--DC-bg-gray, #f8f6f3);
+  border-radius: 10px;
+  border: 1px dashed rgba(226, 135, 67, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.group-input-combobox {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.25rem;
+}
+
+.select-group-box {
+  background: white;
+  font-weight: 600;
+}
+
+.custom-group-input {
+  background: white;
+}
+
+.grouping-info-hint {
+  margin: 0;
+  font-size: 0.73rem;
+  color: var(--DC-brown, #513119);
+  opacity: 0.85;
+  line-height: 1.3;
+}
+
+.live-card-group-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  background: rgba(226, 135, 67, 0.95);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.live-card-sizes-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.mini-size-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: var(--DC-bg-gray, #f8f6f3);
+  border: 1px solid rgba(81, 49, 25, 0.1);
+  border-radius: 6px;
+  padding: 2px 6px;
+  color: var(--DC-brown, #513119);
+}
+
+.toggles-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.toggle-availability-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.85rem;
+  background: var(--DC-bg-gray, #f8f6f3);
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  border-radius: 10px;
+  cursor: pointer;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.toggle-availability-label:hover {
+  background: #f3efe9;
+}
+
+.toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.toggle-text strong {
+  font-size: 0.8rem;
+  color: var(--DC-brown, #513119);
+}
+
+.toggle-text span {
+  font-size: 0.68rem;
+  color: var(--DC-text-gray, #7c7468);
+}
+
+.modern-toggle {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--DC-orange, #e28743);
+  cursor: pointer;
+}
+
+.chip-selector.wrap {
+  flex-wrap: wrap;
+  max-height: 110px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.chip-btn.small {
+  padding: 3px 8px;
+  font-size: 0.72rem;
+}
+
+.add-custom-ing-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.inline-input {
+  flex: 1;
+}
+
+.btn-add-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  background: var(--DC-brown, #513119);
+  color: white;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-add-inline:hover {
+  background: var(--DC-orange, #e28743);
+}
+
+.url-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.btn-clear-image-url {
+  position: absolute;
+  right: 6px;
+  background: transparent;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 4px;
+}
+
 .customizer-preview-large {
   width: 100%;
   height: 220px;
@@ -3853,6 +4333,12 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
   .modal-columns-grid {
+    grid-template-columns: 1fr;
+  }
+  .grouping-toggle-grid {
+    grid-template-columns: 1fr;
+  }
+  .toggles-row {
     grid-template-columns: 1fr;
   }
 }
