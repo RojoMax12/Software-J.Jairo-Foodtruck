@@ -1,6 +1,9 @@
 <template>
   <div class="offer-card">
-    <div class="offer-badge">Oferta</div>
+    <div class="offer-badge">
+      <span v-if="discountPercent">-{{ discountPercent }}%</span>
+      <span v-else>{{ promoBadgeText || 'Oferta' }}</span>
+    </div>
 
     <div class="card-image">
       <img :src="image" :alt="name" :style="imageStyle" />
@@ -10,7 +13,16 @@
       <h3 class="product-name">{{ name }}</h3>
 
       <div v-if="displayHint" class="product-hint">{{ displayHint }}</div>
-      <h4 class="product-price">{{ displayPrice ?? price }}</h4>
+
+      <!-- Precios: Antiguo tachado y luego el de oferta -->
+      <div class="price-container">
+        <span v-if="originalPrice" class="original-price" title="Precio original">
+          {{ originalPrice }}
+        </span>
+        <h4 class="product-price offer-price" title="Precio de oferta">
+          {{ displayPrice ?? price }}
+        </h4>
+      </div>
 
       <button class="details-btn" @click="$emit('view-details')">
         Ver oferta
@@ -30,10 +42,16 @@ const props = withDefaults(defineProps<{
   imageFit?: 'cover' | 'contain';
   price?: string | number;
   displayPrice?: string | number;
+  originalPrice?: string | number;
+  promoBadgeText?: string;
+  discountPercent?: number;
   displayHint?: string;
 }>(), {
   price: 'Sin precio',
   displayPrice: undefined,
+  originalPrice: undefined,
+  promoBadgeText: 'Oferta',
+  discountPercent: undefined,
   displayHint: undefined,
   imagePosition: '50% 50%',
   imageZoom: 1,
@@ -75,12 +93,13 @@ defineEmits(['view-details']);
   z-index: 1;
   background: #e28743;
   color: white;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  padding: 6px 10px;
+  padding: 6px 12px;
   border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(226, 135, 67, 0.4);
 }
 
 .card-image {
@@ -120,11 +139,31 @@ defineEmits(['view-details']);
   text-transform: uppercase;
 }
 
+.price-container {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 4px 0 15px 0;
+}
+
+.original-price {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #8c857b;
+  text-decoration: line-through;
+}
+
 .product-price {
-  margin: 0 0 15px 0;
-  font-size: 1rem;
+  margin: 0;
+  font-size: 1.15rem;
   font-weight: 900;
   color: #b85a00;
+}
+
+.product-price.offer-price {
+  color: #d9480f;
+  font-size: 1.25rem;
 }
 
 .details-btn {
@@ -138,9 +177,50 @@ defineEmits(['view-details']);
   font-size: 0.95rem;
   font-weight: 800;
   width: 100%;
+  transition: background-color 0.2s;
 }
 
 .details-btn:hover {
   background-color: #7a3900;
+}
+
+/* 📱 RESPONSIVO PARA CELULARES */
+@media (max-width: 600px) {
+  .card-image {
+    height: 120px;
+  }
+
+  .card-content {
+    padding: 12px;
+  }
+
+  .product-name {
+    font-size: 1rem;
+  }
+
+  .offer-badge {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    top: 8px;
+    left: 8px;
+  }
+
+  .price-container {
+    gap: 6px;
+    margin: 4px 0 10px 0;
+  }
+
+  .original-price {
+    font-size: 0.78rem;
+  }
+
+  .product-price.offer-price {
+    font-size: 1.05rem;
+  }
+
+  .details-btn {
+    padding: 12px;
+    font-size: 0.9rem;
+  }
 }
 </style>

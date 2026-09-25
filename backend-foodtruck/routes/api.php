@@ -57,6 +57,7 @@ Route::prefix('public')->group(function () {
         Route::get('/categorias', [CategoriaController::class, 'index']);
         Route::get('/pedidos/comanda/{numeroComanda}', [PedidoPublicoController::class, 'buscarPorComanda']);
         Route::get('/pedidos/{id}', [PedidoPublicoController::class, 'buscarPorId']);
+        Route::get('/promociones', [PromocionController::class, 'index']);
         Route::get('/marketing', [MarketingController::class, 'index']);
         Route::get('/horarios/turno-actual', [HorarioAtencionController::class, 'getTurnoActual']);
     });
@@ -107,7 +108,7 @@ Route::middleware('jwt.auth')->group(function () {
         Route::apiResource('ofertas', OfertaController::class);
         Route::apiResource('oferta_productos', OfertaProductoController::class);
         Route::apiResource('ingredientes', IngredienteController::class);
-        Route::apiResource('pedidos', PedidoController::class)->except(['show', 'store']);
+        Route::apiResource('pedidos', PedidoController::class)->except(['store']);
         Route::apiResource('detalle_pedidos', DetallePedidoController::class);
         Route::apiResource('detalle_pedido_ingredientes', DetallePedidoIngredienteController::class);
         Route::apiResource('estado_pedidos', EstadoPedidoController::class);

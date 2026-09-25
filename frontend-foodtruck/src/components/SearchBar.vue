@@ -62,7 +62,7 @@
             :class="{ 'is-active': props.modelValue === 'Sánguches / Bajones' }"
             @click="toggleCategory('Sánguches / Bajones')"
           >
-            <span class="badge-text">Sánguches /<br>Bajones</span>
+            <span class="badge-text">Sánguches<br></span>
           </button>
 
           <button
@@ -70,7 +70,10 @@
             :class="{ 'is-active': props.modelValue === 'Promos/Combos' }"
             @click="toggleCategory('Promos/Combos')"
           >
-            <span class="badge-text">Promos/<br>Combos</span>
+            <span v-if="(props.promotionsCount || 0) > 0" class="badge-fire-tag">
+              {{ props.promotionsCount }}
+            </span>
+            <span class="badge-text">Promos<br></span>
           </button>
           
           <button
@@ -104,6 +107,7 @@ const props = defineProps<{
   modelValue: string;
   searchQuery: string; 
   categories: any[];
+  promotionsCount?: number;
 }>();
 
 const emit = defineEmits(['update:modelValue', 'update:searchQuery']);
@@ -281,7 +285,7 @@ const toggleCategory = (category: string) => {
 
 .badge-button.is-active {
   transform: scale(1.06);
-  filter: drop-shadow(0px 6px 14px rgba(255, 200, 10, 0.95));
+  filter: drop-shadow(0px 6px 14px rgba(230, 140, 38, 0.651));
 }
 
 .badge-button::before {
@@ -307,14 +311,35 @@ const toggleCategory = (category: string) => {
   position: relative;
   z-index: 3;
   color: #ffffff;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 0.85rem;
-  font-weight: 900;
+  font-family: 'Verdana', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 550;
   text-align: center;
   line-height: 1.1;
   padding: 8px;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.6);
   pointer-events: none;
+}
+
+.badge-fire-tag {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  z-index: 10;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 900;
+  padding: 2px 7px;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  border: 1.5px solid #ffffff;
+  animation: pulse-fire 2s infinite ease-in-out;
+}
+
+@keyframes pulse-fire {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
 }
 
 .color-papas::after { background: linear-gradient(135deg, #e43351 0%, #f65c52 50%, #f67c46 100%); }

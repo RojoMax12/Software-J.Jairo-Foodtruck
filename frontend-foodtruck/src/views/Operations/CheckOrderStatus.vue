@@ -1,109 +1,147 @@
 <template>
   <div class="status-page">
-    <div class="box">
-      <div class="header-icon-box">
-        <UtensilsCrossed :size="32" />
-      </div>
-      <h1 class="main-title">Rastrea tu Pedido</h1>
-      <p class="subtitle">
-        Ingresa tu número de comanda (ej: <strong>#1</strong>, <strong>#5</strong>) o N° de comprobante para ver el estado de tu comida en la jornada de hoy.
-      </p>
+    <div class="tracker-layout">
 
-      <div class="search-section">
-        <input 
-          v-model="orderId" 
-          type="text" 
-          placeholder="Ej: #1 o 36" 
-          class="dc-input" 
-          @keyup.enter="handleSearch"
-        />
-        <button 
-          class="btn-search" 
-          @click="handleSearch" 
-          :disabled="isLoading"
-        >
-          {{ isLoading ? 'Buscando...' : 'Buscar' }}
-        </button>
-      </div>
-
-      <button class="btn-home" @click="router.push('/')">
-        Volver a la carta
-      </button>
-
-      <Transition name="fade">
-        <div v-if="errorMessage" class="error-alert">
-          {{ errorMessage }}
+      <!-- HERO / BUSCADOR -->
+      <section class="tracker-hero-card">
+        <div class="hero-badge">
+          <UtensilsCrossed :size="14" />
+          <span>Seguimiento en Vivo</span>
         </div>
-      </Transition>
 
-      <Transition name="fade">
-        <div v-if="orderResult" class="result-card">
+        <h1 class="main-title">Rastrea tu Pedido</h1>
+        <p class="subtitle">
+          Ingresa tu número de comanda (ej: <strong>#1</strong>, <strong>#5</strong>) o N° de comprobante para ver el estado de tu comida en tiempo real.
+        </p>
+
+        <div class="search-bar-unified">
+          <div class="search-input-wrap">
+            <span class="prefix-hash">#</span>
+            <input 
+              v-model="orderId" 
+              type="text" 
+              placeholder="Ej: 1, 5, 36..." 
+              class="tracker-input" 
+              @keyup.enter="handleSearch"
+            />
+          </div>
+          <button 
+            class="btn-track-submit" 
+            @click="handleSearch" 
+            :disabled="isLoading"
+          >
+            <Search v-if="!isLoading" :size="16" />
+            <RefreshCw v-else :size="16" class="spinning" />
+            <span>{{ isLoading ? 'Buscando...' : 'Rastrear' }}</span>
+          </button>
+        </div>
+
+        <div class="hero-footer-row">
+          <button class="btn-return-menu" @click="router.push('/')">
+            <ArrowLeft :size="14" />
+            <span>Volver a la carta</span>
+          </button>
+          <span class="live-status-pill">
+            <span class="pulse-dot"></span>
+            Cocina Operativa
+          </span>
+        </div>
+
+        <Transition name="fade">
+          <div v-if="errorMessage" class="error-alert-box">
+            <AlertTriangle :size="18" class="error-icon" />
+            <span>{{ errorMessage }}</span>
+          </div>
+        </Transition>
+      </section>
+
+      <!-- TARJETA TICKET DE RESULTADO -->
+      <Transition name="slide-up">
+        <section v-if="orderResult" class="tracker-ticket-card">
           
-          <div class="result-header">
-            <div class="order-title-box">
-              <span class="order-comanda-badge" v-if="orderResult.numero_pedido_dia">
+          <!-- Encabezado del Ticket -->
+          <div class="ticket-header">
+            <div class="ticket-title-group">
+              <span class="ticket-comanda-giant" v-if="orderResult.numero_pedido_dia">
                 #{{ orderResult.numero_pedido_dia }}
               </span>
-              <h3 class="order-number">Pedido N° {{ String(orderResult.id).padStart(5, '0') }}</h3>
+              <div class="ticket-meta">
+                <span class="meta-label">Comprobante de compra</span>
+                <h3 class="order-code">Pedido N° {{ String(orderResult.id).padStart(5, '0') }}</h3>
+              </div>
             </div>
 
-            <span class="status-badge" :class="'badge-' + orderResult.currentStatus">
+            <span class="status-badge-lg" :class="'badge-' + orderResult.currentStatus">
               {{ orderResult.statusLabel }}
             </span>
           </div>
 
-          <div class="customer-info">
-            <div class="info-row">
-              <span class="info-label">Receptor:</span>
-              <span class="info-value">{{ orderResult.customerName }}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Teléfono:</span>
-              <span class="info-value">{{ orderResult.customerPhone }}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Método de pago:</span>
-              <span class="info-value">{{ orderResult.customerMetododepago }}</span>
-            </div>
-          </div>
-
-          <div class="timeline-container">
+          <!-- STEPPER / LÍNEA DE TIEMPO (SIN DESBORDES) -->
+          <div class="timeline-stepper-box">
             <div 
               v-for="(step, index) in timelineSteps" 
               :key="step.id" 
-              class="timeline-step"
+              class="stepper-step"
               :class="{ 
                 'active': isStepActive(step.id), 
                 'completed': isStepCompleted(step.id) 
               }"
             >
-              <div class="step-icon">
-                <component :is="step.icon" :size="18" />
+              <div class="step-head">
+                <div class="node-circle">
+                  <component :is="step.icon" :size="16" />
+                  <span class="pulse-ring" v-if="isStepActive(step.id)"></span>
+                </div>
+                <!-- Conector contenido dentro del paso (no se desborda en el último) -->
+                <div v-if="index < timelineSteps.length - 1" class="node-line"></div>
               </div>
-              <span class="step-label">{{ step.label }}</span>
-              <div v-if="index < timelineSteps.length - 1" class="step-line"></div>
+              <span class="node-label">{{ step.label }}</span>
             </div>
           </div>
 
-          <div class="products-summary">
-            <h4 class="summary-title">Detalle del Pedido:</h4>
-            <ul class="products-list">
-              <li v-for="(item, index) in orderResult.items" :key="index" class="product-item">
-                <span class="product-qty">{{ item.quantity }}x</span>
-                <div class="product-details">
-                  <span class="product-name">{{ item.name }}</span>
-                  <div v-if="item.excluidos && item.excluidos.length > 0" class="product-exclusions">
-                    <span v-for="ex in item.excluidos" :key="ex" class="exclusion-tag">Sin {{ ex }}</span>
-                  </div>
-                  <div v-if="item.agregados && item.agregados.length > 0" class="product-exclusions">
-                    <span v-for="ag in item.agregados" :key="ag" class="extra-tag">+ {{ ag }}</span>
+          <!-- DATOS DEL CLIENTE -->
+          <div class="ticket-client-grid">
+            <div class="client-meta-card">
+              <span class="meta-card-title">Cliente / Receptor</span>
+              <strong class="meta-card-val" :title="orderResult.customerName">{{ orderResult.customerName }}</strong>
+            </div>
+            <div class="client-meta-card">
+              <span class="meta-card-title">Teléfono</span>
+              <strong class="meta-card-val">{{ orderResult.customerPhone }}</strong>
+            </div>
+            <div class="client-meta-card">
+              <span class="meta-card-title">Método de Pago</span>
+              <strong class="meta-card-val">{{ orderResult.customerMetododepago }}</strong>
+            </div>
+          </div>
+
+          <!-- DETALLE DE PRODUCTOS -->
+          <div class="ticket-items-box">
+            <div class="items-header">
+              <Utensils :size="14" />
+              <span>Contenido de tu Comanda</span>
+            </div>
+
+            <ul class="items-list">
+              <li v-for="(item, index) in orderResult.items" :key="index" class="item-row">
+                <div class="item-qty-badge">{{ item.quantity }}x</div>
+                <div class="item-info">
+                  <strong class="item-name">{{ item.name }}</strong>
+                  
+                  <div v-if="(item.excluidos && item.excluidos.length > 0) || (item.agregados && item.agregados.length > 0)" class="item-customizations">
+                    <span v-for="ex in item.excluidos" :key="ex" class="tag-exclusion">
+                      Sin {{ ex }}
+                    </span>
+                    <span v-for="ag in item.agregados" :key="ag" class="tag-extra">
+                      + {{ ag }}
+                    </span>
                   </div>
                 </div>
               </li>
             </ul>
           </div>
 
-        </div>
+        </section>
       </Transition>
 
     </div>
@@ -113,7 +151,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { Clock, ChefHat, CheckCircle, PackageCheck, UtensilsCrossed } from 'lucide-vue-next';
+import { 
+  Clock, ChefHat, CheckCircle, PackageCheck, UtensilsCrossed, 
+  Search, ArrowLeft, RefreshCw, AlertTriangle, Utensils 
+} from 'lucide-vue-next';
 import orderService from '@/services/orderService';
 
 const router = useRouter();
@@ -134,9 +175,8 @@ onMounted(() => {
   }
 });
 
-// Definición estricta de la línea de tiempo
 const timelineSteps = [
-  { id: 'en_cola', label: 'Pendiente', icon: Clock },
+  { id: 'en_cola', label: 'En Cola', icon: Clock },
   { id: 'preparacion', label: 'Cocinando', icon: ChefHat },
   { id: 'listo', label: 'Listo', icon: CheckCircle },
   { id: 'entregado', label: 'Entregado', icon: PackageCheck }
@@ -155,14 +195,13 @@ const isStepActive = (stepId: string) => {
   return orderResult.value.currentStatus === stepId;
 };
 
-// Búsqueda estricta por horario de atención y comanda del turno
 const handleSearch = async () => {
   errorMessage.value = '';
   orderResult.value = null;
 
   const rawInput = orderId.value.trim();
   if (!rawInput) {
-    errorMessage.value = 'Por favor, ingresa el número de tu comanda (ej: #1 o #4).';
+    errorMessage.value = 'Ingresa el número de tu comanda (ej: #1 o #4).';
     return;
   }
 
@@ -181,13 +220,13 @@ const handleSearch = async () => {
         data = responseId?.data?.data || responseId?.data;
       } catch (errId: any) {
         const serverMsg = errComanda?.response?.data?.message || errId?.response?.data?.message;
-        errorMessage.value = serverMsg || `No encontramos el pedido #${cleanQuery} en la jornada de atención actual.`;
+        errorMessage.value = serverMsg || `No encontramos el pedido #${cleanQuery} en el turno actual.`;
         return;
       }
     }
 
     if (!data) {
-      errorMessage.value = `No encontramos el pedido #${cleanQuery} en la jornada de atención actual.`;
+      errorMessage.value = `No encontramos el pedido #${cleanQuery} en el turno actual.`;
       return;
     }
 
@@ -247,7 +286,7 @@ const handleSearch = async () => {
   } catch (error: any) {
     console.error('Error al buscar pedido:', error);
     const serverMsg = error?.response?.data?.message;
-    errorMessage.value = serverMsg || `No encontramos el pedido #${cleanQuery} en la jornada de atención actual.`;
+    errorMessage.value = serverMsg || `No encontramos el pedido #${cleanQuery} en el turno actual.`;
   } finally {
     isLoading.value = false;
   }
@@ -255,304 +294,639 @@ const handleSearch = async () => {
 </script>
 
 <style scoped>
-.status-page {
-  background-color: var(--DC-bg-gray, #f5ebe0); 
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 30px 16px;
-  font-family: var(--font-main, sans-serif);
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
-.box {
-  background-color: #ffffff;
+.status-page {
+  background: var(--DC-bg-gray, #f8f6f3);
+  min-height: 100vh;
   width: 100%;
-  max-width: 580px; 
-  border-radius: 24px;
-  padding: 40px 30px;
-  border: 1px solid rgba(81, 49, 25, 0.12);
-  box-shadow: 0 10px 40px rgba(81, 49, 25, 0.06);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2.5rem 1rem 4rem;
+  overflow-x: hidden;
+}
+
+.tracker-layout {
+  width: 100%;
+  max-width: 620px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+/* ====================================================
+   HERO / BUSCADOR
+==================================================== */
+.tracker-hero-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 1.75rem 1.5rem;
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  box-shadow: 0 8px 24px rgba(26, 14, 5, 0.04);
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-.header-icon-box {
-  width: 64px;
-  height: 64px;
-  border-radius: 20px;
-  background: rgba(226, 135, 67, 0.12);
-  color: var(--DC-orange, #e28743);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-
-.main-title { 
-  color: var(--DC-brown, #513119); 
-  font-size: 1.7rem; 
-  font-weight: 900; 
-  margin: 0 0 6px 0; 
   text-align: center;
-}
-
-.subtitle { 
-  color: var(--DC-text-gray, #6e6a75); 
-  font-size: 0.9rem; 
-  margin: 0 0 24px 0; 
-  text-align: center;
-  line-height: 1.45;
-  max-width: 440px;
-}
-
-/* Buscador */
-.search-section { 
-  display: flex; 
-  gap: 10px; 
-  margin-bottom: 14px; 
   width: 100%;
 }
 
-.dc-input { 
-  flex: 1; 
-  padding: 13px 18px; 
-  border: 1.5px solid rgba(81, 49, 25, 0.18); 
-  border-radius: 12px; 
-  font-size: 0.95rem; 
-  font-weight: 700; 
-  color: var(--DC-gray, #322c44); 
-  outline: none; 
-  transition: all 0.2s; 
-  font-family: inherit;
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(226, 135, 67, 0.12);
+  color: var(--DC-orange, #e28743);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 0.85rem;
 }
 
-.dc-input:focus { 
-  border-color: var(--DC-orange, #e28743); 
+.main-title {
+  color: var(--DC-brown, #513119);
+  font-size: 1.85rem;
+  font-weight: 900;
+  line-height: 1.15;
+  margin: 0 0 0.4rem 0;
+  overflow-wrap: anywhere;
+}
+
+.subtitle {
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin: 0 0 1.5rem 0;
+  max-width: 480px;
+}
+
+.search-bar-unified {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  background: var(--DC-bg-gray, #f8f6f3);
+  border: 1.5px solid rgba(81, 49, 25, 0.12);
+  border-radius: 14px;
+  padding: 0.3rem 0.35rem 0.3rem 0.85rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search-bar-unified:focus-within {
+  background: #ffffff;
+  border-color: var(--DC-orange, #e28743);
   box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.15);
 }
 
-.btn-search { 
-  background-color: var(--DC-orange, #e28743); 
-  color: white; 
-  border: none; 
-  padding: 0 24px; 
-  border-radius: 12px; 
-  font-weight: 800; 
-  font-size: 0.95rem; 
-  cursor: pointer; 
-  transition: all 0.2s; 
-  box-shadow: 0 4px 12px rgba(226, 135, 67, 0.25);
-}
-
-.btn-search:hover:not(:disabled) { 
-  background-color: var(--DC-brown, #513119); 
-  transform: translateY(-1px); 
-}
-
-.btn-search:disabled { 
-  opacity: 0.7; 
-  cursor: not-allowed; 
-}
-
-.btn-home { 
-  width: 100%; 
-  background-color: var(--button-color, #F4E1D2); 
-  color: var(--button-text, #513119); 
-  border: 1px solid rgba(81, 49, 25, 0.15); 
-  padding: 11px 16px; 
-  border-radius: 12px; 
-  font-weight: 800; 
-  font-size: 0.88rem;
-  cursor: pointer; 
-  transition: all 0.2s; 
-}
-
-.btn-home:hover { 
-  background-color: var(--DC-orange, #e28743); 
-  color: #ffffff;
-}
-
-.error-alert { 
-  width: 100%;
-  background-color: #fee2e2; 
-  color: #dc2626; 
-  padding: 12px 16px; 
-  border-radius: 12px; 
-  font-size: 0.88rem; 
-  font-weight: 700; 
-  border: 1px solid #fecaca; 
-  text-align: center; 
-  margin-top: 14px;
-  box-sizing: border-box;
-}
-
-/* Tarjeta de Resultado */
-.result-card {
-  margin-top: 24px;
-  border-radius: 18px;
-  border: 1px solid rgba(81, 49, 25, 0.12);
-  background-color: #ffffff;
-  overflow: hidden;
-  width: 100%;
-  box-shadow: 0 4px 16px rgba(81, 49, 25, 0.04);
-}
-
-.result-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  background-color: #fdfaf6;
-  border-bottom: 1px solid rgba(81, 49, 25, 0.08);
-}
-
-.order-title-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.order-comanda-badge {
-  background: var(--DC-brown, #513119);
-  color: #ffffff;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-weight: 800;
-  font-size: 0.82rem;
-}
-
-.order-number { 
-  margin: 0; 
-  font-size: 1.05rem; 
-  color: var(--DC-brown, #513119); 
-  font-weight: 900; 
-}
-
-.status-badge { 
-  padding: 4px 12px; 
-  border-radius: 20px; 
-  font-weight: 800; 
-  font-size: 0.78rem; 
-  text-transform: uppercase; 
-}
-
-.badge-en_cola { background-color: #fffbeb; color: #b45309; border: 1px solid #fef3c7; }
-.badge-preparacion { background-color: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
-.badge-listo { background-color: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; }
-.badge-entregado { background-color: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
-
-/* Info Cliente */
-.customer-info {
-  padding: 14px 20px;
-  background-color: #ffffff;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-bottom: 1px solid rgba(81, 49, 25, 0.08);
-}
-
-.info-row { display: flex; justify-content: space-between; align-items: center; }
-.info-label { font-size: 0.85rem; color: var(--DC-text-gray, #6e6a75); font-weight: 600; }
-.info-value { font-size: 0.88rem; color: var(--DC-brown, #513119); font-weight: 800; }
-
-/* LÍNEA DE TIEMPO (TIMELINE) */
-.timeline-container {
-  display: flex;
-  justify-content: space-between;
-  padding: 24px 20px;
-  background-color: #ffffff;
-  border-bottom: 1px solid rgba(81, 49, 25, 0.08);
-}
-
-.timeline-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
+.search-input-wrap {
   flex: 1;
-  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
 }
 
-.step-icon {
+.prefix-hash {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: var(--DC-orange, #e28743);
+}
+
+.tracker-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--DC-gray, #2c2724);
+  font-family: inherit;
+  min-width: 0;
+}
+
+.btn-track-submit {
+  border: none;
+  background: var(--DC-orange, #e28743);
+  color: #ffffff;
+  padding: 0.65rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.btn-track-submit:hover:not(:disabled) {
+  background: var(--DC-brown, #513119);
+}
+
+.btn-track-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.hero-footer-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.15rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed rgba(81, 49, 25, 0.08);
+  font-size: 0.8rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn-return-menu {
+  background: transparent;
+  border: none;
+  color: var(--DC-text-gray, #7c7468);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.btn-return-menu:hover {
+  color: var(--DC-brown, #513119);
+}
+
+.live-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 800;
+  color: #15803d;
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 rgba(22, 163, 74, 0.7);
+  animation: pulse-dot 1.8s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+
+.error-alert-box {
+  width: 100%;
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  color: #c53030;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.error-icon {
+  flex-shrink: 0;
+}
+
+/* ====================================================
+   TARJETA TICKET DE RESULTADO
+==================================================== */
+.tracker-ticket-card {
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid rgba(81, 49, 25, 0.1);
+  box-shadow: 0 12px 32px rgba(26, 14, 5, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.ticket-header {
+  padding: 1.25rem 1.5rem;
+  background: #fffdfa;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.ticket-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.ticket-comanda-giant {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #ffffff;
+  background: var(--DC-brown, #513119);
+  padding: 0.2rem 0.75rem;
+  border-radius: 10px;
+  line-height: 1.1;
+  flex-shrink: 0;
+}
+
+.ticket-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.meta-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--DC-text-gray, #7c7468);
+}
+
+.order-code {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: var(--DC-gray, #2c2724);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-badge-lg {
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.badge-en_cola { background: #fff3e0; color: #e65100; border: 1px solid #ffe0b2; }
+.badge-preparacion { background: rgba(226, 135, 67, 0.15); color: var(--DC-orange, #e28743); border: 1px solid rgba(226, 135, 67, 0.3); }
+.badge-listo { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
+.badge-entregado { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+
+/* ====================================================
+   LÍNEA DE TIEMPO / STEPPER PROTEGIDO CONTRA DESBORDE
+==================================================== */
+.timeline-stepper-box {
+  display: flex;
+  align-items: flex-start;
+  padding: 1.5rem 1.25rem 1.25rem;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.08);
+  width: 100%;
+}
+
+.stepper-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+/* El último paso no expande barra */
+.stepper-step:last-child {
+  flex: 0 0 auto;
+  min-width: 60px;
+}
+
+.step-head {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  position: relative;
+}
+
+.node-circle {
+  position: relative;
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background-color: #f0ecf6;
-  color: #a39bb3;
+  background: var(--DC-bg-gray, #f8f6f3);
+  border: 2px solid #e7dfd5;
+  color: #a89f95;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 6px;
-  transition: all 0.3s ease;
-  border: 3px solid white;
+  flex-shrink: 0;
+  z-index: 2;
+  transition: all 0.25s ease;
 }
 
-.step-label {
+.node-line {
+  flex: 1;
+  height: 3px;
+  background: #ede6dc;
+  transition: background 0.25s ease;
+  margin: 0 -2px; /* Superposición limpia con el borde */
+}
+
+.node-label {
   font-size: 0.72rem;
   font-weight: 800;
-  color: var(--DC-text-gray, #6e6a75);
   text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--DC-text-gray, #7c7468);
+  margin-top: 0.45rem;
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
-.step-line {
-  position: absolute;
-  top: 19px;
-  left: 50%;
-  width: 100%;
-  height: 3px;
-  background-color: #ede8f4;
-  z-index: -1;
-}
-
-.timeline-step.completed .step-icon { 
-  background-color: var(--DC-orange, #e28743); 
-  color: white; 
-}
-.timeline-step.completed .step-label { 
-  color: var(--DC-orange, #e28743); 
-}
-.timeline-step.completed .step-line { 
-  background-color: var(--DC-orange, #e28743); 
-}
-
-.timeline-step.active .step-icon { 
-  background-color: white; 
-  color: var(--DC-orange, #e28743); 
+/* Estados completados y activos */
+.stepper-step.completed .node-circle {
+  background: var(--DC-orange, #e28743);
   border-color: var(--DC-orange, #e28743);
-  box-shadow: 0 0 0 4px rgba(226, 135, 67, 0.2);
-}
-.timeline-step.active .step-label { 
-  color: var(--DC-brown, #513119); 
-  font-weight: 900; 
+  color: #ffffff;
 }
 
-/* Resumen de Productos */
-.products-summary { padding: 18px 20px; background-color: #fdfaf6; }
-.summary-title { margin: 0 0 12px 0; font-size: 0.88rem; color: var(--DC-brown, #513119); font-weight: 800; text-transform: uppercase; }
+.stepper-step.completed .node-line {
+  background: var(--DC-orange, #e28743);
+}
 
-.products-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-.product-item { display: flex; gap: 12px; align-items: flex-start; padding-bottom: 10px; border-bottom: 1px dashed rgba(81, 49, 25, 0.1); }
-.product-item:last-child { border-bottom: none; padding-bottom: 0; }
+.stepper-step.completed .node-label {
+  color: var(--DC-brown, #513119);
+}
 
-.product-qty { font-size: 0.88rem; font-weight: 900; color: var(--DC-orange, #e28743); min-width: 25px; }
-.product-details { display: flex; flex-direction: column; gap: 3px; }
-.product-name { font-size: 0.88rem; font-weight: 800; color: var(--DC-brown, #513119); }
+.stepper-step.active .node-circle {
+  background: #ffffff;
+  border-color: var(--DC-orange, #e28743);
+  color: var(--DC-orange, #e28743);
+  box-shadow: 0 2px 10px rgba(226, 135, 67, 0.3);
+}
 
-.product-exclusions { display: flex; flex-wrap: wrap; gap: 4px; }
-.exclusion-tag { background-color: #fee2e2; color: #dc2626; font-size: 0.68rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; }
-.extra-tag { background-color: #dbeafe; color: #1d4ed8; font-size: 0.68rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; }
+.stepper-step.active .node-label {
+  color: var(--DC-orange, #e28743);
+  font-weight: 900;
+}
 
-/* Responsividad */
-@media (max-width: 480px) {
-  .box { padding: 30px 18px; }
-  .search-section { flex-direction: column; }
-  .btn-search { padding: 12px; }
-  .step-label { font-size: 0.62rem; }
-  .step-icon { width: 34px; height: 34px; }
-  .step-line { top: 17px; }
+.pulse-ring {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 2px solid var(--DC-orange, #e28743);
+  opacity: 0.6;
+  animation: pulse-ring 1.8s infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
+
+/* ====================================================
+   DATOS DEL CLIENTE (MALLA CON WRAP)
+==================================================== */
+.ticket-client-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding: 1rem 1.5rem;
+  background: #fffdfa;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.08);
+}
+
+.client-meta-card {
+  background: var(--DC-bg-gray, #f8f6f3);
+  border: 1px solid rgba(81, 49, 25, 0.06);
+  border-radius: 12px;
+  padding: 0.55rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.meta-card-title {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--DC-text-gray, #7c7468);
+}
+
+.meta-card-val {
+  font-size: 0.86rem;
+  color: var(--DC-gray, #2c2724);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ====================================================
+   DETALLE DE PRODUCTOS
+==================================================== */
+.ticket-items-box {
+  padding: 1.25rem 1.5rem;
+  background: #ffffff;
+}
+
+.items-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--DC-brown, #513119);
+  margin-bottom: 0.85rem;
+}
+
+.items-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px dashed rgba(81, 49, 25, 0.1);
+  min-width: 0;
+}
+
+.item-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.item-qty-badge {
+  font-size: 0.82rem;
+  font-weight: 900;
+  color: var(--DC-orange, #e28743);
+  background: rgba(226, 135, 67, 0.12);
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.item-name {
+  font-size: 0.92rem;
+  color: var(--DC-gray, #2c2724);
+  overflow-wrap: anywhere;
+}
+
+.item-customizations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tag-exclusion {
+  font-size: 0.7rem;
+  font-weight: 800;
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.tag-extra {
+  font-size: 0.7rem;
+  font-weight: 800;
+  background: #dbeafe;
+  color: #1d4ed8;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* Animaciones */
+.spinning {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+/* ====================================================
+   RESPONSIVO CELULAR (MENOR A 560px)
+==================================================== */
+@media (max-width: 560px) {
+  .status-page {
+    padding: 1.5rem 0.75rem 3rem;
+  }
+
+  .tracker-hero-card {
+    padding: 1.5rem 1rem;
+  }
+
+  .main-title {
+    font-size: 1.5rem;
+  }
+
+  .search-bar-unified {
+    flex-direction: column;
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  .search-input-wrap {
+    width: 100%;
+    padding: 0 0.25rem;
+  }
+
+  .btn-track-submit {
+    width: 100%;
+    justify-content: center;
+    padding: 0.75rem;
+  }
+
+  .ticket-header {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.65rem;
+  }
+
+  .ticket-client-grid {
+    grid-template-columns: 1fr;
+    padding: 0.85rem 1rem;
+  }
+
+  .timeline-stepper-box {
+    padding: 1.25rem 0.75rem;
+  }
+
+  .node-circle {
+    width: 32px;
+    height: 32px;
+  }
+
+  .node-label {
+    font-size: 0.62rem;
+  }
+
+  .ticket-items-box {
+    padding: 1rem;
+  }
 }
 </style>

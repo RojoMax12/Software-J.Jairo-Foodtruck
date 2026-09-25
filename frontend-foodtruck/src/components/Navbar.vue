@@ -1,8 +1,9 @@
 <template>
   <header class="navbar-wrapper">
     <nav class="dc-navbar">
+      <!-- LADO IZQUIERDO: LOGO Y MARCA -->
       <div class="nav-left">
-        <div class="brand-group" @click="goToHome">
+        <div class="brand-group" @click="goToHome" title="Ir al inicio">
           <img src="@/assets/logo_jairo.webp" alt="Foodtruck J.Junior Logo" class="brand-logo" />
           <div class="brand-info">
             <span class="brand-text">J.Junior</span>
@@ -10,28 +11,31 @@
         </div>
       </div>
 
+      <!-- LADO DERECHO: ACCIONES Y PERFIL -->
       <div class="nav-right">
-        <!-- BOTÓN DIRECTO "MIS PEDIDOS" CUANDO ESTÁ AUTENTICADO -->
+        <!-- BOTÓN "MIS PEDIDOS" (LOGUEADO) -->
         <button 
           v-if="isLoggedIn" 
-          class="btn-nav-action btn-my-orders" 
+          type="button"
+          class="btn-nav-action btn-nav-primary" 
           @click="router.push('/mis-pedidos')"
-          title="Ver mi historial de pedidos anteriores"
+          title="Ver mis pedidos anteriores"
         >
           <Receipt :size="15" />
           <span class="btn-label">Mis Pedidos</span>
         </button>
 
-        <!-- BOTÓN "REVISA TU PEDIDO" (SEGUIMIENTO POR NÚMERO) -->
+        <!-- BOTÓN "REVISA TU PEDIDO" (INVITADO) -->
         <button 
           v-if="showCheckOrderButton && !isLoggedIn" 
-          class="btn-nav-action btn-check-order" 
+          type="button"
+          class="btn-nav-action btn-nav-outline" 
           @click="router.push('/checkorderstatus')"
-          title="Consultar estado de mi pedido"
+          title="Consultar estado de mi pedido con número de comanda"
         >
           <Search :size="15" />
           <span class="btn-label btn-label-full">Revisa tu pedido</span>
-          <span class="btn-label btn-label-short">Tu pedido</span>
+          <span class="btn-label btn-label-short">Rastrear</span>
         </button>
 
         <!-- PERFIL DE USUARIO / MENÚ DESPLEGABLE -->
@@ -55,23 +59,23 @@
               <div class="dropdown-divider"></div>
 
               <div class="dropdown-items">
-                <button class="dropdown-item" @click="navigateTo('/mis-pedidos')">
-                  <Receipt :size="16" class="item-icon" />
+                <button type="button" class="dropdown-item" @click="navigateTo('/mis-pedidos')">
+                  <Receipt :size="15" class="item-icon" />
                   <span>Mis Pedidos Anteriores</span>
                 </button>
 
-                <button class="dropdown-item" @click="navigateTo('/checkorderstatus')">
-                  <Search :size="16" class="item-icon" />
-                  <span>Buscar Pedido por N°</span>
+                <button type="button" class="dropdown-item" @click="navigateTo('/checkorderstatus')">
+                  <Search :size="15" class="item-icon" />
+                  <span>Buscar por N° de Comanda</span>
                 </button>
 
-                <button class="dropdown-item" @click="navigateTo('/mi-perfil')">
-                  <User :size="16" class="item-icon" />
-                  <span>Mi Perfil / Mis Datos</span>
+                <button type="button" class="dropdown-item" @click="navigateTo('/mi-perfil')">
+                  <User :size="15" class="item-icon" />
+                  <span>Mi Perfil y Datos</span>
                 </button>
 
-                <button v-if="isAdminOrStaff" class="dropdown-item staff-item" @click="navigateTo('/general-home')">
-                  <LayoutDashboard :size="16" class="item-icon" />
+                <button v-if="isAdminOrStaff" type="button" class="dropdown-item staff-item" @click="navigateTo('/general-home')">
+                  <LayoutDashboard :size="15" class="item-icon" />
                   <span>Panel de Administración</span>
                 </button>
               </div>
@@ -79,8 +83,8 @@
               <div class="dropdown-divider"></div>
 
               <div class="dropdown-footer">
-                <button class="dropdown-item logout-item" @click="handleLogout">
-                  <LogOut :size="16" class="item-icon" />
+                <button type="button" class="dropdown-item logout-item" @click="handleLogout">
+                  <LogOut :size="15" class="item-icon" />
                   <span>Cerrar Sesión</span>
                 </button>
               </div>
@@ -88,12 +92,13 @@
           </Transition>
         </div>
 
-        <!-- BOTÓN "INGRESAR" CUANDO NO ESTÁ AUTENTICADO -->
+        <!-- BOTÓN "INGRESAR" (INVITADO) -->
         <button 
           v-else-if="showCheckOrderButton" 
-          class="btn-nav-action btn-login" 
+          type="button"
+          class="btn-nav-action btn-nav-secondary" 
           @click="router.push('/login')"
-          title="Iniciar sesión en el sistema"
+          title="Iniciar sesión en tu cuenta"
         >
           <LogIn :size="15" />
           <span class="btn-label">Ingresar</span>
@@ -115,16 +120,13 @@ import { getUserInitials } from '@/composables/useUserInitials'
 const router = useRouter()
 const route = useRoute()
 
-// --- ESTADOS REACTIVOS ---
 const username = ref('')
 const roleId = ref<number | null>(null)
 const isLoggedIn = ref(false)
 const isUserMenuOpen = ref(false)
 
 const userInitials = computed(() => getUserInitials(username.value))
-
 const showCheckOrderButton = computed(() => route.path !== '/checkorderstatus')
-
 const isAdminOrStaff = computed(() => roleId.value === 1 || roleId.value === 3)
 
 const roleName = computed(() => {
@@ -144,7 +146,7 @@ const checkAuth = () => {
       roleId.value = Number(userObj.id_rol || 2)
       isLoggedIn.value = true
     } catch (e) {
-      console.error('Error parsing user session inside Navbar:', e)
+      console.error('Error parseando usuario en Navbar:', e)
       isLoggedIn.value = false
     }
   } else {
@@ -204,8 +206,12 @@ watch(() => route.path, () => {
 </script>
 
 <style scoped>
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 .navbar-wrapper {
-  position: static;
+  position: sticky;
   top: 0;
   z-index: 999;
   width: 100%;
@@ -213,23 +219,21 @@ watch(() => route.path, () => {
 
 .dc-navbar {
   background-color: var(--DC-brown, #513119);
-  height: 72px;
-  padding: 0 24px;
+  height: 68px;
+  padding: 0 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  font-family: var(--font-main, sans-serif);
-  transition: all 0.3s ease;
+  box-shadow: 0 4px 18px rgba(26, 14, 5, 0.16);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   width: 100%;
-  box-sizing: border-box;
 }
 
+/* BRANDING */
 .nav-left {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-shrink: 0; 
+  flex-shrink: 0;
 }
 
 .brand-group {
@@ -242,14 +246,14 @@ watch(() => route.path, () => {
 }
 
 .brand-group:hover {
-  transform: scale(1.02);
+  transform: translateY(-1px);
 }
 
 .brand-logo {
-  height: 48px;
+  height: 44px;
   width: auto;
   object-fit: contain;
-  transition: height 0.3s ease;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
 }
 
 .brand-info {
@@ -261,23 +265,20 @@ watch(() => route.path, () => {
   color: #ffffff;
   font-family: 'Arial Black', Impact, sans-serif;
   font-style: italic;
-  font-size: clamp(1.25rem, 3vw, 2rem);
+  font-size: clamp(1.2rem, 2.5vw, 1.7rem);
   font-weight: 900;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   margin: 0;
   white-space: nowrap;
-
-  text-shadow: 
-    -2px -2px 0 #000,  2px -2px 0 #000, -2px  2px 0 #000,  2px  2px 0 #000,
-    -2px  0px 0 #000,  2px  0px 0 #000,  0px -2px 0 #000,  0px  2px 0 #000,
-    3px  3px 0px rgba(0, 0, 0, 0.4);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
+/* ACCIONES NAVEGACIÓN */
 .nav-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.65rem;
   flex-shrink: 0;
 }
 
@@ -286,11 +287,11 @@ watch(() => route.path, () => {
   align-items: center;
   gap: 6px;
   border: none;
-  padding: 8px 16px;
+  padding: 0.55rem 1rem;
   border-radius: 999px;
   font-weight: 800;
   font-size: 0.82rem;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.02em;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -300,43 +301,46 @@ watch(() => route.path, () => {
   display: none;
 }
 
-.btn-my-orders {
-  background-color: var(--DC-orange, #eb6e30);
+/* Botón primario (Mis pedidos) */
+.btn-nav-primary {
+  background-color: var(--DC-orange, #e28743);
   color: #ffffff;
-  box-shadow: 0 2px 10px rgba(235, 110, 48, 0.3);
+  box-shadow: 0 2px 10px rgba(226, 135, 67, 0.35);
 }
 
-.btn-my-orders:hover {
-  background-color: #d95d20;
+.btn-nav-primary:hover {
+  background-color: #d1752f;
   transform: translateY(-1px);
 }
 
-.btn-check-order {
-  background-color: rgba(255, 255, 255, 0.12);
+/* Botón outline (Rastrear pedido) */
+.btn-nav-outline {
+  background-color: rgba(255, 255, 255, 0.1);
   color: #ffffff;
   border: 1.5px solid rgba(255, 255, 255, 0.25);
   backdrop-filter: blur(8px);
 }
 
-.btn-check-order:hover {
-  background-color: #ff6b00;
-  border-color: #ff6b00;
+.btn-nav-outline:hover {
+  background-color: var(--DC-orange, #e28743);
+  border-color: var(--DC-orange, #e28743);
+  transform: translateY(-1px);
+}
+
+/* Botón secundario suave (Ingresar) */
+.btn-nav-secondary {
+  background-color: #fdfaf6;
+  color: var(--DC-brown, #513119);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-nav-secondary:hover {
+  background-color: var(--DC-orange, #e28743);
   color: #ffffff;
   transform: translateY(-1px);
 }
 
-.btn-login {
-  background-color: #F4E1D2;
-  color: #513119;
-}
-
-.btn-login:hover {
-  background-color: #E28743;
-  color: #ffffff;
-  transform: translateY(-1px);
-}
-
-/* USER MENU & DROPDOWN */
+/* USER MENU Y BADGE */
 .user-menu-container {
   position: relative;
 }
@@ -345,39 +349,41 @@ watch(() => route.path, () => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background-color: #F4E1D2;
-  padding: 5px 12px 5px 6px;
+  background-color: rgba(255, 255, 255, 0.12);
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  padding: 4px 12px 4px 5px;
   border-radius: 999px;
-  border: 1px solid #513119;
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
+  backdrop-filter: blur(8px);
 }
 
 .client-user-badge:hover {
-  background-color: #ffe6d4;
-  transform: translateY(-1px);
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .client-avatar {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background-color: #513119;
+  background-color: var(--DC-orange, #e28743);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 900;
-  font-size: 0.75rem;
-  letter-spacing: 0.5px;
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+  flex-shrink: 0;
 }
 
 .client-name {
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   font-weight: 800;
-  color: #513119;
+  color: #ffffff;
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -385,31 +391,32 @@ watch(() => route.path, () => {
 }
 
 .dropdown-arrow {
-  color: #513119;
+  color: rgba(255, 255, 255, 0.7);
   transition: transform 0.2s ease;
+  flex-shrink: 0;
 }
 
 .dropdown-arrow.rotate {
   transform: rotate(180deg);
 }
 
+/* MENÚ DESPLEGABLE */
 .user-dropdown-menu {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   width: 230px;
   background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
-  border: 1px solid #efeaf5;
-  padding: 10px 0;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(26, 14, 5, 0.18);
+  border: 1px solid rgba(81, 49, 25, 0.1);
+  padding: 8px 0;
   z-index: 1001;
   overflow: hidden;
-  animation: scaleDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dropdown-header {
-  padding: 8px 16px 10px 16px;
+  padding: 8px 16px 6px 16px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -417,81 +424,83 @@ watch(() => route.path, () => {
 
 .dropdown-user-name {
   font-weight: 800;
-  font-size: 0.9rem;
-  color: #2b213a;
+  font-size: 0.88rem;
+  color: var(--DC-gray, #2c2724);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .dropdown-user-role {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--DC-orange, #eb6e30);
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--DC-orange, #e28743);
   text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .dropdown-divider {
   height: 1px;
-  background: #f0edf6;
+  background: rgba(81, 49, 25, 0.08);
   margin: 6px 0;
 }
 
-.dropdown-items, .dropdown-footer {
+.dropdown-items,
+.dropdown-footer {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
 .dropdown-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   width: 100%;
-  padding: 9px 16px;
+  padding: 8px 16px;
   background: transparent;
   border: none;
-  color: #4a415a;
-  font-size: 0.84rem;
-  font-weight: 600;
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.82rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
   text-align: left;
 }
 
 .dropdown-item:hover {
-  background: #faf8fd;
-  color: var(--DC-orange, #eb6e30);
+  background: var(--DC-bg-gray, #f8f6f3);
+  color: var(--DC-brown, #513119);
 }
 
 .dropdown-item .item-icon {
-  color: #8c849c;
+  color: #a89f95;
   transition: color 0.15s;
+  flex-shrink: 0;
 }
 
 .dropdown-item:hover .item-icon {
-  color: var(--DC-orange, #eb6e30);
+  color: var(--DC-orange, #e28743);
 }
 
 .dropdown-item.staff-item {
-  color: #1e1b4b;
-  font-weight: 700;
+  color: var(--DC-brown, #513119);
+  font-weight: 800;
 }
 
 .dropdown-item.logout-item {
-  color: #dc2626;
-}
-
-.dropdown-item.logout-item:hover {
-  background: #fef2f2;
-  color: #b91c1c;
+  color: var(--DC-pink, #d80056);
 }
 
 .dropdown-item.logout-item .item-icon {
-  color: #dc2626;
+  color: var(--DC-pink, #d80056);
 }
 
-/* TRANSITIONS */
+.dropdown-item.logout-item:hover {
+  background: #fff5f5;
+  color: #be123c;
+}
+
+/* TRANSICIONES DROPDOWN */
 .dropdown-fade-enter-active,
 .dropdown-fade-leave-active {
   transition: opacity 0.2s ease, transform 0.2s ease;
@@ -500,32 +509,23 @@ watch(() => route.path, () => {
 .dropdown-fade-enter-from,
 .dropdown-fade-leave-to {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(-6px);
 }
 
-/* --- MEDIAS QUERIES RESPONSIVAS --- */
+/* RESPONSIVO */
 @media (max-width: 768px) {
   .dc-navbar {
     height: 60px;
-    padding: 0 12px;
+    padding: 0 1rem;
   }
 
   .brand-logo {
     height: 38px;
   }
 
-  .brand-text {
-    font-size: 1.2rem;
-  }
-
-  .nav-right {
-    gap: 6px;
-  }
-
   .btn-nav-action {
-    padding: 7px 12px;
-    font-size: 0.76rem;
-    gap: 4px;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.78rem;
   }
 }
 
@@ -538,14 +538,9 @@ watch(() => route.path, () => {
     height: 34px;
   }
 
-  .brand-text {
-    font-size: 1.15rem;
-    letter-spacing: 0.5px;
-  }
-
   .btn-check-order .btn-label-full, 
-  .btn-my-orders .btn-label,
-  .btn-login .btn-label {
+  .btn-nav-primary .btn-label,
+  .btn-nav-secondary .btn-label {
     display: none;
   }
 
@@ -554,21 +549,19 @@ watch(() => route.path, () => {
     font-size: 0.74rem;
   }
   
-  .btn-my-orders,
-  .btn-login {
+  .btn-nav-primary,
+  .btn-nav-secondary {
     padding: 0;
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     justify-content: center;
   }
 
-  .btn-check-order {
-    padding: 6px 10px;
-    height: 36px;
-    border-radius: 999px;
+  .btn-nav-outline {
+    padding: 0.4rem 0.75rem;
+    height: 34px;
     font-size: 0.74rem;
-    gap: 4px;
   }
 
   .client-name {
@@ -582,33 +575,24 @@ watch(() => route.path, () => {
 
 @media (max-width: 420px) {
   .dc-navbar {
-    padding: 0 10px;
+    padding: 0 0.75rem;
     height: 56px;
   }
 
-  .brand-group {
-    gap: 6px;
-  }
-
   .brand-logo {
-    height: 30px;
+    height: 28px;
   }
 
-  .brand-text {
-    font-size: 1.05rem;
-  }
-
-  .btn-my-orders,
-  .btn-login {
+  .btn-nav-primary,
+  .btn-nav-secondary {
     width: 32px;
     height: 32px;
   }
 
-  .btn-check-order {
-    padding: 5px 8px;
+  .btn-nav-outline {
+    padding: 0.35rem 0.65rem;
     height: 32px;
     font-size: 0.7rem;
-    gap: 3px;
   }
 }
 </style>

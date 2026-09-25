@@ -527,7 +527,7 @@ class DatabaseSeeder extends Seeder
                 'tipo_armado' => 'Personalizable',
                 'cantidad_incluida' => 3,
                 'precio_ingrediente_extra' => 700,
-                'precios_por_tamaño' => ['Lomito' => 3500],
+                'precios_por_tamaño' => ['Único' => 3500],
                 'ingredientes_opcionales' => [
                     'Tocino', 'Vianesa', 'Longaniza',
                     'Cebolla', 'Tomate', 'Lechuga', 'Palta', 'Pepinillo', 'Champiñón',

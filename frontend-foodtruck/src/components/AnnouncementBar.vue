@@ -1,12 +1,21 @@
 <template>
-  <div v-if="isVisible" class="marquee-announcement-bar" role="banner">
-    <!-- Efectos de desvanecimiento en los bordes -->
-    <div class="marquee-fade-left"></div>
+  <div 
+    v-if="isVisible && announcements.length > 0" 
+    class="marquee-announcement-bar" 
+    role="region" 
+    aria-label="Avisos del restaurante"
+  >
+    <!-- Gradiente de desvanecimiento izquierdo -->
+    <div class="marquee-fade-left" aria-hidden="true"></div>
 
     <div class="marquee-track">
-      <!-- Primer conjunto de mensajes -->
+      <!-- Primer bloque de anuncios -->
       <div class="marquee-content">
-        <div v-for="(item, idx) in announcements" :key="'m1-' + idx" class="marquee-item">
+        <div 
+          v-for="(item, idx) in announcements" 
+          :key="'m1-' + (item.id || idx)" 
+          class="marquee-item"
+        >
           <span class="marquee-badge" :class="'badge-' + item.type">
             <Flame v-if="item.type === 'promo'" :size="12" />
             <Clock v-else-if="item.type === 'schedule'" :size="12" />
@@ -17,13 +26,17 @@
           </span>
           <span class="marquee-text">{{ item.text }}</span>
           <span v-if="item.highlight" class="marquee-highlight">{{ item.highlight }}</span>
-          <span class="marquee-separator">✦</span>
+          <span class="marquee-separator" aria-hidden="true">✦</span>
         </div>
       </div>
 
-      <!-- Segundo conjunto duplicado para scroll infinito y continuo -->
+      <!-- Segundo bloque duplicado para ciclo infinito continuo -->
       <div class="marquee-content" aria-hidden="true">
-        <div v-for="(item, idx) in announcements" :key="'m2-' + idx" class="marquee-item">
+        <div 
+          v-for="(item, idx) in announcements" 
+          :key="'m2-' + (item.id || idx)" 
+          class="marquee-item"
+        >
           <span class="marquee-badge" :class="'badge-' + item.type">
             <Flame v-if="item.type === 'promo'" :size="12" />
             <Clock v-else-if="item.type === 'schedule'" :size="12" />
@@ -34,12 +47,13 @@
           </span>
           <span class="marquee-text">{{ item.text }}</span>
           <span v-if="item.highlight" class="marquee-highlight">{{ item.highlight }}</span>
-          <span class="marquee-separator">✦</span>
+          <span class="marquee-separator" aria-hidden="true">✦</span>
         </div>
       </div>
     </div>
 
-    <div class="marquee-fade-right"></div>
+    <!-- Gradiente de desvanecimiento derecho -->
+    <div class="marquee-fade-right" aria-hidden="true"></div>
   </div>
 </template>
 
@@ -53,19 +67,22 @@ const { activeAnnouncements } = useMarketingConfig();
 const isVisible = ref(true);
 
 const announcements = computed(() => {
-  const active = activeAnnouncements();
-  return active.length > 0 ? active : [];
+  const active = typeof activeAnnouncements === 'function' ? activeAnnouncements() : [];
+  return Array.isArray(active) ? active : [];
 });
 </script>
 
 <style scoped>
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 .marquee-announcement-bar {
-  background-color: var(--DC-brown, #513119);
-  background: linear-gradient(90deg, #442813 0%, #513119 25%, #5d381c 50%, #513119 75%, #442813 100%);
+  background: var(--DC-brown, #513119);
+  background-image: linear-gradient(90deg, #3d220e 0%, #513119 50%, #3d220e 100%);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.35);
   color: #ffffff;
-  font-family: var(--font-main, sans-serif);
   overflow: hidden;
   position: relative;
   height: 36px;
@@ -73,36 +90,50 @@ const announcements = computed(() => {
   align-items: center;
   z-index: 998;
   user-select: none;
+  width: 100%;
 }
 
-/* Efectos de gradiente en los extremos */
-.marquee-fade-left,
+/* Difuminado suave en extremos */
+.marquee-fade-left {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 48px;
+  background: linear-gradient(90deg, #3d220e 20%, rgba(61, 34, 14, 0) 100%);
+  pointer-events: none;
+  z-index: 3;
+}
+
 .marquee-fade-right {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 35px;
+  right: 0;
+  width: 48px;
+  background: linear-gradient(270deg, #3d220e 20%, rgba(61, 34, 14, 0) 100%);
   pointer-events: none;
-  z-index: 5;
+  z-index: 3;
 }
 
-/* Riel de marquesina continua */
+/* Riel continuo */
 .marquee-track {
   display: flex;
   width: max-content;
-  animation: marquee-infinite 60s linear infinite;
+  will-change: transform;
+  animation: marquee-scroll 45s linear infinite;
 }
 
 .marquee-track:hover {
   animation-play-state: paused;
 }
 
-@keyframes marquee-infinite {
+@keyframes marquee-scroll {
   0% {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
   100% {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
@@ -116,7 +147,7 @@ const announcements = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 0 16px;
+  padding: 0 18px;
   white-space: nowrap;
 }
 
@@ -127,16 +158,17 @@ const announcements = computed(() => {
   gap: 4px;
   font-size: 0.65rem;
   font-weight: 900;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 2px 7px;
   border-radius: 999px;
+  line-height: 1.1;
 }
 
 .badge-promo {
   background: rgba(226, 135, 67, 0.25);
   border: 1px solid rgba(226, 135, 67, 0.6);
-  color: #ffcaa3;
+  color: #ffcba4;
 }
 
 .badge-schedule {
@@ -158,61 +190,36 @@ const announcements = computed(() => {
 }
 
 .badge-info {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   color: #f1f5f9;
 }
 
 .marquee-text {
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #f8fafc;
+  letter-spacing: 0.01em;
 }
 
 .marquee-highlight {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-weight: 800;
   color: #fed7aa;
   background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(254, 215, 170, 0.25);
   padding: 1px 6px;
   border-radius: 4px;
 }
 
 .marquee-separator {
-  color: rgba(226, 135, 67, 0.7);
-  font-size: 0.7rem;
+  color: var(--DC-orange, #e28743);
+  font-size: 0.68rem;
   margin-left: 8px;
+  opacity: 0.75;
 }
 
-/* Botón cerrar */
-.btn-dismiss-marquee {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(68, 40, 19, 0.9);
-  backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.7);
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 10;
-  transition: all 0.2s ease;
-}
-
-.btn-dismiss-marquee:hover {
-  background: #ff6b00;
-  border-color: #ff6b00;
-  color: #ffffff;
-  transform: translateY(-50%) scale(1.1);
-}
-
-/* 📱 RESPONSIVO */
+/* Responsivo en móviles */
 @media (max-width: 768px) {
   .marquee-announcement-bar {
     height: 32px;
@@ -222,12 +229,17 @@ const announcements = computed(() => {
     animation-duration: 28s;
   }
 
+  .marquee-fade-left,
+  .marquee-fade-right {
+    width: 28px;
+  }
+
   .marquee-text {
-    font-size: 0.74rem;
+    font-size: 0.72rem;
   }
 
   .marquee-badge {
-    font-size: 0.6rem;
+    font-size: 0.58rem;
     padding: 1px 5px;
   }
 

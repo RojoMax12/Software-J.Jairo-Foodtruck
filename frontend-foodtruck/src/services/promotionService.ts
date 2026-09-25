@@ -4,6 +4,9 @@ export default {
     getPromotions() {
         return api.get('/promociones');
     },
+    getPublicPromotions() {
+        return api.get('/public/promociones');
+    },
     createPromotion(data: unknown) {
         return api.post('/promociones', data);
     },

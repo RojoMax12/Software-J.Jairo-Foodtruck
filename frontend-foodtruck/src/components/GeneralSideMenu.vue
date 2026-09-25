@@ -76,7 +76,7 @@ const isActive = (path: string) => {
               v-role="[1,3]"
             >
               <Store :size="20" />
-              <span>Generar Pedidos</span>
+              <span>Generar pedido</span>
             </button>
 
             <button 
@@ -108,7 +108,7 @@ const isActive = (path: string) => {
               v-role="[1]"
             >
               <PackageSearch :size="20" />
-              <span>Gestión de Catálogo</span>
+              <span>Gestión de catálogo</span>
             </button>
 
             <button 
@@ -118,7 +118,7 @@ const isActive = (path: string) => {
               v-role="[1]"
             >
               <Images :size="20" />
-              <span>Banners y Avisos</span>
+              <span>Banners y avisos</span>
             </button>
 
             <span v-role="[1]" class="section-title" style="margin-top: 10px;">Administración</span>
@@ -140,7 +140,7 @@ const isActive = (path: string) => {
               v-role="[1]"
             >
               <Clock :size="20" />
-              <span>Horarios y Colchón</span>
+              <span>Horarios de atención</span>
             </button>
 
             <button 
@@ -150,7 +150,7 @@ const isActive = (path: string) => {
               v-role="[1]"
             >
               <History :size="20" />
-              <span>Auditoría del Sistema</span>
+              <span>Auditoría del sistema</span>
             </button>
 
             <a 
@@ -160,13 +160,13 @@ const isActive = (path: string) => {
               style="text-decoration: none;"
             >
               <Tv :size="20" />
-              <span>Menu Board (TV) ↗</span>
+              <span>Menu board (TV) ↗</span>
             </a>
           </div>
         </nav>
 
         <div class="sidebar-footer">
-          <span class="version-text">v1.0.0 - Panel</span>
+          <span class="version-text">J.Junior</span>
         </div>
       </aside>
     </Transition>

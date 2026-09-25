@@ -1,353 +1,375 @@
 <template>
   <div class="cashflow-view">
-    <!-- CABECERA -->
-    <header class="cash-header">
+    <!-- ===================== HEADER ===================== -->
+    <header class="page-header">
       <div class="header-copy">
-        <span class="eyebrow">Gestión Financiera & Punto de Venta</span>
         <h1>Caja & Arqueo de Turnos</h1>
-        <p>Control de apertura de turno, fondo de caja, desglose por medios de pago, registro de gastos y cuadratura de caja.</p>
+        <p>Control de apertura y cierre de turnos, arqueo de dinero en gaveta, ventas y egresos operativos.</p>
       </div>
 
       <div class="header-actions">
-        <button class="btn-refresh" @click="loadData" :disabled="isLoading">
-          <RefreshCw :size="18" :class="{ spinning: isLoading }" />
+        <button class="btn-secondary" @click="loadData" :disabled="isLoading" title="Actualizar datos">
+          <RefreshCw :size="16" :class="{ spinning: isLoading }" />
           <span>{{ isLoading ? 'Cargando...' : 'Actualizar' }}</span>
+        </button>
+
+        <button v-if="session.isOpen" class="btn-danger-action" @click="openCloseShiftModal">
+          <Lock :size="16" />
+          <span>Cerrar Turno & Arqueo</span>
+        </button>
+        <button v-else class="btn-primary" @click="openOpenShiftModal">
+          <Unlock :size="16" />
+          <span>Abrir Turno de Caja</span>
         </button>
       </div>
     </header>
 
-    <!-- BANNER DE ESTADO DEL TURNO -->
-    <section class="shift-banner" :class="session.isOpen ? 'banner-open' : 'banner-closed'">
-      <div class="shift-status-info">
-        <div class="status-indicator">
-          <span class="pulse-dot" v-if="session.isOpen"></span>
-          <span class="status-badge" :class="session.isOpen ? 'badge-open' : 'badge-closed'">
-            {{ session.isOpen ? 'CAJA ABIERTA (TURNO ACTIVO)' : 'CAJA CERRADA' }}
+    <!-- ===================== ESTADO DEL TURNO (BANNER) ===================== -->
+    <section class="shift-status-card" :class="session.isOpen ? 'shift-active' : 'shift-inactive'">
+      <div class="shift-status-main">
+        <div class="shift-indicator-row">
+          <span class="status-pill" :class="session.isOpen ? 'pill-open' : 'pill-closed'">
+            <span class="dot-pulse" v-if="session.isOpen"></span>
+            {{ session.isOpen ? 'Turno en Curso' : 'Caja Cerrada' }}
           </span>
+          <span v-if="session.isOpen" class="shift-time-hint">Abierto a las {{ session.openedAt }}</span>
         </div>
 
-        <div class="shift-meta-details" v-if="session.isOpen">
-          <span><strong>Cajero:</strong> {{ session.cashierName }}</span>
-          <span><strong>Apertura:</strong> {{ session.openedAt }}</span>
-          <span><strong>Fondo Inicial (Vuelto):</strong> {{ formatCurrency(session.initialCash) }}</span>
+        <div class="shift-data-chips" v-if="session.isOpen">
+          <div class="meta-chip">
+            <span class="chip-lbl">Responsable:</span>
+            <strong>{{ session.cashierName }}</strong>
+          </div>
+          <div class="meta-chip">
+            <span class="chip-lbl">Fondo Base (Vuelto):</span>
+            <strong>{{ formatCurrency(session.initialCash) }}</strong>
+          </div>
+          <div class="meta-chip highlight">
+            <span class="chip-lbl">Efectivo en Gaveta:</span>
+            <strong>{{ formatCurrency(shiftSummary.expectedCashInDrawer) }}</strong>
+          </div>
         </div>
-        <div class="shift-meta-details shift-closed-prompt" v-else>
-          <span><strong>Estado:</strong> La caja está cerrada. Abre un turno para comenzar la jornada y registrar el fondo inicial.</span>
+        <div class="shift-data-chips" v-else>
+          <span class="closed-desc-text">Inicia un nuevo turno para registrar el fondo de vuelto y habilitar cobros en efectivo.</span>
         </div>
-      </div>
-
-      <div class="shift-banner-actions">
-        <button v-if="session.isOpen" class="btn-shift-close" @click="openCloseShiftModal">
-          <Lock :size="17" />
-          <span>Cerrar Turno & Arqueo</span>
-        </button>
-        <button v-else class="btn-shift-open" @click="openOpenShiftModal">
-          <Unlock :size="17" />
-          <span>Abrir Nuevo Turno</span>
-        </button>
       </div>
     </section>
 
-    <!-- TARJETAS DE RESUMEN / KPIS DEL TURNO -->
-    <section class="kpis-grid">
-      <!-- Fondo Inicial -->
-      <div class="kpi-card">
-        <div class="kpi-icon-box icon-amber">
+    <!-- ===================== RESUMEN EN KPIS (SUMMARY-GRID) ===================== -->
+    <section class="summary-grid">
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-brown">
           <Coins :size="22" />
         </div>
-        <div class="kpi-info">
-          <span class="kpi-label">Fondo Inicial</span>
-          <strong class="kpi-val">{{ formatCurrency(session.initialCash) }}</strong>
-          <small class="kpi-hint">Base para dar vuelto</small>
+        <div>
+          <span class="summary-label">Fondo Inicial</span>
+          <strong class="summary-value">{{ formatCurrency(session.initialCash) }}</strong>
+          <p class="summary-helper">Base inicial para vuelto</p>
         </div>
-      </div>
+      </article>
 
-      <!-- Ventas Totales -->
-      <div class="kpi-card">
-        <div class="kpi-icon-box icon-green">
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-green">
           <TrendingUp :size="22" />
         </div>
-        <div class="kpi-info">
-          <span class="kpi-label">Ventas del Turno</span>
-          <strong class="kpi-val val-green">{{ formatCurrency(shiftSummary.totalSales) }}</strong>
-          <small class="kpi-hint">{{ shiftSalesCount }} pedidos cobrados</small>
+        <div>
+          <span class="summary-label">Ventas Totales</span>
+          <strong class="summary-value text-status-open">{{ formatCurrency(shiftSummary.totalSales) }}</strong>
+          <p class="summary-helper">{{ shiftSalesCount }} pedidos cobrados</p>
         </div>
-      </div>
+      </article>
 
-      <!-- Efectivo Esperado en Gaveta -->
-      <div class="kpi-card highlight-card">
-        <div class="kpi-icon-box icon-orange">
+      <article class="summary-card highlight-metric">
+        <div class="summary-icon-box bg-summary-orange">
           <Wallet :size="22" />
         </div>
-        <div class="kpi-info">
-          <span class="kpi-label">Efectivo en Gaveta</span>
-          <strong class="kpi-val val-orange">{{ formatCurrency(shiftSummary.expectedCashInDrawer) }}</strong>
-          <small class="kpi-hint">Fondo + Ventas Efectivo - Egresos</small>
+        <div>
+          <span class="summary-label">Efectivo en Gaveta</span>
+          <strong class="summary-value text-orange">{{ formatCurrency(shiftSummary.expectedCashInDrawer) }}</strong>
+          <p class="summary-helper">Fondo + Ventas Efectivo - Egresos</p>
         </div>
-      </div>
+      </article>
 
-      <!-- Débito / Tarjetas -->
-      <div class="kpi-card">
-        <div class="kpi-icon-box icon-blue">
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-blue">
           <CreditCard :size="22" />
         </div>
-        <div class="kpi-info">
-          <span class="kpi-label">Débito / Tarjetas</span>
-          <strong class="kpi-val">{{ formatCurrency(shiftSummary.totalSalesDebit) }}</strong>
-          <small class="kpi-hint">Voucher Transbank / POS</small>
+        <div>
+          <span class="summary-label">Tarjetas & POS</span>
+          <strong class="summary-value">{{ formatCurrency(shiftSummary.totalSalesDebit) }}</strong>
+          <p class="summary-helper">Débito / Crédito Transbank</p>
         </div>
-      </div>
+      </article>
 
-      <!-- Transferencias -->
-      <div class="kpi-card">
-        <div class="kpi-icon-box icon-purple">
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-purple">
           <Send :size="22" />
         </div>
-        <div class="kpi-info">
-          <span class="kpi-label">Transferencias</span>
-          <strong class="kpi-val">{{ formatCurrency(shiftSummary.totalSalesTransfer) }}</strong>
-          <small class="kpi-hint">Comprobantes bancarios</small>
+        <div>
+          <span class="summary-label">Transferencias</span>
+          <strong class="summary-value">{{ formatCurrency(shiftSummary.totalSalesTransfer) }}</strong>
+          <p class="summary-helper">Comprobantes bancarios</p>
         </div>
-      </div>
+      </article>
 
-      <!-- Gastos / Retiros -->
-      <div class="kpi-card">
-        <div class="kpi-icon-box icon-red">
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-pink">
           <TrendingDown :size="22" />
         </div>
-        <div class="kpi-info">
-          <span class="kpi-label">Gastos / Egresos</span>
-          <strong class="kpi-val val-red">{{ formatCurrency(shiftSummary.totalExpenses) }}</strong>
-          <small class="kpi-hint">Compras de insumos / retiros</small>
+        <div>
+          <span class="summary-label">Gastos / Egresos</span>
+          <strong class="summary-value text-pink">{{ formatCurrency(shiftSummary.totalExpenses) }}</strong>
+          <p class="summary-helper">Compras de insumos / retiros</p>
         </div>
-      </div>
+      </article>
     </section>
 
-    <!-- BARRA DE ACCIÓN Y PESTAÑAS -->
-    <section class="main-content-layout">
-      <div class="tabs-header-bar">
-        <div class="view-tabs">
-          <button
-            class="tab-btn"
-            :class="{ active: currentTab === 'current-shift' }"
-            @click="currentTab = 'current-shift'"
-          >
-            <ReceiptText :size="17" />
-            <span>Movimientos del Turno ({{ currentShiftTransactions.length }})</span>
-          </button>
+    <!-- ===================== PESTAÑAS SEGMENTADAS ===================== -->
+    <div class="inventory-tabs-nav">
+      <button
+        type="button"
+        class="tab-nav-btn"
+        :class="{ active: currentTab === 'current-shift' }"
+        @click="currentTab = 'current-shift'"
+      >
+        <ReceiptText :size="17" class="tab-icon" />
+        <span class="tab-text">Movimientos del Turno</span>
+        <span class="tab-pill">{{ currentShiftTransactions.length }}</span>
+      </button>
 
-          <button
-            class="tab-btn"
-            :class="{ active: currentTab === 'history' }"
-            @click="currentTab = 'history'"
-            v-role="[1]"
-          >
-            <History :size="17" />
-            <span>Historial de Arqueos ({{ closedSessions.length }})</span>
-          </button>
-        </div>
+      <button
+        type="button"
+        class="tab-nav-btn"
+        :class="{ active: currentTab === 'history' }"
+        @click="currentTab = 'history'"
+        v-role="[1]"
+      >
+        <History :size="17" class="tab-icon" />
+        <span class="tab-text">Historial de Arqueos</span>
+        <span class="tab-pill">{{ closedSessions.length }}</span>
+      </button>
+    </div>
 
-        <div class="quick-action-buttons">
-          <button v-role="[1]" class="btn-quick-expense" @click="openQuickExpenseModal">
-            <MinusCircle :size="16" />
-            <span>Registrar Gasto / Egreso</span>
-          </button>
-          <button v-role="[1]" class="btn-quick-income" @click="openQuickIncomeModal">
-            <PlusCircle :size="16" />
-            <span>Registrar Ingreso Extra</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- ================= PESTAÑA 1: MOVIMIENTOS DEL TURNO ACTUAL ================= -->
-      <div v-if="currentTab === 'current-shift'" class="tab-pane animate-fade-in">
-        <!-- Barra de filtros -->
-        <div class="filter-toolbar">
-          <div class="search-wrap">
-            <Search :size="16" class="search-icon" />
+    <!-- ===================== CONTENEDOR PRINCIPAL ===================== -->
+    <section class="panel-card table-unified-card">
+      <!-- Toolbar Movimientos -->
+      <div v-if="currentTab === 'current-shift'" class="panel-toolbar">
+        <div class="toolbar-left">
+          <div class="search-box">
+            <Search :size="17" class="search-icon" />
             <input
               v-model="searchQuery"
               type="text"
               placeholder="Buscar por descripción, cliente, pedido..."
-              class="search-input"
             />
+            <button v-if="searchQuery" class="clear-search-btn" @click="searchQuery = ''">
+              <X :size="14" />
+            </button>
           </div>
 
-          <div class="filter-selects">
-            <select v-model="filterType" class="filter-select">
+          <div class="select-box">
+            <select v-model="filterType">
               <option value="all">Todos los tipos</option>
               <option value="ingreso">Solo Ingresos / Ventas</option>
               <option value="egreso">Solo Egresos / Gastos</option>
             </select>
+          </div>
 
-            <select v-model="filterMethod" class="filter-select">
-              <option value="all">Todos los medios de pago</option>
+          <div class="select-box">
+            <select v-model="filterMethod">
+              <option value="all">Todos los medios</option>
               <option value="Efectivo">Efectivo</option>
-              <option value="Débito / Tarjeta">Débito / Tarjetas</option>
-              <option value="Transferencia">Transferencias</option>
+              <option value="Débito / Tarjeta">Débito / Tarjeta</option>
+              <option value="Transferencia">Transferencia</option>
             </select>
           </div>
+
+          <button 
+            v-if="searchQuery || filterType !== 'all' || filterMethod !== 'all'"
+            class="btn-reset-filters" 
+            type="button" 
+            @click="searchQuery = ''; filterType = 'all'; filterMethod = 'all'"
+          >
+            <X :size="14" />
+            <span>Limpiar</span>
+          </button>
         </div>
 
-        <!-- Tabla de Movimientos -->
-        <div class="table-responsive">
-          <table class="cash-table">
-            <thead>
-              <tr>
-                <th>Fecha / Hora</th>
-                <th>Tipo</th>
-                <th>Concepto / Descripción</th>
-                <th>Medio de Pago</th>
-                <th>Categoría</th>
-                <th class="text-right">Monto</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="filteredCurrentTransactions.length === 0">
-                <td colspan="6" class="empty-table-cell">
-                  <div class="empty-state">
-                    <ReceiptText :size="38" />
-                    <p>No se encontraron movimientos registrados en este turno.</p>
-                  </div>
-                </td>
-              </tr>
-              <tr
-                v-for="trx in filteredCurrentTransactions"
-                :key="trx.id"
-                :class="trx.type === 'ingreso' ? 'row-income' : 'row-expense'"
-              >
-                <td class="col-date">{{ trx.date }}</td>
-                <td>
-                  <span class="type-pill" :class="trx.type === 'ingreso' ? 'pill-income' : 'pill-expense'">
-                    {{ trx.type === 'ingreso' ? '+ Ingreso' : '- Egreso' }}
-                  </span>
-                </td>
-                <td class="col-desc">
-                  <strong>{{ trx.description }}</strong>
-                </td>
-                <td>
-                  <span class="payment-method-tag" :class="getMethodClass(trx.paymentMethod)">
-                    {{ trx.paymentMethod }}
-                  </span>
-                </td>
-                <td class="col-category">{{ trx.category }}</td>
-                <td class="text-right col-amount" :class="trx.type === 'ingreso' ? 'text-green' : 'text-red'">
-                  <strong>{{ trx.type === 'ingreso' ? '+' : '-' }}{{ formatCurrency(trx.amount) }}</strong>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="toolbar-right">
+          <button v-role="[1]" class="btn-pill-action expense" @click="openQuickExpenseModal">
+            <MinusCircle :size="15" />
+            <span>Registrar Gasto</span>
+          </button>
+          <button v-role="[1]" class="btn-pill-action income" @click="openQuickIncomeModal">
+            <PlusCircle :size="15" />
+            <span>Ingreso Extra</span>
+          </button>
         </div>
       </div>
 
-      <!-- ================= PESTAÑA 2: HISTORIAL DE ARQUEOS ================= -->
-      <div v-else class="tab-pane animate-fade-in">
-        <div class="table-responsive">
-          <table class="cash-table history-table">
-            <thead>
-              <tr>
-                <th>Turno ID</th>
-                <th>Apertura</th>
-                <th>Cierre</th>
-                <th>Cajero</th>
-                <th>Fondo Inicial</th>
-                <th>Total Ventas</th>
-                <th>Efectivo Esperado</th>
-                <th>Efectivo Contado</th>
-                <th>Diferencia / Cuadratura</th>
-                <th>Notas</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="closedSessions.length === 0">
-                <td colspan="10" class="empty-table-cell">
-                  <div class="empty-state">
-                    <History :size="38" />
-                    <p>Aún no hay turnos cerrados ni arqueos guardados.</p>
-                  </div>
-                </td>
-              </tr>
-              <tr v-for="h in closedSessions" :key="h.id">
-                <td><code>{{ h.id }}</code></td>
-                <td>{{ h.openedAt }}</td>
-                <td>{{ h.closedAt || '-' }}</td>
-                <td><strong>{{ h.cashierName }}</strong></td>
-                <td>{{ formatCurrency(h.initialCash) }}</td>
-                <td class="text-green"><strong>{{ formatCurrency(h.summary?.totalSales || 0) }}</strong></td>
-                <td>{{ formatCurrency(h.summary?.expectedCashInDrawer || 0) }}</td>
-                <td><strong>{{ formatCurrency(h.summary?.actualCashCounted || 0) }}</strong></td>
-                <td>
-                  <span
-                    class="diff-badge"
-                    :class="getDiffClass(h.summary?.difference || 0)"
-                  >
-                    {{ formatDiff(h.summary?.difference || 0) }}
-                  </span>
-                </td>
-                <td class="col-notes">{{ h.summary?.notes || 'Sin observaciones' }}</td>
-              </tr>
-            </tbody>
-          </table>
+      <!-- Toolbar Historial -->
+      <div v-else class="panel-toolbar">
+        <div class="toolbar-left">
+          <span class="panel-section-title">
+            <History :size="16" />
+            <span>Registro de Arqueos y Cuadraturas Guardadas</span>
+          </span>
         </div>
+        <div class="toolbar-right">
+          <span class="results-chip">{{ closedSessions.length }} turnos archivados</span>
+        </div>
+      </div>
+
+      <!-- TAB 1: TABLA MOVIMIENTOS -->
+      <div v-if="currentTab === 'current-shift'" class="table-wrapper desktop-table-only">
+        <table class="cash-table">
+          <thead>
+            <tr>
+              <th style="width: 14%;">Fecha / Hora</th>
+              <th style="width: 12%;">Tipo</th>
+              <th style="width: 32%;">Concepto / Descripción</th>
+              <th style="width: 15%;">Medio de Pago</th>
+              <th style="width: 15%;">Categoría</th>
+              <th style="width: 12%; text-align: right;">Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="filteredCurrentTransactions.length === 0">
+              <td colspan="6" class="text-center">
+                <div class="state-card empty-state">
+                  <ReceiptText :size="40" />
+                  <p>No se encontraron movimientos registrados en este turno.</p>
+                </div>
+              </td>
+            </tr>
+            <tr
+              v-else
+              v-for="trx in filteredCurrentTransactions"
+              :key="trx.id"
+              :class="trx.type === 'ingreso' ? 'row-income' : 'row-expense'"
+            >
+              <td class="col-date">{{ trx.date }}</td>
+              <td>
+                <span class="type-pill" :class="trx.type === 'ingreso' ? 'pill-income' : 'pill-expense'">
+                  {{ trx.type === 'ingreso' ? '+ Ingreso' : '- Egreso' }}
+                </span>
+              </td>
+              <td><strong>{{ trx.description }}</strong></td>
+              <td>
+                <span class="payment-tag" :class="getMethodClass(trx.paymentMethod)">
+                  {{ trx.paymentMethod }}
+                </span>
+              </td>
+              <td class="col-category">{{ trx.category }}</td>
+              <td class="text-right col-amount" :class="trx.type === 'ingreso' ? 'text-status-open' : 'text-pink'">
+                <strong>{{ trx.type === 'ingreso' ? '+' : '-' }}{{ formatCurrency(trx.amount) }}</strong>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- TAB 2: TABLA HISTORIAL -->
+      <div v-else class="table-wrapper desktop-table-only">
+        <table class="cash-table history-table">
+          <thead>
+            <tr>
+              <th style="width: 8%;">ID</th>
+              <th style="width: 12%;">Apertura</th>
+              <th style="width: 12%;">Cierre</th>
+              <th style="width: 14%;">Cajero</th>
+              <th style="width: 11%;">Fondo Base</th>
+              <th style="width: 11%;">Ventas</th>
+              <th style="width: 11%;">Esperado</th>
+              <th style="width: 11%;">Contado</th>
+              <th style="width: 10%;">Cuadratura</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="closedSessions.length === 0">
+              <td colspan="9" class="text-center">
+                <div class="state-card empty-state">
+                  <History :size="40" />
+                  <p>Aún no hay turnos cerrados ni arqueos guardados.</p>
+                </div>
+              </td>
+            </tr>
+            <tr v-else v-for="h in closedSessions" :key="h.id">
+              <td><code>#{{ h.id }}</code></td>
+              <td>{{ h.openedAt }}</td>
+              <td>{{ h.closedAt || '-' }}</td>
+              <td><strong>{{ h.cashierName }}</strong></td>
+              <td>{{ formatCurrency(h.initialCash) }}</td>
+              <td class="text-status-open"><strong>{{ formatCurrency(h.summary?.totalSales || 0) }}</strong></td>
+              <td>{{ formatCurrency(h.summary?.expectedCashInDrawer || 0) }}</td>
+              <td><strong>{{ formatCurrency(h.summary?.actualCashCounted || 0) }}</strong></td>
+              <td>
+                <span class="diff-badge" :class="getDiffClass(h.summary?.difference || 0)">
+                  {{ formatDiff(h.summary?.difference || 0) }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
-    <!-- ================= MODAL: ARQUEO Y CIERRE DE TURNO ================= -->
+    <!-- ===================== MODAL: CIERRE Y ARQUEO ===================== -->
     <div v-if="isCloseModalOpen" class="modal-backdrop" @click.self="isCloseModalOpen = false">
-      <div class="modal-card modal-arqueo animate-scale-up">
-        <div class="modal-header modal-header-dark">
-          <div class="header-icon-title">
-            <Lock :size="22" />
+      <div class="modal-card modal-arqueo">
+        <div class="modal-header">
+          <div class="modal-header-title">
+            <div class="header-icon-pill bg-danger"><Lock :size="18" /></div>
             <div>
               <h3>Arqueo de Caja & Cierre de Turno</h3>
-              <p>Compara el efectivo calculado por el sistema con el dinero real contado en la gaveta.</p>
+              <p class="modal-header-desc">Cuadratura física de gaveta vs registro del sistema</p>
             </div>
           </div>
-          <button class="close-btn" @click="isCloseModalOpen = false"><X :size="20" /></button>
+          <button class="close-btn" @click="isCloseModalOpen = false"><X :size="18" /></button>
         </div>
 
         <form class="modal-body" @submit.prevent="submitCloseShift">
           <!-- Desglose de Caja -->
-          <div class="arqueo-breakdown">
-            <div class="breakdown-row">
+          <div class="arqueo-breakdown-card">
+            <div class="breakdown-line">
               <span>(+) Fondo Inicial de Vuelto:</span>
               <strong>{{ formatCurrency(session.initialCash) }}</strong>
             </div>
-            <div class="breakdown-row">
+            <div class="breakdown-line">
               <span>(+) Ventas en Efectivo:</span>
-              <strong class="text-green">+{{ formatCurrency(shiftSummary.totalSalesCash) }}</strong>
+              <strong class="text-status-open">+{{ formatCurrency(shiftSummary.totalSalesCash) }}</strong>
             </div>
-            <div class="breakdown-row">
-              <span>(-) Gastos / Egresos de Caja:</span>
-              <strong class="text-red">-{{ formatCurrency(shiftSummary.totalExpenses) }}</strong>
+            <div class="breakdown-line">
+              <span>(-) Egresos / Gastos de Caja:</span>
+              <strong class="text-pink">-{{ formatCurrency(shiftSummary.totalExpenses) }}</strong>
             </div>
-            <div class="breakdown-row total-expected-row">
+            <div class="breakdown-line total-line">
               <span>(=) Efectivo Esperado en Gaveta:</span>
-              <strong class="expected-amount">{{ formatCurrency(shiftSummary.expectedCashInDrawer) }}</strong>
+              <strong class="total-expected-val">{{ formatCurrency(shiftSummary.expectedCashInDrawer) }}</strong>
             </div>
           </div>
 
-          <!-- Otros medios de pago (Informativo) -->
-          <div class="other-payments-info">
-            <div class="other-col">
-              <small>Débito / Tarjetas (POS):</small>
+          <!-- Otros Pagos Informativos -->
+          <div class="aux-payments-grid">
+            <div class="aux-col">
+              <small>POS / Tarjetas:</small>
               <span>{{ formatCurrency(shiftSummary.totalSalesDebit) }}</span>
             </div>
-            <div class="other-col">
+            <div class="aux-col">
               <small>Transferencias:</small>
               <span>{{ formatCurrency(shiftSummary.totalSalesTransfer) }}</span>
             </div>
-            <div class="other-col">
-              <small>Total Facturado:</small>
+            <div class="aux-col">
+              <small>Venta Total:</small>
               <strong>{{ formatCurrency(shiftSummary.totalSales) }}</strong>
             </div>
           </div>
 
           <!-- Input Conteo Real -->
-          <div class="cash-count-section">
-            <label class="input-label-large">
-              <span>Dinero en Efectivo Real Contado en Gaveta ($)</span>
-              <div class="amount-input-box">
+          <div class="cash-count-group">
+            <label class="modal-label">
+              <span>Efectivo Real Contado en Gaveta ($) <span class="required">*</span></span>
+              <div class="price-input-wrapper">
                 <span class="currency-symbol">$</span>
                 <input
                   v-model.number="countedCashInput"
@@ -355,42 +377,37 @@
                   min="0"
                   required
                   placeholder="Ej: 145000"
-                  class="input-counted-amount"
+                  class="modal-input price-input-lg"
                 />
               </div>
             </label>
 
-            <!-- Resultado de Cuadratura en Vivo -->
+            <!-- Alerta Cuadratura -->
             <div
               v-if="countedCashInput !== null && countedCashInput !== undefined"
-              class="cuadratura-alert"
+              class="cuadratura-status-box"
               :class="liveDiffClass"
             >
-              <div class="alert-icon">
-                <CheckCircle2 v-if="liveDifference === 0" :size="24" />
-                <AlertTriangle v-else :size="24" />
-              </div>
-              <div class="alert-content">
+              <div class="status-box-content">
                 <strong>{{ liveDiffTitle }}</strong>
                 <p>{{ liveDiffMessage }}</p>
               </div>
             </div>
           </div>
 
-          <!-- Observaciones / Notas -->
           <label class="modal-label">
-            Observaciones / Notas del Arqueo (Opcional)
+            <span>Observaciones del Turno (Opcional)</span>
             <textarea
               v-model="closeNotesInput"
               rows="2"
-              placeholder="Ej: Cuadratura perfecta. Se entrega turno sin incidencias..."
-              class="modal-textarea"
+              placeholder="Notas sobre faltantes, propinas o detalles del arqueo..."
+              class="modal-input"
             ></textarea>
           </label>
 
           <div class="modal-actions">
             <button type="button" class="btn-cancel" @click="isCloseModalOpen = false">Cancelar</button>
-            <button type="submit" class="btn-confirm-close">
+            <button type="submit" class="btn-danger-submit">
               <Lock :size="16" />
               <span>Confirmar Cierre de Turno</span>
             </button>
@@ -399,35 +416,35 @@
       </div>
     </div>
 
-    <!-- ================= MODAL: APERTURA DE NUEVO TURNO ================= -->
+    <!-- ===================== MODAL: APERTURA DE TURNO ===================== -->
     <div v-if="isOpenModalOpen" class="modal-backdrop" @click.self="isOpenModalOpen = false">
-      <div class="modal-card animate-scale-up">
-        <div class="modal-header modal-header-green">
-          <div class="header-icon-title">
-            <Unlock :size="22" />
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-header-title">
+            <div class="header-icon-pill"><Unlock :size="18" /></div>
             <div>
-              <h3>Apertura de Nuevo Turno de Caja</h3>
-              <p>Ingresa el monto del fondo base con el que iniciarás el turno.</p>
+              <h3>Apertura de Nuevo Turno</h3>
+              <p class="modal-header-desc">Ingresa el monto del fondo base de gaveta</p>
             </div>
           </div>
-          <button class="close-btn" @click="isOpenModalOpen = false"><X :size="20" /></button>
+          <button class="close-btn" @click="isOpenModalOpen = false"><X :size="18" /></button>
         </div>
 
         <form class="modal-body" @submit.prevent="submitOpenShift">
           <label class="modal-label">
-            Nombre del Cajero / Responsable
+            <span>Nombre del Cajero / Responsable <span class="required">*</span></span>
             <input
               v-model="openCashierName"
               type="text"
               required
-              placeholder="Ej: Juan Pérez / Admin"
+              placeholder="Ej: Juan Pérez / Administrador"
               class="modal-input"
             />
           </label>
 
           <label class="modal-label">
-            Fondo Inicial en Efectivo para Vuelto ($)
-            <div class="amount-input-box">
+            <span>Fondo Inicial de Vuelto ($) <span class="required">*</span></span>
+            <div class="price-input-wrapper">
               <span class="currency-symbol">$</span>
               <input
                 v-model.number="openInitialCash"
@@ -442,34 +459,38 @@
 
           <div class="modal-actions">
             <button type="button" class="btn-cancel" @click="isOpenModalOpen = false">Cancelar</button>
-            <button type="submit" class="btn-save-green">
+            <button type="submit" class="btn-save">
               <Unlock :size="16" />
-              <span>Abrir Turno de Caja</span>
+              <span>Iniciar Turno de Caja</span>
             </button>
           </div>
         </form>
       </div>
     </div>
 
-    <!-- ================= MODAL: REGISTRO DE MOVIMIENTO RÁPIDO ================= -->
+    <!-- ===================== MODAL: GASTO / INGRESO RÁPIDO ===================== -->
     <div v-if="isQuickModalOpen" class="modal-backdrop" @click.self="isQuickModalOpen = false">
-      <div class="modal-card animate-scale-up">
-        <div class="modal-header" :class="quickForm.type === 'egreso' ? 'modal-header-red' : 'modal-header-blue'">
-          <div class="header-icon-title">
-            <MinusCircle v-if="quickForm.type === 'egreso'" :size="22" />
-            <PlusCircle v-else :size="22" />
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-header-title">
+            <div class="header-icon-pill" :class="quickForm.type === 'egreso' ? 'bg-danger' : 'bg-success'">
+              <MinusCircle v-if="quickForm.type === 'egreso'" :size="18" />
+              <PlusCircle v-else :size="18" />
+            </div>
             <div>
-              <h3>{{ quickForm.type === 'egreso' ? 'Registrar Gasto / Egreso de Caja' : 'Registrar Ingreso Extra' }}</h3>
-              <p>{{ quickForm.type === 'egreso' ? 'Registra compras de pan, verduras, gas o retiros.' : 'Registra aportes o ingresos no provenientes de pedidos.' }}</p>
+              <h3>{{ quickForm.type === 'egreso' ? 'Registrar Gasto de Caja' : 'Registrar Ingreso Extra' }}</h3>
+              <p class="modal-header-desc">
+                {{ quickForm.type === 'egreso' ? 'Compras de pan, insumos, gas o retiros directos' : 'Aportes de sencillo o entradas extras' }}
+              </p>
             </div>
           </div>
-          <button class="close-btn" @click="isQuickModalOpen = false"><X :size="20" /></button>
+          <button class="close-btn" @click="isQuickModalOpen = false"><X :size="18" /></button>
         </div>
 
         <form class="modal-body" @submit.prevent="submitQuickMovement">
-          <div class="grid-2-cols">
+          <div class="modal-row">
             <label class="modal-label">
-              Categoría
+              <span>Categoría <span class="required">*</span></span>
               <select v-model="quickForm.category" required class="modal-input">
                 <option v-if="quickForm.type === 'egreso'" value="Insumos Cocina">Insumos Cocina (Pan, Verduras)</option>
                 <option v-if="quickForm.type === 'egreso'" value="Bebidas & Stock">Bebidas & Stock</option>
@@ -482,7 +503,7 @@
             </label>
 
             <label class="modal-label">
-              Medio de Pago
+              <span>Medio de Pago <span class="required">*</span></span>
               <select v-model="quickForm.paymentMethod" required class="modal-input">
                 <option value="Efectivo">Efectivo (Gaveta)</option>
                 <option value="Débito / Tarjeta">Débito / Tarjeta</option>
@@ -492,8 +513,8 @@
           </div>
 
           <label class="modal-label">
-            Monto ($)
-            <div class="amount-input-box">
+            <span>Monto ($) <span class="required">*</span></span>
+            <div class="price-input-wrapper">
               <span class="currency-symbol">$</span>
               <input
                 v-model.number="quickForm.amount"
@@ -507,7 +528,7 @@
           </label>
 
           <label class="modal-label">
-            Descripción / Motivo
+            <span>Descripción / Motivo <span class="required">*</span></span>
             <input
               v-model="quickForm.description"
               type="text"
@@ -519,11 +540,12 @@
 
           <div class="modal-actions">
             <button type="button" class="btn-cancel" @click="isQuickModalOpen = false">Cancelar</button>
-            <button
-              type="submit"
-              :class="quickForm.type === 'egreso' ? 'btn-save-red' : 'btn-save-blue'"
+            <button 
+              type="submit" 
+              class="btn-save"
+              :class="quickForm.type === 'egreso' ? 'btn-danger-submit' : ''"
             >
-              {{ quickForm.type === 'egreso' ? 'Registrar Gasto' : 'Registrar Ingreso' }}
+              <span>{{ quickForm.type === 'egreso' ? 'Registrar Gasto' : 'Registrar Ingreso' }}</span>
             </button>
           </div>
         </form>
@@ -537,21 +559,19 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import {
   RefreshCw, Lock, Unlock, Coins, TrendingUp, TrendingDown,
   Wallet, CreditCard, Send, ReceiptText, History, MinusCircle,
-  PlusCircle, Search, CheckCircle2, AlertTriangle, X
+  PlusCircle, Search, X
 } from 'lucide-vue-next';
 import cashFlowService, {
   type CashTransaction,
   type CashRegisterSession,
   type CashShiftSummary,
   type ShiftWindow,
-  getShiftStartTimestamp,
-  fetchShiftWindowFromBackend
+  getShiftStartTimestamp
 } from '@/services/cashFlowService';
 import { useNotification } from '@/composables/useNotification';
 
 const { notify } = useNotification();
 
-// Estados Reactivos
 const isLoading = ref(false);
 const currentTab = ref<'current-shift' | 'history'>('current-shift');
 
@@ -560,25 +580,20 @@ const closedSessions = ref<CashRegisterSession[]>([]);
 const allTransactions = ref<CashTransaction[]>([]);
 const shiftWindow = ref<ShiftWindow | null>(null);
 
-// Filtros
 const searchQuery = ref('');
 const filterType = ref<'all' | 'ingreso' | 'egreso'>('all');
 const filterMethod = ref('all');
 
-// Modales
 const isCloseModalOpen = ref(false);
 const isOpenModalOpen = ref(false);
 const isQuickModalOpen = ref(false);
 
-// Form Arqueo
 const countedCashInput = ref<number | null>(null);
 const closeNotesInput = ref('');
 
-// Form Apertura
 const openCashierName = ref('Administrador');
 const openInitialCash = ref(50000);
 
-// Form Movimiento Rápido
 const quickForm = ref({
   type: 'egreso' as 'ingreso' | 'egreso',
   category: 'Insumos Cocina',
@@ -587,7 +602,6 @@ const quickForm = ref({
   description: ''
 });
 
-// Cargar Datos
 const loadData = async () => {
   isLoading.value = true;
   try {
@@ -619,11 +633,8 @@ onUnmounted(() => {
   window.removeEventListener('foodtruck-cash-transaction-update', loadData);
 });
 
-// Movimientos del Turno Actual
 const currentShiftTransactions = computed(() => {
-  if (!session.value.isOpen) {
-    return [];
-  }
+  if (!session.value.isOpen) return [];
   const shiftStart = shiftWindow.value?.start_timestamp || getShiftStartTimestamp();
   const openedTime = session.value.openedTimestamp || shiftStart;
   const filterThreshold = Math.min(shiftStart, openedTime);
@@ -638,7 +649,6 @@ const shiftSalesCount = computed(() => {
   return currentShiftTransactions.value.filter(t => t.type === 'ingreso' && t.status === 'completado' && t.category.includes('Ventas')).length;
 });
 
-// Resumen / KPIs del Turno
 const shiftSummary = computed<CashShiftSummary>(() => {
   let salesCash = 0;
   let salesDebit = 0;
@@ -649,7 +659,6 @@ const shiftSummary = computed<CashShiftSummary>(() => {
     const amt = Number(t.amount || 0);
     const method = String(t.paymentMethod || '').toLowerCase();
 
-    // Solo contabilizar ingresos pagados / completados
     if (t.type === 'ingreso' && t.status === 'completado') {
       if (method.includes('deb') || method.includes('tarj') || method.includes('pos') || method.includes('cred')) {
         salesDebit += amt;
@@ -681,7 +690,6 @@ const shiftSummary = computed<CashShiftSummary>(() => {
   };
 });
 
-// Transacciones filtradas para la tabla
 const filteredCurrentTransactions = computed(() => {
   return currentShiftTransactions.value.filter(t => {
     if (filterType.value !== 'all' && t.type !== filterType.value) return false;
@@ -697,7 +705,6 @@ const filteredCurrentTransactions = computed(() => {
   });
 });
 
-// Cálculo en vivo para el modal de Arqueo
 const liveDifference = computed(() => {
   if (countedCashInput.value === null || countedCashInput.value === undefined) return 0;
   return Number(countedCashInput.value) - shiftSummary.value.expectedCashInDrawer;
@@ -710,18 +717,17 @@ const liveDiffClass = computed(() => {
 });
 
 const liveDiffTitle = computed(() => {
-  if (liveDifference.value === 0) return '✓ CAJA CUADRADA PERFECTAMENTE';
+  if (liveDifference.value === 0) return '✓ CAJA CUADRADA EXACTAMENTE';
   if (liveDifference.value > 0) return `SOBRANTE EN CAJA: +${formatCurrency(liveDifference.value)}`;
   return `FALTANTE EN CAJA: -${formatCurrency(Math.abs(liveDifference.value))}`;
 });
 
 const liveDiffMessage = computed(() => {
-  if (liveDifference.value === 0) return 'El dinero físico en gaveta coincide exactamente con el total calculado del sistema.';
-  if (liveDifference.value > 0) return 'Hay más dinero en la gaveta del registrado. Verifica propinas o cobros extras.';
-  return 'Falta dinero en la gaveta respecto al registro. Verifica si hubo gastos no anotados o vueltos erróneos.';
+  if (liveDifference.value === 0) return 'El dinero físico en gaveta coincide con el cálculo del sistema.';
+  if (liveDifference.value > 0) return 'Hay más dinero físico en gaveta del registrado. Verifica propinas o cobros extras.';
+  return 'Falta dinero en gaveta. Verifica gastos no anotados o vueltos entregados erróneamente.';
 });
 
-// Métodos de Acciones
 const openCloseShiftModal = () => {
   countedCashInput.value = shiftSummary.value.expectedCashInDrawer;
   closeNotesInput.value = '';
@@ -804,17 +810,14 @@ const submitQuickMovement = () => {
   });
 
   notify(
-    `${quickForm.value.type === 'egreso' ? 'Gasto' : 'Ingreso'} de ${formatCurrency(quickForm.value.amount)} registrado correctamente`,
+    `${quickForm.value.type === 'egreso' ? 'Gasto' : 'Ingreso'} de ${formatCurrency(quickForm.value.amount)} registrado`,
     'success'
   );
   isQuickModalOpen.value = false;
   loadData();
 };
 
-// Formato y estilos auxiliares
-const formatCurrency = (val: number = 0) => {
-  return `$${Number(val || 0).toLocaleString('es-CL')}`;
-};
+const formatCurrency = (val: number = 0) => `$${Number(val || 0).toLocaleString('es-CL')}`;
 
 const getMethodClass = (method: string) => {
   const m = method.toLowerCase();
@@ -839,479 +842,574 @@ const formatDiff = (diff: number) => {
 
 <style scoped>
 .cashflow-view {
-  padding: 24px 30px;
-  max-width: 1450px;
+  max-width: 1650px;
   margin: 0 auto;
-  font-family: var(--font-main, sans-serif);
-  color: #1e293b;
-}
-
-/* Cabecera */
-.cash-header {
+  padding: 1.5rem 1.5rem 3rem;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ====================================================
+   HEADER Y ACCIONES PRINCIPALES
+==================================================== */
+.page-header {
+  display: flex;
   align-items: center;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  gap: 1.5rem;
   flex-wrap: wrap;
-  gap: 14px;
 }
 
-.eyebrow {
-  font-size: 0.75rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  color: #e28743;
-  letter-spacing: 0.5px;
+.header-copy h1 {
+  color: var(--DC-brown, #513119);
+  font-size: 2.2rem;
+  line-height: 1.1;
+  margin: 0 0 0.4rem 0;
 }
 
-.cash-header h1 {
-  font-size: 1.8rem;
-  font-weight: 900;
-  color: #513119;
-  margin: 2px 0 6px 0;
-}
-
-.cash-header p {
-  color: #64748b;
+.header-copy p {
   margin: 0;
+  color: var(--DC-text-gray, #7c7468);
   font-size: 0.92rem;
 }
 
-.btn-refresh {
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn-secondary {
+  border: 1px solid rgba(81, 49, 25, 0.15);
+  background: white;
+  color: var(--DC-brown, #513119);
+  padding: 0.65rem 1.1rem;
+  border-radius: 12px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--DC-orange, #e28743);
+  box-shadow: 0 4px 14px rgba(226, 135, 67, 0.15);
+}
+
+.btn-primary {
+  border: none;
+  background: var(--DC-orange, #e28743);
+  color: white;
+  padding: 0.65rem 1.25rem;
   border-radius: 12px;
-  border: 1px solid #cbd5e1;
-  background: white;
-  color: #513119;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
   font-weight: 800;
   font-size: 0.88rem;
-  cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.btn-refresh:hover {
-  background: #f8fafc;
-  border-color: #513119;
+.btn-primary:hover:not(:disabled) {
+  background: var(--DC-brown, #513119);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(81, 49, 25, 0.2);
 }
 
-.spinning {
-  animation: spin 1s linear infinite;
-}
-
-/* Banner de Estado del Turno */
-.shift-banner {
-  display: flex;
-  justify-content: space-between;
+.btn-danger-action {
+  border: none;
+  background: var(--DC-pink, #d80056);
+  color: white;
+  padding: 0.65rem 1.25rem;
+  border-radius: 12px;
+  display: inline-flex;
   align-items: center;
-  padding: 18px 24px;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 0.88rem;
+  transition: all 0.2s ease;
+}
+
+.btn-danger-action:hover {
+  background: #b00046;
+  transform: translateY(-1px);
+}
+
+/* ====================================================
+   ESTADO DEL TURNO (CARD DE ESTADO)
+==================================================== */
+.shift-status-card {
+  background: white;
+  border: 1px solid rgba(81, 49, 25, 0.08);
   border-radius: 16px;
-  margin-bottom: 24px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
-  flex-wrap: wrap;
-  gap: 16px;
+  padding: 1.15rem 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 16px rgba(26, 14, 5, 0.03);
 }
 
-.banner-open {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  border: 1.5px solid #86efac;
+.shift-status-card.shift-active {
+  border-left: 5px solid #16a34a;
 }
 
-.banner-closed {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border: 1.5px solid #cbd5e1;
+.shift-status-card.shift-inactive {
+  border-left: 5px solid #cbd5e1;
 }
 
-.shift-status-info {
+.shift-status-main {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.65rem;
 }
 
-.status-indicator {
+.shift-indicator-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.75rem;
 }
 
-.pulse-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background-color: #22c55e;
-  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
-  animation: pulse 1.6s infinite;
-}
-
-@keyframes pulse {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-}
-
-.status-badge {
-  font-size: 0.8rem;
-  font-weight: 900;
-  letter-spacing: 0.5px;
-  padding: 4px 12px;
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 3px 10px;
   border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.badge-open {
-  background: #166534;
-  color: white;
-}
+.pill-open { background: #dcfce7; color: #15803d; }
+.pill-closed { background: var(--DC-bg-gray, #f8f6f3); color: var(--DC-text-gray, #7c7468); }
 
-.badge-closed {
-  background: #475569;
-  color: white;
-}
-
-.shift-meta-details {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  font-size: 0.88rem;
-  color: #334155;
-}
-
-.btn-shift-close {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #dc2626;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-weight: 800;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
-}
-
-.btn-shift-close:hover {
-  background: #b91c1c;
-  transform: translateY(-1px);
-}
-
-.btn-shift-open {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.dot-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
   background: #16a34a;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-weight: 800;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
+  box-shadow: 0 0 0 rgba(22, 163, 74, 0.7);
+  animation: pulse-dot 1.8s infinite;
 }
 
-.btn-shift-open:hover {
-  background: #15803d;
-  transform: translateY(-1px);
+@keyframes pulse-dot {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
 }
 
-/* Grid KPIs */
-.kpis-grid {
+.shift-time-hint {
+  font-size: 0.8rem;
+  color: var(--DC-text-gray, #7c7468);
+}
+
+.shift-data-chips {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--DC-bg-gray, #f8f6f3);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+
+.meta-chip.highlight {
+  background: #fff4e6;
+  border: 1px solid #fed7aa;
+}
+
+.meta-chip.highlight strong {
+  color: var(--DC-orange, #e28743);
+}
+
+.chip-lbl { color: var(--DC-text-gray, #7c7468); }
+.closed-desc-text { font-size: 0.84rem; color: var(--DC-text-gray, #7c7468); }
+
+/* ====================================================
+   KPIS SUMMARY-GRID (6 COLUMNAS)
+==================================================== */
+.summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 16px;
-  margin-bottom: 26px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
 }
 
-.kpi-card {
+.summary-card {
   background: white;
-  border: 1px solid #e2e8f0;
   border-radius: 16px;
-  padding: 18px;
+  box-shadow: 0 4px 16px rgba(26, 14, 5, 0.03);
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  padding: 1rem 1.15rem;
   display: flex;
   align-items: center;
-  gap: 14px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  gap: 0.85rem;
 }
 
-.kpi-card.highlight-card {
-  border: 1.5px solid #e28743;
-  background: #fffcf9;
+.summary-card.highlight-metric {
+  border-color: var(--DC-orange, #e28743);
+  background: #fffdfa;
 }
 
-.kpi-icon-box {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.summary-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
 }
 
-.icon-amber { background: #fef3c7; color: #b45309; }
-.icon-green { background: #dcfce7; color: #15803d; }
-.icon-orange { background: #ffedd5; color: #c2410c; }
-.icon-blue { background: #dbeafe; color: #1d4ed8; }
-.icon-purple { background: #f3e8ff; color: #7e22ce; }
-.icon-red { background: #fee2e2; color: #b91c1c; }
+.bg-summary-brown { background: var(--DC-bg-gray, #f8f6f3); color: var(--DC-brown, #513119); }
+.bg-summary-orange { background: rgba(226, 135, 67, 0.12); color: var(--DC-orange, #e28743); }
+.bg-summary-pink { background: rgba(216, 0, 86, 0.1); color: var(--DC-pink, #d80056); }
+.bg-summary-green { background: rgba(22, 163, 74, 0.12); color: #16a34a; }
+.bg-summary-blue { background: rgba(59, 130, 246, 0.12); color: #2563eb; }
+.bg-summary-purple { background: rgba(147, 51, 234, 0.12); color: #9333ea; }
 
-.kpi-info {
+.summary-label {
+  display: block;
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.summary-value {
+  display: block;
+  color: var(--DC-gray, #2c2724);
+  font-size: 1.35rem;
+  line-height: 1.15;
+  margin: 0.15rem 0;
+}
+
+.summary-helper {
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.76rem;
+  margin: 0;
+}
+
+.text-status-open { color: #15803d; }
+.text-orange { color: var(--DC-orange, #e28743); }
+.text-pink { color: var(--DC-pink, #d80056); }
+
+/* ====================================================
+   PESTAÑAS SEGMENTADAS
+==================================================== */
+.inventory-tabs-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #ede6dc;
+  border-radius: 14px;
+  max-width: 100%;
+}
+
+.tab-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: #6d6254;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.tab-nav-btn:hover:not(.active) {
+  color: var(--DC-brown, #513119);
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.tab-nav-btn.active {
+  background: white;
+  color: var(--DC-brown, #513119);
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(26, 14, 5, 0.08);
+}
+
+.tab-pill {
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(81, 49, 25, 0.08);
+  color: #665b4f;
+  font-weight: 800;
+}
+
+.tab-nav-btn.active .tab-pill {
+  background: var(--DC-orange, #e28743);
+  color: white;
+}
+
+/* ====================================================
+   PANEL UNIFICADO & TOOLBAR
+==================================================== */
+.table-unified-card {
+  background: white;
+  border-radius: 18px;
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  box-shadow: 0 4px 20px rgba(26, 14, 5, 0.04);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
-.kpi-label {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-}
-
-.kpi-val {
-  font-size: 1.25rem;
-  font-weight: 900;
-  color: #0f172a;
-}
-
-.val-green { color: #16a34a; }
-.val-orange { color: #ea580c; }
-.val-red { color: #dc2626; }
-
-.kpi-hint {
-  font-size: 0.72rem;
-  color: #94a3b8;
-  font-weight: 600;
-}
-
-/* Pestañas y Layout */
-.main-content-layout {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  padding: 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-}
-
-.tabs-header-bar {
+.panel-toolbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1.15rem;
+  background: #fffdfa;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.08);
   flex-wrap: wrap;
-  gap: 16px;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 18px;
-  margin-bottom: 20px;
 }
 
-.view-tabs {
+.toolbar-left {
   display: flex;
-  background: #f1f5f9;
-  padding: 4px;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.panel-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--DC-brown, #513119);
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--DC-bg-gray, #f8f6f3);
+  border: 1px solid rgba(81, 49, 25, 0.09);
   border-radius: 12px;
-  gap: 4px;
+  padding: 0.55rem 0.75rem;
 }
 
-.tab-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 18px;
+.search-box input {
   border: none;
+  outline: none;
   background: transparent;
-  color: #64748b;
-  font-weight: 800;
-  font-size: 0.85rem;
-  border-radius: 9px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tab-btn.active {
-  background: #513119;
-  color: white;
-  box-shadow: 0 2px 8px rgba(81, 49, 25, 0.2);
-}
-
-.quick-action-buttons {
-  display: flex;
-  gap: 10px;
-}
-
-.btn-quick-expense {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #fff1f2;
-  color: #e11d48;
-  border: 1.5px solid #fecdd3;
-  padding: 8px 16px;
-  border-radius: 10px;
-  font-weight: 800;
-  font-size: 0.84rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-quick-expense:hover {
-  background: #ffe4e6;
-}
-
-.btn-quick-income {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #f0fdf4;
-  color: #16a34a;
-  border: 1.5px solid #bbf7d0;
-  padding: 8px 16px;
-  border-radius: 10px;
-  font-weight: 800;
-  font-size: 0.84rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-quick-income:hover {
-  background: #dcfce7;
-}
-
-/* Barra de Filtros */
-.filter-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 18px;
-}
-
-.search-wrap {
-  position: relative;
-  flex: 1;
-  min-width: 250px;
+  color: var(--DC-gray, #2c2724);
+  font-size: 0.86rem;
+  min-width: 220px;
 }
 
 .search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
+  color: var(--DC-text-gray, #7c7468);
+  flex-shrink: 0;
 }
 
-.search-input {
-  width: 100%;
-  padding: 9px 12px 9px 36px;
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  font-family: inherit;
-  font-size: 0.88rem;
-  box-sizing: border-box;
-}
-
-.filter-selects {
+.clear-search-btn {
+  background: transparent;
+  border: none;
+  color: #999;
+  cursor: pointer;
   display: flex;
-  gap: 10px;
+  align-items: center;
+  padding: 2px;
 }
 
-.filter-select {
-  padding: 9px 14px;
+.select-box select {
+  padding: 0.55rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(81, 49, 25, 0.09);
+  background: var(--DC-bg-gray, #f8f6f3);
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--DC-gray, #2c2724);
+  outline: none;
+  cursor: pointer;
+}
+
+.btn-reset-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.5rem 0.75rem;
   border-radius: 10px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #e2e8f0;
   background: #f8fafc;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #334155;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-/* Tabla de Movimientos */
-.table-responsive {
-  overflow-x: auto;
+.btn-reset-filters:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.btn-pill-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0.5rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.btn-pill-action.expense {
+  background: #ffe4e6;
+  color: var(--DC-pink, #d80056);
+}
+
+.btn-pill-action.expense:hover {
+  background: #fecdd3;
+}
+
+.btn-pill-action.income {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.btn-pill-action.income:hover {
+  background: #bbf7d0;
+}
+
+.results-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(226, 135, 67, 0.12);
+  color: var(--DC-brown, #513119);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+/* ====================================================
+   TABLAS Y FILAS
+==================================================== */
+.table-wrapper {
+  max-height: 560px;
+  overflow-y: auto;
+  width: 100%;
 }
 
 .cash-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.88rem;
+  table-layout: fixed;
 }
 
-.cash-table th {
-  background: #f8fafc;
-  padding: 12px 14px;
-  text-align: left;
+.cash-table thead th {
+  background: #faf6f0;
+  color: var(--DC-brown, #513119);
+  font-size: 0.72rem;
   font-weight: 800;
-  color: #475569;
-  border-bottom: 2px solid #e2e8f0;
-  font-size: 0.78rem;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+  padding: 0.8rem 0.6rem;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  text-align: left;
 }
 
-.cash-table td {
-  padding: 12px 14px;
-  border-bottom: 1px solid #f1f5f9;
+.cash-table tbody td {
+  padding: 0.75rem 0.6rem;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.07);
+  vertical-align: middle;
+  font-size: 0.86rem;
 }
 
-.row-income { background: #ffffff; }
-.row-expense { background: #fffcfc; }
+.cash-table thead th:first-child,
+.cash-table tbody td:first-child {
+  padding-left: 1.15rem;
+}
 
-.col-date { font-size: 0.8rem; color: #64748b; white-space: nowrap; }
-.col-desc { color: #1e293b; }
-.col-category { font-size: 0.82rem; color: #475569; }
-.col-amount { font-size: 0.95rem; white-space: nowrap; }
-.text-right { text-align: right; }
-.text-green { color: #16a34a; }
-.text-red { color: #dc2626; }
+.cash-table thead th:last-child,
+.cash-table tbody td:last-child {
+  padding-right: 1.15rem;
+}
+
+.cash-table tbody tr:hover {
+  background: rgba(245, 235, 224, 0.35);
+}
+
+.col-date {
+  font-size: 0.78rem;
+  color: var(--DC-text-gray, #7c7468);
+  white-space: nowrap;
+}
 
 .type-pill {
-  font-size: 0.72rem;
-  font-weight: 900;
-  padding: 3px 8px;
-  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
   text-transform: uppercase;
 }
 
 .pill-income { background: #dcfce7; color: #15803d; }
 .pill-expense { background: #fee2e2; color: #b91c1c; }
 
-.payment-method-tag {
-  font-size: 0.75rem;
-  font-weight: 800;
-  padding: 3px 10px;
+.payment-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
   border-radius: 6px;
 }
 
 .tag-cash { background: #ffedd5; color: #c2410c; }
 .tag-debit { background: #dbeafe; color: #1d4ed8; }
 .tag-transfer { background: #f3e8ff; color: #7e22ce; }
-.tag-default { background: #f1f5f9; color: #475569; }
+.tag-default { background: var(--DC-bg-gray, #f8f6f3); color: var(--DC-text-gray, #7c7468); }
 
-.empty-table-cell {
-  text-align: center;
-  padding: 40px !important;
+.col-category {
+  font-size: 0.78rem;
+  color: var(--DC-text-gray, #7c7468);
 }
 
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  color: #94a3b8;
-}
-
-/* Historial */
-.history-table th, .history-table td {
-  white-space: nowrap;
-}
+.text-right { text-align: right; }
+.col-amount { font-weight: 800; }
 
 .diff-badge {
-  font-size: 0.75rem;
-  font-weight: 900;
-  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 8px;
   border-radius: 999px;
 }
 
@@ -1319,193 +1417,128 @@ const formatDiff = (diff: number) => {
 .diff-badge-surplus { background: #dbeafe; color: #1e40af; }
 .diff-badge-deficit { background: #fee2e2; color: #991b1b; }
 
-.col-notes {
-  color: #64748b;
-  font-size: 0.8rem;
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Modales */
-.modal-backdrop {
-  position: fixed;
-  top: 0; left: 0; width: 100vw; height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(3px);
-  z-index: 3000;
+.empty-state {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  box-sizing: border-box;
+  gap: 0.65rem;
+  padding: 3.5rem 1rem;
+  color: var(--DC-text-gray, #7c7468);
+  text-align: center;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+/* ====================================================
+   MODALES (ESTILO ESTÁNDAR)
+==================================================== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(35, 20, 10, 0.46);
 }
 
 .modal-card {
+  position: relative;
+  width: min(100%, 460px);
+  border-radius: 18px;
   background: white;
-  width: 100%;
-  max-width: 520px;
-  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(26, 14, 5, 0.25);
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 .modal-card.modal-arqueo {
-  max-width: 580px;
+  width: min(100%, 540px);
 }
 
 .modal-header {
-  padding: 18px 24px;
-  color: white;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.08);
 }
 
-.modal-header-dark { background: #513119; }
-.modal-header-green { background: #15803d; }
-.modal-header-red { background: #dc2626; }
-.modal-header-blue { background: #2563eb; }
-
-.header-icon-title {
+.modal-header-title {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 0.65rem;
 }
 
-.header-icon-title h3 {
+.header-icon-pill {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(226, 135, 67, 0.12);
+  color: var(--DC-orange, #e28743);
+  display: grid;
+  place-items: center;
+}
+
+.header-icon-pill.bg-danger { background: #fee2e2; color: #dc2626; }
+.header-icon-pill.bg-success { background: #dcfce7; color: #16a34a; }
+
+.modal-header h3 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
+  color: var(--DC-brown, #513119);
 }
 
-.header-icon-title p {
-  margin: 2px 0 0 0;
-  font-size: 0.78rem;
-  opacity: 0.9;
+.modal-header-desc {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--DC-text-gray, #7c7468);
 }
 
 .close-btn {
   background: transparent;
   border: none;
-  color: white;
+  color: var(--DC-text-gray, #7c7468);
   cursor: pointer;
+  display: grid;
+  place-items: center;
 }
 
 .modal-body {
-  padding: 24px;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0.85rem;
 }
 
 .modal-label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  font-size: 0.8rem;
   font-weight: 700;
-  font-size: 0.88rem;
-  color: #334155;
+  color: var(--DC-brown, #513119);
 }
+
+.modal-label span .required { color: #ef4444; }
 
 .modal-input {
-  padding: 10px 14px;
+  width: 100%;
+  border: 1px solid rgba(81, 49, 25, 0.12);
   border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  font-family: inherit;
-  font-size: 0.9rem;
+  background: var(--DC-bg-gray, #f8f6f3);
+  padding: 0.65rem 0.85rem;
+  color: var(--DC-gray, #2c2724);
+  font-size: 0.86rem;
+  outline: none;
 }
 
-.modal-textarea {
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  font-family: inherit;
-  font-size: 0.88rem;
-}
+.modal-input:focus { border-color: var(--DC-orange, #e28743); }
 
-.grid-2-cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-/* Arqueo Específico */
-.arqueo-breakdown {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 14px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.breakdown-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.88rem;
-  color: #475569;
-}
-
-.total-expected-row {
-  border-top: 1.5px dashed #cbd5e1;
-  padding-top: 8px;
-  margin-top: 4px;
-  font-size: 1rem;
-  color: #0f172a;
-}
-
-.expected-amount {
-  font-size: 1.15rem;
-  color: #ea580c;
-}
-
-.other-payments-info {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  background: #f1f5f9;
-  border-radius: 10px;
-  padding: 10px;
-  gap: 10px;
-  text-align: center;
-}
-
-.other-col {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.other-col small {
-  font-size: 0.72rem;
-  color: #64748b;
-  font-weight: 700;
-}
-
-.other-col span, .other-col strong {
-  font-size: 0.85rem;
-}
-
-.cash-count-section {
-  background: #fffcf9;
-  border: 1.5px solid #fed7aa;
-  border-radius: 14px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.input-label-large {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-weight: 800;
-  font-size: 0.92rem;
-  color: #9a3412;
-}
-
-.amount-input-box {
+.price-input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
@@ -1513,43 +1546,100 @@ const formatDiff = (diff: number) => {
 
 .currency-symbol {
   position: absolute;
-  left: 14px;
-  font-weight: 800;
-  color: #64748b;
+  left: 10px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--DC-text-gray, #7c7468);
 }
 
-.amount-input-box input {
-  padding-left: 28px !important;
+.price-input-wrapper input { padding-left: 24px !important; }
+
+.price-input-lg {
+  font-size: 1.1rem !important;
+  font-weight: 900 !important;
+  color: var(--DC-orange, #e28743) !important;
 }
 
-.input-counted-amount {
-  width: 100%;
-  padding: 12px 14px 12px 28px;
-  border-radius: 10px;
-  border: 2px solid #e28743;
-  font-size: 1.2rem;
-  font-weight: 900;
-  color: #513119;
-  box-sizing: border-box;
+.modal-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
 }
 
-.cuadratura-alert {
+/* Desglose Arqueo */
+.arqueo-breakdown-card {
+  background: var(--DC-bg-gray, #f8f6f3);
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 10px;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.alert-content strong {
-  font-size: 0.9rem;
+.breakdown-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--DC-text-gray, #7c7468);
+}
+
+.breakdown-line.total-line {
+  border-top: 1px dashed rgba(81, 49, 25, 0.15);
+  padding-top: 6px;
+  margin-top: 2px;
+  font-size: 0.92rem;
+  color: var(--DC-brown, #513119);
+}
+
+.total-expected-val {
+  font-size: 1.05rem;
+  color: var(--DC-orange, #e28743);
+}
+
+.aux-payments-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  background: #fffdfa;
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  border-radius: 10px;
+  padding: 8px;
+  text-align: center;
+}
+
+.aux-col small {
   display: block;
+  font-size: 0.68rem;
+  color: var(--DC-text-gray, #7c7468);
+}
+
+.aux-col span, .aux-col strong {
+  font-size: 0.8rem;
+  color: var(--DC-gray, #2c2724);
+}
+
+.cash-count-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cuadratura-status-box {
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+}
+
+.status-box-content strong {
+  display: block;
+  font-size: 0.82rem;
   margin-bottom: 2px;
 }
 
-.alert-content p {
+.status-box-content p {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
 }
 
 .diff-ok { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
@@ -1559,63 +1649,55 @@ const formatDiff = (diff: number) => {
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 10px;
+  gap: 0.65rem;
+  padding: 1rem 1.25rem;
+  background: #fffdfa;
+  border-top: 1px solid rgba(81, 49, 25, 0.08);
 }
 
 .btn-cancel {
-  padding: 10px 18px;
-  border: 1px solid #cbd5e1;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(81, 49, 25, 0.15);
   background: white;
-  border-radius: 10px;
+  color: var(--DC-text-gray, #7c7468);
   font-weight: 700;
+  font-size: 0.82rem;
   cursor: pointer;
 }
 
-.btn-confirm-close {
+.btn-save {
+  padding: 0.6rem 1.25rem;
+  border-radius: 10px;
+  border: none;
+  background: var(--DC-orange, #e28743);
+  color: white;
+  font-weight: 800;
+  font-size: 0.82rem;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 22px;
-  background: #dc2626;
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-weight: 800;
-  cursor: pointer;
+  gap: 5px;
 }
 
-.btn-save-green {
+.btn-danger-submit {
+  padding: 0.6rem 1.25rem;
+  border-radius: 10px;
+  border: none;
+  background: var(--DC-pink, #d80056);
+  color: white;
+  font-weight: 800;
+  font-size: 0.82rem;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 22px;
-  background: #16a34a;
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-weight: 800;
-  cursor: pointer;
+  gap: 5px;
 }
 
-.btn-save-red {
-  padding: 10px 22px;
-  background: #dc2626;
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-weight: 800;
-  cursor: pointer;
-}
+.btn-danger-submit:hover { background: #b00046; }
 
-.btn-save-blue {
-  padding: 10px 22px;
-  background: #2563eb;
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-weight: 800;
-  cursor: pointer;
+.spinning {
+  animation: spin 0.9s linear infinite;
 }
 
 @keyframes spin {
@@ -1623,92 +1705,59 @@ const formatDiff = (diff: number) => {
   to { transform: rotate(360deg); }
 }
 
-@keyframes scaleUp {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-
-.animate-scale-up {
-  animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.25s ease forwards;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 @media (max-width: 768px) {
   .cashflow-view {
-    padding: 15px 12px;
+    padding: 1rem;
   }
 
-  .cash-header {
+  .page-header {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    align-items: stretch;
+    gap: 1rem;
   }
 
   .header-actions {
-    width: 100%;
-  }
-
-  .btn-refresh {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .shift-banner {
     flex-direction: column;
-    align-items: stretch;
-    padding: 16px;
-    gap: 14px;
+    width: 100%;
   }
 
-  .shift-banner-actions button {
+  .header-actions button {
     width: 100%;
     justify-content: center;
   }
 
-  .kpis-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
+  .shift-status-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
   }
 
-  .tabs-header-bar {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-toolbar {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .view-tabs {
-    flex-direction: column;
+  .toolbar-left, .toolbar-right {
     width: 100%;
+    flex-direction: column;
   }
 
-  .tab-btn {
+  .search-box, .select-box, .select-box select, .btn-pill-action {
     width: 100%;
+    min-width: 0;
     justify-content: center;
   }
 
-  .quick-action-buttons {
-    flex-direction: column;
-    width: 100%;
+  .desktop-table-only {
+    display: block;
+    overflow-x: auto;
   }
 
-  .btn-quick-expense,
-  .btn-quick-withdraw {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .grid-2-cols {
-    grid-template-columns: 1fr;
-  }
-
-  .other-payments-info {
+  .modal-row, .aux-payments-grid {
     grid-template-columns: 1fr;
   }
 }

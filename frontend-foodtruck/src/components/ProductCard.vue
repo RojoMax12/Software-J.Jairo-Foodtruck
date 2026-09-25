@@ -1,5 +1,10 @@
 <template>
   <div class="card">
+    <div v-if="hasPromotion" class="card-promo-badge">
+      <span v-if="discountPercent">-{{ discountPercent }}%</span>
+      <span v-else>{{ promoBadgeText || 'Oferta' }}</span>
+    </div>
+
     <div class="card-image">
       <img :src="image" :alt="name" :style="imageStyle" />
     </div>
@@ -8,7 +13,16 @@
       <h3 class="product-name">{{ name }}</h3>
 
       <div v-if="displayHint" class="product-hint">{{ displayHint }}</div>
-      <h4 class="product-price">{{ displayPrice ?? price }}</h4>
+
+      <!-- Precios: Antiguo tachado y luego el de oferta si aplica -->
+      <div class="price-container">
+        <span v-if="hasPromotion && originalPrice" class="original-price" title="Precio original">
+          {{ originalPrice }}
+        </span>
+        <h4 class="product-price" :class="{ 'offer-price': hasPromotion && originalPrice }" title="Precio">
+          {{ displayPrice ?? price }}
+        </h4>
+      </div>
 
       <button class="details-btn" @click="$emit('view-details')">
         Ver detalles
@@ -30,10 +44,18 @@ const props = withDefaults(defineProps<{
   imageFit?: 'cover' | 'contain';
   price?: string | number;
   displayPrice?: string | number;
+  originalPrice?: string | number;
+  hasPromotion?: boolean;
+  promoBadgeText?: string;
+  discountPercent?: number;
   displayHint?: string;
 }>(), {
   price: 'Sin precio',
   displayPrice: undefined,
+  originalPrice: undefined,
+  hasPromotion: false,
+  promoBadgeText: undefined,
+  discountPercent: undefined,
   displayHint: undefined,
   imagePosition: '50% 50%',
   imageZoom: 1,
@@ -51,19 +73,36 @@ defineEmits(['view-details']);
 
 <style scoped>
 .card {
-  background-color: var(--DC-brown, #984c05); /* Uso tu variable si existe, sino el fallback */
+  position: relative;
+  background-color: var(--DC-brown, #984c05);
   border-radius: 15px;
   overflow: hidden;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  width: 100%; /* 🌟 CLAVE: Ahora la tarjeta ocupa el 100% de la celda de la grilla */
+  width: 100%;
   display: flex;
-  flex-direction: column; /* Para empujar el botón hacia abajo */
+  flex-direction: column;
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-promo-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  background: var(--DC-orange, #e28743);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 .card-image {
@@ -83,7 +122,7 @@ defineEmits(['view-details']);
   text-align: left;
   display: flex;
   flex-direction: column;
-  flex-grow: 1; /* Permite que el contenido ocupe todo el espacio restante */
+  flex-grow: 1;
 }
 
 .product-name {
@@ -111,11 +150,31 @@ defineEmits(['view-details']);
   text-transform: uppercase;
 }
 
+.price-container {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 4px 0 15px 0;
+}
+
+.original-price {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: line-through;
+}
+
 .product-price {
-  margin: 0 0 15px 0;
-  font-size: 1rem;
+  margin: 0;
+  font-size: 1.05rem;
   font-weight: 900;
-  color: var(--DC-orange, #e28743); /* Destacamos el precio */
+  color: var(--DC-orange, #e28743);
+}
+
+.product-price.offer-price {
+  color: #ffd43b;
+  font-size: 1.2rem;
 }
 
 .details-btn {
@@ -128,7 +187,7 @@ defineEmits(['view-details']);
   font-size: 0.95rem;
   font-weight: 800;
   width: 100%;
-  margin-top: auto; /* 🌟 CLAVE: Empuja el botón siempre al fondo de la tarjeta */
+  margin-top: auto;
   transition: background-color 0.2s;
 }
 
@@ -139,7 +198,7 @@ defineEmits(['view-details']);
 /* 📱 RESPONSIVO PARA CELULARES */
 @media (max-width: 600px) {
   .card-image {
-    height: 120px; /* Hacemos la imagen un poco más baja para ahorrar espacio en móviles */
+    height: 120px;
   }
 
   .card-content {
@@ -147,16 +206,35 @@ defineEmits(['view-details']);
   }
 
   .product-name {
-    font-size: 1rem; /* Achicamos ligeramente el título */
+    font-size: 1rem;
+  }
+
+  .card-promo-badge {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    top: 8px;
+    left: 8px;
+  }
+
+  .price-container {
+    gap: 6px;
+    margin: 4px 0 10px 0;
+  }
+
+  .original-price {
+    font-size: 0.78rem;
   }
 
   .product-price {
     font-size: 0.9rem;
-    margin: 6px 0 12px 0;
+  }
+
+  .product-price.offer-price {
+    font-size: 1.05rem;
   }
 
   .details-btn {
-    padding: 12px; /* Botón un poco más alto en móvil para que sea más fácil tocarlo con el dedo */
+    padding: 12px;
     font-size: 0.9rem;
   }
 }

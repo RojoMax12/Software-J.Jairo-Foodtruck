@@ -14,7 +14,12 @@
           
           <div class="product-info-box">
             <div class="header-info">
-              <span class="tag">{{ product.category }}</span>
+              <div class="header-tag-row">
+                <span class="tag">{{ product.category }}</span>
+                <span v-if="product.promocionTitulo && (product.hasPromotion || product.kind === 'offer')" class="promo-header-pill">
+                  {{ product.promocionTitulo }}
+                </span>
+              </div>
               <h2 class="product-title">{{ product.name }}</h2>
             </div>
             
@@ -55,13 +60,23 @@
                         <div class="radio-inner" v-if="selectedType?.id === tipo.id"></div>
                       </div>
                       <div class="type-texts">
-                        <span class="t-name">{{ tipo.name }}</span>
+                        <span class="t-name">
+                          {{ tipo.name }}
+                          <span v-if="tipo.promocion_activa?.titulo" class="type-promo-tag">{{ tipo.promocion_activa.titulo }}</span>
+                        </span>
                         <span class="t-desc">{{ tipo.desc }}</span>
                       </div>
                     </div>
                     <div class="type-price-box">
-                      <span v-if="!isTypeAvailable(tipo)" class="status-badge no-stock">🚫 Desactivado</span>
-                      <span v-else class="t-price">${{ Number(tipo.prices[selectedSize] || 0).toLocaleString('es-CL') }}</span>
+                      <span v-if="!isTypeAvailable(tipo)" class="status-badge no-stock">Desactivado</span>
+                      <template v-else>
+                        <span v-if="hasTypeDiscount(tipo)" class="t-original-price">
+                          ${{ getTypeOriginalPrice(tipo) }}
+                        </span>
+                        <span class="t-price" :class="{ 'is-promo': hasTypeDiscount(tipo) }">
+                          ${{ Number(tipo.prices[selectedSize] || 0).toLocaleString('es-CL') }}
+                        </span>
+                      </template>
                     </div>
                   </div>
                 </div>
@@ -87,7 +102,7 @@
                       />
                       <span class="ing-name">{{ pi.ingrediente.nombre }}</span>
                     </div>
-                    <span v-if="!isIngredientAvailable(pi)" class="status-badge no-stock">🚫 Sin Stock</span>
+                    <span v-if="!isIngredientAvailable(pi)" class="status-badge no-stock">Sin Stock</span>
                     <span v-else-if="excludedIngredients.includes(pi.ingrediente.nombre)" class="status-badge removed">Quitado</span>
                   </label>
                 </div>
@@ -121,7 +136,7 @@
                       />
                       <span class="ing-name">{{ pi.ingrediente.nombre }}</span>
                     </div>
-                    <span v-if="!isIngredientAvailable(pi)" class="status-badge no-stock">🚫 Sin Stock</span>
+                    <span v-if="!isIngredientAvailable(pi)" class="status-badge no-stock">Sin Stock</span>
                     <span v-else-if="addedExtraIngredients.includes(pi.ingrediente.nombre)" class="status-badge added">Agregado</span>
                   </label>
                 </div>
@@ -147,7 +162,10 @@
                 @click="handleAddToCart"
               >
                 <span class="btn-text">{{ props.isStoreOpen === false ? 'LOCAL CERRADO' : (isTypeAvailable(selectedType) ? 'AÑADIR' : 'DESACTIVADO') }}</span>
-                <span class="btn-total">${{ totalPriceFormatted }}</span>
+                <div class="btn-total-box">
+                  <span v-if="originalTotalPriceFormatted" class="btn-original-total">${{ originalTotalPriceFormatted }}</span>
+                  <span class="btn-total">${{ totalPriceFormatted }}</span>
+                </div>
               </button>
             </div>
 
@@ -400,12 +418,43 @@ const extraIngredientsCost = computed(() => {
   return billableExtras * extraPrice;
 });
 
+const hasTypeDiscount = (tipo: any) => {
+  if (!tipo) return false;
+  const promo = tipo.promocion_activa;
+  if (!promo || promo.activo === false) return false;
+  const effectiveSize = selectedSize.value || getEffectiveSizeForType(tipo);
+  const currentP = Number(tipo.prices?.[effectiveSize] ?? 0);
+  const origP = Number(tipo.originalPrices?.[effectiveSize] ?? currentP);
+  return origP > currentP;
+};
+
+const getTypeOriginalPrice = (tipo: any) => {
+  const effectiveSize = selectedSize.value || getEffectiveSizeForType(tipo);
+  const origP = Number(tipo?.originalPrices?.[effectiveSize] ?? tipo?.prices?.[effectiveSize] ?? 0);
+  return origP.toLocaleString('es-CL');
+};
+
 const currentPrice = computed(() => {
   if (!selectedType.value) return 0;
   const effectiveSize = selectedSize.value || getEffectiveSizeForType(selectedType.value);
   if (!effectiveSize) return 0;
   const basePrice = Number(selectedType.value.prices[effectiveSize] || 0);
   return basePrice + extraIngredientsCost.value;
+});
+
+const currentOriginalPrice = computed(() => {
+  if (!selectedType.value) return 0;
+  const effectiveSize = selectedSize.value || getEffectiveSizeForType(selectedType.value);
+  if (!effectiveSize) return 0;
+  const baseOrig = Number(selectedType.value.originalPrices?.[effectiveSize] ?? selectedType.value.prices?.[effectiveSize] ?? 0);
+  return baseOrig + extraIngredientsCost.value;
+});
+
+const originalTotalPriceFormatted = computed(() => {
+  if (currentOriginalPrice.value > currentPrice.value) {
+    return (currentOriginalPrice.value * quantity.value).toLocaleString('es-CL');
+  }
+  return '';
 });
 
 const totalPriceFormatted = computed(() => {
@@ -532,7 +581,7 @@ const handleAddToCart = () => {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border: 2px solid red;
+  
 }
 
 .main-product-img {
@@ -553,6 +602,16 @@ const handleAddToCart = () => {
 }
 
 .header-info { margin-bottom: 20px; border-bottom: 2px solid #eeedee; padding-bottom: 15px;}
+.header-tag-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.promo-header-pill {
+  font-size: 0.78rem;
+  font-weight: 800;
+  background: #ffec99;
+  color: #d9480f;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid #ffd43b;
+}
 .tag { font-size: 0.85rem; font-weight: 900; color: var(--DC-orange); text-transform: uppercase; letter-spacing: 1px;}
 .product-title { margin: 5px 0 0 0; font-size: 2rem; color: var(--DC-gray); font-weight: 900; line-height: 1.1;}
 
@@ -608,8 +667,21 @@ const handleAddToCart = () => {
 .radio-inner { width: 10px; height: 10px; border-radius: 50%; background: var(--DC-orange); }
 .type-texts { display: flex; flex-direction: column; }
 .t-name { font-weight: 800; color: var(--DC-gray); font-size: 1rem;}
+.type-promo-tag {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #ffec99;
+  color: #d9480f;
+  padding: 1px 6px;
+  border-radius: 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
 .t-desc { font-size: 0.75rem; color: var(--DC-text-gray); font-weight: 600;}
+.t-original-price { font-size: 0.85rem; font-weight: 700; color: #adb5bd; text-decoration: line-through; }
 .t-price { font-weight: 900; color: var(--DC-orange); font-size: 1.1rem; }
+.t-price.is-promo { color: #d9480f; }
 
 /* 3. INGREDIENTES */
 .ingredients-list { display: flex; flex-direction: column; gap: 8px; }
@@ -679,6 +751,8 @@ const handleAddToCart = () => {
   transform: none !important;
 }
 .btn-text { font-weight: 900; font-size: 1rem; letter-spacing: 1px;}
+.btn-total-box { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
+.btn-original-total { font-size: 0.78rem; color: rgba(255, 255, 255, 0.75); text-decoration: line-through; font-weight: 700; }
 .btn-total { font-weight: 900; font-size: 1.2rem; }
 
 /* ANIMACIONES */

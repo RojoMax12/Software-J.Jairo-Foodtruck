@@ -1,250 +1,281 @@
 <template>
   <div class="orders-container">
-    <header class="orders-header">
-      <div class="header-main-info">
-        <h1 class="orders-title">Gestión de Pedidos & KDS</h1>
-        <p class="orders-description">Monitorea y despacha pedidos en tiempo real organizados por turnos operativos.</p>
+    <!-- ===================== HEADER ===================== -->
+    <header class="page-header">
+      <div class="header-copy">
+        <h1>Gestión de Pedidos & Comandas</h1>
       </div>
 
-      <!-- BANNER DE ESTADO DEL TURNO OPERATIVO -->
-      <div class="shift-status-banner" :class="shiftWindow?.es_jornada_activa ? 'banner-active' : 'banner-inactive'">
-        <div class="shift-banner-left">
-          <div class="shift-live-indicator">
-            <span class="live-dot" v-if="shiftWindow?.es_jornada_activa"></span>
-            <strong>{{ shiftWindow?.es_jornada_activa ? '🟢 TURNO EN VIVO' : (shiftWindow?.es_dia_cerrado ? '🔴 DÍA CERRADO (DESCANSO)' : '⚪ FUERA DE HORARIO') }}</strong>
-            <span class="shift-day-tag">{{ shiftWindow?.dia || 'Hoy' }}</span>
-          </div>
-          <div class="shift-schedule-info">
-            <span>🕒 Horario: <strong>{{ shiftWindow?.hora_apertura || '19:00' }} a {{ shiftWindow?.hora_cierre || '00:30' }}</strong></span>
-            <span>📅 Fecha Turno: <strong>{{ shiftDateFormatted }}</strong></span>
-          </div>
-        </div>
-        <div class="shift-banner-right">
-          <div class="shift-comandas-summary">
-            <span class="comandas-label">Comandas del Turno</span>
-            <strong class="comandas-val">#1 - #{{ shiftOrdersCount }}</strong>
-          </div>
-        </div>
+      <div class="header-actions">
+        <button 
+          class="btn-secondary" 
+          :class="{ 'btn-live-active': autoRefresh }" 
+          @click="autoRefresh = !autoRefresh"
+          :title="autoRefresh ? 'Pausar auto-actualización' : 'Activar auto-actualización en vivo'"
+        >
+          <RefreshCw :size="16" :class="{ spinning: isLoading || isRefreshingBackground }" />
+          <span>{{ autoRefresh ? `En vivo (${secondsCountdown}s)` : 'En vivo Pausado' }}</span>
+        </button>
+
+        <button class="btn-primary" @click="() => fetchOrders(false)" :disabled="isLoading">
+          <RefreshCw :size="16" :class="{ spinning: isLoading }" />
+          <span>Actualizar</span>
+        </button>
       </div>
     </header>
 
-    <div class="status-cards">
-      <div class="status-card">
-        <div class="card-left">
-          <div class="icon-box bg-unpaid">
-            <ClipboardCheck :size="24" />
-          </div>
-          <span class="card-label">Total pedidos</span>
+    <!-- ===================== BANNER DE ESTADO DEL TURNO ===================== -->
+    <section class="shift-status-card" :class="shiftWindow?.es_jornada_activa ? 'shift-active' : 'shift-inactive'">
+      <div class="shift-status-main">
+        <div class="shift-indicator-row">
+          <span class="status-pill" :class="shiftWindow?.es_jornada_activa ? 'pill-open' : 'pill-closed'">
+            <span class="dot-pulse" v-if="shiftWindow?.es_jornada_activa"></span>
+            {{ shiftWindow?.es_jornada_activa ? 'Turno en Curso' : (shiftWindow?.es_dia_cerrado ? 'Día de Descanso' : 'Fuera de Horario') }}
+          </span>
+          <span class="shift-day-badge">{{ shiftWindow?.dia || 'Hoy' }}</span>
+          <span class="shift-date-hint">Fecha del turno: {{ shiftDateFormatted }}</span>
         </div>
-        <div class="card-right">
-          <span class="card-count">{{ stats.totalOrders }}</span>
-          <span class="card-subtext">Pedidos</span>
+
+        <div class="shift-data-chips">
+          <div class="meta-chip">
+            <span class="chip-lbl">Horario Oficial:</span>
+            <strong>{{ shiftWindow?.hora_apertura || '19:00' }} a {{ shiftWindow?.hora_cierre || '00:30' }} hrs</strong>
+          </div>
+          <div class="meta-chip highlight">
+            <span class="chip-lbl">Rango de Comandas:</span>
+            <strong>#1 — #{{ shiftOrdersCount }}</strong>
+          </div>
         </div>
       </div>
+    </section>
 
-      <div class="status-card">
-        <div class="card-left">
-          <div class="icon-box bg-unpaid">
-            <TrendingUp :size="24" />
-          </div>
-          <span class="card-label">Venta Total ($)</span>
+    <!-- ===================== RESUMEN EN KPIS (SUMMARY-GRID) ===================== -->
+    <section class="summary-grid">
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-brown">
+          <ClipboardCheck :size="22" />
         </div>
-        <div class="card-right">
-          <span class="card-count">{{ formatPrice(stats.totalAmount) }}</span>
-          <span class="card-subtext">Pesos</span>
+        <div>
+          <span class="summary-label">Total Pedidos</span>
+          <strong class="summary-value">{{ stats.totalOrders }}</strong>
+          <p class="summary-helper">Registrados en este turno</p>
         </div>
-      </div>
+      </article>
 
-      <div class="status-card">
-        <div class="card-left">
-          <div class="icon-box bg-paid">
-            <DollarSign :size="24" />
-          </div>
-          <span class="card-label">Total Recaudado ($)</span>
+      <article class="summary-card highlight-metric">
+        <div class="summary-icon-box bg-summary-orange">
+          <TrendingUp :size="22" />
         </div>
-        <div class="card-right">
-          <span class="card-count">{{ formatPrice(stats.totalPaid) }}</span>
-          <span class="card-subtext">Pesos</span>
+        <div>
+          <span class="summary-label">Venta Total</span>
+          <strong class="summary-value text-orange">${{ formatPrice(stats.totalAmount) }}</strong>
+          <p class="summary-helper">Facturado en el turno</p>
         </div>
-      </div>
+      </article>
 
-      <div class="status-card">
-        <div class="card-left">
-          <div class="icon-box bg-paid">
-            <CheckCircle :size="24" />
-          </div>
-          <span class="card-label">Total Pagados</span>
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-green">
+          <DollarSign :size="22" />
         </div>
-        <div class="card-right">
-          <span class="card-count">{{ stats.paid }}</span>
-          <span class="card-subtext">Pedidos</span>
+        <div>
+          <span class="summary-label">Total Recaudado</span>
+          <strong class="summary-value text-status-open">${{ formatPrice(stats.totalPaid) }}</strong>
+          <p class="summary-helper">{{ stats.paid }} pedidos pagados</p>
         </div>
-      </div>
+      </article>
 
-      <div class="status-card">
-        <div class="card-left">
-          <div class="icon-box bg-shipping">
-            <Truck :size="24" />
-          </div>
-          <span class="card-label">Total Entregados</span>
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-blue">
+          <CheckCircle :size="22" />
         </div>
-        <div class="card-right">
-          <span class="card-count">{{ stats.delivered }}</span>
-          <span class="card-subtext">Pedidos</span>
+        <div>
+          <span class="summary-label">Pagados</span>
+          <strong class="summary-value">{{ stats.paid }}</strong>
+          <p class="summary-helper">Con comprobante listo</p>
         </div>
-      </div>
-    </div>
+      </article>
 
-    <!-- PESTAÑAS RÁPIDAS DE ESTADO KDS -->
-    <div class="status-quick-tabs">
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-pink">
+          <Truck :size="22" />
+        </div>
+        <div>
+          <span class="summary-label">Entregados</span>
+          <strong class="summary-value text-pink">{{ stats.delivered }}</strong>
+          <p class="summary-helper">Despachados al cliente</p>
+        </div>
+      </article>
+    </section>
+
+    <!-- ===================== PESTAÑAS RÁPIDAS DE ESTADO (KDS) ===================== -->
+    <div class="inventory-tabs-nav">
       <button 
-        class="status-tab-btn" 
+        type="button" 
+        class="tab-nav-btn" 
         :class="{ active: statusFilter === 'all' }" 
         @click="selectStatus('all')"
       >
-        <span>Todos</span>
-        <span class="tab-count-pill">{{ filteredByShiftOrders.length }}</span>
+        <span class="tab-text">Todos</span>
+        <span class="tab-pill">{{ filteredByShiftOrders.length }}</span>
       </button>
+
       <button 
-        class="status-tab-btn tab-pending" 
+        type="button" 
+        class="tab-nav-btn" 
         :class="{ active: statusFilter === 'Pendiente' }" 
         @click="selectStatus('Pendiente')"
       >
-        <span>🟡 Pendientes</span>
-        <span class="tab-count-pill">{{ countByStatus(1) }}</span>
+        <span class="tab-text">Pendientes</span>
+        <span class="tab-pill">{{ countByStatus(1) }}</span>
       </button>
+
       <button 
-        class="status-tab-btn tab-prep" 
+        type="button" 
+        class="tab-nav-btn" 
         :class="{ active: statusFilter === 'En preparación' }" 
         @click="selectStatus('En preparación')"
       >
-        <span>🔵 En Preparación</span>
-        <span class="tab-count-pill">{{ countByStatus(2) }}</span>
+        <span class="tab-text">En Preparación</span>
+        <span class="tab-pill">{{ countByStatus(2) }}</span>
       </button>
+
       <button 
-        class="status-tab-btn tab-ready" 
+        type="button" 
+        class="tab-nav-btn" 
         :class="{ active: statusFilter === 'Listo' }" 
         @click="selectStatus('Listo')"
       >
-        <span>🟢 Listos</span>
-        <span class="tab-count-pill">{{ countByStatus(3) }}</span>
+        <span class="tab-text">Listos</span>
+        <span class="tab-pill">{{ countByStatus(3) }}</span>
       </button>
+
       <button 
-        class="status-tab-btn tab-delivered" 
+        type="button" 
+        class="tab-nav-btn" 
         :class="{ active: statusFilter === 'Entregado' }" 
         @click="selectStatus('Entregado')"
       >
-        <span>✓ Entregados</span>
-        <span class="tab-count-pill">{{ countByStatus(4) }}</span>
+        <span class="tab-text">Entregados</span>
+        <span class="tab-pill">{{ countByStatus(4) }}</span>
       </button>
+
       <button 
-        class="status-tab-btn tab-cancelled" 
+        type="button" 
+        class="tab-nav-btn" 
         :class="{ active: statusFilter === 'Cancelado' }" 
         @click="selectStatus('Cancelado')"
       >
-        <span>❌ Cancelados</span>
-        <span class="tab-count-pill">{{ countByStatus(5) }}</span>
+        <span class="tab-text">Cancelados</span>
+        <span class="tab-pill">{{ countByStatus(5) }}</span>
       </button>
     </div>
 
-    <div class="main-table-card">
-      <div class="table-actions">
-        <div class="actions-left">
-          <!-- SELECTOR DE MODO DE TURNO -->
+    <!-- ===================== TABLA PRINCIPAL UNIFICADA ===================== -->
+    <section class="panel-card table-unified-card">
+      <div class="panel-toolbar">
+        <div class="toolbar-left">
+          <!-- Modo de turno -->
           <div class="shift-mode-selector">
             <button 
+              type="button" 
               class="btn-shift-mode" 
               :class="{ active: shiftMode === 'current' }" 
               @click="setShiftMode('current')"
               title="Ver pedidos del turno en curso"
             >
-              <Zap :size="15" />
+              <Zap :size="14" />
               <span>Turno Actual</span>
             </button>
             <button 
+              type="button" 
               class="btn-shift-mode" 
               :class="{ active: shiftMode === 'previous' }" 
               @click="setShiftMode('previous')"
               title="Ver pedidos del turno anterior"
             >
-              <History :size="15" />
+              <History :size="14" />
               <span>Turno Anterior</span>
             </button>
             <button 
+              type="button" 
               class="btn-shift-mode" 
               :class="{ active: shiftMode === 'custom' }" 
               @click="setShiftMode('custom')"
-              title="Ver todos o elegir fecha específica"
+              title="Elegir fecha específica"
             >
-              <CalendarIcon :size="15" />
+              <CalendarIcon :size="14" />
               <span>Por Fecha</span>
             </button>
           </div>
 
+          <!-- Buscador -->
           <div class="search-box">
-            <Search :size="18" class="search-icon" />
+            <Search :size="17" class="search-icon" />
             <input 
-              type="text" 
               v-model="searchQuery" 
-              placeholder="Buscar por comanda, nombre, teléfono..."
+              type="text" 
+              placeholder="Buscar comanda, cliente, fono..."
             />
+            <button v-if="searchQuery" class="clear-search-btn" @click="searchQuery = ''">
+              <X :size="14" />
+            </button>
           </div>
 
+          <!-- Fecha si aplica -->
           <div class="date-filter-box" v-if="shiftMode === 'custom' || canEditDate">
-            <CalendarIcon :size="18" class="date-filter-icon" />
+            <CalendarIcon :size="16" class="date-filter-icon" />
             <input 
-              type="date" 
               v-model="selectedDate" 
-              class="mobile-date-input"
+              type="date" 
+              class="filter-date-input"
               :disabled="!canEditDate"
               :class="{ 'picker-disabled': !canEditDate }"
-              :title="canEditDate ? 'Buscar por fecha' : 'Solo ver pedidos de hoy'"
+              :title="canEditDate ? 'Buscar por fecha' : 'Solo lectura'"
             />
           </div>
+        </div>
 
-          <button 
-            class="btn-live-toggle" 
-            :class="{ active: autoRefresh }" 
-            @click="autoRefresh = !autoRefresh"
-            :title="autoRefresh ? 'Auto-actualización en vivo activa (cada 20s)' : 'Auto-actualización pausada'"
-          >
-            <RefreshCw :size="16" :class="{ spinning: isLoading || isRefreshingBackground }" />
-            <span>{{ autoRefresh ? `En vivo (${secondsCountdown}s)` : 'En vivo Pausado' }}</span>
-          </button>
+        <div class="toolbar-right">
+          <span class="results-chip">{{ filteredOrders.length }} pedidos</span>
         </div>
       </div>
 
-      <!-- VISTA TABLA (ESCRITORIO & TABLET) -->
-      <div class="table-responsive desktop-table-view">
+      <!-- TABLA ESCRITORIO -->
+      <div class="table-wrapper desktop-table-only">
         <table class="orders-table">
           <thead>
             <tr>
-              <th @click="sortBy('id')">
+              <th style="width: 14%;" @click="sortBy('id')">
                 <div class="header-content">
-                  Comanda / Turno <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'id' }" />
+                  <span>Comanda</span>
+                  <ChevronsUpDown :size="14" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'id' }" />
                 </div>
               </th>
-              <th @click="sortBy('distributor')">
+              <th style="width: 25%;" @click="sortBy('distributor')">
                 <div class="header-content">
-                  Cliente <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'distributor' }" />
+                  <span>Cliente</span>
+                  <ChevronsUpDown :size="14" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'distributor' }" />
                 </div>
               </th>
-              <th @click="sortBy('status')">
+              <th style="width: 22%;" @click="sortBy('status')">
                 <div class="header-content">
-                  Estado <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'status' }" />
+                  <span>Estado & Pago</span>
+                  <ChevronsUpDown :size="14" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'status' }" />
                 </div>
               </th>
-              <th @click="sortBy('date')">
+              <th style="width: 16%;" @click="sortBy('date')">
                 <div class="header-content">
-                  Hora / Tiempo <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'date' }" />
+                  <span>Hora / Espera</span>
+                  <ChevronsUpDown :size="14" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'date' }" />
                 </div>
               </th>
-              <th @click="sortBy('total')">
+              <th style="width: 11%;" @click="sortBy('total')">
                 <div class="header-content">
-                  Total <ChevronsUpDown :size="16" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'total' }" />
+                  <span>Total</span>
+                  <ChevronsUpDown :size="14" class="sort-icon" :class="{ 'active-sort': sortConfig.key === 'total' }" />
                 </div>
               </th>
-              <th class="text-center">Acciones</th>
+              <th style="width: 12%; text-align: center;">Acción</th>
             </tr>
           </thead>
           <tbody>
@@ -256,26 +287,27 @@
               <td><div class="skeleton-pill width-70"></div></td>
               <td><div class="skeleton-pill width-90"></div></td>
             </tr>
+
             <tr v-else-if="sortedOrders.length === 0">
-              <td colspan="6" class="text-center padding-large">
-                <div class="empty-state">
-                  <Package :size="48" class="empty-icon" />
+              <td colspan="6" class="text-center">
+                <div class="state-card empty-state">
+                  <Package :size="40" />
                   <p>No se encontraron pedidos para este turno o filtros.</p>
                   <button @click="() => fetchOrders()" class="btn-retry">Actualizar datos</button>
                 </div>
               </td>
             </tr>
+
             <tr v-else v-for="order in paginatedOrders" :key="order.id">
               <td>
                 <div class="comanda-cell">
-                  <span class="comanda-badge">Comanda #{{ order.id }}</span>
-                  <small class="order-real-id">ID #{{ order.real_id }}</small>
+                  <span class="comanda-badge">#{{ order.id }}</span>
                 </div>
               </td>
               <td>
                 <div class="client-cell">
                   <strong class="client-name">{{ order.distributor }}</strong>
-                  <span v-if="order.phone" class="client-phone"><Phone :size="12" /> {{ order.phone }}</span>
+                  <span v-if="order.phone" class="client-phone"><Phone :size="11" /> {{ order.phone }}</span>
                 </div>
               </td>
               <td>
@@ -291,23 +323,21 @@
               <td>
                 <div class="date-content">
                   <div class="time-primary">
-                    <Clock :size="14" class="time-icon" />
+                    <Clock :size="13" class="time-icon" />
                     <strong>{{ order.time }}</strong>
                   </div>
                   <div class="date-secondary">
-                    <span class="elapsed-badge" :class="getElapsedBadgeClass(order.elapsedMinutes)" :title="`Ingresó hace ${order.elapsedMinutes} minutos`">
+                    <span class="elapsed-badge" :class="getElapsedBadgeClass(order.elapsedMinutes)">
                       {{ order.elapsedMinutes }}m
                     </span>
-                    <span class="date-text">{{ order.date }}</span>
                   </div>
                 </div>
               </td>
               <td class="bold-text">${{ formatPrice(order.total) }}</td>
               <td>
-                <div class="actions-content">
-                  <button class="btn-action btn-detail" @click="openModal(order.id)">
-                    <Eye :size="18" />
-                    <span>Detalle</span>
+                <div class="actions">
+                  <button class="icon-button detail-action" @click="openModal(order.id)" title="Ver comanda">
+                    <Eye :size="15" />
                   </button>
                 </div>
               </td>
@@ -316,20 +346,18 @@
         </table>
       </div>
 
-      <!-- VISTA TARJETAS MÓVILES (SMARTPHONES) -->
-      <div class="mobile-cards-view">
+      <!-- VISTA TARJETAS MÓVIL -->
+      <div class="mobile-cards-view mobile-only">
         <div v-if="isLoading" class="mobile-skeleton-container">
-          <div v-for="n in 4" :key="'mob-skel-' + n" class="mobile-card-skeleton">
+          <div v-for="n in 3" :key="'mob-skel-' + n" class="mobile-order-card skeleton-card">
             <div class="skeleton-pill width-80"></div>
-            <div class="skeleton-pill width-120 margin-top-4"></div>
-            <div class="skeleton-pill width-100 margin-top-4"></div>
+            <div class="skeleton-pill width-120"></div>
           </div>
         </div>
 
-        <div v-else-if="sortedOrders.length === 0" class="mobile-empty-state">
-          <Package :size="40" class="empty-icon" />
-          <p>No se encontraron pedidos para esta fecha o filtros.</p>
-          <button @click="() => fetchOrders()" class="btn-retry">Actualizar datos</button>
+        <div v-else-if="sortedOrders.length === 0" class="empty-state">
+          <Package :size="40" />
+          <p>No se encontraron pedidos para este turno.</p>
         </div>
 
         <div v-else class="mobile-cards-list">
@@ -341,13 +369,12 @@
           >
             <div class="mobile-card-top">
               <div class="mobile-id-box">
-                <span class="mobile-order-id">Comanda #{{ order.id }}</span>
-                <span class="mobile-real-id">ID #{{ order.real_id }}</span>
+                <span class="comanda-badge">#{{ order.id }}</span>
                 <span class="elapsed-badge" :class="getElapsedBadgeClass(order.elapsedMinutes)">
                   <Clock :size="11" /> {{ order.time }} ({{ order.elapsedMinutes }}m)
                 </span>
               </div>
-              <div class="mobile-card-badges">
+              <div class="badges-cell">
                 <span class="status-badge" :class="getStatusClass(order.status, order.rawStatusId)">
                   {{ order.status }}
                 </span>
@@ -359,11 +386,11 @@
 
             <div class="mobile-card-body">
               <div class="mobile-client-line">
-                <User :size="15" class="mobile-icon" />
-                <span class="mobile-client-name">{{ order.distributor || 'Cliente' }}</span>
+                <User :size="14" class="mobile-icon" />
+                <span class="mobile-client-name">{{ order.distributor }}</span>
               </div>
               <div v-if="order.phone" class="mobile-phone-line">
-                <Phone :size="13" class="mobile-icon" />
+                <Phone :size="12" class="mobile-icon" />
                 <span>{{ order.phone }}</span>
               </div>
             </div>
@@ -375,30 +402,34 @@
               </div>
 
               <div class="mobile-actions-row" @click.stop>
-                <button class="btn-mobile-detail" @click="openModal(order.id)">
-                  <Eye :size="15" /> <span>Detalle</span>
+                <button class="btn-action-mobile" @click="openModal(order.id)">
+                  <Eye :size="14" />
+                  <span>Detalle</span>
                 </button>
 
                 <button 
                   v-if="Number(order.rawStatusId) === 1" 
-                  class="btn-mobile-advance advance-step-1" 
+                  class="btn-advance-mobile step-1" 
                   @click="advanceOrderStatus(order)"
                 >
-                  <span>A Cocina</span> <ArrowRight :size="13" />
+                  <span>A Cocina</span>
+                  <ArrowRight :size="12" />
                 </button>
                 <button 
                   v-else-if="Number(order.rawStatusId) === 2" 
-                  class="btn-mobile-advance advance-step-2" 
+                  class="btn-advance-mobile step-2" 
                   @click="advanceOrderStatus(order)"
                 >
-                  <span>Listo</span> <ArrowRight :size="13" />
+                  <span>Listo</span>
+                  <ArrowRight :size="12" />
                 </button>
                 <button 
                   v-else-if="Number(order.rawStatusId) === 3" 
-                  class="btn-mobile-advance advance-step-3" 
+                  class="btn-advance-mobile step-3" 
                   @click="advanceOrderStatus(order)"
                 >
-                  <span>Entregar</span> <CheckCircle :size="13" />
+                  <span>Entregar</span>
+                  <CheckCircle :size="12" />
                 </button>
               </div>
             </div>
@@ -406,54 +437,35 @@
         </div>
       </div>
 
-      <!-- Control de Paginación -->
-      <div v-if="sortedOrders.length > 0" class="pagination-footer">
+      <!-- PAGINACIÓN ESTANDARIZADA -->
+      <div v-if="totalPages > 1 || sortedOrders.length > 0" class="inventory-pagination">
+        <button 
+          type="button" 
+          class="pagination-btn" 
+          :disabled="currentPage === 1" 
+          @click="prevPage"
+        >
+          <ChevronLeft :size="16" />
+          <span>Anterior</span>
+        </button>
+        
         <div class="pagination-info">
-          <span>Mostrando <strong>{{ paginationInfo.start }}</strong> - <strong>{{ paginationInfo.end }}</strong> de <strong>{{ paginationInfo.total }}</strong> pedidos</span>
+          Mostrando <strong>{{ paginationInfo.start }}</strong> - <strong>{{ paginationInfo.end }}</strong> de <strong>{{ paginationInfo.total }}</strong> pedidos
         </div>
 
-        <div class="pagination-controls">
-          <div class="page-size-selector">
-            <span>Mostrar:</span>
-            <select v-model="itemsPerPage" class="select-page-size">
-              <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }} por pág.</option>
-            </select>
-          </div>
-
-          <div class="page-buttons">
-            <button 
-              class="btn-page-nav" 
-              :disabled="currentPage === 1" 
-              @click="prevPage" 
-              title="Página anterior"
-            >
-              <ChevronLeft :size="16" />
-            </button>
-
-            <button
-              v-for="(page, idx) in displayedPages"
-              :key="idx"
-              class="btn-page-num"
-              :class="{ 'active': currentPage === page, 'ellipsis': page === '...' }"
-              :disabled="page === '...'"
-              @click="goToPage(page)"
-            >
-              {{ page }}
-            </button>
-
-            <button 
-              class="btn-page-nav" 
-              :disabled="currentPage === totalPages" 
-              @click="nextPage" 
-              title="Página siguiente"
-            >
-              <ChevronRight :size="16" />
-            </button>
-          </div>
-        </div>
+        <button 
+          type="button" 
+          class="pagination-btn" 
+          :disabled="currentPage >= totalPages" 
+          @click="nextPage"
+        >
+          <span>Siguiente</span>
+          <ChevronRight :size="16" />
+        </button>
       </div>
-    </div>
+    </section>
 
+    <!-- MODAL DETALLE DE PEDIDO -->
     <OrdersDetailModal 
       v-if="isModalOpen" 
       :order-id="selectedOrderId" 
@@ -476,13 +488,13 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import OrdersDetailModal from './OrdersDetailModal.vue';
 import {
-  ClipboardCheck, Package, Truck, CheckCircle, Search, Filter,
-  ChevronDown, Calendar as CalendarIcon, Eye, ChevronsUpDown,
+  ClipboardCheck, Package, Truck, CheckCircle, Search,
+  Calendar as CalendarIcon, Eye, ChevronsUpDown,
   RefreshCw, Clock, ArrowRight, ChevronLeft, ChevronRight, User, Phone,
-  Zap, History, TrendingUp, DollarSign
+  Zap, History, TrendingUp, DollarSign, X
 } from 'lucide-vue-next';
-import orderService  from '@/services/orderService';
-import cashFlowService, { type ShiftWindow, fetchShiftWindowFromBackend } from '@/services/cashFlowService';
+import orderService from '@/services/orderService';
+import { type ShiftWindow, fetchShiftWindowFromBackend } from '@/services/cashFlowService';
 
 const orders = ref<any[]>([]);
 const isLoading = ref(true);
@@ -516,9 +528,9 @@ const getElapsedBadgeClass = (minutes: number) => {
 
 const advanceOrderStatus = async (order: any) => {
   const nextStatusMap: Record<number, number> = {
-    1: 2, // Pendiente -> En preparación
-    2: 3, // En preparación -> Listo
-    3: 4  // Listo -> Entregado
+    1: 2,
+    2: 3,
+    3: 4
   };
 
   const nextId = nextStatusMap[Number(order.rawStatusId)];
@@ -530,14 +542,6 @@ const advanceOrderStatus = async (order: any) => {
   } catch (err) {
     console.error('Error al avanzar estado de pedido:', err);
   }
-};
-
-const getTodayString = () => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 };
 
 const getShiftDateString = (inputDate?: string | Date) => {
@@ -558,7 +562,6 @@ const getShiftDateString = (inputDate?: string | Date) => {
     dateObj = new Date();
   }
 
-  // Si la hora es de madrugada (00:00 AM - 05:59 AM), la jornada pertenece al turno que comenzó ayer
   if (dateObj.getHours() < 6) {
     dateObj.setDate(dateObj.getDate() - 1);
   }
@@ -619,18 +622,6 @@ const checkUserRole = () => {
 
 const canEditDate = computed(() => userRole.value === 1);
 
-// Mapa reactivo BDD
-const statusMap = ref<Map<number, string>>(new Map([
-  [1, 'En validación'],
-  [2, 'En preparación'],
-  [3, 'En despacho'],
-  [4, 'Entregado'],
-  [5, 'Pendiente'],
-  [6, 'Por pagar'],
-  [7, 'Pagada'],
-  [8, 'Cancelado']
-]));
-
 const fetchOrders = async (silent: boolean | unknown = false) => {
   const isSilent = silent === true;
   if (!isSilent && orders.value.length === 0) {
@@ -676,6 +667,7 @@ const fetchOrders = async (silent: boolean | unknown = false) => {
         elapsedMinutes: getElapsedMinutes(o.fecha || o.created_at),
         id_estado_pago: Number(o.id_estado_pago || 1),
         metodo_pago: o.metodo_pago || 'Efectivo',
+        notas: o.notas || '',
         detalles: o.detalles || []
       };
     });
@@ -715,11 +707,6 @@ const parseDateTime = (dateString?: string) => {
   };
 };
 
-const formatDate = (dateString?: string) => {
-  return parseDateTime(dateString).date;
-};
-
-// Pedidos pertenecientes a la jornada/turno seleccionado
 const filteredByShiftOrders = computed(() => {
   let result = orders.value;
   if (selectedDate.value) {
@@ -730,15 +717,15 @@ const filteredByShiftOrders = computed(() => {
   return result;
 });
 
-const shiftOrdersCount = computed(() => {
-  return filteredByShiftOrders.value.length;
-});
+const shiftOrdersCount = computed(() => filteredByShiftOrders.value.length);
 
 const countByStatus = (statusId: number) => {
   return filteredByShiftOrders.value.filter((o: any) => Number(o.rawStatusId) === Number(statusId)).length;
 };
 
-// 🌟 Lógica de Filtros Aplicados
+const searchQuery = ref('');
+const statusFilter = ref('all');
+
 const filteredOrders = computed(() => {
   let result = filteredByShiftOrders.value;
 
@@ -769,9 +756,7 @@ const stats = computed(() => {
   };
 });
 
-const formatPrice = (price: number) => {
-  return price.toLocaleString('es-CL');
-};
+const formatPrice = (price: number) => price.toLocaleString('es-CL');
 
 const getStatusClass = (status: string, statusId?: number) => {
   if (statusId) {
@@ -780,29 +765,18 @@ const getStatusClass = (status: string, statusId?: number) => {
       case 2: return 'status-preparation';
       case 3: return 'status-shipping';
       case 4: return 'status-completed';
-      case 5: return 'status-pending';
-      case 6: return 'status-unpaid';
-      case 7: return 'status-paid';
-      case 8: return 'status-cancelled';
+      case 5: return 'status-cancelled';
     }
   }
   switch (status) {
-    case 'Por pagar': return 'status-unpaid';
-    case 'Pagada': return 'status-paid';
     case 'En preparación': return 'status-preparation';
-    case 'En despacho': return 'status-shipping';
+    case 'Listo': return 'status-shipping';
     case 'Entregado': return 'status-completed';
-    case 'En validación': return 'status-validation';
-    case 'Pendiente': return 'status-pending';
+    case 'Pendiente': return 'status-validation';
     case 'Cancelado': return 'status-cancelled';
     default: return 'status-generic';
   }
 };
-
-const searchQuery = ref('');
-const statusFilter = ref('all');
-const selectedCard = ref<'all' | 'amount' | 'paid' | 'delivered' | 'amount_paid'>('all');
-const isStatusDropdownOpen = ref(false);
 
 const isModalOpen = ref(false);
 const selectedOrderId = ref<number | string>('');
@@ -821,33 +795,8 @@ const closeModal = () => {
   fetchOrders(true);
 };
 
-const toggleStatusDropdown = () => {
-  isStatusDropdownOpen.value = !isStatusDropdownOpen.value;
-};
-
-const applySummaryFilter = (filter: 'all' | 'amount' | 'paid' | 'delivered') => {
-  selectedCard.value = filter;
-
-  switch (filter) {
-    case 'paid':
-      statusFilter.value = 'Pagada';
-      break;
-    case 'delivered':
-      statusFilter.value = 'Entregado';
-      break;
-    default:
-      statusFilter.value = 'all';
-  }
-};
-
 const selectStatus = (status: string) => {
   statusFilter.value = status;
-  selectedCard.value = status === 'Pagada' ? 'paid' : status === 'Entregado' ? 'delivered' : 'all';
-  isStatusDropdownOpen.value = false;
-};
-
-const closeDropdowns = () => {
-  isStatusDropdownOpen.value = false;
 };
 
 const sortConfig = ref({ key: '', direction: 'asc' });
@@ -885,14 +834,10 @@ const sortedOrders = computed(() => {
   });
 });
 
-// 📄 Estados y Lógica de Paginación
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
-const pageSizeOptions = [10, 25, 50, 100];
 
-const totalPages = computed(() => {
-  return Math.ceil(sortedOrders.value.length / itemsPerPage.value) || 1;
-});
+const totalPages = computed(() => Math.ceil(sortedOrders.value.length / itemsPerPage.value) || 1);
 
 const paginatedOrders = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value;
@@ -907,50 +852,14 @@ const paginationInfo = computed(() => {
   return { start, end, total };
 });
 
-const displayedPages = computed(() => {
-  const total = totalPages.value;
-  const current = currentPage.value;
-  const delta = 2;
-  const range: (number | string)[] = [];
-
-  for (let i = Math.max(2, current - delta); i <= Math.min(total - 1, current + delta); i++) {
-    range.push(i);
-  }
-
-  if (current - delta > 2) {
-    range.unshift('...');
-  }
-  range.unshift(1);
-
-  if (current + delta < total - 1) {
-    range.push('...');
-  }
-  if (total > 1) {
-    range.push(total);
-  }
-
-  return range;
-});
-
-const goToPage = (page: number | string) => {
-  if (typeof page === 'number' && page >= 1 && page <= totalPages.value) {
-    currentPage.value = page;
-  }
-};
-
 const nextPage = () => {
-  if (currentPage.value < totalPages.value) {
-    currentPage.value++;
-  }
+  if (currentPage.value < totalPages.value) currentPage.value++;
 };
 
 const prevPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value--;
-  }
+  if (currentPage.value > 1) currentPage.value--;
 };
 
-// Reiniciar a la primera página si cambian los filtros o el tamaño de página
 watch([searchQuery, statusFilter, selectedDate, itemsPerPage], () => {
   currentPage.value = 1;
 });
@@ -964,7 +873,6 @@ const handleVisibilityChange = () => {
 
 onMounted(async () => {
   checkUserRole();
-  window.addEventListener('click', closeDropdowns);
   document.addEventListener('visibilitychange', handleVisibilityChange);
   await Promise.all([
     loadShiftWindow(),
@@ -986,7 +894,6 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  window.removeEventListener('click', closeDropdowns);
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   if (refreshInterval.value) clearInterval(refreshInterval.value);
   if (countdownTimer.value) clearInterval(countdownTimer.value);
@@ -995,194 +902,387 @@ onUnmounted(() => {
 
 <style scoped>
 .orders-container {
-  padding: 40px 20px;
-  background-color: transparent;
-  min-height: calc(100vh - 80px);
-}
-
-.orders-header {
-  max-width: 1200px;
-  margin: 0 auto 25px auto;
+  max-width: 1650px;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 3rem;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 1.5rem;
 }
 
-.header-main-info {
+/* ====================================================
+   HEADER Y ACCIONES PRINCIPALES
+==================================================== */
+.page-header {
   display: flex;
-  flex-direction: column;
-}
-
-/* BANNER DE TURNO OPERATIVO */
-.shift-status-banner {
-  display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  padding: 14px 20px;
-  border-radius: 16px;
+  gap: 1.5rem;
   flex-wrap: wrap;
-  gap: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
 }
 
-.banner-active {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  border: 1.5px solid #86efac;
+.header-copy h1 {
+  color: var(--DC-brown, #513119);
+  font-size: 2.2rem;
+  line-height: 1.1;
+  margin: 0 0 0.4rem 0;
 }
 
-.banner-inactive {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border: 1.5px solid #cbd5e1;
+.header-copy p {
+  margin: 0;
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.92rem;
 }
 
-.shift-banner-left {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.shift-live-indicator {
+.header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.92rem;
-  color: #166534;
+  gap: 0.75rem;
 }
 
-.banner-inactive .shift-live-indicator {
-  color: #475569;
-}
-
-.live-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background-color: #22c55e;
-  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
-  animation: pulse-dot 1.6s infinite;
-}
-
-@keyframes pulse-dot {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-}
-
-.shift-day-tag {
+.btn-secondary {
+  border: 1px solid rgba(81, 49, 25, 0.15);
   background: white;
-  padding: 2px 10px;
-  border-radius: 999px;
-  font-size: 0.76rem;
-  font-weight: 800;
-  border: 1px solid #bbf7d0;
+  color: var(--DC-brown, #513119);
+  padding: 0.65rem 1.1rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--DC-orange, #e28743);
+  box-shadow: 0 4px 14px rgba(226, 135, 67, 0.15);
+}
+
+.btn-secondary.btn-live-active {
+  background: #f0fdf4;
+  border-color: #86efac;
   color: #15803d;
 }
 
-.shift-schedule-info {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  font-size: 0.84rem;
-  color: #334155;
+.btn-primary {
+  border: none;
+  background: var(--DC-orange, #e28743);
+  color: white;
+  padding: 0.65rem 1.25rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 0.88rem;
+  transition: all 0.2s ease;
 }
 
-.shift-banner-right {
+.btn-primary:hover:not(:disabled) {
+  background: var(--DC-brown, #513119);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(81, 49, 25, 0.2);
+}
+
+.spinning {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ====================================================
+   BANNER DEL TURNO OPERATIVO
+==================================================== */
+.shift-status-card {
+  background: white;
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  border-radius: 16px;
+  padding: 1.15rem 1.4rem;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 16px rgba(26, 14, 5, 0.03);
 }
 
-.shift-comandas-summary {
+.shift-status-card.shift-active {
+  border-left: 5px solid #16a34a;
+}
+
+.shift-status-card.shift-inactive {
+  border-left: 5px solid #cbd5e1;
+}
+
+.shift-status-main {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  background: white;
-  padding: 6px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  gap: 0.65rem;
+  width: 100%;
 }
 
-.comandas-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #64748b;
+.shift-indicator-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.comandas-val {
-  font-size: 1.15rem;
-  font-weight: 900;
+.pill-open { background: #dcfce7; color: #15803d; }
+.pill-closed { background: var(--DC-bg-gray, #f8f6f3); color: var(--DC-text-gray, #7c7468); }
+
+.dot-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 rgba(22, 163, 74, 0.7);
+  animation: pulse-dot 1.8s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+
+.shift-day-badge {
+  background: var(--DC-bg-gray, #f8f6f3);
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: var(--DC-brown, #513119);
+}
+
+.shift-date-hint {
+  font-size: 0.8rem;
+  color: var(--DC-text-gray, #7c7468);
+}
+
+.shift-data-chips {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--DC-bg-gray, #f8f6f3);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+
+.meta-chip.highlight {
+  background: #fff4e6;
+  border: 1px solid #fed7aa;
+}
+
+.meta-chip.highlight strong {
   color: var(--DC-orange, #e28743);
 }
 
-/* PESTAÑAS RÁPIDAS DE ESTADO KDS */
-.status-quick-tabs {
-  display: flex;
-  gap: 8px;
-  max-width: 1200px;
-  margin: 0 auto 20px auto;
-  overflow-x: auto;
-  padding-bottom: 4px;
+.chip-lbl { color: var(--DC-text-gray, #7c7468); }
+
+/* ====================================================
+   KPIS SUMMARY-GRID (5 COLUMNAS)
+==================================================== */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1rem;
 }
 
-.status-tab-btn {
+.summary-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(26, 14, 5, 0.03);
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  padding: 1rem 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.summary-card.highlight-metric {
+  border-color: var(--DC-orange, #e28743);
+  background: #fffdfa;
+}
+
+.summary-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.bg-summary-brown { background: var(--DC-bg-gray, #f8f6f3); color: var(--DC-brown, #513119); }
+.bg-summary-orange { background: rgba(226, 135, 67, 0.12); color: var(--DC-orange, #e28743); }
+.bg-summary-pink { background: rgba(216, 0, 86, 0.1); color: var(--DC-pink, #d80056); }
+.bg-summary-green { background: rgba(22, 163, 74, 0.12); color: #16a34a; }
+.bg-summary-blue { background: rgba(59, 130, 246, 0.12); color: #2563eb; }
+
+.summary-label {
+  display: block;
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.summary-value {
+  display: block;
+  color: var(--DC-gray, #2c2724);
+  font-size: 1.35rem;
+  line-height: 1.15;
+  margin: 0.15rem 0;
+}
+
+.summary-helper {
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.76rem;
+  margin: 0;
+}
+
+.text-status-open { color: #15803d; }
+.text-orange { color: var(--DC-orange, #e28743); }
+.text-pink { color: var(--DC-pink, #d80056); }
+
+/* ====================================================
+   PESTAÑAS RÁPIDAS DE ESTADO (SEGMENTED)
+==================================================== */
+.inventory-tabs-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #ede6dc;
+  border-radius: 14px;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.tab-nav-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: white;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: #6d6254;
   font-weight: 700;
-  font-size: 0.85rem;
-  color: #475569;
+  font-size: 0.88rem;
   cursor: pointer;
+  border-radius: 10px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
-  transition: all 0.2s ease;
 }
 
-.status-tab-btn:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
+.tab-nav-btn:hover:not(.active) {
+  color: var(--DC-brown, #513119);
+  background: rgba(255, 255, 255, 0.4);
 }
 
-.status-tab-btn.active {
-  background: var(--DC-brown, #513119);
-  color: white;
-  border-color: var(--DC-brown, #513119);
+.tab-nav-btn.active {
+  background: white;
+  color: var(--DC-brown, #513119);
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(26, 14, 5, 0.08);
 }
 
-.tab-count-pill {
-  background: rgba(0, 0, 0, 0.08);
-  padding: 1px 7px;
+.tab-pill {
+  font-size: 0.72rem;
+  padding: 2px 7px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  background: rgba(81, 49, 25, 0.08);
+  color: #665b4f;
   font-weight: 800;
 }
 
-.status-tab-btn.active .tab-count-pill {
-  background: rgba(255, 255, 255, 0.25);
+.tab-nav-btn.active .tab-pill {
+  background: var(--DC-orange, #e28743);
   color: white;
 }
 
-/* SELECTOR DE MODO DE TURNO */
+/* ====================================================
+   PANEL DE TABLA UNIFICADO & TOOLBAR
+==================================================== */
+.table-unified-card {
+  background: white;
+  border-radius: 18px;
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  box-shadow: 0 4px 20px rgba(26, 14, 5, 0.04);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1.15rem;
+  background: #fffdfa;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.08);
+  flex-wrap: wrap;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
 .shift-mode-selector {
   display: inline-flex;
-  background: #f1f5f9;
+  background: var(--DC-bg-gray, #f8f6f3);
   padding: 3px;
-  border-radius: 12px;
+  border-radius: 10px;
   gap: 3px;
 }
 
 .btn-shift-mode {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 9px;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 8px;
   border: none;
   background: transparent;
-  color: #64748b;
-  font-size: 0.82rem;
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.78rem;
   font-weight: 800;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -1191,32 +1291,162 @@ onUnmounted(() => {
 .btn-shift-mode.active {
   background: white;
   color: var(--DC-orange, #e28743);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
-/* COMANDAS Y CELDAS KDS */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--DC-bg-gray, #f8f6f3);
+  border: 1px solid rgba(81, 49, 25, 0.09);
+  border-radius: 12px;
+  padding: 0.55rem 0.75rem;
+}
+
+.search-box input {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--DC-gray, #2c2724);
+  font-size: 0.86rem;
+  min-width: 220px;
+}
+
+.search-icon {
+  color: var(--DC-text-gray, #7c7468);
+  flex-shrink: 0;
+}
+
+.clear-search-btn {
+  background: transparent;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+}
+
+.date-filter-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.date-filter-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--DC-text-gray, #7c7468);
+  pointer-events: none;
+}
+
+.filter-date-input {
+  padding: 0.45rem 0.65rem 0.45rem 32px;
+  border-radius: 10px;
+  border: 1px solid rgba(81, 49, 25, 0.12);
+  background: var(--DC-bg-gray, #f8f6f3);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--DC-gray, #2c2724);
+  outline: none;
+}
+
+.picker-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.results-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(226, 135, 67, 0.12);
+  color: var(--DC-brown, #513119);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+/* ====================================================
+   TABLA DESKTOP
+==================================================== */
+.table-wrapper {
+  max-height: 560px;
+  overflow-y: auto;
+  width: 100%;
+}
+
+.orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.orders-table thead th {
+  background: #faf6f0;
+  color: var(--DC-brown, #513119);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.8rem 0.6rem;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  text-align: left;
+}
+
+.orders-table tbody td {
+  padding: 0.75rem 0.6rem;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.07);
+  vertical-align: middle;
+  font-size: 0.86rem;
+}
+
+.orders-table thead th:first-child,
+.orders-table tbody td:first-child {
+  padding-left: 1.15rem;
+}
+
+.orders-table thead th:last-child,
+.orders-table tbody td:last-child {
+  padding-right: 1.15rem;
+}
+
+.orders-table tbody tr:hover {
+  background: rgba(245, 235, 224, 0.35);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.sort-icon {
+  color: #adb5bd;
+}
+
+.sort-icon.active-sort {
+  color: var(--DC-orange, #e28743);
+}
+
 .comanda-cell {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
 }
 
 .comanda-badge {
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 900;
   color: var(--DC-orange, #e28743);
   background: #fff7ed;
-  padding: 3px 8px;
-  border-radius: 8px;
+  padding: 2px 7px;
+  border-radius: 6px;
   border: 1px solid #fed7aa;
-  display: inline-block;
-  width: fit-content;
-}
-
-.order-real-id {
-  font-size: 0.72rem;
-  color: #94a3b8;
-  font-weight: 600;
 }
 
 .client-cell {
@@ -1226,435 +1456,172 @@ onUnmounted(() => {
 }
 
 .client-name {
-  font-size: 0.92rem;
-  color: #1e293b;
+  color: var(--DC-gray, #2c2724);
+  font-size: 0.88rem;
 }
 
 .client-phone {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 0.76rem;
-  color: #64748b;
-}
-
-.time-primary {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.92rem;
-  color: #0f172a;
-}
-
-.date-secondary {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  color: #64748b;
-  margin-top: 2px;
-}
-
-.elapsed-badge {
-  display: inline-flex;
-  align-items: center;
   gap: 3px;
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: 0.74rem;
+  color: var(--DC-text-gray, #7c7468);
 }
-
-.elapsed-ok {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.elapsed-warning {
-  background: #fef3c7;
-  color: #b45309;
-}
-
-.elapsed-danger {
-  background: #fee2e2;
-  color: #b91c1c;
-  animation: pulse-danger 1.5s infinite;
-}
-
-@keyframes pulse-danger {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.75; }
-}
-
-.mobile-real-id {
-  font-size: 0.72rem;
-  color: #94a3b8;
-  font-weight: 600;
-}
-
-.orders-title {
-  font-size: 2rem;
-  font-weight: 900;
-  color: var(--DC-gray);
-  margin: 0;
-  text-transform: uppercase;
-}
-
-.orders-description {
-  font-size: 1rem;
-  color: var(--DC-text-gray);
-  margin-top: 4px;
-  font-weight: 600;
-}
-
-/* TARJETAS SUPERIORES */
-.status-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
-  margin: 0 auto 40px auto;
-  max-width: 1200px;
-}
-
-.status-card {
-  background-color: white;
-  border-radius: 16px;
-  padding: 15px;
-  display: flex;
-  justify-content: space-between;
-  align-items: stretch;
-  gap: 12px;
-  flex-wrap: wrap;
-  min-height: 118px;
-  height: 100%;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-  border: 2px solid transparent;
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
-
-.status-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--DC-orange);
-}
-
-.status-card.card-interactive {
-  cursor: pointer;
-}
-
-.status-card.card-active {
-  border-color: var(--DC-orange);
-  box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.16);
-}
-
-.card-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1 1 160px;
-  min-width: 0;
-}
-
-.icon-box {
-  width: 45px;
-  height: 45px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Colores de las tarjetas alineados al tema */
-.bg-unpaid { background-color: rgba(226, 135, 67, 0.1); color: var(--DC-orange); }
-.bg-paid { background-color: rgba(46, 196, 182, 0.1); color: #2ec4b6; }
-.bg-preparation { background-color: rgba(81, 49, 25, 0.1); color: var(--DC-brown); }
-.bg-shipping { background-color: rgba(216, 0, 86, 0.1); color: var(--DC-pink); }
-.bg-delivered { background-color: #f1f3f5; color: var(--DC-gray); }
-.bg-generic { background-color: #f1f3f5; color: var(--DC-text-gray); }
-
-.card-label { font-size: 0.85rem; font-weight: 800; color: var(--DC-gray); text-transform: uppercase; }
-.card-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  min-width: 0;
-  text-align: right;
-}
-.card-count { font-size: 1.2rem; font-weight: 900; color: var(--DC-brown); line-height: 1; }
-.card-subtext { font-size: 0.75rem; font-weight: 700; color: var(--DC-text-gray); margin-top: 4px; text-transform: uppercase; }
-
-/* CALENDARIO ESTILOS */
-.card-date-picker {
-  border: 2px solid #eeedee;
-  background-color: #fcfbf9;
-  padding: 8px 10px 8px 12px;
-  border-radius: 10px;
-  color: var(--DC-gray);
-  font-weight: 800;
-  font-size: 0.9rem;
-  outline: none;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all 0.2s ease;
-  min-width: 165px;
-  width: 165px;
-}
-
-.card-date-picker:hover:not(:disabled) {
-  background-color: white;
-  border-color: #ced4da;
-}
-
-.card-date-picker:focus {
-  border-color: var(--DC-orange);
-  box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.2);
-}
-
-::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; transition: 0.2s; }
-::-webkit-calendar-picker-indicator:hover { opacity: 1; }
-
-.picker-disabled {
-  background-color: #f1f3f5;
-  border-color: #dee2e6;
-  color: #adb5bd;
-  cursor: not-allowed;
-  opacity: 0.8;
-}
-.picker-disabled::-webkit-calendar-picker-indicator { display: none; }
-
-/* TABS / SWITCH DE PAGOS - PEDIDOS */
-.main-table-card {
-  background-color: white;
-  border-radius: 16px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
-  border: 1px solid #eeedee;
-  overflow: visible;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.tabs-outer-container { max-width: 1200px; margin: 0 auto 15px auto; display: flex; justify-content: flex-start; }
-
-.switch-container {
-  display: flex;
-  background-color: white;
-  padding: 6px;
-  border-radius: 12px;
-  width: fit-content;
-  position: relative;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-}
-
-.switch-slider {
-  position: absolute;
-  top: 6px; left: 6px;
-  width: calc(50% - 6px); height: calc(100% - 12px);
-  background-color: var(--DC-orange);
-  border-radius: 8px;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 1;
-}
-
-.switch-slider.slide-right { transform: translateX(100%); }
-
-.switch-btn {
-  background: none; border: none; padding: 10px 24px; border-radius: 8px;
-  font-size: 0.95rem; font-weight: 800; color: var(--DC-text-gray);
-  cursor: pointer; position: relative; z-index: 2; transition: color 0.3s ease;
-  display: flex; align-items: center; gap: 10px;
-}
-
-.switch-btn.active { color: white; }
-
-.count-badge { background-color: #f1f3f5; color: var(--DC-text-gray); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 900;}
-.switch-btn.active .count-badge { background-color: white; color: var(--DC-orange); }
-
-/* CONTROLES DE LA TABLA */
-.table-actions { padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px; }
-.actions-left { display: flex; gap: 12px; flex: 1; flex-wrap: wrap; align-items: flex-start;}
-
-.search-box { position: relative; width: 100%; max-width: 400px; }
-.search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--DC-brown); }
-.search-box input {
-  width: 100%; padding: 12px 12px 12px 42px; border-radius: 10px;
-  border: 2px solid #eeedee; font-size: 0.95rem; color: var(--DC-gray); font-weight: 600; outline: none; transition: all 0.2s;
-}
-.search-box input:focus { border-color: var(--DC-orange); }
-
-.dropdown-container { position: relative; }
-.btn-secondary { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background-color: white; border: 2px solid #eeedee; border-radius: 10px; color: var(--DC-gray); font-size: 0.9rem; font-weight: 800; cursor: pointer; transition: all 0.2s; }
-.btn-secondary:hover { border-color: var(--DC-brown); }
-
-.dropdown-menu { position: absolute; top: calc(100% + 8px); left: 0; background-color: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); border: 2px solid var(--DC-brown); min-width: 220px; z-index: 100; padding: 8px; }
-.dropdown-item { padding: 10px 16px; font-size: 0.85rem; font-weight: 700; color: var(--DC-gray); cursor: pointer; border-radius: 8px; transition: all 0.2s; }
-.dropdown-item:hover { background-color: var(--DC-bg-gray); color: var(--DC-orange); }
-.dropdown-divider { height: 1px; background-color: #eeedee; margin: 6px 0; }
-
-.btn-export { display: flex; align-items: center; gap: 10px; padding: 12px 20px; background-color: white; border: 2px solid var(--DC-brown); border-radius: 10px; color: var(--DC-brown); font-size: 0.9rem; font-weight: 900; cursor: pointer; transition: all 0.2s; }
-.btn-export:hover { background-color: var(--DC-brown); color: white; }
-
-/* TABLA DE PEDIDOS */
-.orders-table { width: 100%; border-collapse: collapse; }
-.orders-table th { padding: 16px 20px; text-align: left; background-color: var(--DC-brown) !important; color: white !important; font-weight: 900 !important; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; user-select: none; }
-.orders-table th.text-center { text-align: center; }
-.orders-table td { padding: 20px; text-align: left; border-bottom: 1px solid #eeedee; font-size: 0.95rem; color: var(--DC-gray); }
-
-.bold-text { font-weight: 900; color: var(--DC-gray); font-size: 1rem;}
-
-/* BADGES DE ESTADO (Alineados a los colores de J.Junior) */
-.status-badge { padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 900; text-transform: uppercase; display: inline-block; border: 2px solid transparent;}
-.status-unpaid { background-color: rgba(226, 135, 67, 0.1); color: var(--DC-orange); border-color: var(--DC-orange); }
-.status-paid { background-color: rgba(46, 196, 182, 0.1); color: #2ec4b6; border-color: #2ec4b6; }
-.status-preparation { background-color: rgba(81, 49, 25, 0.1); color: var(--DC-brown); border-color: var(--DC-brown); }
-.status-shipping { background-color: rgba(216, 0, 86, 0.1); color: var(--DC-pink); border-color: var(--DC-pink); }
-.status-completed { background-color: #f1f3f5; color: var(--DC-gray); border-color: var(--DC-gray); }
-.status-validation { background-color: #fff4e6; color: #fd7e14; border-color: #fd7e14; }
-.status-pending { background-color: #f8f9fa; color: #495057; border-color: #ced4da; }
-.status-cancelled { background-color: #f8d7da; color: #e63946; border-color: #e63946; }
-.status-generic { background-color: #f1f3f5; color: var(--DC-text-gray); border-color: #ced4da; }
-
-.date-content { display: flex; align-items: center; gap: 10px; }
-.date-time { display: flex; flex-direction: column; }
-.date { font-weight: 800; color: var(--DC-gray); }
-.time { font-size: 0.75rem; color: var(--DC-text-gray); font-weight: 700;}
-.date-icon { color: var(--DC-orange); }
 
 .badges-cell {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
   align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
 }
 
+.status-badge {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.status-validation { background: #fff4e6; color: #fd7e14; }
+.status-preparation { background: rgba(81, 49, 25, 0.1); color: var(--DC-brown, #513119); }
+.status-shipping { background: #e7f5ff; color: #1c7ed6; }
+.status-completed { background: #dcfce7; color: #15803d; }
+.status-cancelled { background: #fee2e2; color: #b91c1c; }
+.status-generic { background: var(--DC-bg-gray, #f8f6f3); color: var(--DC-text-gray, #7c7468); }
+
 .status-paid {
-  background-color: #e8f5e9;
-  color: #2e7d32;
-  border: 1px solid #a5d6a7;
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
 }
 
 .status-unpaid {
-  background-color: #fff3e0;
+  background: #fff3e0;
   color: #e65100;
   border: 1px solid #ffcc80;
 }
 
-.btn-live-toggle {
+.date-content {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
-  background-color: #fcfbf9;
-  border: 2px solid #eeedee;
-  border-radius: 10px;
-  color: var(--DC-gray);
-  font-size: 0.85rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.btn-live-toggle.active {
-  background-color: #e8f5e9;
-  border-color: #a5d6a7;
-  color: #2e7d32;
-}
-.spinning {
-  animation: spin 1s linear infinite;
 }
 
-.elapsed-badge {
+.time-primary {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 800;
-}
-.elapsed-ok {
-  background-color: #f1f3f5;
-  color: #495057;
-}
-.elapsed-warning {
-  background-color: #fff3bf;
-  color: #f59f00;
-  border: 1px solid #ffe066;
-}
-.elapsed-danger {
-  background-color: #ffe3e3;
-  color: #e03131;
-  border: 1px solid #ffc9c9;
-  animation: pulse-danger 1.5s infinite;
-}
-@keyframes pulse-danger {
-  0% { opacity: 1; }
-  50% { opacity: 0.6; }
-  100% { opacity: 1; }
+  font-size: 0.85rem;
+  color: var(--DC-gray, #2c2724);
 }
 
-.btn-quick-advance {
+.time-icon { color: var(--DC-text-gray, #7c7468); }
+
+.elapsed-badge {
+  display: inline-flex;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.elapsed-ok { background: #f1f5f9; color: #475569; }
+.elapsed-warning { background: #fef3c7; color: #b45309; }
+.elapsed-danger { background: #fee2e2; color: #b91c1c; }
+
+.bold-text {
+  font-weight: 800;
+  color: var(--DC-brown, #513119);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(81, 49, 25, 0.12);
+  background: white;
+  color: var(--DC-brown, #513119);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.icon-button:hover {
+  background: var(--DC-orange, #e28743);
+  border-color: var(--DC-orange, #e28743);
+  color: white;
+}
+
+/* ====================================================
+   PAGINACIÓN
+==================================================== */
+.inventory-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.15rem;
+  background: var(--DC-bg-gray, #f8f6f3);
+  border-top: 1px solid rgba(81, 49, 25, 0.08);
+}
+
+.pagination-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 12px;
-  border-radius: 8px;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(81, 49, 25, 0.15);
+  background: white;
+  color: var(--DC-brown, #513119);
+  font-weight: 700;
   font-size: 0.8rem;
-  font-weight: 800;
-  border: none;
   cursor: pointer;
   transition: all 0.2s ease;
 }
-.advance-step-1 {
-  background-color: #fff4e6;
-  color: #fd7e14;
-  border: 1px solid #ffe8cc;
-}
-.advance-step-1:hover {
-  background-color: #fd7e14;
-  color: white;
-}
-.advance-step-2 {
-  background-color: #e6fcf5;
-  color: #0ca678;
-  border: 1px solid #c3fae8;
-}
-.advance-step-2:hover {
-  background-color: #0ca678;
-  color: white;
-}
-.advance-step-3 {
-  background-color: #e7f5ff;
-  color: #1c7ed6;
-  border: 1px solid #d0ebff;
-}
-.advance-step-3:hover {
-  background-color: #1c7ed6;
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--DC-orange, #e28743);
+  border-color: var(--DC-orange, #e28743);
   color: white;
 }
 
-.actions-content { display: flex; justify-content: center; }
-.btn-action { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; border: 2px solid var(--DC-orange); background-color: white; color: var(--DC-orange); font-size: 0.85rem; font-weight: 800; cursor: pointer; transition: all 0.2s; }
-.btn-action:hover { background-color: var(--DC-orange); color: white; }
-
-.padding-large { padding: 60px !important; }
-.loading-container { display: flex; flex-direction: column; align-items: center; gap: 15px; color: var(--DC-brown); font-weight: 900; text-transform: uppercase; }
-.spinner { width: 40px; height: 40px; border: 4px solid var(--DC-bg-gray); border-top: 4px solid var(--DC-orange); border-radius: 50%; animation: spin 1s linear infinite; }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+.pagination-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
+.pagination-info {
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.82rem;
+}
+
+/* ====================================================
+   SKELETON & EMPTY STATES
+==================================================== */
 .skeleton-row td {
-  padding: 18px 20px;
+  padding: 16px 20px;
 }
 
 .skeleton-pill {
-  height: 18px;
+  height: 14px;
   border-radius: 6px;
   background: linear-gradient(90deg, #f0ede9 25%, #f8f6f3 50%, #f0ede9 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 .width-50 { width: 50px; }
@@ -1669,513 +1636,205 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 15px;
-  color: var(--DC-text-gray);
-  font-weight: 700;
-  min-height: 240px;
-  padding: 24px;
-  box-sizing: border-box;
+  gap: 0.65rem;
+  padding: 3.5rem 1rem;
+  color: var(--DC-text-gray, #7c7468);
   text-align: center;
 }
-.empty-icon { color: var(--DC-brown); opacity: 0.5; }
-.btn-retry { padding: 10px 24px; background-color: var(--DC-orange); color: white; border: none; border-radius: 8px; font-weight: 900; cursor: pointer; transition: background-color 0.2s; }
-.btn-retry:hover { background-color: var(--DC-brown); }
 
-.header-content { display: flex; align-items: center; justify-content: flex-start; gap: 8px; cursor: pointer; }
-.sort-icon { color: rgba(255,255,255,0.5); transition: color 0.2s; }
-.active-sort { color: var(--DC-orange) !important; }
-.orders-table th:hover .sort-icon { color: white; }
-
-.date-filter-box {
-  position: relative;
-  display: flex;
-  align-items: center;
+.empty-state p {
+  margin: 0;
+  font-size: 0.88rem;
 }
 
-.date-filter-icon {
-  position: absolute;
-  left: 12px;
-  color: var(--DC-brown);
-  pointer-events: none;
-}
-
-.mobile-date-input {
-  padding: 10px 12px 10px 38px;
-  border: 2px solid #eeedee;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 800;
-  color: var(--DC-gray);
-  background-color: white;
-  outline: none;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all 0.2s ease;
-}
-
-.mobile-date-input:focus {
-  border-color: var(--DC-orange);
-}
-
-/* 📄 PAGINACIÓN */
-.pagination-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding: 16px 24px;
-  background-color: white;
-  border-top: 1px solid #eeedee;
-}
-
-.pagination-info {
-  font-size: 0.85rem;
-  color: var(--DC-brown);
-  font-weight: 600;
-}
-
-.pagination-info strong {
-  color: var(--DC-gray);
-}
-
-.pagination-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.page-size-selector {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  color: var(--DC-brown);
-  font-weight: 700;
-}
-
-.select-page-size {
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1.5px solid #e2e8f0;
-  background-color: #f8fafc;
-  color: var(--DC-gray);
-  font-size: 0.85rem;
-  font-weight: 700;
-  cursor: pointer;
-  outline: none;
-  font-family: inherit;
-  transition: all 0.2s ease;
-}
-
-.select-page-size:focus,
-.select-page-size:hover {
-  border-color: var(--DC-orange);
-  background-color: white;
-}
-
-.page-buttons {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.btn-page-nav,
-.btn-page-num {
-  min-width: 34px;
-  height: 34px;
-  padding: 0 6px;
-  border-radius: 8px;
-  border: 1.5px solid #eeedee;
-  background-color: white;
-  color: var(--DC-gray);
-  font-size: 0.85rem;
-  font-weight: 800;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  user-select: none;
-}
-
-.btn-page-nav:hover:not(:disabled),
-.btn-page-num:hover:not(:disabled):not(.ellipsis) {
-  border-color: var(--DC-orange);
-  color: var(--DC-orange);
-  background-color: #fffaf5;
-  transform: translateY(-1px);
-}
-
-.btn-page-num.active {
-  background-color: var(--DC-orange);
-  border-color: var(--DC-orange);
+.btn-retry {
+  padding: 8px 18px;
+  background: var(--DC-orange, #e28743);
   color: white;
-  box-shadow: 0 2px 6px rgba(255, 107, 0, 0.3);
-}
-
-.btn-page-nav:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  background-color: #f8fafc;
-  border-color: #e2e8f0;
-}
-
-.btn-page-num.ellipsis {
-  cursor: default;
   border: none;
-  background: transparent;
-  color: #94a3b8;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
-/* 💻 VISTAS RESPONSIVAS: ESCRITORIO vs MÓVIL */
-.desktop-table-view {
-  display: block;
+.btn-retry:hover {
+  background: var(--DC-brown, #513119);
 }
 
-.mobile-cards-view {
-  display: none;
+.text-center { text-align: center; }
+
+/* ====================================================
+   RESPONSIVO MÓVIL
+==================================================== */
+.mobile-only {
+  display: none !important;
 }
 
-/* 📱 RESPONSIVO: ESTILO APP NATIVA PARA CELULARES Y TABLETS */
-@media (max-width: 768px) {
-  .desktop-table-view {
+@media (max-width: 900px) {
+  .desktop-table-only {
     display: none !important;
   }
 
-  .mobile-cards-view {
-    display: flex;
+  .mobile-only {
+    display: flex !important;
     flex-direction: column;
-    gap: 12px;
-    padding: 12px;
-  }
-
-  .mobile-cards-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    gap: 0.85rem;
+    padding: 1rem;
   }
 
   .mobile-order-card {
     background: white;
-    border: 1.5px solid #eeedee;
-    border-radius: 16px;
-    padding: 14px 16px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(81, 49, 25, 0.08);
+    border-radius: 14px;
+    padding: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 0.75rem;
     cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .mobile-order-card:active {
-    transform: scale(0.99);
-    border-color: var(--DC-orange);
   }
 
   .mobile-card-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
   }
 
   .mobile-id-box {
     display: flex;
     align-items: center;
-    gap: 8px;
-  }
-
-  .mobile-order-id {
-    font-size: 1.05rem;
-    font-weight: 900;
-    color: #1e293b;
-  }
-
-  .mobile-order-time {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.78rem;
-    color: #64748b;
-    font-weight: 700;
-    background: #f1f5f9;
-    padding: 2px 6px;
-    border-radius: 6px;
-  }
-
-  .mobile-card-badges {
-    display: flex;
     gap: 6px;
-    flex-wrap: wrap;
   }
 
   .mobile-card-body {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 8px 0;
-    border-top: 1px dashed #f1ece7;
-    border-bottom: 1px dashed #f1ece7;
+    gap: 4px;
+    border-top: 1px dashed rgba(81, 49, 25, 0.08);
+    border-bottom: 1px dashed rgba(81, 49, 25, 0.08);
+    padding: 6px 0;
   }
 
   .mobile-client-line {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.95rem;
+    gap: 6px;
+    font-size: 0.9rem;
     font-weight: 800;
-    color: #1e293b;
-  }
-
-  .mobile-client-name {
-    color: #1e293b;
+    color: var(--DC-gray, #2c2724);
   }
 
   .mobile-phone-line {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.82rem;
-    color: #64748b;
-    font-weight: 600;
-  }
-
-  .mobile-icon {
-    color: var(--DC-orange);
-    flex-shrink: 0;
+    gap: 6px;
+    font-size: 0.76rem;
+    color: var(--DC-text-gray, #7c7468);
   }
 
   .mobile-card-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 10px;
     flex-wrap: wrap;
-  }
-
-  .mobile-price-section {
-    display: flex;
-    flex-direction: column;
+    gap: 8px;
   }
 
   .price-title {
-    font-size: 0.72rem;
-    font-weight: 800;
-    color: #64748b;
-    text-transform: uppercase;
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--DC-text-gray, #7c7468);
   }
 
   .price-value {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     font-weight: 900;
-    color: #059669;
+    color: var(--DC-brown, #513119);
   }
 
   .mobile-actions-row {
     display: flex;
-    gap: 8px;
     align-items: center;
+    gap: 6px;
   }
 
-  .btn-mobile-detail {
+  .btn-action-mobile {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 8px 12px;
+    gap: 4px;
+    padding: 6px 10px;
     border-radius: 8px;
-    border: 1.5px solid var(--DC-orange);
+    border: 1px solid rgba(81, 49, 25, 0.15);
     background: white;
-    color: var(--DC-orange);
-    font-size: 0.82rem;
-    font-weight: 800;
-    cursor: pointer;
-    transition: all 0.2s;
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--DC-brown, #513119);
   }
 
-  .btn-mobile-detail:hover {
-    background: var(--DC-orange);
+  .btn-advance-mobile {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: none;
+    font-size: 0.76rem;
+    font-weight: 800;
     color: white;
   }
 
-  .btn-mobile-advance {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: none;
-    font-size: 0.82rem;
-    font-weight: 800;
-    cursor: pointer;
-    transition: all 0.2s;
+  .btn-advance-mobile.step-1 { background: #fd7e14; }
+  .btn-advance-mobile.step-2 { background: #0ca678; }
+  .btn-advance-mobile.step-3 { background: #1c7ed6; }
+}
+
+@media (max-width: 768px) {
+  .orders-container {
+    padding: 1rem;
   }
 
-  .mobile-skeleton-container {
-    display: flex;
+  .page-header {
     flex-direction: column;
-    gap: 12px;
+    align-items: stretch;
+    gap: 1rem;
   }
 
-  .mobile-card-skeleton {
-    background: white;
-    border-radius: 16px;
-    border: 1px solid #eeedee;
-    padding: 16px;
-    display: flex;
+  .header-actions {
     flex-direction: column;
-    gap: 8px;
-  }
-
-  .mobile-empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 30px 16px;
-    color: #64748b;
-    gap: 12px;
-  }
-
-  .orders-container { 
-    padding: 12px 10px; 
-    min-height: auto;
-  }
-  .orders-header { margin-bottom: 16px; }
-  .orders-title { font-size: 1.4rem; }
-  .orders-description { font-size: 0.82rem; }
-
-  .status-cards { 
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin: 0 0 16px 0;
-    padding: 0;
-    overflow-x: visible;
     width: 100%;
   }
-  
-  .status-card { 
+
+  .header-actions button {
     width: 100%;
-    min-width: 0;
-    min-height: auto;
-    box-sizing: border-box;
-    padding: 12px 16px;
-    border-radius: 14px;
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: nowrap;
-    gap: 12px;
+    justify-content: center;
   }
 
-  .card-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1 1 auto;
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar-left, .toolbar-right {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .search-box, .shift-mode-selector, .date-filter-box {
+    width: 100%;
     min-width: 0;
   }
 
-  .card-label {
-    font-size: 0.85rem;
-    font-weight: 800;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .card-right {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    flex-shrink: 0;
-  }
-
-  .card-count { font-size: 1.25rem; font-weight: 900; }
-  .icon-box { width: 40px; height: 40px; flex-shrink: 0; }
-
-  .table-actions { 
-    padding: 12px 10px; 
-    flex-direction: column; 
-    gap: 10px; 
-  }
-  .actions-left { 
-    display: flex; 
-    flex-direction: column; 
-    gap: 8px; 
-    width: 100%; 
-  }
-  .search-box { 
-    width: 100%; 
-    max-width: 100%; 
-  }
-  .search-box input { 
-    padding: 10px 10px 10px 38px; 
-    font-size: 0.88rem; 
-  }
-
-  .date-filter-box {
-    width: 100%;
-  }
-
-  .mobile-date-input {
+  .filter-date-input {
     width: 100%;
     box-sizing: border-box;
-    font-size: 0.88rem;
-    padding: 10px 12px 10px 38px;
-  }
-  
-  .dropdown-container { width: 100%; }
-  .btn-secondary { 
-    width: 100%; 
-    padding: 10px 12px; 
-    font-size: 0.85rem; 
-    justify-content: space-between; 
-  }
-
-  .btn-live-toggle {
-    width: 100%;
-    justify-content: center;
-    padding: 10px;
-    font-size: 0.85rem;
-  }
-
-  .main-table-card { 
-    border-radius: 16px; 
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-  }
-
-  .pagination-footer {
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 12px;
-  }
-
-  .pagination-info {
-    text-align: center;
-    font-size: 0.8rem;
-  }
-
-  .pagination-controls {
-    flex-direction: column;
-    width: 100%;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .page-size-selector {
-    justify-content: center;
-  }
-
-  .page-buttons {
-    flex-wrap: wrap;
-    justify-content: center;
   }
 }
 </style>

@@ -1,73 +1,192 @@
 <template>
   <div class="banners-admin-page">
+    <!-- ===================== HEADER ===================== -->
     <header class="page-header">
-      <div class="header-left">
+      <div class="header-copy">
         <h1>Gestión de Banners y Avisos</h1>
-        <p>Personaliza las imágenes del carrusel principal y los anuncios dinámicos de la marquesina en tiempo real.</p>
+        <p>Configura las imágenes del carrusel principal y los mensajes promocionales de la marquesina.</p>
       </div>
 
-      <div class="header-tabs">
-        <button
-          class="tab-btn"
-          :class="{ active: activeTab === 'banners' }"
-          @click="activeTab = 'banners'"
+      <div class="header-actions">
+        <button 
+          v-if="activeTab === 'banners'" 
+          class="btn-secondary" 
+          @click="resetBanners"
+          title="Restablecer banners de fábrica"
         >
-          <Images :size="18" />
-          <span>Banners del Carrusel</span>
+          <RotateCcw :size="16" />
+          <span>Restablecer</span>
+        </button>
+        <button 
+          v-else 
+          class="btn-secondary" 
+          @click="resetAnnouncements"
+          title="Restablecer avisos de fábrica"
+        >
+          <RotateCcw :size="16" />
+          <span>Restablecer</span>
         </button>
 
-        <button
-          class="tab-btn"
-          :class="{ active: activeTab === 'announcements' }"
-          @click="activeTab = 'announcements'"
+        <button 
+          v-if="activeTab === 'banners'" 
+          class="btn-primary" 
+          @click="openCreateBannerModal"
         >
-          <Megaphone :size="18" />
-          <span>Barra de Avisos</span>
+          <Plus :size="18" />
+          <span>Nuevo Banner</span>
+        </button>
+        <button 
+          v-else 
+          class="btn-primary" 
+          @click="openCreateAnnouncementModal"
+        >
+          <Plus :size="18" />
+          <span>Nuevo Aviso</span>
         </button>
       </div>
     </header>
 
-    <!-- ==================== SECCIÓN BANNERS ==================== -->
-    <section v-if="activeTab === 'banners'" class="tab-content animate-fade-in">
-      <div class="section-top-bar">
-        <div>
-          <h2>Banners del Carrusel ({{ banners.length }})</h2>
-          <p class="subtitle">Arrastra o sube imágenes en formato WebP optimizado para la portada.</p>
+    <!-- ===================== PESTAÑAS SEGMENTADAS ===================== -->
+    <div class="inventory-tabs-nav">
+      <button
+        type="button"
+        class="tab-nav-btn"
+        :class="{ active: activeTab === 'banners' }"
+        @click="activeTab = 'banners'"
+      >
+        <Images :size="17" class="tab-icon" />
+        <span class="tab-text">Banners del Carrusel</span>
+        <span class="tab-pill">{{ banners.length }}</span>
+      </button>
+
+      <button
+        type="button"
+        class="tab-nav-btn"
+        :class="{ active: activeTab === 'announcements' }"
+        @click="activeTab = 'announcements'"
+      >
+        <Megaphone :size="17" class="tab-icon" />
+        <span class="tab-text">Barra de Avisos</span>
+        <span class="tab-pill">{{ announcements.length }}</span>
+      </button>
+    </div>
+
+    <!-- ===================== RESUMEN EN KPIS (SUMMARY-GRID) ===================== -->
+    <section class="summary-grid">
+      <template v-if="activeTab === 'banners'">
+        <article class="summary-card">
+          <div class="summary-icon-box bg-summary-brown">
+            <Images :size="22" />
+          </div>
+          <div>
+            <span class="summary-label">Total Banners</span>
+            <strong class="summary-value">{{ banners.length }}</strong>
+            <p class="summary-helper">Imágenes en configuración</p>
+          </div>
+        </article>
+
+        <article class="summary-card">
+          <div class="summary-icon-box bg-summary-green">
+            <Eye :size="22" />
+          </div>
+          <div>
+            <span class="summary-label">Banners Activos</span>
+            <strong class="summary-value text-status-open">{{ activeBannersList.length }}</strong>
+            <p class="summary-helper">Visibles en la portada</p>
+          </div>
+        </article>
+
+        <article class="summary-card">
+          <div class="summary-icon-box bg-summary-orange">
+            <Clock :size="22" />
+          </div>
+          <div>
+            <span class="summary-label">Auto-Avance</span>
+            <strong class="summary-value text-orange">{{ autoPlayInterval / 1000 }}s</strong>
+            <p class="summary-helper">Velocidad de rotación actual</p>
+          </div>
+        </article>
+      </template>
+
+      <template v-else>
+        <article class="summary-card">
+          <div class="summary-icon-box bg-summary-brown">
+            <Megaphone :size="22" />
+          </div>
+          <div>
+            <span class="summary-label">Total Avisos</span>
+            <strong class="summary-value">{{ announcements.length }}</strong>
+            <p class="summary-helper">Mensajes en rotación</p>
+          </div>
+        </article>
+
+        <article class="summary-card">
+          <div class="summary-icon-box bg-summary-green">
+            <Eye :size="22" />
+          </div>
+          <div>
+            <span class="summary-label">Avisos Activos</span>
+            <strong class="summary-value text-status-open">{{ activeAnnouncementsCount }}</strong>
+            <p class="summary-helper">Mostrándose en marquesina</p>
+          </div>
+        </article>
+
+        <article class="summary-card">
+          <div class="summary-icon-box bg-summary-pink">
+            <Sparkles :size="22" />
+          </div>
+          <div>
+            <span class="summary-label">Destacados</span>
+            <strong class="summary-value text-pink">{{ highlightedAnnouncementsCount }}</strong>
+            <p class="summary-helper">Con texto especial resaltado</p>
+          </div>
+        </article>
+      </template>
+    </section>
+
+    <!-- ==================== SECCIÓN 1: BANNERS ==================== -->
+    <section v-if="activeTab === 'banners'" class="panel-card table-unified-card">
+      <div class="panel-toolbar">
+        <div class="toolbar-left">
+          <span class="panel-section-title">
+            <Images :size="16" />
+            <span>Galería del Carrusel Principal</span>
+          </span>
         </div>
 
-        <div class="top-actions">
-          <button class="btn-secondary" @click="resetBanners">
-            <RotateCcw :size="16" />
-            <span>Restablecer Predeterminados</span>
-          </button>
-          <button class="btn-primary" @click="openCreateBannerModal">
-            <Plus :size="18" />
-            <span>Nuevo Banner</span>
-          </button>
+        <div class="toolbar-right">
+          <div class="interval-control-group">
+            <label>Velocidad:</label>
+            <div class="select-box">
+              <select :value="autoPlayInterval" @change="handleIntervalChange">
+                <option :value="3000">3 segundos</option>
+                <option :value="5000">5 segundos (Recomendado)</option>
+                <option :value="7000">7 segundos</option>
+                <option :value="10000">10 segundos</option>
+              </select>
+            </div>
+          </div>
+          <span class="results-chip">{{ banners.length }} banners</span>
         </div>
       </div>
 
-      <!-- Preview en vivo del Carrusel -->
-      <div class="live-preview-box">
-        <div class="preview-header">
-          <span class="preview-tag"><Eye :size="14" /> Vista Previa del Carrusel</span>
-          <div class="interval-control">
-            <label>Auto-avance:</label>
-            <select :value="autoPlayInterval" @change="handleIntervalChange">
-              <option :value="3000">3 segundos</option>
-              <option :value="5000">5 segundos (Recomendado)</option>
-              <option :value="7000">7 segundos</option>
-              <option :value="10000">10 segundos</option>
-            </select>
-          </div>
+      <!-- Preview interactiva del carrusel -->
+      <div class="preview-container-block">
+        <div class="preview-top-row">
+          <span class="preview-badge">
+            <Eye :size="13" />
+            <span>Previsualización en Portada</span>
+          </span>
+          <span class="live-pill">En vivo</span>
         </div>
 
-        <div class="preview-carousel-wrapper">
-          <div v-if="activeBannersList.length === 0" class="empty-preview">
-            <p>No hay banners activos para mostrar.</p>
+        <div class="preview-carousel-screen">
+          <div v-if="activeBannersList.length === 0" class="empty-preview-state">
+            <Images :size="38" />
+            <p>No hay banners activos para mostrar en el carrusel.</p>
           </div>
           <div v-else class="preview-slide-container">
-            <img :src="resolveImageUrl(activeBannersList[previewIndex]?.image)" class="preview-slide-img" />
+            <img :src="resolveImageUrl(activeBannersList[previewIndex]?.image)" class="preview-slide-img" alt="Banner Preview" />
             <div class="preview-slide-overlay">
               <h3>{{ activeBannersList[previewIndex]?.title }}</h3>
               <p v-if="activeBannersList[previewIndex]?.subtitle">{{ activeBannersList[previewIndex]?.subtitle }}</p>
@@ -85,103 +204,110 @@
         </div>
       </div>
 
-      <!-- Lista de Banners -->
-      <div class="banners-grid">
-        <div
-          v-for="(banner, index) in banners"
-          :key="banner.id"
-          class="banner-card"
-          :class="{ inactive: !banner.active }"
-        >
-          <div class="banner-card-img">
-            <img :src="resolveImageUrl(banner.image)" :alt="banner.title" />
-            <span class="order-badge">#{{ index + 1 }}</span>
-            <span class="status-pill" :class="banner.active ? 'status-active' : 'status-inactive'">
-              {{ banner.active ? 'Activo' : 'Oculto' }}
-            </span>
-          </div>
+      <!-- Cuadrícula de gestión de banners -->
+      <div class="banners-grid-wrapper">
+        <div class="banners-grid">
+          <div
+            v-for="(banner, index) in banners"
+            :key="banner.id"
+            class="banner-card"
+            :class="{ inactive: !banner.active }"
+          >
+            <div class="banner-card-img">
+              <img :src="resolveImageUrl(banner.image)" :alt="banner.title" />
+              <span class="order-badge">#{{ index + 1 }}</span>
+              <span class="status-pill" :class="banner.active ? 'status-active' : 'status-inactive'">
+                {{ banner.active ? 'Activo' : 'Oculto' }}
+              </span>
+            </div>
 
-          <div class="banner-card-body">
-            <h4 class="banner-title">{{ banner.title }}</h4>
-            <p v-if="banner.subtitle" class="banner-sub">{{ banner.subtitle }}</p>
+            <div class="banner-card-body">
+              <div class="banner-card-info">
+                <h4 class="banner-title">{{ banner.title }}</h4>
+                <p v-if="banner.subtitle" class="banner-sub">{{ banner.subtitle }}</p>
+              </div>
 
-            <div class="banner-actions">
-              <label class="toggle-switch" title="Activar / Desactivar">
-                <input
-                  type="checkbox"
-                  :checked="banner.active"
-                  @change="toggleBannerActive(banner)"
-                />
-                <span class="slider"></span>
-              </label>
+              <div class="banner-card-actions">
+                <label class="status-switch" :class="banner.active ? 'active' : 'inactive'" title="Mostrar / Ocultar en carrusel">
+                  <input
+                    type="checkbox"
+                    :checked="banner.active"
+                    @change="toggleBannerActive(banner)"
+                  />
+                  <span class="slider"></span>
+                  <span class="status-text">{{ banner.active ? 'Activo' : 'Oculto' }}</span>
+                </label>
 
-              <button class="icon-btn" title="Editar" @click="openEditBannerModal(banner)">
-                <Pencil :size="16" />
-              </button>
-              <button class="icon-btn delete-btn" title="Eliminar" @click="deleteBanner(banner.id)">
-                <Trash2 :size="16" />
-              </button>
+                <div class="actions">
+                  <button class="icon-button edit-action" title="Editar banner" @click="openEditBannerModal(banner)">
+                    <Pencil :size="15" />
+                  </button>
+                  <button class="icon-button delete-btn" title="Eliminar banner" @click="deleteBanner(banner.id)">
+                    <Trash2 :size="15" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ==================== SECCIÓN AVISOS (MARQUEE) ==================== -->
-    <section v-else class="tab-content animate-fade-in">
-      <div class="section-top-bar">
-        <div>
-          <h2>Avisos de la Marquesina ({{ announcements.length }})</h2>
-          <p class="subtitle">Mensajes rotativos que aparecen en la barra superior de la tienda.</p>
+    <!-- ==================== SECCIÓN 2: AVISOS ==================== -->
+    <section v-else class="panel-card table-unified-card">
+      <div class="panel-toolbar">
+        <div class="toolbar-left">
+          <span class="panel-section-title">
+            <Megaphone :size="16" />
+            <span>Avisos de la Marquesina Superior</span>
+          </span>
         </div>
 
-        <div class="top-actions">
-          <button class="btn-secondary" @click="resetAnnouncements">
-            <RotateCcw :size="16" />
-            <span>Restablecer Predeterminados</span>
-          </button>
-          <button class="btn-primary" @click="openCreateAnnouncementModal">
-            <Plus :size="18" />
-            <span>Nuevo Aviso</span>
-          </button>
+        <div class="toolbar-right">
+          <span class="results-chip">{{ announcements.length }} avisos</span>
         </div>
       </div>
 
-      <!-- Lista de Avisos -->
-      <div class="announcements-list">
-        <div
-          v-for="ann in announcements"
-          :key="ann.id"
-          class="ann-card"
-          :class="{ inactive: !ann.active }"
-        >
-          <div class="ann-badge-col">
-            <span class="ann-badge" :class="'badge-' + ann.type">
-              {{ ann.badge }}
-            </span>
-          </div>
+      <!-- Lista de avisos estructurada -->
+      <div class="announcements-wrapper">
+        <div class="announcements-list">
+          <div
+            v-for="ann in announcements"
+            :key="ann.id"
+            class="ann-card"
+            :class="{ inactive: !ann.active }"
+          >
+            <div class="ann-badge-col">
+              <span class="ann-badge" :class="'badge-' + ann.type">
+                {{ ann.badge }}
+              </span>
+            </div>
 
-          <div class="ann-content-col">
-            <p class="ann-text">{{ ann.text }}</p>
-            <span v-if="ann.highlight" class="ann-highlight">{{ ann.highlight }}</span>
-          </div>
+            <div class="ann-content-col">
+              <p class="ann-text">{{ ann.text }}</p>
+              <span v-if="ann.highlight" class="ann-highlight">{{ ann.highlight }}</span>
+            </div>
 
-          <div class="ann-actions-col">
-            <label class="toggle-switch" title="Activar / Desactivar">
-              <input
-                type="checkbox"
-                :checked="ann.active"
-                @change="toggleAnnouncementActive(ann)"
-              />
-              <span class="slider"></span>
-            </label>
+            <div class="ann-actions-col">
+              <label class="status-switch" :class="ann.active ? 'active' : 'inactive'" title="Activar / Desactivar">
+                <input
+                  type="checkbox"
+                  :checked="ann.active"
+                  @change="toggleAnnouncementActive(ann)"
+                />
+                <span class="slider"></span>
+                <span class="status-text">{{ ann.active ? 'Activo' : 'Oculto' }}</span>
+              </label>
 
-            <button class="icon-btn" title="Editar" @click="openEditAnnouncementModal(ann)">
-              <Pencil :size="16" />
-            </button>
-            <button class="icon-btn delete-btn" title="Eliminar" @click="deleteAnnouncement(ann.id)">
-              <Trash2 :size="16" />
-            </button>
+              <div class="actions">
+                <button class="icon-button edit-action" title="Editar aviso" @click="openEditAnnouncementModal(ann)">
+                  <Pencil :size="15" />
+                </button>
+                <button class="icon-button delete-btn" title="Eliminar aviso" @click="deleteAnnouncement(ann.id)">
+                  <Trash2 :size="15" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -191,122 +317,135 @@
     <div v-if="isBannerModalOpen" class="modal-backdrop" @click.self="isBannerModalOpen = false">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>
-            <Images :size="20" />
-            <span>{{ isEditingBanner ? 'Editar Banner' : 'Nuevo Banner' }}</span>
-          </h3>
-          <button class="close-btn" @click="isBannerModalOpen = false"><X :size="20" /></button>
+          <div class="modal-header-title">
+            <div class="header-icon-pill"><Images :size="18" /></div>
+            <div>
+              <h3>{{ isEditingBanner ? 'Editar Banner' : 'Nuevo Banner' }}</h3>
+              <p class="modal-header-desc">Configura título, subtítulo e imagen de alta resolución</p>
+            </div>
+          </div>
+          <button class="close-btn" @click="isBannerModalOpen = false"><X :size="18" /></button>
         </div>
 
         <form class="modal-body" @submit.prevent="submitBannerForm">
           <label class="modal-label">
-            Título del Banner
-            <input v-model="bannerForm.title" type="text" required placeholder="Ej: Nuevas Hamburguesas Dobles" class="modal-input" />
+            <span>Título del Banner <span class="required">*</span></span>
+            <input v-model="bannerForm.title" type="text" required placeholder="Ej: Nuevas Hamburguesas Smash" class="modal-input" />
           </label>
 
           <label class="modal-label">
-            Subtítulo (Opcional)
-            <input v-model="bannerForm.subtitle" type="text" placeholder="Ej: Prueba nuestro pan casero recién horneado" class="modal-input" />
+            <span>Subtítulo (Opcional)</span>
+            <input v-model="bannerForm.subtitle" type="text" placeholder="Ej: Con pan brioche artesanal recién horneado" class="modal-input" />
           </label>
 
-          <div class="image-upload-section">
-            <span class="section-title">Fotografía del Banner (.webp optimizado)</span>
+          <div class="image-upload-box">
+            <span class="sub-legend">Fotografía del Banner</span>
             
-            <div class="upload-options">
-              <!-- Subir archivo local -->
-              <div class="file-drop-area" @click="fileInputRef?.click()">
-                <UploadCloud :size="30" class="upload-icon" />
-                <span class="upload-title">{{ isConvertingWebP ? 'Convirtiendo a WebP...' : 'Haz clic para subir imagen' }}</span>
-                <span class="upload-hint">PNG, JPG, JPEG o WEBP (se optimiza a .webp automáticamente)</span>
-                <input
-                  ref="fileInputRef"
-                  type="file"
-                  accept="image/*"
-                  style="display: none"
-                  @change="handleFileUpload"
-                />
+            <div class="dropzone-area" @click="fileInputRef?.click()">
+              <UploadCloud :size="24" class="upload-icon" />
+              <div class="dropzone-text">
+                <strong>{{ isConvertingWebP ? 'Optimizando a WebP...' : 'Haz clic para subir imagen' }}</strong>
+                <span>Formato recomendado en proporción 16:9 o panorámica</span>
               </div>
+              <input
+                ref="fileInputRef"
+                type="file"
+                accept="image/*"
+                style="display: none"
+                @change="handleFileUpload"
+              />
+            </div>
 
-              <!-- O pegar URL -->
-              <div class="or-separator"><span>O bien</span></div>
-
-              <label class="modal-label">
-                Pegar URL de Imagen
-                <input v-model="bannerForm.image" type="url" placeholder="https://ejemplo.com/banner.webp" class="modal-input" />
-              </label>
+            <div class="url-input-wrapper">
+              <input 
+                v-model="bannerForm.image" 
+                type="url" 
+                placeholder="O pegar URL directa de imagen..." 
+                class="modal-input" 
+              />
             </div>
 
             <!-- Preview imagen -->
             <div v-if="bannerForm.image" class="banner-form-preview">
-              <span class="preview-label">Previsualización:</span>
               <img :src="bannerForm.image" alt="Preview Banner" />
             </div>
           </div>
 
-          <label class="checkbox-label">
-            <input v-model="bannerForm.active" type="checkbox" />
-            <span>Activar banner inmediatamente en la portada</span>
+          <label class="toggle-availability-label">
+            <div class="toggle-text">
+              <strong>Activar inmediatamente</strong>
+              <span>Visible en el carrusel de inicio</span>
+            </div>
+            <input type="checkbox" v-model="bannerForm.active" class="modern-toggle" />
           </label>
 
           <div class="modal-actions">
             <button type="button" class="btn-cancel" @click="isBannerModalOpen = false">Cancelar</button>
             <button type="submit" class="btn-save" :disabled="!bannerForm.image">
-              {{ isEditingBanner ? 'Guardar Cambios' : 'Crear Banner' }}
+              <Check :size="16" />
+              <span>{{ isEditingBanner ? 'Guardar Cambios' : 'Crear Banner' }}</span>
             </button>
           </div>
         </form>
       </div>
     </div>
 
-    <!-- ==================== MODAL ANUNCIO ==================== -->
+    <!-- ==================== MODAL AVISO ==================== -->
     <div v-if="isAnnModalOpen" class="modal-backdrop" @click.self="isAnnModalOpen = false">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>
-            <Megaphone :size="20" />
-            <span>{{ isEditingAnn ? 'Editar Aviso' : 'Nuevo Aviso' }}</span>
-          </h3>
-          <button class="close-btn" @click="isAnnModalOpen = false"><X :size="20" /></button>
+          <div class="modal-header-title">
+            <div class="header-icon-pill"><Megaphone :size="18" /></div>
+            <div>
+              <h3>{{ isEditingAnn ? 'Editar Aviso' : 'Nuevo Aviso' }}</h3>
+              <p class="modal-header-desc">Configura el mensaje rotativo de la marquesina</p>
+            </div>
+          </div>
+          <button class="close-btn" @click="isAnnModalOpen = false"><X :size="18" /></button>
         </div>
 
         <form class="modal-body" @submit.prevent="submitAnnouncementForm">
-          <div class="grid-2-cols">
+          <div class="modal-row">
             <label class="modal-label">
-              Texto del Badge
+              <span>Texto de la Etiqueta <span class="required">*</span></span>
               <input v-model="annForm.badge" type="text" required placeholder="Ej: PROMO, HORARIO, NUEVO" class="modal-input" />
             </label>
 
             <label class="modal-label">
-              Tipo de Badge
+              <span>Tipo de Distintivo</span>
               <select v-model="annForm.type" class="modal-input">
                 <option value="promo">Promo (Naranja)</option>
                 <option value="schedule">Horario (Azul)</option>
                 <option value="new">Nuevo (Verde)</option>
                 <option value="payment">Medios de Pago (Morado)</option>
-                <option value="info">Informativo (Blanco/Gris)</option>
+                <option value="info">Informativo (Gris)</option>
               </select>
             </label>
           </div>
 
           <label class="modal-label">
-            Texto Principal del Aviso
-            <textarea v-model="annForm.text" required rows="2" placeholder="Ej: ¡2x1 en Churrascos todos los martes!" class="modal-input"></textarea>
+            <span>Texto Principal del Aviso <span class="required">*</span></span>
+            <textarea v-model="annForm.text" required rows="2" placeholder="Ej: ¡2x1 en completos todos los martes!" class="modal-input"></textarea>
           </label>
 
           <label class="modal-label">
-            Texto Destacado (Opcional)
+            <span>Texto Resaltado (Opcional)</span>
             <input v-model="annForm.highlight" type="text" placeholder="Ej: 🔥 Solo por hoy" class="modal-input" />
           </label>
 
-          <label class="checkbox-label">
-            <input v-model="annForm.active" type="checkbox" />
-            <span>Mostrar aviso en la marquesina</span>
+          <label class="toggle-availability-label">
+            <div class="toggle-text">
+              <strong>Activar en marquesina</strong>
+              <span>Incluir en la rotación continua superior</span>
+            </div>
+            <input type="checkbox" v-model="annForm.active" class="modern-toggle" />
           </label>
 
           <div class="modal-actions">
             <button type="button" class="btn-cancel" @click="isAnnModalOpen = false">Cancelar</button>
             <button type="submit" class="btn-save">
-              {{ isEditingAnn ? 'Guardar Aviso' : 'Crear Aviso' }}
+              <Check :size="16" />
+              <span>{{ isEditingAnn ? 'Guardar Aviso' : 'Crear Aviso' }}</span>
             </button>
           </div>
         </form>
@@ -319,7 +458,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { 
   Images, Megaphone, Plus, Pencil, Trash2, RotateCcw, 
-  Eye, X, UploadCloud 
+  Eye, X, UploadCloud, Clock, Sparkles, Check 
 } from 'lucide-vue-next';
 import { useMarketingConfig, type BannerItem, type AnnouncementItem } from '@/composables/useMarketingConfig';
 import { useImageOptimizer } from '@/composables/useImageOptimizer';
@@ -342,6 +481,8 @@ const previewIndex = ref(0);
 let previewTimer: any = null;
 
 const activeBannersList = computed(() => banners.value.filter(b => b.active));
+const activeAnnouncementsCount = computed(() => announcements.value.filter(a => a.active).length);
+const highlightedAnnouncementsCount = computed(() => announcements.value.filter(a => Boolean(a.highlight)).length);
 
 const startPreviewLoop = () => {
   if (previewTimer) clearInterval(previewTimer);
@@ -364,7 +505,7 @@ const handleIntervalChange = (e: Event) => {
   const val = Number((e.target as HTMLSelectElement).value);
   setIntervalMs(val);
   startPreviewLoop();
-  notify(`Auto-avance fijado en ${val / 1000}s`, 'success');
+  notify(`Velocidad fijada en ${val / 1000}s`, 'success');
 };
 
 // Modales Banners
@@ -416,7 +557,7 @@ const handleFileUpload = async (event: Event) => {
     const webpFile = await convertToWebP(file, `banner_${Date.now()}.webp`, { maxWidth: 1400, quality: 0.88 });
     const previewDataUrl = await getPreviewUrl(webpFile);
     bannerForm.value.image = previewDataUrl;
-    notify('Imagen convertida a formato WebP optimizado', 'success');
+    notify('Imagen convertida a WebP optimizado', 'success');
   } catch (err) {
     console.error('Error procesando imagen WebP:', err);
     notify('Error al procesar la imagen', 'warning');
@@ -539,185 +680,322 @@ const resetAnnouncements = () => {
 
 <style scoped>
 .banners-admin-page {
-  padding: 30px;
-  max-width: 1350px;
+  max-width: 1650px;
   margin: 0 auto;
-  font-family: var(--font-main, sans-serif);
+  padding: 1.5rem 1.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
+/* ====================================================
+   HEADER Y ACCIONES
+==================================================== */
 .page-header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
+  gap: 1.5rem;
   flex-wrap: wrap;
-  gap: 20px;
-  margin-bottom: 25px;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 20px;
 }
 
-.header-left h1 {
-  font-size: 1.8rem;
-  font-weight: 900;
-  color: #513119;
-  margin: 0 0 6px 0;
+.header-copy h1 {
+  color: var(--DC-brown, #513119);
+  font-size: 2.2rem;
+  line-height: 1.1;
+  margin: 0 0 0.4rem 0;
 }
 
-.header-left p {
-  color: #64748b;
+.header-copy p {
   margin: 0;
-  font-size: 0.95rem;
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.92rem;
 }
 
-.header-tabs {
-  display: flex;
-  background: #f1f5f9;
-  padding: 4px;
-  border-radius: 12px;
-  gap: 4px;
-}
-
-.tab-btn {
+.header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  border: none;
-  background: transparent;
-  color: #64748b;
-  font-weight: 800;
-  font-size: 0.88rem;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tab-btn.active {
-  background: #513119;
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(81, 49, 25, 0.25);
-}
-
-.section-top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-  gap: 15px;
-}
-
-.section-top-bar h2 {
-  margin: 0 0 4px 0;
-  color: #1e293b;
-  font-size: 1.35rem;
-}
-
-.subtitle {
-  color: #64748b;
-  margin: 0;
-  font-size: 0.88rem;
-}
-
-.top-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #e28743;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-weight: 800;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-primary:hover {
-  background: #d3732c;
-  transform: translateY(-1px);
+  gap: 0.75rem;
 }
 
 .btn-secondary {
+  border: 1px solid rgba(81, 49, 25, 0.15);
+  background: white;
+  color: var(--DC-brown, #513119);
+  padding: 0.65rem 1.1rem;
+  border-radius: 12px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  background: #ffffff;
-  color: #513119;
-  border: 1.5px solid #cbd5e1;
-  padding: 10px 18px;
-  border-radius: 10px;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--DC-orange, #e28743);
+  box-shadow: 0 4px 14px rgba(226, 135, 67, 0.15);
+}
+
+.btn-primary {
+  border: none;
+  background: var(--DC-orange, #e28743);
+  color: white;
+  padding: 0.65rem 1.25rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
   font-weight: 800;
   font-size: 0.88rem;
-  cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.btn-secondary:hover {
-  background: #f8fafc;
-  border-color: #513119;
+.btn-primary:hover:not(:disabled) {
+  background: var(--DC-brown, #513119);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(81, 49, 25, 0.2);
 }
 
-/* Live preview */
-.live-preview-box {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 18px;
-  margin-bottom: 30px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
-}
-
-.preview-header {
-  display: flex;
-  justify-content: space-between;
+/* ====================================================
+   PESTAÑAS SEGMENTADAS (ESTILO ESTÁNDAR)
+==================================================== */
+.inventory-tabs-nav {
+  display: inline-flex;
   align-items: center;
-  margin-bottom: 14px;
+  gap: 4px;
+  padding: 4px;
+  background: #ede6dc;
+  border-radius: 14px;
+  max-width: 100%;
 }
 
-.preview-tag {
+.tab-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: #6d6254;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.tab-nav-btn:hover:not(.active) {
+  color: var(--DC-brown, #513119);
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.tab-nav-btn.active {
+  background: white;
+  color: var(--DC-brown, #513119);
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(26, 14, 5, 0.08);
+}
+
+.tab-pill {
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(81, 49, 25, 0.08);
+  color: #665b4f;
+  font-weight: 800;
+}
+
+.tab-nav-btn.active .tab-pill {
+  background: var(--DC-orange, #e28743);
+  color: white;
+}
+
+/* ====================================================
+   KPIS SUMMARY-GRID
+==================================================== */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.summary-card {
+  background: white;
+  border-radius: 18px;
+  box-shadow: 0 4px 20px rgba(26, 14, 5, 0.04);
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  padding: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.summary-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.bg-summary-brown { background: var(--DC-bg-gray, #f8f6f3); color: var(--DC-brown, #513119); }
+.bg-summary-orange { background: rgba(226, 135, 67, 0.12); color: var(--DC-orange, #e28743); }
+.bg-summary-pink { background: rgba(216, 0, 86, 0.1); color: var(--DC-pink, #d80056); }
+.bg-summary-green { background: rgba(22, 163, 74, 0.12); color: #16a34a; }
+
+.summary-label {
+  display: block;
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.summary-value {
+  display: block;
+  color: var(--DC-gray, #2c2724);
+  font-size: 1.45rem;
+  line-height: 1.15;
+  margin: 0.15rem 0;
+}
+
+.summary-helper {
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.text-status-open { color: #15803d; }
+.text-orange { color: var(--DC-orange, #e28743); }
+.text-pink { color: var(--DC-pink, #d80056); }
+
+/* ====================================================
+   PANEL UNIFICADO & TOOLBAR
+==================================================== */
+.table-unified-card {
+  background: white;
+  border-radius: 18px;
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  box-shadow: 0 4px 20px rgba(26, 14, 5, 0.04);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1.15rem;
+  background: #fffdfa;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.08);
+  flex-wrap: wrap;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.panel-section-title {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  font-size: 0.86rem;
   font-weight: 800;
-  font-size: 0.82rem;
-  color: #513119;
-  text-transform: uppercase;
-  background: #f4e1d2;
-  padding: 4px 10px;
-  border-radius: 999px;
+  color: var(--DC-brown, #513119);
 }
 
-.interval-control {
+.toolbar-right {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
+  gap: 0.75rem;
+}
+
+.interval-control-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
   font-weight: 700;
-  color: #475569;
+  color: var(--DC-text-gray, #7c7468);
 }
 
-.interval-control select {
-  padding: 5px 10px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  font-weight: 600;
+.select-box select {
+  padding: 0.45rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(81, 49, 25, 0.12);
+  background: var(--DC-bg-gray, #f8f6f3);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--DC-gray, #2c2724);
+  outline: none;
+  cursor: pointer;
 }
 
-.preview-carousel-wrapper {
+.results-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(226, 135, 67, 0.12);
+  color: var(--DC-brown, #513119);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+/* ====================================================
+   PREVIEW DE CARRUSEL
+==================================================== */
+.preview-container-block {
+  padding: 1.15rem;
+  background: #fffdf9;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.preview-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.preview-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--DC-brown, #513119);
+}
+
+.live-pill {
+  font-size: 0.65rem;
+  background: #10b981;
+  color: white;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.preview-carousel-screen {
   position: relative;
   width: 100%;
   height: 220px;
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
-  background: #0f172a;
+  background: #1a1614;
 }
 
 .preview-slide-container {
@@ -737,78 +1015,94 @@ const resetAnnouncements = () => {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 16px 24px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+  padding: 16px 20px;
+  background: linear-gradient(transparent, rgba(26, 14, 5, 0.85));
   color: white;
 }
 
 .preview-slide-overlay h3 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 900;
 }
 
 .preview-slide-overlay p {
-  margin: 4px 0 0 0;
-  font-size: 0.85rem;
-  color: #cbd5e1;
+  margin: 3px 0 0 0;
+  font-size: 0.82rem;
+  color: #eedcd0;
 }
 
 .preview-dots {
   position: absolute;
   bottom: 12px;
-  right: 20px;
+  right: 18px;
   display: flex;
   gap: 6px;
 }
 
 .p-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.45);
   cursor: pointer;
-}
-
-.p-dot.active {
-  background: #e28743;
-  transform: scale(1.2);
-}
-
-.empty-preview {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #94a3b8;
-}
-
-/* Grid de banners */
-.banners-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
-}
-
-.banner-card {
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   transition: all 0.2s ease;
 }
 
+.p-dot.active {
+  background: var(--DC-orange, #e28743);
+  transform: scale(1.3);
+}
+
+.empty-preview-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 8px;
+  color: #a89f95;
+  font-size: 0.85rem;
+}
+
+/* ====================================================
+   LISTADO Y TARJETAS DE BANNERS
+==================================================== */
+.banners-grid-wrapper {
+  padding: 1.25rem;
+}
+
+.banners-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.25rem;
+}
+
+.banner-card {
+  background: white;
+  border-radius: 14px;
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(26, 14, 5, 0.03);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.banner-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(226, 135, 67, 0.35);
+}
+
 .banner-card.inactive {
-  opacity: 0.65;
-  filter: grayscale(40%);
+  opacity: 0.7;
 }
 
 .banner-card-img {
   position: relative;
   width: 100%;
-  height: 160px;
-  background: #0f172a;
+  height: 150px;
+  background: #1a1614;
 }
 
 .banner-card-img img {
@@ -819,92 +1113,103 @@ const resetAnnouncements = () => {
 
 .order-badge {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  background: rgba(0, 0, 0, 0.75);
+  top: 8px;
+  left: 8px;
+  background: rgba(30, 20, 10, 0.75);
   color: white;
   font-weight: 800;
-  font-size: 0.75rem;
-  padding: 3px 8px;
+  font-size: 0.72rem;
+  padding: 2px 7px;
   border-radius: 6px;
+  backdrop-filter: blur(4px);
 }
 
 .status-pill {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 8px;
+  right: 8px;
   font-weight: 800;
-  font-size: 0.72rem;
-  padding: 3px 8px;
+  font-size: 0.68rem;
+  padding: 2px 8px;
   border-radius: 999px;
   text-transform: uppercase;
 }
 
-.status-active {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status-inactive {
-  background: #f1f5f9;
-  color: #475569;
-}
+.status-active { background: #dcfce7; color: #166534; }
+.status-inactive { background: #f1f5f9; color: #475569; }
 
 .banner-card-body {
-  padding: 16px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex-grow: 1;
+  justify-content: space-between;
 }
 
 .banner-title {
-  margin: 0 0 4px 0;
-  font-size: 1rem;
+  margin: 0 0 2px 0;
+  font-size: 0.95rem;
   font-weight: 800;
-  color: #1e293b;
+  color: var(--DC-gray, #2c2724);
 }
 
 .banner-sub {
-  margin: 0 0 14px 0;
-  font-size: 0.84rem;
-  color: #64748b;
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--DC-text-gray, #7c7468);
+  line-height: 1.4;
 }
 
-.banner-actions {
+.banner-card-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: space-between;
+  border-top: 1px dashed rgba(81, 49, 25, 0.08);
+  padding-top: 0.65rem;
 }
 
-/* Anuncios */
+/* ====================================================
+   LISTADO Y TARJETAS DE AVISOS
+==================================================== */
+.announcements-wrapper {
+  padding: 1.25rem;
+}
+
 .announcements-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0.75rem;
 }
 
 .ann-card {
   display: grid;
-  grid-template-columns: 140px 1fr 120px;
+  grid-template-columns: 130px 1fr auto;
   align-items: center;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: white;
+  border: 1px solid rgba(81, 49, 25, 0.08);
   border-radius: 12px;
-  padding: 14px 20px;
-  gap: 16px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  padding: 0.85rem 1.15rem;
+  gap: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.ann-card:hover {
+  border-color: rgba(226, 135, 67, 0.35);
 }
 
 .ann-card.inactive {
-  opacity: 0.6;
+  opacity: 0.65;
 }
 
 .ann-badge {
   display: inline-flex;
   align-items: center;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 900;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 3px 8px;
+  padding: 3px 9px;
   border-radius: 999px;
 }
 
@@ -912,303 +1217,413 @@ const resetAnnouncements = () => {
 .badge-schedule { background: #dbeafe; color: #1d4ed8; }
 .badge-new { background: #d1fae5; color: #047857; }
 .badge-payment { background: #f3e8ff; color: #7e22ce; }
-.badge-info { background: #f1f5f9; color: #334155; }
+.badge-info { background: var(--DC-bg-gray, #f8f6f3); color: var(--DC-text-gray, #7c7468); }
 
 .ann-content-col {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .ann-text {
   margin: 0;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #1e293b;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--DC-gray, #2c2724);
 }
 
 .ann-highlight {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 800;
   background: #fef3c7;
   color: #92400e;
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 6px;
 }
 
 .ann-actions-col {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
+  gap: 0.75rem;
 }
 
-.icon-btn {
-  background: transparent;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  width: 32px;
-  height: 32px;
-  display: flex;
+/* ====================================================
+   SWITCH & ACCIONES ESTANDARIZADAS
+==================================================== */
+.status-switch {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  color: #475569;
+  gap: 0.55rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
   cursor: pointer;
+  user-select: none;
   transition: all 0.2s ease;
 }
 
-.icon-btn:hover {
-  background: #f1f5f9;
-  color: #513119;
-}
-
-.icon-btn.delete-btn:hover {
-  background: #fee2e2;
-  color: #dc2626;
-  border-color: #fca5a5;
-}
-
-/* Switch */
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 40px;
-  height: 22px;
-}
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
+.status-switch input { display: none; }
 
 .slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-color: #cbd5e1;
-  transition: .2s;
-  border-radius: 22px;
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  transition: all 0.25s ease;
+  flex-shrink: 0;
 }
 
-.slider:before {
-  position: absolute;
+.slider::before {
   content: "";
-  height: 16px;
-  width: 16px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: .2s;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.25s ease;
 }
 
-input:checked + .slider {
-  background-color: #e28743;
+.status-switch.active {
+  color: #15803d;
+  background: rgba(62, 165, 93, 0.12);
 }
 
-input:checked + .slider:before {
-  transform: translateX(18px);
+.status-switch.active .slider {
+  background: #16a34a;
 }
 
-/* Modales */
-.modal-backdrop {
-  position: fixed;
-  top: 0; left: 0; width: 100vw; height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(3px);
-  z-index: 2000;
+.status-switch.active .slider::before {
+  transform: translateX(14px);
+}
+
+.status-switch.inactive {
+  color: var(--DC-text-gray, #7c7468);
+  background: var(--DC-bg-gray, #f8f6f3);
+}
+
+.status-switch.inactive .slider {
+  background: #cbd5e1;
+}
+
+.status-switch.inactive .slider::before {
+  transform: translateX(0);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.icon-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(81, 49, 25, 0.12);
+  background: white;
+  color: var(--DC-brown, #513119);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.icon-button:hover {
+  background: var(--DC-orange, #e28743);
+  border-color: var(--DC-orange, #e28743);
+  color: white;
+}
+
+.icon-button.delete-btn:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+/* ====================================================
+   MODALES (ESTILO HOMOGÉNEO)
+==================================================== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(35, 20, 10, 0.46);
 }
 
 .modal-card {
+  position: relative;
+  width: min(100%, 480px);
+  border-radius: 18px;
   background: white;
-  width: 100%;
-  max-width: 540px;
-  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(26, 14, 5, 0.25);
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 .modal-header {
-  padding: 18px 24px;
-  background: #513119;
-  color: white;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.08);
+}
+
+.modal-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.header-icon-pill {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(226, 135, 67, 0.12);
+  color: var(--DC-orange, #e28743);
+  display: grid;
+  place-items: center;
 }
 
 .modal-header h3 {
   margin: 0;
-  font-size: 1.15rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  font-size: 1.1rem;
+  color: var(--DC-brown, #513119);
+}
+
+.modal-header-desc {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--DC-text-gray, #7c7468);
 }
 
 .close-btn {
   background: transparent;
   border: none;
-  color: white;
+  color: var(--DC-text-gray, #7c7468);
   cursor: pointer;
+  display: grid;
+  place-items: center;
 }
 
 .modal-body {
-  padding: 24px;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0.85rem;
 }
 
 .modal-label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  font-size: 0.8rem;
   font-weight: 700;
-  font-size: 0.88rem;
-  color: #334155;
+  color: var(--DC-brown, #513119);
+}
+
+.modal-label span .required {
+  color: #ef4444;
 }
 
 .modal-input {
-  padding: 10px 14px;
+  width: 100%;
+  border: 1px solid rgba(81, 49, 25, 0.12);
   border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  font-family: inherit;
-  font-size: 0.9rem;
+  background: var(--DC-bg-gray, #f8f6f3);
+  padding: 0.65rem 0.85rem;
+  color: var(--DC-gray, #2c2724);
+  font-size: 0.86rem;
+  outline: none;
 }
 
-.grid-2-cols {
+.modal-input:focus {
+  border-color: var(--DC-orange, #e28743);
+}
+
+.modal-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 0.65rem;
 }
 
-.upload-options {
-  border: 1.5px dashed #cbd5e1;
+.image-upload-box {
+  background: var(--DC-bg-gray, #f8f6f3);
+  border: 1px solid rgba(81, 49, 25, 0.08);
   border-radius: 12px;
-  padding: 16px;
-  text-align: center;
-  background: #f8fafc;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
 }
 
-.file-drop-area {
+.sub-legend {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--DC-brown, #513119);
+}
+
+.dropzone-area {
+  border: 2px dashed rgba(81, 49, 25, 0.15);
+  background: white;
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
   cursor: pointer;
-  padding: 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  transition: all 0.2s;
 }
 
-.file-drop-area:hover {
-  background: #f1f5f9;
-  border-radius: 8px;
+.dropzone-area:hover {
+  border-color: var(--DC-orange, #e28743);
 }
 
 .upload-icon {
-  color: #e28743;
+  color: var(--DC-orange, #e28743);
 }
 
-.upload-title {
-  font-weight: 800;
-  color: #1e293b;
-  font-size: 0.9rem;
+.dropzone-text strong {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--DC-gray, #2c2724);
 }
 
-.upload-hint {
-  font-size: 0.76rem;
-  color: #64748b;
-}
-
-.or-separator {
-  margin: 10px 0;
-  position: relative;
-  text-align: center;
-}
-
-.or-separator span {
-  background: #f8fafc;
-  padding: 0 10px;
-  font-size: 0.75rem;
-  color: #94a3b8;
-  font-weight: 700;
+.dropzone-text span {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--DC-text-gray, #7c7468);
 }
 
 .banner-form-preview {
-  margin-top: 10px;
   border-radius: 8px;
   overflow: hidden;
-  max-height: 140px;
+  height: 100px;
 }
 
 .banner-form-preview img {
   width: 100%;
-  height: 120px;
+  height: 100%;
   object-fit: cover;
-  border-radius: 8px;
 }
 
-.checkbox-label {
+.toggle-availability-label {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #334155;
+  cursor: pointer;
+  gap: 12px;
+  background: var(--DC-bg-gray, #f8f6f3);
+  padding: 0.75rem;
+  border-radius: 10px;
+}
+
+.toggle-text strong {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--DC-brown, #513119);
+}
+
+.toggle-text span {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--DC-text-gray, #7c7468);
+}
+
+.modern-toggle {
+  width: 18px;
+  height: 18px;
+  accent-color: #10b981;
   cursor: pointer;
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 10px;
+  gap: 0.65rem;
+  padding: 1rem 1.25rem;
+  background: #fffdfa;
+  border-top: 1px solid rgba(81, 49, 25, 0.08);
 }
 
 .btn-cancel {
-  padding: 10px 18px;
-  border: 1px solid #cbd5e1;
-  background: white;
+  padding: 0.6rem 1rem;
   border-radius: 10px;
+  border: 1px solid rgba(81, 49, 25, 0.15);
+  background: white;
+  color: var(--DC-text-gray, #7c7468);
   font-weight: 700;
+  font-size: 0.82rem;
   cursor: pointer;
 }
 
 .btn-save {
-  padding: 10px 22px;
-  background: #e28743;
-  color: white;
-  border: none;
+  padding: 0.6rem 1.25rem;
   border-radius: 10px;
+  border: none;
+  background: var(--DC-orange, #e28743);
+  color: white;
   font-weight: 800;
+  font-size: 0.82rem;
   cursor: pointer;
-}
-
-.btn-save:hover {
-  background: #d3732c;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .btn-save:disabled {
-  opacity: 0.5;
+  opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* ====================================================
+   RESPONSIVO
+==================================================== */
+@media (max-width: 960px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
   .banners-admin-page {
-    padding: 15px;
+    padding: 1rem;
   }
-  
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .btn-primary, .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+
   .ann-card {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 0.75rem;
   }
-  
+
   .ann-actions-col {
-    justify-content: flex-start;
+    justify-content: space-between;
+    border-top: 1px dashed rgba(81, 49, 25, 0.08);
+    padding-top: 0.65rem;
   }
 }
 </style>

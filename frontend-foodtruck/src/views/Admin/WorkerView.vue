@@ -1,793 +1,1191 @@
 <template>
   <div class="dashboard">
-    <!-- Titulo -->
-    <header class="orders-header">
-      <div class="orders-header-copy">
-        <h1 class="orders-title">Gestión de trabajadores</h1>
-        <p class="orders-description">Administración de colaboradores y personal de Foodtruck J.Junior</p>
+    <!-- ENCABEZADO SUPERIOR -->
+    <header class="page-header">
+      <div class="header-copy">
+        <h1>Gestión de Trabajadores</h1>
       </div>
-      <div class="orders-header-actions">
-        <button class="btn-audit" @click="goToAudit" title="Ver auditoría de movimientos de trabajadores">
+
+      <div class="header-actions">
+        <button class="btn-secondary" @click="goToAudit" title="Ver auditoría de movimientos de trabajadores">
           <History :size="16" />
           <span>Ver Auditoría</span>
+        </button>
+
+        <button class="btn-primary" @click="openCreateWorkerModal">
+          <Plus :size="18" />
+          <span>Nuevo Trabajador</span>
         </button>
       </div>
     </header>
 
-    <!-- Tarjetas estadisticas -->
-    <div class="cards">
-        <div class="card">
-
-            <div class="card-left">
-                <div class="icon-box bg-admin">
-                    <ShieldCheck :size="24"/>
-                </div>
-                <span class="card-label">
-                    Administradores
-                </span>
-            </div>
-
-            <div class="card-right">
-                <span class="card-count">
-                    {{ adminWorkers }}
-                </span>
-            </div>
-
+    <!-- TARJETAS ESTADÍSTICAS (ESTILO HOMOGÉNEO SUMMARY-GRID) -->
+    <section class="summary-grid">
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-blue">
+          <ShieldCheck :size="22" />
         </div>
-
-        <div class="card">
-
-            <div class="card-left">
-                <div class="icon-box bg-workers">
-                    <Users :size="24"/>
-                </div>
-                <span class="card-label">
-                    Trabajadores
-                </span>
-            </div>
-
-            <div class="card-right">
-                <span class="card-count">
-                    {{ regularWorkers }}
-                </span>
-            </div>
-
+        <div>
+          <span class="summary-label">Administradores</span>
+          <strong class="summary-value">{{ adminWorkers }}</strong>
+          <p class="summary-helper">Control total del sistema</p>
         </div>
+      </article>
 
-        <div class="card">
-
-            <div class="card-left">
-                <div class="icon-box bg-active">
-                    <UserCheck :size="24"/>
-                </div>
-                <span class="card-label">
-                    Activos
-                </span>
-            </div>
-
-            <div class="card-right">
-                <span class="card-count">
-                    {{ activeWorkers }}
-                </span>
-            </div>
-
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-brown">
+          <Users :size="22" />
         </div>
-
-        <div class="card">
-
-            <div class="card-left">
-                <div class="icon-box bg-inactive">
-                    <UserX :size="24"/>
-                </div>
-                <span class="card-label">
-                    Inactivos
-                </span>
-            </div>
-
-            <div class="card-right">
-                <span class="card-count">
-                    {{ inactiveWorkers }}
-                </span>
-            </div>
+        <div>
+          <span class="summary-label">Trabajadores</span>
+          <strong class="summary-value">{{ regularWorkers }}</strong>
+          <p class="summary-helper">Personal operativo y cocina</p>
         </div>
-    </div>
+      </article>
 
-    <!-- Tabla principal -->
-    <div class="workers-container">
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-green">
+          <UserCheck :size="22" />
+        </div>
+        <div>
+          <span class="summary-label">Cuentas Activas</span>
+          <strong class="summary-value">{{ activeWorkers }}</strong>
+          <p class="summary-helper">Con acceso al sistema</p>
+        </div>
+      </article>
 
-        <div class="table-toolbar">
+      <article class="summary-card">
+        <div class="summary-icon-box bg-summary-pink">
+          <UserX :size="22" />
+        </div>
+        <div>
+          <span class="summary-label">Inactivos</span>
+          <strong class="summary-value">{{ inactiveWorkers }}</strong>
+          <p class="summary-helper">Acceso suspendido</p>
+        </div>
+      </article>
+    </section>
 
-            <div class="search-worker">
-                <Search :size="18" class="search-icon" />
-                <input v-model="searchQuery" placeholder="Buscar trabajador">
-            </div>
+    <!-- TABLA PRINCIPAL UNIFICADA -->
+    <section class="panel-card table-unified-card">
+      <div class="panel-toolbar">
+        <div class="toolbar-left">
+          <div class="search-box">
+            <Search :size="17" class="search-icon" />
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              placeholder="Buscar por nombre de trabajador..."
+            />
+            <button v-if="searchQuery" class="clear-search-btn" @click="searchQuery = ''">
+              <X :size="14" />
+            </button>
+          </div>
 
-            <!-- Filtro Rol -->
-            <div ref="roleDropdownRef" class="dropdown-container">
-
-                <button class="btn-secondary" @click.stop="toggleRoleDropdown">
-                    <Users :size="18"/>
-
-                    <span>
-                        {{
-                            selectedRole === 'all'
-                                ? 'Todos los roles'
-                                : selectedRole
-                        }}
-                    </span>
-
-                    <ChevronDown :size="16"/>
-                </button>
-
-                <div
-                    class="dropdown-menu"
-                    v-if="isRoleDropdownOpen"
-                >
-                    <div
-                        class="dropdown-item"
-                        @click="selectRole('all')"
-                    >
-                        Todos
-                    </div>
-
-                    <div class="dropdown-divider"></div>
-
-                    <div
-                        class="dropdown-item"
-                        @click="selectRole('Administrador')"
-                    >
-                        Administrador
-                    </div>
-
-                    <div
-                        class="dropdown-item"
-                        @click="selectRole('Trabajador')"
-                    >
-                        Trabajador
-                    </div>
-
-                </div>
-
-            </div>
-
-            <!-- Filtro Estado -->
-            <div ref="statusDropdownRef" class="dropdown-container">
-
-                <button
-                    class="btn-secondary"
-                    @click.stop="toggleStatusDropdown"
-                >
-                    <CircleDot :size="18"/>
-
-                    <span>{{ selectedStatusLabel }}</span>
-
-                    <ChevronDown :size="16"/>
-                </button>
-
-                <div
-                    class="dropdown-menu"
-                    v-if="isStatusDropdownOpen"
-                >
-                    <div
-                        class="dropdown-item"
-                        @click="selectStatus('all')"
-                    >
-                        Todos
-                    </div>
-
-                    <div class="dropdown-divider"></div>
-
-                    <div
-                        class="dropdown-item"
-                        @click="selectStatus(true)"
-                    >
-                        Activo
-                    </div>
-
-                    <div
-                        class="dropdown-item"
-                        @click="selectStatus(false)"
-                    >
-                        Inactivo
-                    </div>
-
-                </div>
-
-            </div>
-
-            <button
-                class="new-worker"
-                @click="openCreateWorkerModal"
-            >
-                <Plus :size="18" />
-                <span>Nuevo trabajador</span>
+          <!-- Filtro Rol -->
+          <div ref="roleDropdownRef" class="dropdown-container">
+            <button class="filter-dropdown-btn" @click.stop="toggleRoleDropdown">
+              <Users :size="16" />
+              <span>
+                {{ selectedRole === 'all' ? 'Todos los roles' : selectedRole }}
+              </span>
+              <ChevronDown :size="14" />
             </button>
 
-            <CreateWorkerModal
-                :isOpen="isCreateWorkerModalOpen"
-                @close="closeCreateWorkerModal"
-                @workerCreated="loadWorkers"
-            />
-
-        </div>
-
-        <div class="table-content">
-
-            <table class="workers-table desktop-table-only">
-                <thead class="table-header">
-                    <tr>
-                        <th>ID</th>
-                        <th>Nombre</th>
-                        <th>Rol</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-
-                <tbody v-if="isLoading" class="table-body">
-                    <tr v-for="n in 4" :key="'work-skel-' + n" class="skeleton-row">
-                        <td><div class="skeleton-pill width-50"></div></td>
-                        <td><div class="skeleton-pill width-120"></div></td>
-                        <td><div class="skeleton-pill width-80"></div></td>
-                        <td><div class="skeleton-pill width-70"></div></td>
-                        <td><div class="skeleton-pill width-60"></div></td>
-                    </tr>
-                </tbody>
-
-                <tbody v-else class="table-body">
-                    <tr
-                        v-if="paginatedWorkers.length === 0"
-                        class="empty-row"
-                    >
-                        <td colspan="5" class="text-center padding-large">
-                            <div class="empty-state">
-                                <UserRoundX :size="48" class="empty-icon" />
-                                <p>No se encontraron trabajadores</p>
-                                <button @click="loadWorkers" class="btn-retry">Actualizar datos</button>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <tr
-                        v-else
-                        v-for="worker in paginatedWorkers"
-                        :key="worker.id_usuario"
-                        class="table-row"
-                    >
-                        <td>{{ worker.id_usuario }}</td>
-                        <td>{{ worker.nombre }}</td>
-                        <td>{{ getRoleName(worker.id_rol) }}</td>
-                        <td>
-                            <label
-                                class="status-switch"
-                                :class="{ 
-                                    active: worker.estado, 
-                                    inactive: !worker.estado,
-                                    'switch-disabled': isSelfUser(worker)
-                                }"
-                                :title="isSelfUser(worker) ? 'No puedes desactivar tu propia cuenta de administrador' : (worker.estado ? 'Desactivar trabajador' : 'Activar trabajador')"
-                            >
-                                <input
-                                    type="checkbox"
-                                    :checked="worker.estado"
-                                    :disabled="isSelfUser(worker)"
-                                    @change="toggleWorker(worker)"
-                                />
-                                <span class="slider"></span>
-                                <span class="status-text">
-                                    {{ worker.estado ? "Activo" : "Inactivo" }}
-                                </span>
-                            </label>
-                        </td>
-                        <td class="actions-column">
-                            <button class="action-icon detail-action" @click="openWorkerDetail(worker)">
-                                <Eye :size="18" />
-                            </button>
-                            <button class="action-icon edit-action" @click="openEditWorkerModal(worker)">
-                                <SquarePen :size="18" />
-                            </button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <!-- VISTA TARJETAS MÓVIL (MOBILE WORKERS) -->
-            <div class="mobile-workers-cards mobile-only">
-                <div v-if="isLoading" class="skeleton-cards-mobile">
-                    <div v-for="n in 3" :key="'work-skel-mob-' + n" class="mobile-worker-card skeleton-card">
-                        <div class="skeleton-pill width-120"></div>
-                        <div class="skeleton-pill width-80"></div>
-                    </div>
-                </div>
-                <div v-else-if="paginatedWorkers.length === 0" class="empty-state">
-                    <UserRoundX :size="40" />
-                    <p>No se encontraron trabajadores</p>
-                </div>
-                <div v-else v-for="worker in paginatedWorkers" :key="'mob-w-' + worker.id_usuario" class="mobile-worker-card">
-                    <div class="mob-worker-header">
-                        <div class="mob-worker-info">
-                            <div>
-                                <h4 class="mob-worker-name">{{ worker.nombre }}</h4>
-                                <small class="mob-worker-role">ID #{{ worker.id_usuario }} · {{ getRoleName(worker.id_rol) }}</small>
-                            </div>
-                        </div>
-                        <label
-                            class="status-switch"
-                            :class="{ 
-                                active: worker.estado, 
-                                inactive: !worker.estado,
-                                'switch-disabled': isSelfUser(worker)
-                            }"
-                            :title="isSelfUser(worker) ? 'No puedes desactivar tu propia cuenta de administrador' : ''"
-                        >
-                            <input
-                                type="checkbox"
-                                :checked="worker.estado"
-                                :disabled="isSelfUser(worker)"
-                                @change="toggleWorker(worker)"
-                            />
-                            <span class="slider"></span>
-                            <span class="status-text">{{ worker.estado ? "Activo" : "Inactivo" }}</span>
-                        </label>
-                    </div>
-                    <div class="mob-worker-actions">
-                        <button class="action-icon detail-action mob-btn" @click="openWorkerDetail(worker)">
-                            <Eye :size="16" />
-                            <span>Detalle</span>
-                        </button>
-                        <button class="action-icon edit-action mob-btn" @click="openEditWorkerModal(worker)">
-                            <SquarePen :size="16" />
-                            <span>Editar</span>
-                        </button>
-                    </div>
-                </div>
+            <div class="dropdown-menu" v-if="isRoleDropdownOpen">
+              <div class="dropdown-item" @click="selectRole('all')">Todos los roles</div>
+              <div class="dropdown-divider"></div>
+              <div class="dropdown-item" @click="selectRole('Administrador')">Administrador</div>
+              <div class="dropdown-item" @click="selectRole('Trabajador')">Trabajador</div>
             </div>
+          </div>
 
-            <ConfirmStatusWorkerModal
-                :isOpen="isConfirmStatusModalOpen"
-                :isActivating="workerToToggle?.estado === false"
-                @close="closeConfirmStatusModal"
-                @confirm="confirmToggleWorker"
-            />
+          <!-- Filtro Estado -->
+          <div ref="statusDropdownRef" class="dropdown-container">
+            <button class="filter-dropdown-btn" @click.stop="toggleStatusDropdown">
+              <CircleDot :size="16" />
+              <span>{{ selectedStatusLabel }}</span>
+              <ChevronDown :size="14" />
+            </button>
 
-            <ViewDetailWorkerModal
-                :show="showDetailWorkerModal"
-                :worker="selectedWorker"
-                @close="closeWorkerDetail"
-            />
+            <div class="dropdown-menu" v-if="isStatusDropdownOpen">
+              <div class="dropdown-item" @click="selectStatus('all')">Todos los estados</div>
+              <div class="dropdown-divider"></div>
+              <div class="dropdown-item" @click="selectStatus(true)">Solo Activos</div>
+              <div class="dropdown-item" @click="selectStatus(false)">Solo Inactivos</div>
+            </div>
+          </div>
 
-            <EditWorkerModal
-                :isOpen="isEditWorkerModalOpen"
-                :worker="selectedWorker"
-                @close="closeEditWorkerModal"
-                @save="updateWorker"
-            />
-
+          <button 
+            v-if="searchQuery || selectedRole !== 'all' || selectedStatus !== 'all'"
+            class="btn-reset-filters" 
+            type="button" 
+            @click="searchQuery = ''; selectedRole = 'all'; selectedStatus = 'all'"
+          >
+            <X :size="14" />
+            <span>Limpiar</span>
+          </button>
         </div>
 
-        <div class="table-footer">
+        <div class="toolbar-right">
+          <span class="results-chip">{{ filteredWorkers.length }} trabajadores</span>
+        </div>
+      </div>
 
-            <div class="footer-info">
+      <!-- TABLA ESCRITORIO -->
+      <div class="table-wrapper desktop-table-only">
+        <table class="workers-table">
+          <thead>
+            <tr>
+              <th style="width: 10%;">ID</th>
+              <th style="width: 32%;">Nombre y Cuenta</th>
+              <th style="width: 20%;">Rol de Acceso</th>
+              <th style="width: 20%;">Estado de Cuenta</th>
+              <th style="width: 18%; text-align: center;">Acciones</th>
+            </tr>
+          </thead>
 
-                <span v-if="totalWorkers > 0">
-                    {{ startIndex }}–{{ endIndex }}
-                    de
-                    {{ totalWorkers }}
-                    trabajadores
+          <tbody v-if="isLoading">
+            <tr v-for="n in 4" :key="'work-skel-' + n" class="skeleton-row">
+              <td><div class="skeleton-pill width-50"></div></td>
+              <td><div class="skeleton-pill width-120"></div></td>
+              <td><div class="skeleton-pill width-80"></div></td>
+              <td><div class="skeleton-pill width-70"></div></td>
+              <td><div class="skeleton-pill width-60"></div></td>
+            </tr>
+          </tbody>
+
+          <tbody v-else>
+            <tr v-if="paginatedWorkers.length === 0">
+              <td colspan="5" class="text-center">
+                <div class="state-card empty-state">
+                  <UserRoundX :size="42" />
+                  <p>No se encontraron trabajadores que coincidan con los filtros.</p>
+                  <button @click="loadWorkers" class="btn-retry">Actualizar datos</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr v-else v-for="worker in paginatedWorkers" :key="worker.id_usuario">
+              <td>
+                <span class="user-id-badge">#{{ worker.id_usuario }}</span>
+              </td>
+              <td>
+                <div class="user-cell-info">
+                  <strong>{{ worker.nombre }}</strong>
+                  <span v-if="isSelfUser(worker)" class="self-user-pill">Tu cuenta</span>
+                </div>
+              </td>
+              <td>
+                <span class="role-pill" :class="worker.id_rol === 1 ? 'role-admin' : 'role-worker'">
+                  {{ getRoleName(worker.id_rol) }}
                 </span>
-
-                <span v-else>
-                    0 trabajadores
-                </span>
-
-            </div>
-
-            <div class="footer-actions">
-
-                <button
-                    class="btn secondary"
-                    :disabled="totalWorkers === 0 || currentPage === 1"
-                    @click="previousPage"
+              </td>
+              <td>
+                <label
+                  class="status-switch"
+                  :class="{ 
+                    active: worker.estado, 
+                    inactive: !worker.estado,
+                    'switch-disabled': isSelfUser(worker)
+                  }"
+                  :title="isSelfUser(worker) ? 'No puedes desactivar tu propia cuenta' : (worker.estado ? 'Desactivar trabajador' : 'Activar trabajador')"
                 >
-                    Anterior
-                </button>
+                  <input
+                    type="checkbox"
+                    :checked="worker.estado"
+                    :disabled="isSelfUser(worker)"
+                    @change="toggleWorker(worker)"
+                  />
+                  <span class="slider"></span>
+                  <span class="status-text">
+                    {{ worker.estado ? "Activo" : "Inactivo" }}
+                  </span>
+                </label>
+              </td>
+              <td>
+                <div class="actions">
+                  <button 
+                    class="icon-button detail-action" 
+                    @click="openWorkerDetail(worker)"
+                    title="Ver perfil completo"
+                  >
+                    <Eye :size="15" />
+                  </button>
+                  <button 
+                    class="icon-button edit-action" 
+                    @click="openEditWorkerModal(worker)"
+                    title="Editar información"
+                  >
+                    <SquarePen :size="15" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-                <span>{{ currentPage }} / {{ totalPages }}</span>
-
-                <button
-                    class="btn secondary"
-                    :disabled="totalWorkers === 0 || currentPage === totalPages"
-                    @click="nextPage"
-                >
-                    Siguiente
-                </button>
-
-            </div>
-
+      <!-- VISTA TARJETAS MÓVIL -->
+      <div class="mobile-workers-cards mobile-only">
+        <div v-if="isLoading" class="skeleton-cards-mobile">
+          <div v-for="n in 3" :key="'work-skel-mob-' + n" class="mobile-worker-card skeleton-card">
+            <div class="skeleton-pill width-120"></div>
+            <div class="skeleton-pill width-80"></div>
+          </div>
         </div>
 
-    </div>
+        <div v-else-if="paginatedWorkers.length === 0" class="empty-state">
+          <UserRoundX :size="40" />
+          <p>No se encontraron trabajadores</p>
+        </div>
 
+        <div v-else v-for="worker in paginatedWorkers" :key="'mob-w-' + worker.id_usuario" class="mobile-worker-card">
+          <div class="mob-worker-header">
+            <div>
+              <h4 class="mob-worker-name">{{ worker.nombre }}</h4>
+              <small class="mob-worker-role">ID #{{ worker.id_usuario }} · {{ getRoleName(worker.id_rol) }}</small>
+            </div>
+            <span v-if="isSelfUser(worker)" class="self-user-pill">Tu cuenta</span>
+          </div>
+
+          <div class="mob-worker-body">
+            <label
+              class="status-switch"
+              :class="{ 
+                active: worker.estado, 
+                inactive: !worker.estado,
+                'switch-disabled': isSelfUser(worker)
+              }"
+            >
+              <input
+                type="checkbox"
+                :checked="worker.estado"
+                :disabled="isSelfUser(worker)"
+                @change="toggleWorker(worker)"
+              />
+              <span class="slider"></span>
+              <span class="status-text">{{ worker.estado ? "Activo" : "Inactivo" }}</span>
+            </label>
+            
+            <div class="actions">
+              <button class="icon-button detail-action" @click="openWorkerDetail(worker)">
+                <Eye :size="15" />
+              </button>
+              <button class="icon-button edit-action" @click="openEditWorkerModal(worker)">
+                <SquarePen :size="15" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGINACIÓN -->
+      <div v-if="totalPages > 1 || totalWorkers > 0" class="inventory-pagination">
+        <button 
+          type="button" 
+          class="pagination-btn" 
+          :disabled="totalWorkers === 0 || currentPage === 1" 
+          @click="previousPage"
+        >
+          <ChevronLeft :size="16" />
+          <span>Anterior</span>
+        </button>
+        
+        <div class="pagination-info">
+          Página <strong>{{ currentPage }}</strong> de <strong>{{ totalPages }}</strong>
+          <span class="footer-count-hint">({{ totalWorkers }} trabajadores)</span>
+        </div>
+
+        <button 
+          type="button" 
+          class="pagination-btn" 
+          :disabled="totalWorkers === 0 || currentPage === totalPages" 
+          @click="nextPage"
+        >
+          <span>Siguiente</span>
+          <ChevronRight :size="16" />
+        </button>
+      </div>
+    </section>
+
+    <!-- MODALES -->
+    <CreateWorkerModal
+      :isOpen="isCreateWorkerModalOpen"
+      @close="closeCreateWorkerModal"
+      @workerCreated="loadWorkers"
+    />
+
+    <ConfirmStatusWorkerModal
+      :isOpen="isConfirmStatusModalOpen"
+      :isActivating="workerToToggle?.estado === false"
+      @close="closeConfirmStatusModal"
+      @confirm="confirmToggleWorker"
+    />
+
+    <ViewDetailWorkerModal
+      :show="showDetailWorkerModal"
+      :worker="selectedWorker"
+      @close="closeWorkerDetail"
+    />
+
+    <EditWorkerModal
+      :isOpen="isEditWorkerModalOpen"
+      :worker="selectedWorker"
+      @close="closeEditWorkerModal"
+      @save="updateWorker"
+    />
   </div>
-
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { useNotification } from '@/composables/useNotification'
-import { SquarePen, Search, ShieldCheck, Users, UserCheck, UserX, CircleDot, ChevronDown, Plus, Eye, UserRoundX, History } from 'lucide-vue-next';
+import { useNotification } from '@/composables/useNotification';
+import { 
+  SquarePen, Search, ShieldCheck, Users, UserCheck, UserX, CircleDot, 
+  ChevronDown, ChevronLeft, ChevronRight, Plus, Eye, UserRoundX, History, X 
+} from 'lucide-vue-next';
 import userService from '@/services/userService';
 import type { Worker, UpdateWorkerRequest } from '@/services/userService';
 import CreateWorkerModal from '@/views/Admin/CreateWorkerModal.vue';
 import EditWorkerModal from '@/views/Admin/EditWorkerModal.vue';
 import ViewDetailWorkerModal from '@/views/Admin/ViewDetailWorkerModal.vue';
 import ConfirmStatusWorkerModal from '@/views/Admin/ConfirmStatusWorkerModal.vue';
-import { useModalScrollLock } from '@/composables/useModalScrollLock'
+import { useModalScrollLock } from '@/composables/useModalScrollLock';
 
-const router = useRouter()
+const router = useRouter();
 const goToAudit = () => {
-  router.push('/general-home/admin/history?tipo=trabajador')
-}
+  router.push('/general-home/admin/history?tipo=trabajador');
+};
 
-type RoleFilter = 'all' | 'Administrador' | 'Trabajador'
-type StatusFilter = 'all' | true | false
+type RoleFilter = 'all' | 'Administrador' | 'Trabajador';
+type StatusFilter = 'all' | true | false;
 
-const { notify } = useNotification()
+const { notify } = useNotification();
 const isLoading = ref(true);
 const workers = ref<Worker[]>([]);
 
-/* 1. Variables reactivas */
-const isRoleDropdownOpen = ref(false)
-const isStatusDropdownOpen = ref(false)
-const isCreateWorkerModalOpen = ref(false)
-const isEditWorkerModalOpen = ref(false)
-const showDetailWorkerModal = ref(false)
-const isConfirmStatusModalOpen = ref(false)
-const workerToToggle = ref<Worker | null>(null)
-const searchQuery = ref("")
-const roleDropdownRef = ref<HTMLElement | null>(null)
-const statusDropdownRef = ref<HTMLElement | null>(null)
-const selectedRole = ref<RoleFilter>('all')
-const selectedStatus = ref<StatusFilter>('all')
-const selectedWorker = ref<Worker | null>(null)
-const currentPage = ref(1)
-const pageSize = 10
-const currentUserId = ref<number | null>(null)
+const isRoleDropdownOpen = ref(false);
+const isStatusDropdownOpen = ref(false);
+const isCreateWorkerModalOpen = ref(false);
+const isEditWorkerModalOpen = ref(false);
+const showDetailWorkerModal = ref(false);
+const isConfirmStatusModalOpen = ref(false);
+const workerToToggle = ref<Worker | null>(null);
+const searchQuery = ref("");
+const roleDropdownRef = ref<HTMLElement | null>(null);
+const statusDropdownRef = ref<HTMLElement | null>(null);
+const selectedRole = ref<RoleFilter>('all');
+const selectedStatus = ref<StatusFilter>('all');
+const selectedWorker = ref<Worker | null>(null);
+const currentPage = ref(1);
+const pageSize = 10;
+const currentUserId = ref<number | null>(null);
 
 const loadCurrentUser = () => {
-    try {
-        const userParsed = localStorage.getItem('user')
-        if (userParsed) {
-            const userObj = JSON.parse(userParsed)
-            currentUserId.value = Number(userObj.id_usuario || userObj.id || null)
-        }
-    } catch (e) {
-        console.error('Error parsing user session:', e)
+  try {
+    const userParsed = localStorage.getItem('user');
+    if (userParsed) {
+      const userObj = JSON.parse(userParsed);
+      currentUserId.value = Number(userObj.id_usuario || userObj.id || null);
     }
-}
+  } catch (e) {
+    console.error('Error parsing user session:', e);
+  }
+};
 
 const isSelfUser = (worker: Worker) => {
-    return currentUserId.value !== null && Number(worker.id_usuario) === Number(currentUserId.value)
-}
+  return currentUserId.value !== null && Number(worker.id_usuario) === Number(currentUserId.value);
+};
 
-/* Manejo de modales para restricción de scroll */
 const isAnyModalOpen = computed(() =>
-    isCreateWorkerModalOpen.value ||
-    isEditWorkerModalOpen.value ||
-    showDetailWorkerModal.value ||
-    isConfirmStatusModalOpen.value
-)
+  isCreateWorkerModalOpen.value ||
+  isEditWorkerModalOpen.value ||
+  showDetailWorkerModal.value ||
+  isConfirmStatusModalOpen.value
+);
 
-useModalScrollLock(isAnyModalOpen)
+useModalScrollLock(isAnyModalOpen);
 
-/* 1. Carga de trabajadores + administradores */
 const loadWorkers = async () => {
-    isLoading.value = true
-    try {
-        const response = await userService.getWorkers()
-        workers.value = response.data
-    } catch (error) {
-        console.error('Error cargando trabajadores:', error)
-    } finally {
-        isLoading.value = false
-    }
-}
+  isLoading.value = true;
+  try {
+    const response = await userService.getWorkers();
+    workers.value = response.data;
+  } catch (error) {
+    console.error('Error cargando trabajadores:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
 
-/* 2. Funciones para tarjetas estadisticas */
-
-/* Conteo de administradores */
 const adminWorkers = computed(() => {
-    return (workers.value || []).filter(
-        worker => worker.id_rol === 1
-    ).length
-})
+  return (workers.value || []).filter(worker => worker.id_rol === 1).length;
+});
 
-/* Conteo de trabajadores */
 const regularWorkers = computed(() => {
-    return (workers.value || []).filter(
-        worker => worker.id_rol === 3
-    ).length
-})
+  return (workers.value || []).filter(worker => worker.id_rol === 3).length;
+});
 
-/* Conteo de trabajadores activos */
 const activeWorkers = computed(() =>
-    workers.value.filter(worker => worker.estado).length
-)
+  workers.value.filter(worker => worker.estado).length
+);
 
-/* Conteo de trabajadores inactivos */
 const inactiveWorkers = computed(() =>
-    workers.value.filter(worker => !worker.estado).length
-)
+  workers.value.filter(worker => !worker.estado).length
+);
 
-/* 3. Funciones para filtros */
 const filteredWorkers = computed(() => {
-    return workers.value.filter(worker => {
-        const matchesName =
-            worker.nombre
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase())
+  return workers.value.filter(worker => {
+    const matchesName = worker.nombre
+      .toLowerCase()
+      .includes(searchQuery.value.toLowerCase());
 
-        const matchesRole =
-            selectedRole.value === 'all' ||
-            getRoleName(worker.id_rol) === selectedRole.value
+    const matchesRole =
+      selectedRole.value === 'all' ||
+      getRoleName(worker.id_rol) === selectedRole.value;
 
-        const matchesStatus =
-            selectedStatus.value === 'all' ||
-            worker.estado === selectedStatus.value
+    const matchesStatus =
+      selectedStatus.value === 'all' ||
+      worker.estado === selectedStatus.value;
 
-        return matchesName && matchesRole && matchesStatus
-    })
-})
+    return matchesName && matchesRole && matchesStatus;
+  });
+});
 
-watch(
-    [searchQuery, selectedRole, selectedStatus],
-    () => {
-        currentPage.value = 1
-    }
-)
+watch([searchQuery, selectedRole, selectedStatus], () => {
+  currentPage.value = 1;
+});
 
 const toggleRoleDropdown = () => {
-    isStatusDropdownOpen.value = false
-    isRoleDropdownOpen.value = !isRoleDropdownOpen.value
-}
+  isStatusDropdownOpen.value = false;
+  isRoleDropdownOpen.value = !isRoleDropdownOpen.value;
+};
 
 const toggleStatusDropdown = () => {
-    isRoleDropdownOpen.value = false
-    isStatusDropdownOpen.value = !isStatusDropdownOpen.value
-}
+  isRoleDropdownOpen.value = false;
+  isStatusDropdownOpen.value = !isStatusDropdownOpen.value;
+};
 
 const closeDropdowns = () => {
-    isRoleDropdownOpen.value = false
-    isStatusDropdownOpen.value = false
-}
+  isRoleDropdownOpen.value = false;
+  isStatusDropdownOpen.value = false;
+};
 
 const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target as Node;
+  const clickedRole = roleDropdownRef.value?.contains(target);
+  const clickedStatus = statusDropdownRef.value?.contains(target);
 
-    const target = event.target as Node
-
-    const clickedRole =
-        roleDropdownRef.value?.contains(target)
-
-    const clickedStatus =
-        statusDropdownRef.value?.contains(target)
-
-    if (!clickedRole && !clickedStatus) {
-        closeDropdowns()
-    }
-}
+  if (!clickedRole && !clickedStatus) {
+    closeDropdowns();
+  }
+};
 
 const selectRole = (role: RoleFilter) => {
-    selectedRole.value = role
-    isRoleDropdownOpen.value = false
-}
+  selectedRole.value = role;
+  isRoleDropdownOpen.value = false;
+};
 
 const selectStatus = (status: StatusFilter) => {
-    selectedStatus.value = status
-    isStatusDropdownOpen.value = false
-}
+  selectedStatus.value = status;
+  isStatusDropdownOpen.value = false;
+};
 
 const selectedStatusLabel = computed(() => {
-
-    if (selectedStatus.value === "all") {
-        return "Todos los estados"
-    }
-
-    return selectedStatus.value
-        ? "Activo"
-        : "Inactivo"
-
-})
+  if (selectedStatus.value === "all") return "Todos los estados";
+  return selectedStatus.value ? "Solo Activos" : "Solo Inactivos";
+});
 
 const getRoleName = (idRol: number) => {
-    return idRol === 1
-        ? 'Administrador'
-        : 'Trabajador'
-}
+  return idRol === 1 ? 'Administrador' : 'Trabajador';
+};
 
-/* 4. Funciones para controlar el modal de ver detalle de trabajadores */
 const openWorkerDetail = (worker: Worker) => {
-    selectedWorker.value = worker
-    showDetailWorkerModal.value = true
-}
+  selectedWorker.value = worker;
+  showDetailWorkerModal.value = true;
+};
 
 const closeWorkerDetail = () => {
-    showDetailWorkerModal.value = false
-    selectedWorker.value = null
-}
+  showDetailWorkerModal.value = false;
+  selectedWorker.value = null;
+};
 
-/* 5. Funciones para controlar el modal de creacion de trabajadores */
 const openCreateWorkerModal = () => {
-    closeDropdowns()
-    isCreateWorkerModalOpen.value = true
-}
+  closeDropdowns();
+  isCreateWorkerModalOpen.value = true;
+};
 
 const closeCreateWorkerModal = () => {
-    isCreateWorkerModalOpen.value = false
-}
+  isCreateWorkerModalOpen.value = false;
+};
 
-/* 6. Funciones para cambiar el estado de un trabajador */
 const toggleWorker = (worker: Worker) => {
-    if (isSelfUser(worker)) {
-        notify('No puedes desactivar tu propia cuenta de administrador.', 'warning')
-        return
-    }
-    workerToToggle.value = worker
-    isConfirmStatusModalOpen.value = true
-}
+  if (isSelfUser(worker)) {
+    notify('No puedes desactivar tu propia cuenta de administrador.', 'warning');
+    return;
+  }
+  workerToToggle.value = worker;
+  isConfirmStatusModalOpen.value = true;
+};
 
 const closeConfirmStatusModal = () => {
-    isConfirmStatusModalOpen.value = false
-    workerToToggle.value = null
-}
+  isConfirmStatusModalOpen.value = false;
+  workerToToggle.value = null;
+};
 
 const confirmToggleWorker = async () => {
-    if (!workerToToggle.value) return
+  if (!workerToToggle.value) return;
 
-    const worker = workerToToggle.value
-    if (isSelfUser(worker)) {
-        notify('No puedes desactivar tu propia cuenta de administrador.', 'warning')
-        closeConfirmStatusModal()
-        return
-    }
+  const worker = workerToToggle.value;
+  if (isSelfUser(worker)) {
+    notify('No puedes desactivar tu propia cuenta de administrador.', 'warning');
+    closeConfirmStatusModal();
+    return;
+  }
 
-    const newStatus = !worker.estado
+  const newStatus = !worker.estado;
+  const previousStatus = worker.estado;
+  worker.estado = newStatus;
+  closeConfirmStatusModal();
 
-    const previousStatus = worker.estado
+  try {
+    await userService.updateUser(worker.id_usuario, { estado: newStatus });
+    notify(
+      newStatus
+        ? 'El trabajador fue activado correctamente.'
+        : 'El trabajador fue desactivado correctamente.',
+      'success'
+    );
+  } catch (error) {
+    worker.estado = previousStatus;
+    notify('No se pudo actualizar el estado del trabajador.', 'error');
+    console.error('Error cambiando estado:', error);
+  }
+};
 
-    worker.estado = newStatus
-
-    closeConfirmStatusModal()
-
-    try {
-        await userService.updateUser(
-            worker.id_usuario,
-            {
-                estado: newStatus
-            }
-        )
-
-        notify(
-            newStatus
-                ? 'El trabajador fue activado correctamente.'
-                : 'El trabajador fue desactivado correctamente.',
-            'success'
-        )
-
-    } catch (error) {
-
-        worker.estado = previousStatus
-
-        notify(
-            'No se pudo actualizar el estado del trabajador.',
-            'error'
-        )
-
-        console.error(
-            'Error cambiando estado:',
-            error
-        )
-    }
-}
-
-/* 7. Funciones para controlar el modal de edicion de trabajadores */
 const openEditWorkerModal = (worker: Worker) => {
-    selectedWorker.value = worker
-    isEditWorkerModalOpen.value = true
-}
+  selectedWorker.value = worker;
+  isEditWorkerModalOpen.value = true;
+};
 
 const closeEditWorkerModal = () => {
-    isEditWorkerModalOpen.value = false
-    selectedWorker.value = null
-}
+  isEditWorkerModalOpen.value = false;
+  selectedWorker.value = null;
+};
 
 const updateWorker = async (workerData: UpdateWorkerRequest) => {
-    if (!selectedWorker.value) return
-    try {
-        await userService.updateUser(
-            selectedWorker.value.id_usuario,
-            workerData
-        )
-        await loadWorkers()
-        notify(
-            'El trabajador fue actualizado correctamente.',
-            'success'
-        )
-        closeEditWorkerModal()
-    } catch (error:any) {
-        console.error('Error al actualizar trabajador:', error)
-
-        if (error.response?.status === 409) {
-            notify(
-                error.response.data.message,
-                'error'
-            )
-        } else {
-            notify(
-                'No se pudo actualizar el trabajador.',
-                'error'
-            )
-        }
+  if (!selectedWorker.value) return;
+  try {
+    await userService.updateUser(selectedWorker.value.id_usuario, workerData);
+    await loadWorkers();
+    notify('El trabajador fue actualizado correctamente.', 'success');
+    closeEditWorkerModal();
+  } catch (error: any) {
+    console.error('Error al actualizar trabajador:', error);
+    if (error.response?.status === 409) {
+      notify(error.response.data.message, 'error');
+    } else {
+      notify('No se pudo actualizar el trabajador.', 'error');
     }
-}
+  }
+};
 
-/* 8. Funciones para paginacion */
-const totalWorkers = computed(() => filteredWorkers.value.length)
+const totalWorkers = computed(() => filteredWorkers.value.length);
 
 const paginatedWorkers = computed(() => {
-
-    const start = (currentPage.value - 1) * pageSize
-    const end = start + pageSize
-
-    return filteredWorkers.value.slice(start, end)
-
-})
-
-const startIndex = computed(() => {
-    if (totalWorkers.value === 0)
-        return 0
-
-    return (currentPage.value - 1) * pageSize + 1
-})
-
-const endIndex = computed(() => {
-    return Math.min(
-        currentPage.value * pageSize,
-        totalWorkers.value
-    )
-})
+  const start = (currentPage.value - 1) * pageSize;
+  return filteredWorkers.value.slice(start, start + pageSize);
+});
 
 const previousPage = () => {
-    if (currentPage.value > 1) {
-        currentPage.value--
-    }
-}
+  if (currentPage.value > 1) currentPage.value--;
+};
 
 const nextPage = () => {
-    if (currentPage.value < totalPages.value) {
-        currentPage.value++
-    }
-}
+  if (currentPage.value < totalPages.value) currentPage.value++;
+};
 
 const totalPages = computed(() =>
-    Math.max(
-        1,
-        Math.ceil(totalWorkers.value / pageSize)
-    )
-)
+  Math.max(1, Math.ceil(totalWorkers.value / pageSize))
+);
 
 onMounted(() => {
-    loadCurrentUser()
-    document.addEventListener('click', handleClickOutside)
-    loadWorkers()
-})
+  loadCurrentUser();
+  document.addEventListener('click', handleClickOutside);
+  loadWorkers();
+});
 
 onBeforeUnmount(() => {
-    document.removeEventListener('click', handleClickOutside)
-})
+  document.removeEventListener('click', handleClickOutside);
+});
 </script>
 
 <style scoped>
+.dashboard {
+  max-width: 1650px;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ====================================================
+   HEADER Y ACCIONES PRINCIPALES
+==================================================== */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.header-copy h1 {
+  color: var(--DC-brown, #513119);
+  font-size: 2.2rem;
+  line-height: 1.1;
+  margin: 0 0 0.4rem 0;
+}
+
+.header-copy p {
+  margin: 0;
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.92rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn-secondary {
+  border: 1px solid rgba(81, 49, 25, 0.15);
+  background: white;
+  color: var(--DC-brown, #513119);
+  padding: 0.65rem 1.1rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--DC-orange, #e28743);
+  box-shadow: 0 4px 14px rgba(226, 135, 67, 0.15);
+}
+
+.btn-primary {
+  border: none;
+  background: var(--DC-orange, #e28743);
+  color: white;
+  padding: 0.65rem 1.25rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 0.88rem;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: var(--DC-brown, #513119);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(81, 49, 25, 0.2);
+}
+
+/* ====================================================
+   KPIS SUMMARY-GRID (4 COLUMNAS HOMOGÉNEAS)
+==================================================== */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.panel-card,
+.summary-card {
+  background: white;
+  border-radius: 18px;
+  box-shadow: 0 4px 20px rgba(26, 14, 5, 0.04);
+  border: 1px solid rgba(81, 49, 25, 0.08);
+}
+
+.summary-card {
+  padding: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.summary-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.bg-summary-blue { background: rgba(59, 130, 246, 0.12); color: #2563eb; }
+.bg-summary-brown { background: var(--DC-bg-gray, #f8f6f3); color: var(--DC-brown, #513119); }
+.bg-summary-green { background: rgba(22, 163, 74, 0.12); color: #16a34a; }
+.bg-summary-pink { background: rgba(216, 0, 86, 0.1); color: var(--DC-pink, #d80056); }
+
+.summary-label {
+  display: block;
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.summary-value {
+  display: block;
+  color: var(--DC-gray, #2c2724);
+  font-size: 1.5rem;
+  line-height: 1.1;
+  margin: 0.15rem 0;
+}
+
+.summary-helper {
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+/* ====================================================
+   TARJETA DE TABLA UNIFICADA & TOOLBAR
+==================================================== */
+.table-unified-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.panel-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1.15rem;
+  background: #fffdfa;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.08);
+  flex-wrap: wrap;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--DC-bg-gray, #f8f6f3);
+  border: 1px solid rgba(81, 49, 25, 0.09);
+  border-radius: 12px;
+  padding: 0.55rem 0.75rem;
+}
+
+.search-box input {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--DC-gray, #2c2724);
+  font-size: 0.86rem;
+  min-width: 240px;
+}
+
+.search-icon {
+  color: var(--DC-text-gray, #7c7468);
+  flex-shrink: 0;
+}
+
+.clear-search-btn {
+  background: transparent;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+}
+
+.dropdown-container {
+  position: relative;
+}
+
+.filter-dropdown-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  background: var(--DC-bg-gray, #f8f6f3);
+  border: 1px solid rgba(81, 49, 25, 0.09);
+  border-radius: 12px;
+  color: var(--DC-gray, #2c2724);
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-dropdown-btn:hover {
+  border-color: var(--DC-orange, #e28743);
+  background: white;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(81, 49, 25, 0.12);
+  min-width: 180px;
+  z-index: 100;
+  padding: 6px;
+}
+
+.dropdown-item {
+  padding: 8px 12px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--DC-gray, #2c2724);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.dropdown-item:hover {
+  background: var(--DC-bg-gray, #f8f6f3);
+  color: var(--DC-orange, #e28743);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: rgba(81, 49, 25, 0.08);
+  margin: 4px 0;
+}
+
+.btn-reset-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-reset-filters:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.results-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(226, 135, 67, 0.12);
+  color: var(--DC-brown, #513119);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+/* ====================================================
+   TABLA DESKTOP
+==================================================== */
+.table-wrapper {
+  max-height: 560px;
+  overflow-y: auto;
+  width: 100%;
+}
+
+.workers-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.workers-table thead th {
+  background: #faf6f0;
+  color: var(--DC-brown, #513119);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.8rem 0.5rem;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  text-align: left;
+}
+
+.workers-table tbody td {
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.07);
+  vertical-align: middle;
+  font-size: 0.86rem;
+}
+
+.workers-table thead th:first-child,
+.workers-table tbody td:first-child {
+  padding-left: 1.15rem;
+}
+
+.workers-table thead th:last-child,
+.workers-table tbody td:last-child {
+  padding-right: 1.15rem;
+}
+
+.workers-table tbody tr:hover {
+  background: rgba(245, 235, 224, 0.35);
+}
+
+.user-id-badge {
+  font-weight: 800;
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.8rem;
+}
+
+.user-cell-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-cell-info strong {
+  color: var(--DC-gray, #2c2724);
+  font-size: 0.9rem;
+}
+
+.self-user-pill {
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #15803d;
+  font-weight: 800;
+  border: 1px solid #bbf7d0;
+}
+
+.role-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.role-admin {
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+}
+
+.role-worker {
+  background: var(--DC-bg-gray, #f8f6f3);
+  color: var(--DC-brown, #513119);
+  border: 1px solid rgba(81, 49, 25, 0.08);
+}
+
+/* ====================================================
+   SWITCH DE ESTADO REFINADO
+==================================================== */
+.status-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.status-switch input {
+  display: none;
+}
+
+.slider {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  border-radius: 999px;
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+}
+
+.slider::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.25s ease;
+}
+
+.status-switch.active {
+  color: #15803d;
+  background: rgba(62, 165, 93, 0.12);
+}
+
+.status-switch.active .slider {
+  background: #16a34a;
+}
+
+.status-switch.active .slider::before {
+  transform: translateX(16px);
+}
+
+.status-switch.inactive {
+  color: var(--DC-pink, #d80056);
+  background: rgba(216, 0, 86, 0.12);
+}
+
+.status-switch.inactive .slider {
+  background: var(--DC-pink, #d80056);
+}
+
+.status-switch.inactive .slider::before {
+  transform: translateX(0);
+}
+
+.status-switch.switch-disabled {
+  opacity: 0.45;
+  cursor: not-allowed !important;
+}
+
+/* ====================================================
+   BOTONES DE ACCIÓN
+==================================================== */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  justify-content: center;
+}
+
+.icon-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(81, 49, 25, 0.12);
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.detail-action {
+  color: #2563eb;
+}
+
+.detail-action:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.edit-action {
+  color: var(--DC-orange, #e28743);
+}
+
+.edit-action:hover {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #c2410c;
+}
+
+/* ====================================================
+   PAGINACIÓN
+==================================================== */
+.inventory-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.15rem;
+  background: var(--DC-bg-gray, #f8f6f3);
+  border-top: 1px solid rgba(81, 49, 25, 0.08);
+}
+
+.pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(81, 49, 25, 0.15);
+  background: white;
+  color: var(--DC-brown, #513119);
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--DC-orange, #e28743);
+  border-color: var(--DC-orange, #e28743);
+  color: white;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.82rem;
+}
+
+.footer-count-hint {
+  color: #9ca3af;
+  margin-left: 4px;
+}
+
+/* ====================================================
+   SKELETON & EMPTY STATES
+==================================================== */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -798,7 +1196,7 @@ onBeforeUnmount(() => {
 }
 
 .skeleton-pill {
-  height: 16px;
+  height: 14px;
   border-radius: 6px;
   background: linear-gradient(90deg, #f0ede9 25%, #f8f6f3 50%, #f0ede9 75%);
   background-size: 200% 100%;
@@ -811,744 +1209,146 @@ onBeforeUnmount(() => {
 .width-80 { width: 80px; }
 .width-120 { width: 120px; }
 
-/* 0. Contenedor principal */
-.dashboard{
-    max-width: 1200px;
-    margin: 0 auto;
-    width: 100%;
-    display:grid;
-    grid-template-columns: 1fr;
-    gap: 20px;
-    padding: 40px 20px;
-    box-sizing: border-box;
-}
-
-/* 1. Contenedor titulo */
-.orders-header {
-  width: 100%;
-  margin: 0 0 30px 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.orders-header-copy {
-  display: flex;
-  flex-direction: column;
-}
-
-.btn-audit {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  background: white;
-  border: 1.5px solid var(--DC-brown, #513119);
-  color: var(--DC-brown, #513119);
-  border-radius: 12px;
-  font-weight: 800;
-  font-size: 0.88rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(81, 49, 25, 0.04);
-}
-
-.btn-audit:hover {
-  background: var(--DC-brown, #513119);
-  color: white;
-  transform: translateY(-1px);
-}
-
-/* 1.1 Estilo título */
-.orders-title {
-  font-size: 2rem;
-  font-weight: 900;
-  color: var(--DC-gray);
-  margin: 0;
-  text-transform: uppercase;
-}
-
-/* 1.2 Estilo descripción */
-.orders-description {
-  font-size: 1rem;
-  color: var(--DC-text-gray);
-  margin-top: 4px;
-  font-weight: 600;
-}
-
-/* 2. Contenedor de tarjetas */
-.cards{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-    gap:20px;
-}
-
-/* 2.1 Tarjetas */
-.card{
-    background:white;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:16px;
-    border-radius:16px;
-    box-shadow:0 4px 15px rgba(0,0,0,.05);
-    border:2px solid lightgray;
-    transition:
-        transform .2s ease,
-        border-color .2s ease;
-}
-
-.card:hover{
-    transform:translateY(-4px);
-    border-color:var(--DC-orange);
-}
-
-/* 2.1.1 Tarjeta seccion izquierda */
-.card-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-
-    flex:1;
-    min-width: 0;
-}
-
-/* 2.1.1.1 Icono tarjeta */
-.icon-box {
-    width: 45px;
-    height: 45px;
-    border-radius: 12px;
-
-    flex-shrink: 0;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* 2.1.1.2 Nombre tarjeta */
-.card-label {
-    font-size: 0.85rem;
-    font-weight: 800;
-    color: var(--DC-gray);
-    text-transform: uppercase;
-}
-
-/* 2.1.2 Tarjeta seccion derecha */
-.card-right {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-
-    flex-shrink: 0;
-}
-
-/* 2.1.2.1 Contador tarjeta */
-.card-count {
-    font-size: 1.8rem;
-    font-weight: 900;
-    color: var(--DC-brown);
-    line-height: 1;
-}
-
-/* 2.1.3 Colores fondo iconos */
-.bg-admin{
-    background:rgba(59,130,246,.10);
-    color:#2563eb;
-}
-
-.bg-workers{
-    background:rgba(168,85,247,.10);
-    color:#9333ea;
-}
-
-.bg-active{
-    background:rgba(46,196,182,.10);
-    color:#2ec4b6;
-}
-
-.bg-inactive{
-    background:rgba(216,0,86,.10);
-    color:var(--DC-pink);
-}
-
-/* 3. Contenedor tabla */
-.workers-container{
-    display:flex;
-    flex-direction: column;
-    background:#ffffff;
-    min-height:350px;
-    border: 2px solid lightgray;
-    border-radius: 20px;
-    overflow: hidden;
-}
-
-/* 3.1 Barra de herramientas */
-.table-toolbar{
-    flex:1;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    flex-wrap: wrap;
-    padding: 15px;
-    background: #ffffff;
-}
-
-/* 3.1.1 Barra de busqueda */
-.search-worker { position: relative; width: 100%; max-width: 400px; }
-.search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--DC-brown); }
-.search-worker input {
-  width: 100%; padding: 12px 12px 12px 42px; border-radius: 10px;
-  border: 2px solid #eeedee; font-size: 0.95rem; color: var(--DC-gray); font-weight: 600; outline: none; transition: all 0.2s;
-}
-.search-worker input:focus { border-color: var(--DC-orange); }
-
-/* 3.1.2 Filtros de busqueda */
-.dropdown-container { position: relative; }
-.btn-secondary { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background-color: white; border: 2px solid #eeedee; border-radius: 10px; color: var(--DC-gray); font-size: 0.9rem; font-weight: 800; cursor: pointer; transition: border-color .2s, background-color .2s, color .2s; white-space: nowrap;}
-.btn-secondary:hover { border-color: var(--DC-brown); }
-
-.dropdown-menu { position: absolute; top: calc(100% + 8px); left: 0; background-color: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); border: 2px solid var(--DC-brown); width: 100%; min-width: 220px; z-index: 100; padding: 8px; }
-.dropdown-item { padding: 10px 16px; font-size: 0.85rem; font-weight: 700; color: var(--DC-gray); cursor: pointer; border-radius: 8px; transition: background-color .2s, color .2s; }
-.dropdown-item:hover { background-color: var(--DC-bg-gray); color: var(--DC-orange); }
-.dropdown-divider { height: 1px; background-color: #eeedee; margin: 6px 0; }
-
-/* 3.1.3 Boton de nuevo trabajador */
-.new-worker{
-    margin-left:auto;
-
-    display:flex;
-    align-items:center;
-    gap:10px;
-
-    padding:12px 18px;
-
-    border:none;
-    border-radius:10px;
-
-    background:var(--DC-orange);
-    color:white;
-
-    font-size:.9rem;
-    font-weight:800;
-
-    cursor:pointer;
-
-    transition:
-        background-color .2s,
-        transform .15s,
-        box-shadow .2s;
-}
-
-.new-worker:hover{
-    background:var(--DC-brown);
-    box-shadow:0 6px 16px rgba(0,0,0,.12);
-}
-
-.new-worker:active{
-    transform:scale(.98);
-}
-
-.new-worker svg{
-    flex-shrink:0;
-}
-
-/* 3.2 Contenedor contenido tabla */
-.table-content {
-    width: 100%;
-    overflow-x: auto;
-}
-
-/* 3.2.1 Contenido tabla */
-.workers-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    min-width: 700px;
-}
-
-.workers-table th:last-child,
-.workers-table td:last-child {
-    text-align: center;
-}
-
-/* 3.2.1.1 Encabezado de tabla */
-.table-header {
-    background-color: var(--DC-brown);
-}
-
-/* 3.2.1.1.1 Bloques de header */
-.table-header th {
-    padding: 1rem;
-    text-align: left;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: white;
-
-    position: sticky;
-    top: 0;
-    z-index: 2;
-
-    background-color: var(--DC-brown);
-}
-
-/* 3.2.1.2 Cuerpo de tabla */
-.table-body {
-    background-color: white;
-}
-
-.text-center { 
-    text-align: center; 
-}
-
-.padding-large { 
-    padding: 60px !important; 
-}
-
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 15px;
-  color: var(--DC-text-gray);
-  font-weight: 700;
-  min-height: 240px;
-  padding: 24px;
-  box-sizing: border-box;
+  gap: 0.75rem;
+  padding: 3.5rem 1rem;
+  color: var(--DC-text-gray, #7c7468);
   text-align: center;
 }
 
-.empty-icon { 
-    color: var(--DC-brown); opacity: 0.5; 
+.empty-state p {
+  margin: 0;
+  font-size: 0.88rem;
 }
 
-.btn-retry { 
-    padding: 10px 24px; 
-    background-color: var(--DC-orange); 
-    color: white; border: none; 
-    border-radius: 8px; font-weight: 900; 
-    cursor: pointer; 
-    transition: background-color 0.2s; 
+.btn-retry {
+  padding: 8px 18px;
+  background: var(--DC-orange, #e28743);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
-.btn-retry:hover { 
-    background-color: var(--DC-brown); 
+.btn-retry:hover {
+  background: var(--DC-brown, #513119);
 }
 
-/* 3.2.1.2.1 Filas de la tabla */
-.table-row {
-    transition: background-color 0.2s ease;
+.text-center {
+  text-align: center;
 }
 
-.table-row:hover td{
-    background-color: #f8f9fa;
-}
-
-/* 3.2.1.2.2 Bloques de las filas */
-.table-row td {
-    padding:1rem;
-    border-bottom: 1px solid #e9ecef;
-    color: #343a40;
-}
-
-/* 3.2.1.2.3 Seccion de switch de estado */
-.status-switch {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.75rem;
-
-    padding: 0.35rem 0.8rem;
-
-    border-radius: 999px;
-
-    font-size: 0.85rem;
-    font-weight: 600;
-
-    cursor: pointer;
-    user-select: none;
-
-    transition: all 0.2s ease;
-}
-
-.status-switch input {
-    display: none;
-}
-
-/* 3.2.1.2.3.1 Texto */
-.status-text {
-    min-width: 60px;
-}
-
-/* 3.2.1.2.3.2 Switch */
-.slider {
-    position: relative;
-
-    width: 40px;
-    height: 22px;
-
-    border-radius: 999px;
-
-    transition: all 0.25s ease;
-}
-
-/* 3.2.1.2.3.3 Círculo del switch */
-.slider::before {
-    content: "";
-
-    position: absolute;
-    top: 3px;
-    left: 3px;
-
-    width: 16px;
-    height: 16px;
-
-    border-radius: 50%;
-    background: white;
-
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-
-    transition: transform 0.25s ease;
-}
-
-/* 3.2.1.2.3.4 Color activo */
-.status-switch.active {
-    color: #198754;
-    background: #d1e7dd;
-}
-
-.status-switch.active .slider {
-    background: #198754;
-}
-
-.status-switch.active .slider::before {
-    transform: translateX(18px);
-}
-
-/* 3.2.1.2.3.5 Color inactivo */
-.status-switch.inactive {
-    color: #dc3545;
-    background: #f8d7da;
-}
-
-.status-switch.inactive .slider {
-    background: #dc3545;
-}
-
-.status-switch.inactive .slider::before {
-    transform: translateX(0);
-}
-
-/* 3.2.1.2.3.6 Hover */
-.status-switch:hover {
-    filter: brightness(0.98);
-}
-
-.status-switch input:focus-visible + .slider {
-    outline: 3px solid rgba(79, 70, 229, 0.2);
-    outline-offset: 2px;
-}
-
-.status-switch.switch-disabled {
-    opacity: 0.5;
-    cursor: not-allowed !important;
-}
-
-.status-switch.switch-disabled:hover {
-    filter: none;
-}
-
-.status-switch.switch-disabled input {
-    cursor: not-allowed !important;
-    pointer-events: none;
-}
-
-.status-switch.switch-disabled .slider {
-    cursor: not-allowed !important;
-}
-
-/* 3.2.1.2.4 Acciones */
-.actions-column{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: .5rem;
-}
-
-/* 3.2.1.2.4.1 Botones de acciones */
-.action-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    width: 36px;
-    height: 36px;
-
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-
-    cursor: pointer;
-
-    transition:
-        background-color 0.2s ease,
-        border-color 0.2s ease,
-        color 0.2s ease,
-        transform 0.15s ease,
-        box-shadow 0.2s ease;
-}
-
-
-/* 3.2.1.2.4.1.1 Botón de detalle */
-.detail-action {
-    color: #2563eb;
-}
-
-.detail-action:hover {
-    background: #eff6ff;
-    border-color: #bfdbfe;
-    color: #1d4ed8;
-    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.12);
-}
-
-.detail-action:focus-visible {
-    outline: none;
-    box-shadow:
-        0 0 0 3px rgba(37, 99, 235, 0.18),
-        0 4px 10px rgba(37, 99, 235, 0.12);
-}
-
-
-/* 3.2.1.2.4.1.2 Botón de editar */
-.edit-action {
-    color: #ff9500;
-}
-
-.edit-action:hover {
-    background: #eef2ff;
-    border-color: #c7d2fe;
-    color: #bc5e00;
-    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.12);
-}
-
-.edit-action:focus-visible {
-    outline: none;
-    box-shadow:
-        0 0 0 3px rgba(79, 70, 229, 0.18),
-        0 4px 10px rgba(79, 70, 229, 0.12);
-}
-
-
-/* Estado al presionar cualquier botón */
-.action-icon:active {
-    transform: scale(0.95);
-}
-
-/* 3.3 Pie de tabla */
-.table-footer{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:20px 24px;
-    border-top:2px solid #eeedee;
-}
-
-/* 3.3.1 Informacion (total trabajadores) */
-.footer-info{
-    font-size:.9rem;
-    font-weight:700;
-    color:var(--DC-gray);
-}
-
-/* 3.3.2 Acciones de paginacion */
-.footer-actions{
-    display:flex;
-    align-items:center;
-    gap:14px;
-}
-
-.footer-actions span{
-    min-width:72px;
-    padding:10px 14px;
-    text-align:center;
-    border:2px solid #eeedee;
-    border-radius:10px;
-    background:white;
-    color:var(--DC-gray);
-    font-size:.9rem;
-    font-weight:800;
-}
-
-.footer-actions button{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    min-width:110px;
-    padding:12px 18px;
-    border:2px solid #eeedee;
-    border-radius:10px;
-    background:white;
-    color:var(--DC-gray);
-    font-size:.9rem;
-    font-weight:800;
-    cursor:pointer;
-    transition:
-        border-color .2s,
-        background-color .2s,
-        color .2s;
-}
-
-.footer-actions button:hover:not(:disabled){
-    border-color:var(--DC-brown);
-}
-
+/* ====================================================
+   RESPONSIVO MÓVIL
+==================================================== */
 .mobile-only {
-    display: none !important;
+  display: none !important;
 }
 
-/* Tablet */
 @media (max-width: 1024px) {
-    .orders-title { font-size: 1.75rem; }
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-/* Mobile */
 @media (max-width: 768px) {
-    .dashboard{
-        padding: 15px;
-    }
+  .dashboard {
+    padding: 1rem;
+  }
 
-    .orders-title { font-size: 1.5rem; }
-    .orders-description { font-size: 0.85rem; }
-    .orders-header {
-        margin-bottom: 12px;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-    }
-    .orders-header-actions {
-        width: 100%;
-    }
-    .btn-audit {
-        width: 100%;
-        justify-content: center;
-    }
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
 
-    .cards {
-        grid-template-columns: 1fr;
-        gap: 10px;
-    }
+  .header-actions {
+    flex-direction: column;
+    width: 100%;
+  }
 
-    .table-toolbar {
-        flex-direction: column;
-        align-items: stretch;
-    }
+  .header-actions button {
+    width: 100%;
+    justify-content: center;
+  }
 
-    .search-worker {
-        max-width: none;
-    }
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
 
-    .dropdown-container {
-        width: 100%;
-    }
+  .panel-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
 
-    .btn-secondary {
-        width: 100%;
-        justify-content: space-between;
-    }
+  .toolbar-left {
+    flex-direction: column;
+    width: 100%;
+  }
 
-    .new-worker {
-        width: 100%;
-        margin-left: 0;
-        justify-content: center;
-    }
+  .search-box,
+  .dropdown-container,
+  .filter-dropdown-btn {
+    width: 100%;
+  }
 
-    .table-content {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
+  .search-box input {
+    min-width: 0;
+    width: 100%;
+  }
 
-    .desktop-table-only {
-        display: none !important;
-    }
+  .desktop-table-only {
+    display: none !important;
+  }
 
-    .mobile-only {
-        display: flex !important;
-        flex-direction: column;
-        gap: 10px;
-        width: 100%;
-    }
+  .mobile-only {
+    display: flex !important;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: 1rem;
+  }
 
-    .mobile-worker-card {
-        background: white;
-        border: 1px solid #eeedee;
-        border-radius: 14px;
-        padding: 14px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.04);
-    }
+  .mobile-worker-card {
+    background: white;
+    border: 1px solid rgba(81, 49, 25, 0.08);
+    border-radius: 14px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
 
-    .mob-worker-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px;
-    }
+  .mob-worker-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
 
-    .mob-worker-name {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 800;
-        color: var(--DC-gray);
-    }
+  .mob-worker-name {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--DC-gray, #2c2724);
+  }
 
-    .mob-worker-role {
-        font-size: 0.78rem;
-        color: var(--DC-text-gray);
-        font-weight: 600;
-    }
+  .mob-worker-role {
+    font-size: 0.75rem;
+    color: var(--DC-text-gray, #7c7468);
+  }
 
-    .mob-worker-actions {
-        display: flex;
-        gap: 8px;
-        border-top: 1px dashed #eeedee;
-        padding-top: 10px;
-    }
-
-    .mob-btn {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        padding: 8px 12px;
-        border-radius: 8px;
-        font-size: 0.85rem;
-        font-weight: 700;
-    }
-
-    .table-footer {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 15px;
-        padding: 15px;
-    }
-
-    .footer-info {
-        text-align: center;
-    }
-
-    .footer-actions {
-        justify-content: center;
-        gap: 8px;
-    }
-
-    .footer-actions button {
-        min-width: 0;
-        padding: 10px 12px;
-    }
+  .mob-worker-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px dashed rgba(81, 49, 25, 0.08);
+    padding-top: 0.65rem;
+  }
 }
 </style>

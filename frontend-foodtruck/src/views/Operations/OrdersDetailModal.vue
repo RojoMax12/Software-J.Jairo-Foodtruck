@@ -29,20 +29,146 @@
           <div class="client-row payment-select-row">
             <DollarSign :size="16" /> 
             <span>Método de pago:</span>
-            <select v-model="currentPaymentMethod" class="payment-method-select" @change="updatePaymentMethod">
-              <option value="Efectivo">Efectivo</option>
-              <option value="Tarjeta de Débito">Tarjeta de Débito</option>
-              <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
-              <option value="Transferencia">Transferencia</option>
-            </select>
+            <div class="payment-method-control-group">
+              <select v-model="currentPaymentMethod" class="payment-method-select" @change="onPaymentSelectChange">
+                <option v-if="isCustomPaymentMethod" :value="currentPaymentMethod">{{ currentPaymentMethod }}</option>
+                <option value="Efectivo">Efectivo</option>
+                <option value="Tarjeta de Débito">Tarjeta de Débito</option>
+                <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
+                <option value="Transferencia">Transferencia</option>
+                <option value="__DIVIDIR_PAGO__">Pago Mixto (Dividir monto)...</option>
+              </select>
+              <button 
+                type="button" 
+                class="btn-split-toggle-mini" 
+                :class="{ active: isSplitPaymentModalOpen }"
+                title="Dividir pago entre dos métodos"
+                @click="openSplitPaymentEditor"
+              >
+                Dividir
+              </button>
+            </div>
           </div>
+
+          <!-- EDITOR DE PAGO MIXTO EXPANDIBLE / INLINE -->
+          <div v-if="isSplitPaymentModalOpen" class="split-payment-editor-card animate-fade-in">
+            <div class="split-editor-header">
+              <div class="split-title">
+                <DollarSign :size="15" />
+                <strong>Configurar Pago Mixto</strong>
+              </div>
+              <button type="button" class="btn-close-split" @click="isSplitPaymentModalOpen = false"><X :size="14" /></button>
+            </div>
+
+            <div class="split-editor-body">
+              <div class="split-row">
+                <div class="split-col">
+                  <label class="split-label">Método 1</label>
+                  <select v-model="splitMethod1" class="split-select">
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Tarjeta de Débito">Tarjeta de Débito</option>
+                    <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
+                    <option value="Transferencia">Transferencia</option>
+                  </select>
+                  <div class="split-input-wrap">
+                    <span class="currency-prefix">$</span>
+                    <input 
+                      v-model.number="splitAmount1" 
+                      type="number" 
+                      min="0" 
+                      class="split-amount-input" 
+                      placeholder="0"
+                      @input="onSplitAmount1Input"
+                    />
+                  </div>
+                </div>
+
+                <div class="split-divider-plus">+</div>
+
+                <div class="split-col">
+                  <label class="split-label">Método 2</label>
+                  <select v-model="splitMethod2" class="split-select">
+                    <option value="Tarjeta de Débito">Tarjeta de Débito</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
+                    <option value="Transferencia">Transferencia</option>
+                  </select>
+                  <div class="split-input-wrap">
+                    <span class="currency-prefix">$</span>
+                    <input 
+                      v-model.number="splitAmount2" 
+                      type="number" 
+                      min="0" 
+                      class="split-amount-input" 
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- BOTONES RÁPIDOS -->
+              <div class="split-quick-actions">
+                <button type="button" class="btn-split-quick" @click="setSplitFiftyFifty">
+                  Dividir 50% / 50%
+                </button>
+                <button type="button" class="btn-split-quick" @click="autoFillSplitRemainder">
+                  Completar restante
+                </button>
+              </div>
+
+              <!-- TOTAL Y DIFERENCIA -->
+              <div class="split-summary-bar">
+                <div class="split-sum-item">
+                  <span class="sum-label">Total Pedido:</span>
+                  <strong class="sum-val">${{ formatNumber(totalAmount) }}</strong>
+                </div>
+                <div class="split-sum-item">
+                  <span class="sum-label">Suma:</span>
+                  <strong class="sum-val" :class="splitDiff === 0 ? 'text-ok' : 'text-warn'">${{ formatNumber(splitTotalSum) }}</strong>
+                </div>
+                <div class="split-diff-badge" :class="splitDiff === 0 ? 'diff-ok' : (splitDiff > 0 ? 'diff-missing' : 'diff-over')">
+                  <span v-if="splitDiff === 0">✓ Cuadra</span>
+                  <span v-else-if="splitDiff > 0">Faltan ${{ formatNumber(splitDiff) }}</span>
+                  <span v-else>Excede ${{ formatNumber(Math.abs(splitDiff)) }}</span>
+                </div>
+              </div>
+
+              <div class="split-actions-row">
+                <button 
+                  type="button" 
+                  class="btn-apply-split" 
+                  :disabled="splitDiff !== 0"
+                  @click="applySplitPayment"
+                >
+                  Guardar Pago Mixto
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="client-notes-section">
-            <label><FileText :size="14" /> <strong>Notas / Instrucciones especiales:</strong></label>
+            <div class="notes-header-row">
+              <label><FileText :size="14" /> <strong>Notas / Instrucciones especiales:</strong></label>
+              <div class="notes-status-wrap">
+                <span v-if="isSavingNotes" class="notes-status-indicator saving">Guardando...</span>
+                <span v-else-if="notesSavedStatus" class="notes-status-indicator saved">Guardado ✓</span>
+                <button 
+                  type="button" 
+                  class="btn-save-notes-mini" 
+                  :disabled="isSavingNotes" 
+                  @click="saveNotesNow"
+                >
+                  Guardar
+                </button>
+              </div>
+            </div>
             <textarea 
               v-model="orderNotes" 
               placeholder="Ej: Sin mayonesa en las papas, sin servilletas, retiro 21:30..." 
               class="order-notes-textarea"
               rows="2"
+              @input="onNotesInput"
+              @blur="saveNotesNow"
             ></textarea>
           </div>
         </div>
@@ -417,7 +543,7 @@ const localPaymentStatusId = ref(props.rawOrder?.id_estado_pago ? Number(props.r
 const currentPaymentMethod = ref(props.rawOrder?.metodo_pago || 'Efectivo');
 const orderNotes = ref(props.rawOrder?.notas || '');
 const products = ref<any[]>([]);
-const orderStorageKey = computed(() => `order-${props.orderId}`);
+const orderStorageKey = computed(() => `order-${props.realId || props.orderId}`);
 
 const customerPhone = computed(() => {
   return props.phone || props.rawOrder?.numero_telefono || props.rawOrder?.telefono || '';
@@ -523,7 +649,8 @@ watch(() => props.rawOrder, async (newOrder) => {
     if (newOrder.rawStatusId) localStatusId.value = Number(newOrder.rawStatusId);
     if (newOrder.status) localStatus.value = newOrder.status;
     if (newOrder.id_estado_pago) localPaymentStatusId.value = Number(newOrder.id_estado_pago);
-    if (newOrder.notas !== undefined) orderNotes.value = newOrder.notas || '';
+    if (newOrder.notas !== undefined && newOrder.notas !== null) orderNotes.value = newOrder.notas || '';
+    if (newOrder.metodo_pago) currentPaymentMethod.value = newOrder.metodo_pago;
 
     let detailsList = Array.isArray(newOrder.detalles) ? newOrder.detalles : [];
 
@@ -535,6 +662,12 @@ watch(() => props.rawOrder, async (newOrder) => {
         const fullOrder = res?.data?.data || res?.data;
         if (fullOrder && Array.isArray(fullOrder.detalles) && fullOrder.detalles.length > 0) {
           detailsList = fullOrder.detalles;
+        }
+        if (fullOrder && fullOrder.notas !== undefined && fullOrder.notas !== null && !orderNotes.value) {
+          orderNotes.value = fullOrder.notas || '';
+        }
+        if (fullOrder && fullOrder.metodo_pago) {
+          currentPaymentMethod.value = fullOrder.metodo_pago;
         }
       } catch (err) {
         console.error('Error fetching order details in modal:', err);
@@ -672,7 +805,7 @@ const formatNumber = (n: any) => {
 };
 const formato = (f: string) => f;
 
-const saveOrder = (showNotification = true) => {
+const saveOrder = async (showNotification = true) => {
   if (isInitializing.value) return;
 
   const currentTotal = totalAmount.value;
@@ -690,7 +823,7 @@ const saveOrder = (showNotification = true) => {
 
   localStorage.setItem(orderStorageKey.value, JSON.stringify(snapshot));
 
-  const targetId = props.realId || props.orderId;
+  const targetId = props.realId || props.rawOrder?.id_pedido || props.rawOrder?.real_id || props.orderId;
   if (targetId) {
     const payload: any = {
       total: currentTotal,
@@ -712,9 +845,11 @@ const saveOrder = (showNotification = true) => {
       }));
     }
 
-    orderService.updateOrder(targetId, payload).catch(err => {
-      console.error('Error al actualizar total de pedido en backend:', err);
-    });
+    try {
+      await orderService.updateOrder(targetId, payload);
+    } catch (err) {
+      console.error('Error al actualizar pedido en backend:', err);
+    }
   }
 
   hasPendingChanges.value = false;
@@ -734,6 +869,12 @@ const loadSavedOrder = () => {
     }
     if (parsed.status) localStatus.value = parsed.status;
     if (parsed.statusId) localStatusId.value = parsed.statusId;
+    if (parsed.notas !== undefined && !orderNotes.value) {
+      orderNotes.value = parsed.notas || '';
+    }
+    if (parsed.metodo_pago && !currentPaymentMethod.value) {
+      currentPaymentMethod.value = parsed.metodo_pago;
+    }
     hasPendingChanges.value = false;
   } catch {
     localStorage.removeItem(orderStorageKey.value);
@@ -856,8 +997,8 @@ watch([products, localStatus, localStatusId, localPaymentStatusId, currentPaymen
   }
 }, { deep: true });
 
-const handleClose = () => {
-  saveOrder(false);
+const handleClose = async () => {
+  await saveOrder(false);
   emit('statusChanged');
   emit('status-changed');
   emit('close');
@@ -1035,6 +1176,132 @@ const markAsPaid = async () => {
     const msg = err?.response?.data?.error || err?.response?.data?.message || 'Error al marcar como pagado';
     notify(msg, 'error');
   }
+};
+
+// ==========================================
+// GESTIÓN DE NOTAS / INSTRUCCIONES ESPECIALES
+// ==========================================
+const isSavingNotes = ref(false);
+const notesSavedStatus = ref(false);
+let notesDebounceTimer: any = null;
+
+const onNotesInput = () => {
+  notesSavedStatus.value = false;
+  if (notesDebounceTimer) clearTimeout(notesDebounceTimer);
+  notesDebounceTimer = setTimeout(() => {
+    saveNotesNow();
+  }, 1000);
+};
+
+const saveNotesNow = async () => {
+  if (isInitializing.value) return;
+  if (notesDebounceTimer) clearTimeout(notesDebounceTimer);
+
+  isSavingNotes.value = true;
+  try {
+    const saved = localStorage.getItem(orderStorageKey.value);
+    let parsed: any = {};
+    if (saved) {
+      try { parsed = JSON.parse(saved); } catch { parsed = {}; }
+    }
+    parsed.notas = orderNotes.value;
+    localStorage.setItem(orderStorageKey.value, JSON.stringify(parsed));
+
+    const targetId = props.realId || props.rawOrder?.id_pedido || props.rawOrder?.real_id || props.orderId;
+    if (targetId) {
+      await orderService.updateOrder(targetId, { notas: orderNotes.value });
+    }
+    notesSavedStatus.value = true;
+    setTimeout(() => {
+      notesSavedStatus.value = false;
+    }, 2500);
+  } catch (err) {
+    console.error('Error al guardar notas:', err);
+  } finally {
+    isSavingNotes.value = false;
+  }
+};
+
+// ==========================================
+// GESTIÓN DE MÉTODOS DE PAGO Y PAGO MIXTO
+// ==========================================
+const isSplitPaymentModalOpen = ref(false);
+const splitMethod1 = ref('Efectivo');
+const splitAmount1 = ref<number>(0);
+const splitMethod2 = ref('Tarjeta de Débito');
+const splitAmount2 = ref<number>(0);
+
+const isCustomPaymentMethod = computed(() => {
+  const standard = ['Efectivo', 'Tarjeta de Débito', 'Tarjeta de Crédito', 'Transferencia'];
+  return Boolean(currentPaymentMethod.value && !standard.includes(currentPaymentMethod.value));
+});
+
+const onPaymentSelectChange = () => {
+  if (currentPaymentMethod.value === '__DIVIDIR_PAGO__') {
+    openSplitPaymentEditor();
+  } else {
+    isSplitPaymentModalOpen.value = false;
+    updatePaymentMethod();
+  }
+};
+
+const openSplitPaymentEditor = () => {
+  isSplitPaymentModalOpen.value = !isSplitPaymentModalOpen.value;
+  if (isSplitPaymentModalOpen.value) {
+    // Si ya tiene un formato Pago Mixto, extraer montos y métodos
+    const match = currentPaymentMethod.value.match(/Pago Mixto \((.+?): \$([\d\.]+)\s*\/\s*(.+?): \$([\d\.]+)\)/);
+    if (match) {
+      splitMethod1.value = match[1].trim();
+      splitAmount1.value = parseInt(match[2].replace(/\./g, ''), 10) || 0;
+      splitMethod2.value = match[3].trim();
+      splitAmount2.value = parseInt(match[4].replace(/\./g, ''), 10) || 0;
+    } else {
+      splitMethod1.value = 'Efectivo';
+      splitAmount1.value = Math.floor(totalAmount.value / 2);
+      splitMethod2.value = 'Tarjeta de Débito';
+      splitAmount2.value = totalAmount.value - splitAmount1.value;
+    }
+  }
+};
+
+const splitTotalSum = computed(() => {
+  return (Number(splitAmount1.value) || 0) + (Number(splitAmount2.value) || 0);
+});
+
+const splitDiff = computed(() => {
+  return totalAmount.value - splitTotalSum.value;
+});
+
+const onSplitAmount1Input = () => {
+  if (splitAmount1.value > totalAmount.value) {
+    splitAmount1.value = totalAmount.value;
+  }
+  splitAmount2.value = Math.max(0, totalAmount.value - (splitAmount1.value || 0));
+};
+
+const setSplitFiftyFifty = () => {
+  const half = Math.floor(totalAmount.value / 2);
+  splitAmount1.value = half;
+  splitAmount2.value = totalAmount.value - half;
+};
+
+const autoFillSplitRemainder = () => {
+  splitAmount2.value = Math.max(0, totalAmount.value - (Number(splitAmount1.value) || 0));
+};
+
+const applySplitPayment = async () => {
+  if (splitDiff.value !== 0) {
+    notify('Los montos deben sumar exactamente el total del pedido.', 'warning');
+    return;
+  }
+  if (!splitAmount1.value || !splitAmount2.value) {
+    notify('Ambos métodos deben tener un monto asignado mayor a 0.', 'warning');
+    return;
+  }
+  const formatted = `Pago Mixto (${splitMethod1.value}: $${Number(splitAmount1.value).toLocaleString('es-CL')} / ${splitMethod2.value}: $${Number(splitAmount2.value).toLocaleString('es-CL')})`;
+  currentPaymentMethod.value = formatted;
+  isSplitPaymentModalOpen.value = false;
+  await updatePaymentMethod();
 };
 
 const updatePaymentMethod = async () => {
@@ -2100,6 +2367,275 @@ const contactClient = () => window.open(`tel:${props.phone}`);
   font-weight: 800;
   font-size: 0.85rem;
   cursor: pointer;
+}
+
+.payment-method-control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-split-toggle-mini {
+  background: #fff7ed;
+  border: 1px solid #f97316;
+  color: #ea580c;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-split-toggle-mini:hover,
+.btn-split-toggle-mini.active {
+  background: #ea580c;
+  color: white;
+}
+
+.split-payment-editor-card {
+  background: #ffffff;
+  border: 1.5px solid #fed7aa;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 6px 0 10px 0;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.08);
+}
+
+.split-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #ffedd5;
+}
+
+.split-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #c2410c;
+  font-size: 0.88rem;
+}
+
+.btn-close-split {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.btn-close-split:hover {
+  color: #e11d48;
+}
+
+.split-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.split-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.split-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.split-select {
+  padding: 6px 8px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  background: #f8fafc;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.split-input-wrap {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0 8px;
+}
+
+.currency-prefix {
+  font-weight: 800;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.split-amount-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  padding: 6px 4px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.split-divider-plus {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #ea580c;
+  padding-top: 18px;
+}
+
+.split-quick-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.btn-split-quick {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-split-quick:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.split-summary-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #e2e8f0;
+  font-size: 0.8rem;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.split-sum-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sum-label {
+  color: #64748b;
+}
+
+.sum-val.text-ok {
+  color: #16a34a;
+}
+
+.sum-val.text-warn {
+  color: #dc2626;
+}
+
+.split-diff-badge {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.diff-ok {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.diff-missing {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.diff-over {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.split-actions-row {
+  margin-top: 10px;
+}
+
+.btn-apply-split {
+  width: 100%;
+  background: #ea580c;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-apply-split:hover:not(:disabled) {
+  background: #c2410c;
+}
+
+.btn-apply-split:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.notes-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.notes-status-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notes-status-indicator {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.notes-status-indicator.saving {
+  color: #64748b;
+}
+
+.notes-status-indicator.saved {
+  color: #16a34a;
+}
+
+.btn-save-notes-mini {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-save-notes-mini:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
 .btn-cancel-order {

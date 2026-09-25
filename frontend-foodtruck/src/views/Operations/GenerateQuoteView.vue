@@ -12,11 +12,10 @@
             :class="shiftWindow.es_jornada_activa ? 'badge-shift-live' : 'badge-shift-off'"
             :title="`Horario: ${shiftWindow.hora_apertura} a ${shiftWindow.hora_cierre}`"
           >
-            {{ shiftWindow.es_jornada_activa ? '🟢 Turno Activo' : '⚪ Fuera de Horario' }}
+            {{ shiftWindow.es_jornada_activa ? 'Turno Activo' : 'Fuera de Horario' }}
           </span>
         </div>
         <p class="header-subtitle">
-          Punto de Venta · J.Junior Foodtruck
           <span v-if="shiftWindow" class="header-shift-hours"> (Horario: {{ shiftWindow.hora_apertura }} - {{ shiftWindow.hora_cierre }} hrs)</span>
         </p>
       </div>
@@ -99,7 +98,7 @@
                 :class="{ active: selectedCategory === 'Todas' }"
                 @click="selectedCategory = 'Todas'"
               >
-                ✨ Todas
+                Todas
               </button>
               <button
                 v-for="cat in categoriesList"
@@ -108,7 +107,7 @@
                 :class="{ active: selectedCategory === cat.nombre_categoria }"
                 @click="selectedCategory = cat.nombre_categoria"
               >
-                {{ getCategoryEmoji(cat.nombre_categoria) }} {{ cat.nombre_categoria }}
+                {{ cat.nombre_categoria }}
               </button>
             </div>
           </div>
@@ -141,6 +140,10 @@
               @click="openProductCustomizer(p, p.types[0])"
             >
               <div class="card-image-wrap">
+                <div v-if="productHasDiscount(p, p.activeSize)" class="pos-card-promo-badge">
+                  <span class="badge-fire">🔥</span>
+                  <span>-{{ getProductDiscountPercent(p, p.activeSize) }}%</span>
+                </div>
                 <img :src="p.image" :alt="p.name" loading="lazy" />
                 <span class="category-badge">{{ p.category }}</span>
               </div>
@@ -175,9 +178,14 @@
                 </div>
 
                 <div class="card-footer-row">
-                  <span class="product-card-price">
-                    ${{ formatNumber(p.types[0]?.prices[p.activeSize] || 0) }}
-                  </span>
+                  <div class="pos-price-group">
+                    <span v-if="productHasDiscount(p, p.activeSize)" class="pos-price-original">
+                      ${{ formatNumber(getProductOriginalPrice(p, p.activeSize)) }}
+                    </span>
+                    <span class="product-card-price" :class="{ 'is-promo-price': productHasDiscount(p, p.activeSize) }">
+                      ${{ formatNumber(getProductCurrentPrice(p, p.activeSize)) }}
+                    </span>
+                  </div>
                   
                   <button class="btn-select-product" @click.stop="openProductCustomizer(p, p.types[0])">
                     <span>Elegir</span>
@@ -204,10 +212,22 @@
             <template v-if="activeVariant">
               <div class="selected-product-banner">
                 <div class="product-banner-info">
-                  <h3 class="banner-title">{{ activeVariant.baseName }}</h3>
+                  <div class="banner-title-row">
+                    <h3 class="banner-title">{{ activeVariant.baseName }}</h3>
+                    <span v-if="activeVariantHasDiscount" class="banner-promo-badge">
+                       Oferta (-{{ getProductDiscountPercent(activeVariant.baseProduct, activeVariant.size) }}%)
+                    </span>
+                  </div>
                   <span class="banner-size-badge">{{ activeVariant.size }}</span>
                 </div>
-                <span class="banner-base-price">${{ formatNumber(currentVariantUnitPrice) }}</span>
+                <div class="banner-price-group">
+                  <span v-if="activeVariantHasDiscount" class="banner-original-price">
+                    ${{ formatNumber(activeVariantOriginalPrice) }}
+                  </span>
+                  <span class="banner-base-price" :class="{ 'is-promo-price': activeVariantHasDiscount }">
+                    ${{ formatNumber(currentVariantUnitPrice) }}
+                  </span>
+                </div>
               </div>
 
               <!-- MODO PERSONALIZABLE -->
@@ -312,7 +332,12 @@
 
             <div v-for="(item, idx) in cartItems" :key="item.id" class="pos-cart-item">
               <div class="cart-item-info">
-                <span class="cart-item-title">{{ item.fullName }} ({{ item.size }})</span>
+                <div class="cart-item-header-row">
+                  <span class="cart-item-title">{{ item.fullName }} ({{ item.size }})</span>
+                  <span v-if="item.hasPromotion" class="cart-item-promo-pill">
+                     -{{ item.discountPercent }}%
+                  </span>
+                </div>
                 
                 <div v-if="item.excluidos && item.excluidos.length > 0" class="cart-badges-wrap">
                   <span v-for="ex in item.excluidos" :key="ex" class="badge-tag-removed">
@@ -327,7 +352,12 @@
                 </div>
 
                 <div class="cart-item-pricing">
-                  <span class="cart-item-unit-price">${{ formatNumber(item.price) }} c/u</span>
+                  <div class="cart-unit-price-group">
+                    <span v-if="item.hasPromotion && item.originalPrice > item.price" class="cart-item-original-price">
+                      ${{ formatNumber(item.originalPrice) }}
+                    </span>
+                    <span class="cart-item-unit-price">${{ formatNumber(item.price) }} c/u</span>
+                  </div>
                   <span class="cart-item-subtotal">${{ formatNumber(item.price * item.quantity) }}</span>
                 </div>
               </div>
@@ -348,6 +378,11 @@
           </div>
 
           <div class="pos-cart-footer">
+            <div v-if="totalSavings > 0" class="cart-savings-row">
+              <span class="savings-label">Ahorro en promoción:</span>
+              <strong class="savings-val">-${{ formatNumber(totalSavings) }}</strong>
+            </div>
+
             <div class="total-breakdown-row">
               <span>Total a Cobrar</span>
               <strong>{{ totalQuote }}</strong>
@@ -391,10 +426,22 @@
             <div class="sheet-scroll-body">
               <div class="selected-product-banner">
                 <div class="product-banner-info">
-                  <h3 class="banner-title">{{ activeVariant.baseName }}</h3>
+                  <div class="banner-title-row">
+                    <h3 class="banner-title">{{ activeVariant.baseName }}</h3>
+                    <span v-if="activeVariantHasDiscount" class="banner-promo-badge">
+                      Oferta (-{{ getProductDiscountPercent(activeVariant.baseProduct, activeVariant.size) }}%)
+                    </span>
+                  </div>
                   <span class="banner-size-badge">{{ activeVariant.size }}</span>
                 </div>
-                <span class="banner-base-price">${{ formatNumber(currentVariantUnitPrice) }}</span>
+                <div class="banner-price-group">
+                  <span v-if="activeVariantHasDiscount" class="banner-original-price">
+                    ${{ formatNumber(activeVariantOriginalPrice) }}
+                  </span>
+                  <span class="banner-base-price" :class="{ 'is-promo-price': activeVariantHasDiscount }">
+                    ${{ formatNumber(currentVariantUnitPrice) }}
+                  </span>
+                </div>
               </div>
 
               <!-- SELECTOR DE TAMAÑO EN MODAL -->
@@ -520,7 +567,12 @@
 
               <div v-for="(item, idx) in cartItems" :key="item.id" class="pos-cart-item">
                 <div class="cart-item-info">
-                  <span class="cart-item-title">{{ item.fullName }} ({{ item.size }})</span>
+                  <div class="cart-item-header-row">
+                    <span class="cart-item-title">{{ item.fullName }} ({{ item.size }})</span>
+                    <span v-if="item.hasPromotion" class="cart-item-promo-pill">
+                      -{{ item.discountPercent }}%
+                    </span>
+                  </div>
                   
                   <div v-if="item.excluidos && item.excluidos.length > 0" class="cart-badges-wrap">
                     <span v-for="ex in item.excluidos" :key="ex" class="badge-tag-removed">
@@ -535,7 +587,12 @@
                   </div>
 
                   <div class="cart-item-pricing">
-                    <span class="cart-item-unit-price">${{ formatNumber(item.price) }} c/u</span>
+                    <div class="cart-unit-price-group">
+                      <span v-if="item.hasPromotion && item.originalPrice > item.price" class="cart-item-original-price">
+                        ${{ formatNumber(item.originalPrice) }}
+                      </span>
+                      <span class="cart-item-unit-price">${{ formatNumber(item.price) }} c/u</span>
+                    </div>
                     <span class="cart-item-subtotal">${{ formatNumber(item.price * item.quantity) }}</span>
                   </div>
                 </div>
@@ -556,6 +613,11 @@
             </div>
 
             <div class="sheet-sticky-bottom-bar pos-cart-footer">
+              <div v-if="totalSavings > 0" class="cart-savings-row">
+                <span class="savings-label">🔥 Ahorro en promoción:</span>
+                <strong class="savings-val">-${{ formatNumber(totalSavings) }}</strong>
+              </div>
+
               <div class="total-breakdown-row">
                 <span>Total a Cobrar</span>
                 <strong>{{ totalQuote }}</strong>
@@ -628,11 +690,33 @@
                 @input="handlePhoneInput"
               />
             </div>
+
+            <div class="form-field-group full-width-field">
+              <label><FileText :size="15" /> Notas / Instrucciones especiales (Opcional)</label>
+              <textarea 
+                v-model="customerForm.notas" 
+                rows="2" 
+                placeholder="Ej: Sin mayonesa en las papas, retiro a las 21:30, cliente alérgico a la cebolla..." 
+                class="pos-form-textarea"
+              ></textarea>
+            </div>
           </div>
 
           <div class="payment-method-selector-section">
-            <label class="section-label"><DollarSign :size="16" /> Método de Pago *</label>
-            <div class="payment-methods-grid">
+            <div class="payment-header-row">
+              <label class="section-label"><DollarSign :size="16" /> Método de Pago *</label>
+              <button 
+                type="button" 
+                class="btn-toggle-split-mode" 
+                :class="{ active: isSplitPayment }"
+                @click="toggleSplitMode"
+              >
+                Pago Mixto (Dividir Monto)
+              </button>
+            </div>
+
+            <!-- MODO ESTÁNDAR: UN SOLO MÉTODO -->
+            <div v-if="!isSplitPayment" class="payment-methods-grid">
               <button
                 v-for="m in metodosdepago"
                 :key="m.id"
@@ -650,6 +734,84 @@
                 <span class="payment-btn-label">{{ m.nombre }}</span>
                 <Check v-if="selectedPaymentMethod === m.nombre" class="payment-check-icon" :size="16" />
               </button>
+            </div>
+
+            <!-- MODO PAGO MIXTO: DIVIDIR EN 2 MÉTODOS -->
+            <div v-else class="pos-split-payment-card animate-fade-in">
+              <div class="pos-split-header">
+                <span class="pos-split-title">El cliente paga con 2 métodos distintos:</span>
+                <button type="button" class="btn-cancel-split" @click="isSplitPayment = false">Volver a método único</button>
+              </div>
+
+              <div class="pos-split-grid">
+                <div class="pos-split-card">
+                  <label class="split-col-label">Parte 1</label>
+                  <select v-model="splitMethod1" class="pos-split-select">
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Tarjeta de Débito">Tarjeta de Débito</option>
+                    <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
+                    <option value="Transferencia">Transferencia</option>
+                  </select>
+                  <div class="pos-split-input-wrap">
+                    <span class="pos-currency">$</span>
+                    <input 
+                      v-model.number="splitAmount1" 
+                      type="number" 
+                      min="0" 
+                      placeholder="0" 
+                      class="pos-split-input" 
+                      @input="onSplitAmount1Input"
+                    />
+                  </div>
+                </div>
+
+                <div class="pos-split-plus">+</div>
+
+                <div class="pos-split-card">
+                  <label class="split-col-label">Parte 2</label>
+                  <select v-model="splitMethod2" class="pos-split-select">
+                    <option value="Tarjeta de Débito">Tarjeta de Débito</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
+                    <option value="Transferencia">Transferencia</option>
+                  </select>
+                  <div class="pos-split-input-wrap">
+                    <span class="pos-currency">$</span>
+                    <input 
+                      v-model.number="splitAmount2" 
+                      type="number" 
+                      min="0" 
+                      placeholder="0" 
+                      class="pos-split-input" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div class="pos-split-quick-buttons">
+                <button type="button" class="btn-pos-quick" @click="setSplitFiftyFifty">
+                  Dividir 50% / 50%
+                </button>
+                <button type="button" class="btn-pos-quick" @click="autoFillSplitRemainder">
+                  Autocompletar restante
+                </button>
+              </div>
+
+              <div class="pos-split-validation-bar">
+                <div class="pos-split-stat">
+                  <span>Total orden:</span>
+                  <strong>${{ formatNumber(windowQuote) }}</strong>
+                </div>
+                <div class="pos-split-stat">
+                  <span>Suma ingresada:</span>
+                  <strong :class="splitDiff === 0 ? 'text-ok' : 'text-warn'">${{ formatNumber(splitTotalSum) }}</strong>
+                </div>
+                <div class="pos-split-badge" :class="splitDiff === 0 ? 'diff-ok' : (splitDiff > 0 ? 'diff-missing' : 'diff-over')">
+                  <span v-if="splitDiff === 0">✓ Cuadra exacto</span>
+                  <span v-else-if="splitDiff > 0">Faltan ${{ formatNumber(splitDiff) }}</span>
+                  <span v-else>Excede ${{ formatNumber(Math.abs(splitDiff)) }}</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -687,7 +849,11 @@
             </div>
             <div class="client-meta-row">
               <span>Método de Pago:</span>
-              <strong class="payment-badge-highlight">{{ selectedPaymentMethod }}</strong>
+              <strong class="payment-badge-highlight">{{ effectivePaymentMethod }}</strong>
+            </div>
+            <div v-if="customerForm.notas" class="client-meta-row notes-summary-row">
+              <span>Notas:</span>
+              <strong class="notes-text-highlight">{{ customerForm.notas }}</strong>
             </div>
           </div>
 
@@ -698,7 +864,10 @@
                 <div class="receipt-item-left">
                   <span class="receipt-qty">{{ item.quantity }}x</span>
                   <div class="receipt-item-names">
-                    <strong>{{ item.fullName }} ({{ item.size }})</strong>
+                    <div class="receipt-item-name-header">
+                      <strong>{{ item.fullName }} ({{ item.size }})</strong>
+                      <span v-if="item.hasPromotion" class="receipt-promo-tag">-{{ item.discountPercent }}%</span>
+                    </div>
                     <div v-if="item.excluidos && item.excluidos.length > 0" class="receipt-tags">
                       <span class="tag-red">Sin {{ item.excluidos.join(', ') }}</span>
                     </div>
@@ -707,10 +876,20 @@
                     </div>
                   </div>
                 </div>
-                <span class="receipt-price">${{ formatNumber(item.price * item.quantity) }}</span>
+                <div class="receipt-item-pricing-col">
+                  <span v-if="item.hasPromotion && item.originalPrice > item.price" class="receipt-original-subtotal">
+                    ${{ formatNumber(item.originalPrice * item.quantity) }}
+                  </span>
+                  <span class="receipt-price">${{ formatNumber(item.price * item.quantity) }}</span>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+
+        <div v-if="totalSavings > 0" class="receipt-savings-strip">
+          <span class="savings-text">Ahorro total por promociones aplicadas:</span>
+          <strong class="savings-amount">-${{ formatNumber(totalSavings) }}</strong>
         </div>
 
         <div class="receipt-total-banner">
@@ -765,7 +944,14 @@ const excludedIngredients = ref<string[]>([]);
 const addedExtraIngredients = ref<string[]>([]);
 const selectedPaymentMethod = ref('Efectivo');
 
-const customerForm = ref({ nombre: '', telefono: '+56' });
+const customerForm = ref({ nombre: '', telefono: '+56', notas: '' });
+
+// Estados para Pago Mixto (Dividir Monto)
+const isSplitPayment = ref(false);
+const splitMethod1 = ref('Efectivo');
+const splitAmount1 = ref<number | null>(null);
+const splitMethod2 = ref('Tarjeta de Débito');
+const splitAmount2 = ref<number | null>(null);
 
 const foodProducts = ref<any[]>([]);
 const categoriesList = ref<any[]>([]);
@@ -779,19 +965,7 @@ const formatNumber = (num: any) => {
   return isNaN(n) ? '0' : n.toLocaleString('es-CL');
 };
 
-const getCategoryEmoji = (categoryName: string) => {
-  const cat = (categoryName || '').toLowerCase();
-  if (cat.includes('completo') || cat.includes('vianesa')) return '🌭';
-  if (cat.includes('hamburguesa')) return '🍔';
-  if (cat.includes('churrasco') || cat.includes('lomito')) return '🥪';
-  if (cat.includes('ass')) return '🥩';
-  if (cat.includes('pizza')) return '🍕';
-  if (cat.includes('fajita')) return '🌮';
-  if (cat.includes('papa') || cat.includes('chorrillana')) return '🍟';
-  if (cat.includes('empanada') || cat.includes('sopaipilla')) return '🥟';
-  if (cat.includes('bebestible') || cat.includes('jugo') || cat.includes('bebida')) return '🥤';
-  return '🍽️';
-};
+
 
 const cargarMetodosSimulados = () => {
   metodosdepago.value = [
@@ -803,6 +977,34 @@ const cargarMetodosSimulados = () => {
 };
 
 const isLoadingProducts = ref(true);
+
+const isPromotionActive = (promo: any): boolean => {
+  if (!promo) return false;
+  if (promo.activo === false || promo.activo === 0 || promo.activo === '0') return false;
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const todayStr = `${year}-${month}-${day}`;
+
+  const startStr = String(promo.fecha_inicio || '').trim().slice(0, 10);
+  const endStr = String(promo.fecha_fin || '').trim().slice(0, 10);
+
+  let shiftDateStr = todayStr;
+  if (now.getHours() < 6) {
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const yYear = yesterday.getFullYear();
+    const yMonth = String(yesterday.getMonth() + 1).padStart(2, '0');
+    const yDay = String(yesterday.getDate()).padStart(2, '0');
+    shiftDateStr = `${yYear}-${yMonth}-${yDay}`;
+  }
+
+  const matchesToday = (!startStr || startStr <= todayStr) && (!endStr || endStr >= todayStr);
+  const matchesShift = (!startStr || startStr <= shiftDateStr) && (!endStr || endStr >= shiftDateStr);
+
+  return matchesToday || matchesShift;
+};
 
 const fetchProducts = async () => {
   isLoadingProducts.value = true;
@@ -845,17 +1047,28 @@ const fetchProducts = async () => {
       const catName = prod.categoria?.nombre_categoria || 'Varios';
       const sizesArray = (prod.tamaños || []).map((t: any) => t.nombre);
       const pricesMap: Record<string, number> = {};
+      const originalPricesMap: Record<string, number> = {};
       const sizesMap: Record<string, number> = {};
 
       (prod.tamaños || []).forEach((t: any) => {
-        pricesMap[t.nombre] = Number(t.pivot?.precio || 0);
+        const p = Number(t.pivot?.precio || t.precio || 0);
+        pricesMap[t.nombre] = p;
+        originalPricesMap[t.nombre] = p;
         sizesMap[t.nombre] = Number(t.id_tamaño || t.id || 1);
       });
 
-      const promotionPrice = Number(prod.promocion_activa?.precio_promocional ?? 0);
+      const activePromo = prod.promocion_activa || prod.promocionActiva || null;
+      const isPromoValid = isPromotionActive(activePromo);
+
+      const promotionPrice = isPromoValid ? Number(activePromo?.precio_promocional ?? 0) : 0;
       if (promotionPrice > 0) {
         Object.keys(pricesMap).forEach(sizeName => {
-          pricesMap[sizeName] = promotionPrice;
+          const orig = originalPricesMap[sizeName] ?? 0;
+          if (orig > 0) {
+            pricesMap[sizeName] = Math.min(promotionPrice, orig);
+          } else {
+            pricesMap[sizeName] = promotionPrice;
+          }
         });
       }
 
@@ -873,6 +1086,10 @@ const fetchProducts = async () => {
         activeSize: sizesArray[0] || 'Normal',
         tamano_id: prod.tamaños?.[0]?.id_tamaño || 1,
         sizesMap: sizesMap,
+        hasPromotion: isPromoValid && promotionPrice > 0,
+        promocionTitulo: activePromo?.titulo || activePromo?.nombre || 'Promoción',
+        promocionPrecio: promotionPrice,
+        originalPricesMap: originalPricesMap,
         types: [
           {
             id: prod.id_producto,
@@ -880,6 +1097,7 @@ const fetchProducts = async () => {
             desc: prod.descripcion,
             image: prodImage,
             prices: pricesMap,
+            originalPrices: originalPricesMap,
             producto_ingrediente: prod.ingredientes || []
           }
         ]
@@ -965,10 +1183,91 @@ const extraIngredientsCost = computed(() => {
   return extraCount * extraPrice;
 });
 
+const getProductOriginalPrice = (p: any, size?: string) => {
+  if (!p) return 0;
+  const s = size || p.activeSize || 'Normal';
+  return p.types?.[0]?.originalPrices?.[s] ?? p.originalPricesMap?.[s] ?? p.types?.[0]?.prices?.[s] ?? 0;
+};
+
+const getProductCurrentPrice = (p: any, size?: string) => {
+  if (!p) return 0;
+  const s = size || p.activeSize || 'Normal';
+  return p.types?.[0]?.prices?.[s] ?? 0;
+};
+
+const productHasDiscount = (p: any, size?: string) => {
+  if (!p) return false;
+  const orig = getProductOriginalPrice(p, size);
+  const curr = getProductCurrentPrice(p, size);
+  return Boolean(p.hasPromotion) && orig > curr && curr > 0;
+};
+
+const getProductDiscountPercent = (p: any, size?: string) => {
+  const orig = getProductOriginalPrice(p, size);
+  const curr = getProductCurrentPrice(p, size);
+  if (orig <= 0 || curr >= orig) return 0;
+  return Math.round(((orig - curr) / orig) * 100);
+};
+
 const currentVariantUnitPrice = computed(() => {
   if (!activeVariant.value) return 0;
   const basePrice = Number(activeVariant.value.price || 0);
   return basePrice + extraIngredientsCost.value;
+});
+
+const activeVariantOriginalPrice = computed(() => {
+  if (!activeVariant.value) return 0;
+  const origBase = Number(activeVariant.value.originalPrice || activeVariant.value.price || 0);
+  return origBase + extraIngredientsCost.value;
+});
+
+const activeVariantHasDiscount = computed(() => {
+  if (!activeVariant.value) return false;
+  return Boolean(activeVariant.value.hasPromotion) && activeVariantOriginalPrice.value > currentVariantUnitPrice.value;
+});
+
+// ==========================================
+// HELPERS PARA PAGO MIXTO
+// ==========================================
+const toggleSplitMode = () => {
+  isSplitPayment.value = !isSplitPayment.value;
+  if (isSplitPayment.value && (!splitAmount1.value && !splitAmount2.value)) {
+    setSplitFiftyFifty();
+  }
+};
+
+const splitTotalSum = computed(() => {
+  return (Number(splitAmount1.value) || 0) + (Number(splitAmount2.value) || 0);
+});
+
+const splitDiff = computed(() => {
+  return windowQuote.value - splitTotalSum.value;
+});
+
+const onSplitAmount1Input = () => {
+  if (splitAmount1.value !== null && splitAmount1.value > windowQuote.value) {
+    splitAmount1.value = windowQuote.value;
+  }
+  splitAmount2.value = Math.max(0, windowQuote.value - (Number(splitAmount1.value) || 0));
+};
+
+const setSplitFiftyFifty = () => {
+  const half = Math.floor(windowQuote.value / 2);
+  splitAmount1.value = half;
+  splitAmount2.value = windowQuote.value - half;
+};
+
+const autoFillSplitRemainder = () => {
+  splitAmount2.value = Math.max(0, windowQuote.value - (Number(splitAmount1.value) || 0));
+};
+
+const effectivePaymentMethod = computed(() => {
+  if (isSplitPayment.value) {
+    const a1 = Number(splitAmount1.value) || 0;
+    const a2 = Number(splitAmount2.value) || 0;
+    return `Pago Mixto (${splitMethod1.value}: $${a1.toLocaleString('es-CL')} / ${splitMethod2.value}: $${a2.toLocaleString('es-CL')})`;
+  }
+  return selectedPaymentMethod.value || 'Efectivo';
 });
 
 const filteredProducts = computed(() => {
@@ -986,6 +1285,8 @@ const filteredProducts = computed(() => {
 const selectVariant = (baseProduct: any, type: any, openMobile = false) => {
   const sizeName = baseProduct.activeSize;
   const tamanoId = baseProduct.sizesMap?.[sizeName] || baseProduct.tamano_id || 1;
+  const origPrice = type.originalPrices?.[sizeName] ?? type.prices[sizeName] ?? 0;
+  const currPrice = type.prices[sizeName] || 0;
 
   activeVariant.value = {
     baseProduct: baseProduct,
@@ -993,7 +1294,10 @@ const selectVariant = (baseProduct: any, type: any, openMobile = false) => {
     type: type,
     size: sizeName,
     tamano_id: tamanoId,
-    price: type.prices[sizeName] || 0,
+    price: currPrice,
+    originalPrice: origPrice,
+    hasPromotion: Boolean(baseProduct.hasPromotion) && origPrice > currPrice,
+    promocionTitulo: baseProduct.promocionTitulo || '',
     tipo_armado: baseProduct.tipo_armado || 'Estandar',
     cantidad_incluida: baseProduct.cantidad_incluida ?? 0,
     precio_ingrediente_extra: Number(baseProduct.precio_ingrediente_extra || 0)
@@ -1014,9 +1318,13 @@ const changeActiveSize = (sizeName: string) => {
   if (!activeVariant.value || !activeVariant.value.baseProduct) return;
   activeVariant.value.baseProduct.activeSize = sizeName;
   const tamanoId = activeVariant.value.baseProduct.sizesMap?.[sizeName] || activeVariant.value.baseProduct.tamano_id || 1;
+  const origPrice = activeVariant.value.type.originalPrices?.[sizeName] ?? activeVariant.value.type.prices[sizeName] ?? 0;
+  const currPrice = activeVariant.value.type.prices[sizeName] || 0;
   activeVariant.value.size = sizeName;
   activeVariant.value.tamano_id = tamanoId;
-  activeVariant.value.price = activeVariant.value.type.prices[sizeName] || 0;
+  activeVariant.value.originalPrice = origPrice;
+  activeVariant.value.price = currPrice;
+  activeVariant.value.hasPromotion = Boolean(activeVariant.value.baseProduct?.hasPromotion) && origPrice > currPrice;
 };
 
 const toggleIngredient = (nombreIngrediente: string) => {
@@ -1051,6 +1359,11 @@ const addActiveVariantToCart = () => {
 
   const fullProductName = `${activeVariant.value.baseName}`;
   const finalUnitPrice = currentVariantUnitPrice.value;
+  const origUnitPrice = activeVariantOriginalPrice.value;
+  const hasPromo = activeVariantHasDiscount.value;
+  const discountPct = hasPromo && origUnitPrice > finalUnitPrice
+    ? Math.round(((origUnitPrice - finalUnitPrice) / origUnitPrice) * 100)
+    : 0;
 
   const existing = cartItems.value.find(item => item.id === cartItemId);
   if (existing) {
@@ -1064,6 +1377,10 @@ const addActiveVariantToCart = () => {
       size: activeVariant.value.size,
       tamano_id: activeVariant.value.tamano_id,
       price: finalUnitPrice,
+      originalPrice: origUnitPrice,
+      hasPromotion: hasPromo,
+      discountPercent: discountPct,
+      promocionTitulo: activeVariant.value.promocionTitulo || '',
       quantity: 1,
       excluidos: isPersonalizable ? [] : [...new Set(excludedIngredients.value)],
       agregados: isPersonalizable ? [...new Set(addedExtraIngredients.value)] : []
@@ -1084,6 +1401,15 @@ const windowQuote = computed(() => cartItems.value.reduce((sum, item) => sum + (
 const totalQuote = computed(() => `$${windowQuote.value.toLocaleString('es-CL')}`);
 const totalUnits = computed(() => cartItems.value.reduce((acc, item) => acc + item.quantity, 0));
 
+const totalSavings = computed(() => {
+  return cartItems.value.reduce((acc, item) => {
+    if (item.hasPromotion && item.originalPrice > item.price) {
+      return acc + ((item.originalPrice - item.price) * item.quantity);
+    }
+    return acc;
+  }, 0);
+});
+
 const goToStep2 = () => {
   if (shiftWindow.value?.es_dia_cerrado) {
     return notify('Atención: El día de hoy está desactivado por administración (día de descanso). No se permite tomar pedidos.', 'error');
@@ -1101,7 +1427,16 @@ const nextStep = () => {
     currentStep.value = 2;
   } else if (currentStep.value === 2) {
     if (!customerForm.value.nombre.trim()) return notify('Por favor, ingrese el Nombre del cliente.', 'warning');
-    if (!selectedPaymentMethod.value) return notify('Por favor, seleccione un Método de Pago.', 'warning');
+    if (isSplitPayment.value) {
+      if (splitDiff.value !== 0) {
+        return notify(`En Pago Mixto, los montos ingresados deben sumar exactamente el total de la orden ($${windowQuote.value.toLocaleString('es-CL')}).`, 'warning');
+      }
+      if (!splitAmount1.value || !splitAmount2.value) {
+        return notify('Ambos métodos deben tener un monto asignado mayor a 0.', 'warning');
+      }
+    } else {
+      if (!selectedPaymentMethod.value) return notify('Por favor, seleccione un Método de Pago.', 'warning');
+    }
     currentStep.value = 3;
   }
 };
@@ -1121,8 +1456,9 @@ const confirmQuote = async () => {
     const payload = {
       nombre_persona: customerForm.value.nombre.trim() || 'Cliente Presencial',
       numero_telefono: customerForm.value.telefono || '',
-      metodo_pago: selectedPaymentMethod.value || 'Efectivo',
+      metodo_pago: effectivePaymentMethod.value,
       total: windowQuote.value,
+      notas: customerForm.value.notas?.trim() || '',
       items: cartItems.value.map(item => ({
         id_producto: item.productId || 1,
         id_tamaño: item.tamano_id || 1,
@@ -1158,6 +1494,10 @@ const confirmQuote = async () => {
     currentStep.value = 1; 
     cartItems.value = [];
     activeVariant.value = null;
+    customerForm.value = { nombre: '', telefono: '+56', notas: '' };
+    isSplitPayment.value = false;
+    splitAmount1.value = null;
+    splitAmount2.value = null;
     router.push('/general-home/orders');
   } catch (error: any) {
     console.error('Error al procesar el pedido:', error); 
@@ -3171,5 +3511,421 @@ onMounted(async () => {
   .ingredients-chips-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ====================================================
+   ESTILOS DE PROMOCIONES Y OFERTAS EN POS
+==================================================== */
+.pos-card-promo-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: linear-gradient(135deg, #ef4444 0%, #ea580c 100%);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 3px 7px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  box-shadow: 0 3px 8px rgba(239, 68, 68, 0.4);
+  z-index: 4;
+}
+
+.pos-price-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pos-price-original {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  text-decoration: line-through;
+  font-weight: 700;
+}
+
+.product-card-price.is-promo-price {
+  color: #ea580c;
+  font-weight: 900;
+}
+
+/* Banner de receta con promo */
+.banner-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.banner-promo-badge {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.banner-price-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.banner-original-price {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  text-decoration: line-through;
+  font-weight: 700;
+}
+
+.banner-base-price.is-promo-price {
+  color: #ea580c;
+}
+
+/* Ítems del carrito con promo */
+.cart-item-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.cart-item-promo-pill {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.cart-unit-price-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cart-item-original-price {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  text-decoration: line-through;
+  font-weight: 700;
+}
+
+.cart-savings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+}
+
+.savings-label {
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+.savings-val {
+  color: #dc2626;
+  font-weight: 900;
+}
+
+/* Step 2: Notas y Pago Mixto */
+.full-width-field {
+  grid-column: 1 / -1;
+}
+
+.pos-form-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: #1e293b;
+  box-sizing: border-box;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s;
+  background: #f8fafc;
+}
+
+.pos-form-textarea:focus {
+  border-color: #ea580c;
+  background: white;
+}
+
+.payment-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.btn-toggle-split-mode {
+  background: #fff7ed;
+  border: 1.5px solid #f97316;
+  color: #ea580c;
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-toggle-split-mode:hover,
+.btn-toggle-split-mode.active {
+  background: #ea580c;
+  color: white;
+}
+
+.pos-split-payment-card {
+  background: white;
+  border: 2px solid #fed7aa;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(234, 88, 12, 0.08);
+}
+
+.pos-split-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ffedd5;
+}
+
+.pos-split-title {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #9a3412;
+}
+
+.btn-cancel-split {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.btn-cancel-split:hover {
+  color: #0f172a;
+}
+
+.pos-split-grid {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pos-split-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.split-col-label {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+}
+
+.pos-split-select {
+  padding: 8px 10px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: #f8fafc;
+  color: #1e293b;
+  outline: none;
+}
+
+.pos-split-input-wrap {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 0 10px;
+}
+
+.pos-split-input-wrap:focus-within {
+  border-color: #ea580c;
+}
+
+.pos-currency {
+  font-weight: 900;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.pos-split-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  padding: 8px 6px;
+  font-size: 1rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.pos-split-plus {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #ea580c;
+  padding-top: 24px;
+}
+
+.pos-split-quick-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.btn-pos-quick {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-pos-quick:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.pos-split-validation-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed #e2e8f0;
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pos-split-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+}
+
+.pos-split-stat strong {
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.pos-split-badge {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.diff-ok {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.diff-missing {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.diff-over {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Step 3: Resumen */
+.notes-summary-row {
+  margin-top: 4px;
+}
+
+.notes-text-highlight {
+  font-size: 0.88rem;
+  color: #0f172a;
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.receipt-item-name-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.receipt-promo-tag {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.receipt-item-pricing-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.receipt-original-subtotal {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  text-decoration: line-through;
+  font-weight: 700;
+}
+
+.receipt-savings-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fef2f2;
+  border: 1.5px solid #fecaca;
+  padding: 12px 18px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+
+.savings-text {
+  color: #b91c1c;
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.savings-amount {
+  color: #dc2626;
+  font-weight: 900;
+  font-size: 1.15rem;
 }
 </style>

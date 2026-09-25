@@ -19,8 +19,8 @@
         <div class="icon-container">
           <Store :size="48" />
         </div>
-        <h2>Generar Pedido</h2>
-        <p>Crear una nueva Pedido para un cliente (existente o nuevo)</p>
+        <h2>Generar pedido</h2>
+        <p>Crear una nueva pedido para un cliente</p>
       </router-link>
 
       <router-link v-role="[1,3]" to="/general-home/inventory" class="admin-option-card">
@@ -68,7 +68,7 @@
         <div class="icon-container">
           <Clock :size="48" />
         </div>
-        <h2>Horarios y Colchón</h2>
+        <h2>Horarios de atención</h2>
         <p>Personaliza las horas de trabajo, días de apertura y el margen de colchón</p>
       </router-link>
 
@@ -76,7 +76,7 @@
         <div class="icon-container">
           <Tv :size="48" />
         </div>
-        <h2>Menu Board Digital (TV) ↗</h2>
+        <h2>Menu board digital (TV) ↗</h2>
         <p>Abre el tablero de precios en pantalla completa para proyectar en la televisión</p>
       </a>
     </div>

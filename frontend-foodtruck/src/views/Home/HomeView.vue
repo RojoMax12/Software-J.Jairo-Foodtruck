@@ -2,9 +2,11 @@
   <div class="home-page">
     <AdminPreviewBar />
 
+    <!-- MODALES -->
     <CartModal 
       :isOpen="isCartOpen"
       :cart-items="cartItems"
+      :isStoreOpen="isStoreOpen"
       @close="isCartOpen = false" 
       @update-quantity="handleUpdateQuantity"
       @remove-item="handleRemoveItem"
@@ -25,44 +27,46 @@
       @confirm="router.push('/login')"
     />
 
+    <!-- CARRUSEL DE BANNERS -->
     <Carousel />
 
-    <!-- BANNER DE HORARIO Y ESTADO DE ATENCIÓN PÚBLICO -->
+    <!-- BANNER DE HORARIO Y ESTADO (HOMOGÉNEO CON EL SISTEMA) -->
     <div class="store-status-wrapper">
-      <div class="store-status-bar" :class="isStoreOpen ? 'store-open' : 'store-closed'">
-        <div class="store-status-content">
-          <span class="store-status-dot"></span>
-          <div class="store-status-text">
-            <strong v-if="isStoreOpen">
-              ¡Estamos atendiendo en vivo!
-            </strong>
-            <strong v-else-if="shiftWindow?.es_dia_cerrado">
-              Foodtruck cerrado hoy (Día de descanso)
-            </strong>
-            <strong v-else>
-              Foodtruck cerrado en este momento
-            </strong>
-            <span class="store-hours-info">
-              <template v-if="shiftWindow?.es_dia_cerrado">
-                Hoy no se reciben pedidos. ¡Te esperamos en nuestro próximo día laboral!
-              </template>
-              <template v-else>
-                🕒 Horario: {{ shiftWindow?.hora_apertura || '19:00' }} a {{ shiftWindow?.hora_cierre || '00:30' }} hrs
-                <template v-if="!isStoreOpen"> · ¡Te esperamos hoy a las {{ shiftWindow?.hora_apertura || '19:00' }}!</template>
-              </template>
-            </span>
-          </div>
+      <div class="store-status-card" :class="isStoreOpen ? 'status-card-open' : 'status-card-closed'">
+        <div class="status-indicator-col">
+          <span class="status-pill" :class="isStoreOpen ? 'pill-open' : 'pill-closed'">
+            <span class="dot-pulse" v-if="isStoreOpen"></span>
+            {{ isStoreOpen ? 'Abierto Ahora' : (shiftWindow?.es_dia_cerrado ? 'Día de Descanso' : 'Local Cerrado') }}
+          </span>
+        </div>
+
+        <div class="status-info-col">
+          <strong class="status-main-title">
+            {{ isStoreOpen ? '¡Estamos atendiendo pedidos en vivo!' : (shiftWindow?.es_dia_cerrado ? 'Hoy no se reciben pedidos' : 'Atención fuera de horario') }}
+          </strong>
+          <span class="status-schedule-text">
+            <template v-if="shiftWindow?.es_dia_cerrado">
+              El foodtruck se encuentra en descanso programado. ¡Te esperamos en nuestra próxima jornada!
+            </template>
+            <template v-else>
+              Horario de atención: <b>{{ shiftWindow?.hora_apertura || '19:00' }} a {{ shiftWindow?.hora_cierre || '00:30' }} hrs</b>
+              <template v-if="!isStoreOpen"> · Apertura programada a las {{ shiftWindow?.hora_apertura || '19:00' }} hrs.</template>
+            </template>
+          </span>
         </div>
       </div>
     </div>
     
+    <!-- CONTENIDO PRINCIPAL: BUSCADOR, FILTROS Y PRODUCTOS -->
     <main class="content-container">
       <SearchBar 
         v-model="selectedCategory" 
         v-model:searchQuery="searchQueryText"
         :categories="categoriesList"
+        :promotions-count="activePromotionsCount"
       />
-      
+
+      <!-- SKELETON LOADING -->
       <div v-if="isLoadingProducts" class="products-grid">
         <div v-for="n in 8" :key="'prod-skel-' + n" class="product-card-skeleton">
           <div class="skeleton-img"></div>
@@ -73,8 +77,10 @@
           </div>
         </div>
       </div>
+
+      <!-- GRILLA DE PRODUCTOS -->
       <div v-else class="products-grid">
-        <template v-for="item in filteredIceCreams" :key="item.name">
+        <template v-for="item in filteredProducts" :key="item.name">
           <OfferCard
             v-if="item.kind === 'offer'"
             :name="item.name"
@@ -83,6 +89,10 @@
             :image-zoom="item.imageZoom"
             :image-fit="item.imageFit"
             :price="item.displayPrice || getCardPrice(item)"
+            :display-price="item.displayPrice"
+            :original-price="item.originalPrice"
+            :promo-badge-text="item.promocionTitulo"
+            :discount-percent="item.discountPercent"
             :display-hint="item.displayHint"
             @view-details="openDetails(item)"
           />
@@ -97,6 +107,11 @@
             :image-zoom="item.imageZoom"
             :image-fit="item.imageFit"
             :price="item.displayPrice || getCardPrice(item)"
+            :display-price="item.displayPrice"
+            :original-price="item.originalPrice"
+            :has-promotion="item.hasPromotion"
+            :promo-badge-text="item.promocionTitulo"
+            :discount-percent="item.discountPercent"
             :display-hint="item.displayHint"
             @view-details="openDetails(item)"
           />
@@ -104,7 +119,7 @@
       </div>
     </main>
 
-    <!-- Botón Flotante para Subir -->
+    <!-- BOTÓN VOLVER ARRIBA -->
     <Transition name="fade-scale">
       <button 
         v-if="showScrollTop && !isCartOpen && !isDetailOpen" 
@@ -113,21 +128,23 @@
         title="Volver arriba"
         aria-label="Volver arriba"
       >
-        <ChevronUp :size="24" :stroke-width="2.5" />
+        <ChevronUp :size="22" :stroke-width="2.5" />
       </button>
     </Transition>
 
+    <!-- BOTÓN FLOTANTE DEL CARRITO -->
     <button 
       v-if="!isCartOpen && !isDetailOpen" 
       class="floating-cart" 
       @click="isCartOpen = true"
+      aria-label="Abrir carrito de compras"
     >
-      <ShoppingCart :size="28" color="black" :stroke-width="2" />
-      
+      <ShoppingCart :size="26" color="white" :stroke-width="2.2" />
       <span v-if="totalCartQuantity > 0" class="cart-badge">
         {{ totalCartQuantity }}
       </span>
     </button>
+
     <Footer class="main-footer" />
   </div>
 </template>
@@ -135,24 +152,25 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import SearchBar from '@/components/SearchBar.vue'
-import ProductCard from '@/components/ProductCard.vue'
-import OfferCard from '@/components/OfferCard.vue'
-import CartModal from '@/components/CartModal.vue'
+import SearchBar from '@/components/SearchBar.vue';
+import ProductCard from '@/components/ProductCard.vue';
+import OfferCard from '@/components/OfferCard.vue';
+import CartModal from '@/components/CartModal.vue';
 import ProductDetailModal from '@/components/ProductDetailModal.vue';
 import LoginNoticeModal from '@/components/LoginNoticeModal.vue';
-import { ShoppingCart, ChevronUp } from 'lucide-vue-next'
+import { ShoppingCart, ChevronUp, ArrowRight, Sparkles } from 'lucide-vue-next';
 import categoryService from '@/services/productCategoryService';
 import productService from '@/services/productService';
-import Footer from '@/components/Footer.vue'
+import Footer from '@/components/Footer.vue';
 import Carousel from '@/components/Carousel.vue';
 import AdminPreviewBar from '@/components/AdminPreviewBar.vue';
 import { useNotification } from '@/composables/useNotification';
 import cashFlowService, { type ShiftWindow } from '@/services/cashFlowService';
 
 const { notify } = useNotification();
+const router = useRouter();
 
-// Estados reactivos
+// Estados
 const showScrollTop = ref(false);
 const isLoadingProducts = ref(true);
 const isRefreshingProducts = ref(false);
@@ -161,8 +179,7 @@ const isDetailOpen = ref(false);
 const isNoticeOpen = ref(false);
 const selectedProduct = ref<any>(null);
 const cartItems = ref<any[]>([]);
-const iceCreams = ref<any[]>([]);
-const router = useRouter();
+const catalogProducts = ref<any[]>([]);
 const categoriesList = ref<any[]>([]);
 const selectedCategory = ref<string>('Todas');
 const searchQueryText = ref<string>('');
@@ -178,63 +195,27 @@ const loadShiftStatus = async () => {
   }
 };
 
-// Estados autenticación
-const isLoggedIn = ref(false); 
-const currentUser = ref<any>(null);
-
-  
-
 const totalCartQuantity = computed(() => {
   return cartItems.value.reduce((total, item) => total + item.quantity, 0);
 });
 
-// Revisar el estado de autenticación
-const checkAuthStatus = () => {
-  const token = localStorage.getItem('token');
-  const userParsed = localStorage.getItem('user');
-
-  if (token){
-    isLoggedIn.value = true;
-    if (userParsed) {
-      try {
-        const userObj = JSON.parse(userParsed);
-
-        currentUser.value = userObj.nombre || 'Cliente';
-      } catch (error) {
-        console.error("Error al parsear el usuario:", error);
-        currentUser.value = 'Cliente';
-      }
-    } else {
-      currentUser.value = 'Cliente';
-    }
-  } else {
-    isLoggedIn.value = false;
-    currentUser.value = null;
-  }
-};
-
-watch(() => router.currentRoute.value.path, () => {
-  checkAuthStatus();
+const activePromotionsCount = computed(() => {
+  return catalogProducts.value.filter(item => Boolean(item.hasPromotion || item.kind === 'offer' || item.promocion_activa)).length;
 });
 
-// Función para cerrar sesión
-const handleLogout = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  isLoggedIn.value = false;
-  currentUser.value = null;
-  notify('Has cerrado sesión exitosamente.', 'success');
-};
-
-// Computado para filtrar productos por categoría y búsqueda de texto
-const filteredIceCreams = computed(() => {
-  let results = iceCreams.value;
-
+// Filtro por categoría y texto
+const filteredProducts = computed(() => {
+  let results = catalogProducts.value;
   const selected = selectedCategory.value?.trim().toLowerCase() || '';
 
-  // Filtro 1: por categoría
   if (selected && selected !== 'todas') {
     results = results.filter((item) => {
+      if (selected === 'promos/combos' || selected === 'promos' || selected === 'promociones') {
+        const catLow = String(item.category ?? '').toLowerCase();
+        const nameLow = String(item.name ?? '').toLowerCase();
+        return Boolean(item.hasPromotion || item.kind === 'offer' || item.promocion_activa || catLow.includes('promo') || nameLow.includes('promo') || catLow.includes('combo') || nameLow.includes('combo'));
+      }
+
       const category = String(item.category ?? '').toLowerCase();
       const name = String(item.name ?? '').toLowerCase();
 
@@ -242,41 +223,32 @@ const filteredIceCreams = computed(() => {
         'papas & chorrillanas': ['completo', 'papas', 'chorrillana'],
         'vianesas': ['vianesa', 'vienesa'],
         'sánguches / bajones': ['sanguche', 'bajon', 'churrasco'],
-        'promos/combos': ['promo', 'combo', 'pizza'],
         'masas': ['masa', 'pizza'],
         'bebestibles': ['bebida', 'bebestible']
       };
 
       const matches = keywords[selected] || [];
-      return category.includes(selected) || name.includes(selected) || matches.some(keyword => category.includes(keyword) || name.includes(keyword));
+      return category.includes(selected) || name.includes(selected) || matches.some(k => category.includes(k) || name.includes(k));
     });
   }
 
-  // Filtro 2: por texto de búsqueda
   if (searchQueryText.value.trim() !== '') {
-    const searchLow = searchQueryText.value.toLowerCase();
-    results = results.filter(item => 
-      item.name.toLowerCase().includes(searchLow)
-    );
+    const q = searchQueryText.value.toLowerCase();
+    results = results.filter(item => item.name.toLowerCase().includes(q));
   }
 
   return results;
 });
 
-
-
-// Abrir el modal de detalles
-const openDetails = (iceCream: any) => {
-  selectedProduct.value = iceCream;
+const openDetails = (product: any) => {
+  selectedProduct.value = product;
   isDetailOpen.value = true;
 };
 
-// Cerrar el modal de detalles y resetear producto seleccionado
 const closeDetails = () => {
   isDetailOpen.value = false;
   selectedProduct.value = null;
 };
-
 
 const getCardPrice = (product: any) => {
   if (!product.types?.length) return "Sin precio";
@@ -315,20 +287,65 @@ const normalizeGroupedProduct = (product: any) => {
   const hasMultipleVariants = variantCount > 1;
 
   let minPrice = Infinity;
+  let minOriginalPrice = Infinity;
+  let minPromoPrice = Infinity;
+  let minPromoOriginalPrice = Infinity;
+  let hasAnyPromotion = false;
+  let promoTitle = '';
+  let activePromoObj: any = null;
+
   (product.types || []).forEach((type: any) => {
-    Object.values(type.prices || {}).forEach((price: any) => {
+    const isPromoType = !!(type.promocion_activa || type.hasPromotion);
+    if (isPromoType) {
+      hasAnyPromotion = true;
+      if (!activePromoObj) activePromoObj = type.promocion_activa;
+      if (!promoTitle && type.promocion_activa?.titulo) promoTitle = type.promocion_activa.titulo;
+    }
+
+    Object.entries(type.prices || {}).forEach(([sizeKey, price]: [string, any]) => {
       const numeric = Number(price);
-      if (!isNaN(numeric) && numeric > 0 && numeric < minPrice) {
-        minPrice = numeric;
+      if (!isNaN(numeric) && numeric > 0) {
+        if (numeric < minPrice) minPrice = numeric;
+        if (isPromoType) {
+          const orig = Number(type.originalPrices?.[sizeKey] ?? numeric);
+          if (orig > numeric && numeric < minPromoPrice) {
+            minPromoPrice = numeric;
+            minPromoOriginalPrice = orig;
+          }
+        }
+      }
+    });
+
+    Object.values(type.originalPrices || {}).forEach((price: any) => {
+      const numeric = Number(price);
+      if (!isNaN(numeric) && numeric > 0 && numeric < minOriginalPrice) {
+        minOriginalPrice = numeric;
       }
     });
   });
 
-  const displayPrice = minPrice === Infinity ? 'Sin precio' : (
+  const hasPromoDiscount = minPromoOriginalPrice < Infinity && minPromoOriginalPrice > minPromoPrice;
+  const hasGeneralDiscount = minOriginalPrice < Infinity && minOriginalPrice > minPrice;
+  const hasDiscount = hasAnyPromotion && (hasPromoDiscount || hasGeneralDiscount);
+
+  const effectiveMinPrice = hasPromoDiscount ? minPromoPrice : minPrice;
+  const effectiveMinOriginalPrice = hasPromoDiscount ? minPromoOriginalPrice : minOriginalPrice;
+
+  const displayPrice = effectiveMinPrice === Infinity ? 'Sin precio' : (
     hasMultipleSizes || hasMultipleVariants
-      ? `Desde $${Number(minPrice).toLocaleString('es-CL')}`
-      : `$${Number(minPrice).toLocaleString('es-CL')}`
+      ? `Desde $${Number(effectiveMinPrice).toLocaleString('es-CL')}`
+      : `$${Number(effectiveMinPrice).toLocaleString('es-CL')}`
   );
+
+  const originalDisplayPrice = hasDiscount && effectiveMinOriginalPrice < Infinity && effectiveMinOriginalPrice > effectiveMinPrice
+    ? (hasMultipleSizes || hasMultipleVariants
+        ? `Desde $${Number(effectiveMinOriginalPrice).toLocaleString('es-CL')}`
+        : `$${Number(effectiveMinOriginalPrice).toLocaleString('es-CL')}`)
+    : undefined;
+
+  const discountPercent = hasDiscount && effectiveMinOriginalPrice < Infinity && effectiveMinOriginalPrice > effectiveMinPrice
+    ? Math.round((1 - effectiveMinPrice / effectiveMinOriginalPrice) * 100)
+    : undefined;
 
   let displayHint = '';
   if (hasMultipleVariants && !hasMultipleSizes) {
@@ -341,106 +358,91 @@ const normalizeGroupedProduct = (product: any) => {
 
   return {
     ...product,
-    kind: product.kind || 'catalog',
+    kind: hasAnyPromotion ? 'offer' : (product.kind || 'catalog'),
+    hasPromotion: hasAnyPromotion,
+    promocion_activa: activePromoObj,
+    promocionTitulo: promoTitle || 'Promoción',
+    originalPrice: originalDisplayPrice,
+    discountPercent,
     hasMultipleSizes,
     hasMultipleVariants,
     variantCount,
     displayPrice,
     displayHint,
-    minPrice: minPrice === Infinity ? null : minPrice
+    minPrice: effectiveMinPrice === Infinity ? null : effectiveMinPrice
   };
 };
 
-
-// Agregar un producto al carrito
+// Agregar al carrito
 const addToCart = (purchaseItem: any) => {
   if (!isStoreOpen.value) {
     const msg = shiftWindow.value?.es_dia_cerrado
-      ? 'El Foodtruck se encuentra cerrado hoy por ser día de descanso. No es posible realizar pedidos.'
-      : 'El Foodtruck se encuentra cerrado en este momento. No es posible agregar productos al pedido.';
+      ? 'El foodtruck se encuentra en día de descanso. No es posible realizar pedidos hoy.'
+      : 'El foodtruck se encuentra cerrado en este momento. Revisa el horario de atención.';
     notify(msg, 'warning');
     return;
   }
 
-  const baseProduct = iceCreams.value.find(p => p.name === purchaseItem.name);
-
-  if (baseProduct && !purchaseItem.id) {
-    // Le inyectamos el ID exacto dependiendo del tamaño que eligió el usuario
-    if (purchaseItem.size === '10L') purchaseItem.id = baseProduct.id10l;
-    else if (purchaseItem.size === '5L') purchaseItem.id = baseProduct.id5l;
-    else if (purchaseItem.size === '2.5L') purchaseItem.id = baseProduct.id25l;
-    else if (purchaseItem.size === '1L') purchaseItem.id = baseProduct.id1l;
-  }
-
-  // Buscamos un item por su ID único cuando hay exclusiones específicas.
-  const existingItem = cartItems.value.find(
-    item => item.id === purchaseItem.id
+  // Identificación única del ítem según ID y tamaño/variante
+  const existingIndex = cartItems.value.findIndex(
+    item => item.id === purchaseItem.id && item.size === purchaseItem.size
   );
 
-  if (existingItem) {
-    existingItem.quantity += purchaseItem.quantity;
+  if (existingIndex >= 0) {
+    cartItems.value[existingIndex].quantity += purchaseItem.quantity;
   } else {
-    cartItems.value.push(purchaseItem);
+    cartItems.value.push({ ...purchaseItem });
   }
 
-  notify(`¡${purchaseItem.fullName || 'Producto'} añadido al carrito!`, 'success');
-}
+  notify(`¡${purchaseItem.fullName || purchaseItem.name || 'Producto'} añadido al pedido!`, 'success');
+};
 
-// Función para cambiar cantidades desde el carrito lateral
 const handleUpdateQuantity = (payload: { id: number, size: string, change: number }) => {
-  // Buscamos al item específico por su ID único de producto y su formato
   const targetItem = cartItems.value.find(
     item => item.id === payload.id && item.size === payload.size
   );
   
   if (targetItem) {
     targetItem.quantity += payload.change;
-    // Si la cantidad llega a cero, lo sacamos del carrito
     if (targetItem.quantity <= 0) {
       handleRemoveItem(payload);
     }
   }
 };
 
-// Función para eliminar un producto del carrito
 const handleRemoveItem = (payload: { id: number, size: string }) => {
   cartItems.value = cartItems.value.filter(
     item => !(item.id === payload.id && item.size === payload.size)
   );
-  notify('Producto eliminado del carrito.', 'warning');
+  notify('Producto eliminado del pedido.', 'warning');
 };
 
 const goToQuotation = () => {
   if (!isStoreOpen.value) {
     const msg = shiftWindow.value?.es_dia_cerrado
-      ? 'El Foodtruck se encuentra cerrado hoy por ser día de descanso. No es posible realizar pedidos.'
-      : `El Foodtruck se encuentra cerrado en este momento. Horario de atención: ${shiftWindow.value?.hora_apertura || '19:00'} a ${shiftWindow.value?.hora_cierre || '00:30'} hrs.`;
+      ? 'El foodtruck se encuentra cerrado hoy por ser día de descanso.'
+      : `El foodtruck está cerrado. Horario: ${shiftWindow.value?.hora_apertura || '19:00'} a ${shiftWindow.value?.hora_cierre || '00:30'} hrs.`;
     notify(msg, 'warning');
     return;
   }
 
   if (cartItems.value.length === 0) {
-    notify('Tu carrito está vacío.', 'warning');
+    notify('Tu pedido está vacío.', 'warning');
     return;
   }
   
-  // Cerramos el carrito y enviamos directo a la cotización sin preguntar
   isCartOpen.value = false;
   router.push('/cotizacion'); 
 };
 
-const handleGoToLogin = () => {
-  isNoticeOpen.value = false;
-  isCartOpen.value = false;
-  router.push('/login');
-};
-
-// Función para cargar los productos desde la API
-const fetchIceCreams = async () => {
+// Carga de productos
+const fetchCatalogProducts = async () => {
   if (isRefreshingProducts.value) return;
 
   isRefreshingProducts.value = true;
-  isLoadingProducts.value = true;
+  if (catalogProducts.value.length === 0) {
+    isLoadingProducts.value = true;
+  }
 
   try {
     const [productsRes, categoriesRes] = await Promise.all([
@@ -451,12 +453,10 @@ const fetchIceCreams = async () => {
     const dbProducts = productsRes.data || [];
     const dbCategories = categoriesRes.data || [];
 
-    // Filtrar estrictamente solo productos activos y disponibles
     const activeDbProducts = dbProducts.filter((p: any) => {
       const isActivo = p.activo !== false && p.activo !== 0 && p.active !== false;
       const isDisponible = p.disponible !== false && p.disponible !== 0 && p.inStock !== false;
-      const isEstadoOk = p.estado !== 0;
-      return isActivo && isDisponible && isEstadoOk;
+      return isActivo && isDisponible;
     });
 
     categoriesList.value = dbCategories.map((c: any) => ({
@@ -480,21 +480,6 @@ const fetchIceCreams = async () => {
       'Bebestibles & Jugos': '#3498DB'
     };
 
-    const categoryImages: Record<string, string> = {
-      'Vianesas': 'https://images.unsplash.com/photo-1612392062798-7c7e16d7f49f?w=900',
-      'Ass': 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=900',
-      'Churrascos': 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=900',
-      'Lomitos': 'https://images.unsplash.com/photo-1509722747041-616f39b57569?w=900',
-      'Hamburguesas': 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=900',
-      'Pizzas': 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=900',
-      'Fajitas': 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=900',
-      'Sándwich de Pollo': 'https://images.unsplash.com/photo-1606755962773-d324e0a13086?w=900',
-      'Papas & Chorrillanas': 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=900',
-      'Empanadas & Sopaipillas': 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=900',
-      'Bebidas frías': 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=900',
-      'Bebidas calientes': 'https://images.unsplash.com/photo-1497636577773-f1231844b336?w=900'
-    };
-
     const groupableCategories = ['Vianesas', 'Ass', 'Churrascos', 'Lomitos', 'Bebidas frías', 'Bebidas calientes', 'Empanadas & Sopaipillas'];
     const groupedMap: Record<string, any> = {};
 
@@ -504,7 +489,7 @@ const fetchIceCreams = async () => {
       const catName = prod.categoria?.nombre_categoria || 'Varios';
       const isGroupable = groupableCategories.includes(catName);
       const groupKey = isGroupable ? catName : prod.nombre;
-      const prodImage = prod.imagen_url || prod.imagen || prod.image || categoryImages[catName] || '/src/assets/placeholder-food.webp';
+      const prodImage = prod.imagen_url || prod.imagen || prod.image || '/src/assets/placeholder-food.webp';
       const prodImagePosition = prod.imagen_posicion || prod.imagePosition || '50% 50%';
       const prodImageZoom = Number(prod.imagen_zoom || prod.imageZoom || 1);
       const prodImageFit = prod.imagen_ajuste === 'contain' || prod.imageFit === 'contain' ? 'contain' : 'cover';
@@ -529,42 +514,78 @@ const fetchIceCreams = async () => {
         };
       }
 
+      const originalPricesMap: Record<string, number> = {};
       const pricesMap: Record<string, number> = {};
-      (prod.tamaños || []).forEach((t: any) => {
-        const sizeName = normalizeSizeName(t.nombre);
-        if (!sizeName) return;
 
-        pricesMap[sizeName] = Number(t.pivot?.precio ?? t.precio ?? 0);
+      if (prod.tamaños && prod.tamaños.length > 0) {
+        prod.tamaños.forEach((t: any) => {
+          const sizeName = normalizeSizeName(t.nombre);
+          if (!sizeName) return;
 
-        const hasSameSize = groupedMap[groupKey].sizes.some((existing: string) => existing.toLowerCase() === sizeName.toLowerCase());
-        if (!hasSameSize) {
-          groupedMap[groupKey].sizes.push(sizeName);
-        }
+          const baseVal = Number(t.pivot?.precio ?? t.precio ?? 0);
+          originalPricesMap[sizeName] = baseVal;
+          pricesMap[sizeName] = baseVal;
 
-        const sizeIdentifier = String(t.id_tamaño ?? sizeName).toLowerCase();
-        const hasSameTamaño = groupedMap[groupKey].tamaños_obj.some((existing: any) => {
-          const existingId = String(existing.id_tamaño ?? existing.nombre ?? '').toLowerCase();
-          return existingId === sizeIdentifier || normalizeSizeName(existing.nombre).toLowerCase() === sizeName.toLowerCase();
+          const hasSameSize = groupedMap[groupKey].sizes.some((existing: string) => existing.toLowerCase() === sizeName.toLowerCase());
+          if (!hasSameSize) {
+            groupedMap[groupKey].sizes.push(sizeName);
+          }
+
+          const sizeIdentifier = String(t.id_tamaño ?? sizeName).toLowerCase();
+          const hasSameTamaño = groupedMap[groupKey].tamaños_obj.some((existing: any) => {
+            const existingId = String(existing.id_tamaño ?? existing.nombre ?? '').toLowerCase();
+            return existingId === sizeIdentifier || normalizeSizeName(existing.nombre).toLowerCase() === sizeName.toLowerCase();
+          });
+
+          if (!hasSameTamaño) {
+            groupedMap[groupKey].tamaños_obj.push(t);
+          }
         });
-
-        if (!hasSameTamaño) {
-          groupedMap[groupKey].tamaños_obj.push(t);
+      } else {
+        const defaultSizeName = 'Normal';
+        const baseVal = Number(prod.precio ?? 0);
+        originalPricesMap[defaultSizeName] = baseVal;
+        pricesMap[defaultSizeName] = baseVal;
+        if (!groupedMap[groupKey].sizes.includes(defaultSizeName)) {
+          groupedMap[groupKey].sizes.push(defaultSizeName);
         }
-      });
+      }
 
-      const promotionPrice = Number(prod.promocion_activa?.precio_promocional ?? 0);
+      const activePromo = prod.promocion_activa || prod.promocionActiva || null;
+      let isPromoValid = false;
+      if (activePromo && activePromo.activo !== false && activePromo.activo !== 0) {
+        const now = new Date();
+        const start = activePromo.fecha_inicio ? new Date(activePromo.fecha_inicio) : null;
+        const end = activePromo.fecha_fin ? new Date(activePromo.fecha_fin) : null;
+        const startOk = !start || isNaN(start.getTime()) || start <= now;
+        const endOk = !end || isNaN(end.getTime()) || end >= now;
+        isPromoValid = startOk && endOk;
+      }
+
+      const promotionPrice = isPromoValid ? Number(activePromo?.precio_promocional ?? 0) : 0;
       if (promotionPrice > 0) {
         Object.keys(pricesMap).forEach(sizeName => {
-          pricesMap[sizeName] = promotionPrice;
+          const currentBase = Number(originalPricesMap[sizeName] ?? pricesMap[sizeName] ?? 0);
+          if (currentBase > 0) {
+            pricesMap[sizeName] = Math.min(promotionPrice, currentBase);
+          } else {
+            pricesMap[sizeName] = promotionPrice;
+          }
         });
       }
 
       const normalizedPrices = Object.fromEntries(
         groupedMap[groupKey].sizes.map((size: string) => [size, 0])
       );
+      const normalizedOriginalPrices = Object.fromEntries(
+        groupedMap[groupKey].sizes.map((size: string) => [size, 0])
+      );
 
       Object.entries(pricesMap).forEach(([sizeName, value]) => {
         normalizedPrices[sizeName] = Number(value || 0);
+      });
+      Object.entries(originalPricesMap).forEach(([sizeName, value]) => {
+        normalizedOriginalPrices[sizeName] = Number(value || 0);
       });
 
       groupedMap[groupKey].types.push({
@@ -577,16 +598,19 @@ const fetchIceCreams = async () => {
         imageZoom: prodImageZoom,
         imageFit: prodImageFit,
         prices: normalizedPrices,
+        originalPrices: normalizedOriginalPrices,
+        promocion_activa: isPromoValid ? activePromo : null,
+        hasPromotion: isPromoValid && Boolean(activePromo),
         tamaños_obj: prod.tamaños || [],
         producto_ingrediente: prod.ingredientes || []
       });
     });
 
-    iceCreams.value = Object.values(groupedMap)
+    catalogProducts.value = Object.values(groupedMap)
       .filter((g: any) => g.types && g.types.length > 0)
       .map((group: any) => normalizeGroupedProduct(group));
   } catch (error) {
-    console.error('Error al cargar productos desde la API:', error);
+    console.error('Error al cargar catálogo de productos:', error);
   } finally {
     isLoadingProducts.value = false;
     isRefreshingProducts.value = false;
@@ -606,69 +630,39 @@ const scrollToTop = () => {
 
 let productsRefreshTimer: number | undefined;
 
-const resetProductsRefresh = () => {
-  if (productsRefreshTimer) {
-    window.clearInterval(productsRefreshTimer);
-  }
+onMounted(() => {
+  loadShiftStatus();
+  fetchCatalogProducts();
+
+  window.addEventListener('scroll', handleScroll, { passive: true });
+  window.addEventListener('storage', fetchCatalogProducts);
+  window.addEventListener('focus', fetchCatalogProducts);
+  window.addEventListener('foodtruck-products-update', fetchCatalogProducts);
 
   productsRefreshTimer = window.setInterval(() => {
     if (document.visibilityState === 'visible') {
-      fetchIceCreams();
+      fetchCatalogProducts();
     }
   }, 60000);
-};
 
-watch(
-  () => router.currentRoute.value.path,
-  (currentPath) => {
-    checkAuthStatus();
-
-    if (currentPath === '/' || currentPath === '/home') {
-      fetchIceCreams();
-    }
-  },
-  { immediate: true }
-);
-
-onMounted(() => {
-  loadShiftStatus();
-  fetchIceCreams();
-  resetProductsRefresh();
-  checkAuthStatus();
-  window.addEventListener('scroll', handleScroll, { passive: true });
-  window.addEventListener('storage', fetchIceCreams);
-  window.addEventListener('focus', fetchIceCreams);
-  window.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-      fetchIceCreams();
-    }
-  });
-  window.addEventListener('foodtruck-products-update', fetchIceCreams);
-
-  // Recuperación segura del estado persistido del carrito temporal
   const savedCart = localStorage.getItem('dicreme_temp_cart');
   if (savedCart) {
     try {
       cartItems.value = JSON.parse(savedCart);
     } catch (error) {
-      console.error('Error al cargar el carrito guardado:', error);
+      console.error('Error recuperando carrito:', error);
     }
   }
 });
 
 onUnmounted(() => {
-  if (productsRefreshTimer) {
-    window.clearInterval(productsRefreshTimer);
-  }
-
+  if (productsRefreshTimer) window.clearInterval(productsRefreshTimer);
   window.removeEventListener('scroll', handleScroll);
-  window.removeEventListener('storage', fetchIceCreams);
-  window.removeEventListener('focus', fetchIceCreams);
-  window.removeEventListener('visibilitychange', fetchIceCreams);
-  window.removeEventListener('foodtruck-products-update', fetchIceCreams);
+  window.removeEventListener('storage', fetchCatalogProducts);
+  window.removeEventListener('focus', fetchCatalogProducts);
+  window.removeEventListener('foodtruck-products-update', fetchCatalogProducts);
 });
 
-// Guardado reactivo profundo en LocalStorage para no perder la persistencia de compra
 watch(
   cartItems,
   (newCart) => {
@@ -679,115 +673,200 @@ watch(
 </script>
 
 <style scoped>
-.store-status-wrapper {
-  max-width: 1200px;
-  margin: 15px auto 0 auto;
-  padding: 0 16px;
+.home-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  position: relative;
+  background: var(--DC-bg-gray, #f8f6f3);
 }
 
-.store-status-bar {
+/* ====================================================
+   BANNER DE ESTADO DE ATENCIÓN (HOMOGÉNEO)
+==================================================== */
+.store-status-wrapper {
+  max-width: 1200px;
+  width: 100%;
+  margin: 1.25rem auto 0 auto;
+  padding: 0 1.25rem;
+  box-sizing: border-box;
+}
+
+.store-status-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  box-shadow: 0 4px 16px rgba(26, 14, 5, 0.03);
+  padding: 1rem 1.4rem;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 18px;
-  border-radius: 14px;
+  gap: 1.25rem;
   transition: all 0.3s ease;
 }
 
-.store-open {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  border: 1.5px solid #86efac;
+.status-card-open {
+  border-left: 5px solid #16a34a;
 }
 
-.store-closed {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border: 1.5px solid #cbd5e1;
+.status-card-closed {
+  border-left: 5px solid #cbd5e1;
 }
 
-.store-status-content {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.store-status-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
+.status-indicator-col {
   flex-shrink: 0;
 }
 
-.store-open .store-status-dot {
-  background-color: #22c55e;
-  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
-  animation: pulse-dot-home 1.6s infinite;
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.store-closed .store-status-dot {
-  background-color: #94a3b8;
+.pill-open { background: #dcfce7; color: #15803d; }
+.pill-closed { background: var(--DC-bg-gray, #f8f6f3); color: var(--DC-text-gray, #7c7468); }
+
+.dot-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 rgba(22, 163, 74, 0.7);
+  animation: pulse-dot 1.8s infinite;
 }
 
-@keyframes pulse-dot-home {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+@keyframes pulse-dot {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
 }
 
-.store-status-text {
+.status-info-col {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.store-open .store-status-text strong {
-  color: #166534;
+.status-main-title {
+  color: var(--DC-gray, #2c2724);
   font-size: 0.95rem;
 }
 
-.store-closed .store-status-text strong {
-  color: #475569;
-  font-size: 0.95rem;
-}
-
-.store-hours-info {
+.status-schedule-text {
   font-size: 0.82rem;
-  color: #64748b;
-  font-weight: 600;
+  color: var(--DC-text-gray, #7c7468);
 }
 
+/* ====================================================
+   CONTENEDOR DE PRODUCTOS
+==================================================== */
 .content-container {
   flex: 1; 
-  padding: 20px;
+  padding: 1.25rem;
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.promo-banner-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #fffdfa;
+  border: 1.5px solid rgba(226, 135, 67, 0.35);
+  border-radius: 14px;
+  padding: 0.85rem 1.25rem;
+  margin-top: 1rem;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(226, 135, 67, 0.08);
+  transition: all 0.2s ease;
+}
+
+.promo-banner-strip:hover {
+  border-color: var(--DC-orange, #e28743);
+  transform: translateY(-1px);
+}
+
+.promo-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.promo-icon-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(226, 135, 67, 0.14);
+  color: var(--DC-orange, #e28743);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.promo-strip-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.promo-strip-text strong {
+  color: var(--DC-brown, #513119);
+  font-size: 0.9rem;
+}
+
+.promo-strip-text span {
+  color: var(--DC-text-gray, #7c7468);
+  font-size: 0.78rem;
+}
+
+.promo-strip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--DC-orange, #e28743);
+  color: white;
+  border: none;
+  padding: 0.5rem 0.9rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 20px;
-  justify-items: center;
-  margin-top: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1.5rem;
 }
 
+/* ====================================================
+   BOTONES FLOTANTES
+==================================================== */
 .floating-cart {
   position: fixed;
-  bottom: 30px;
-  left: 30px;
-  padding: 15px;
-  background-color: #E28743;
-  color: rgb(0, 0, 0);
-  width: 65px;
-  height: 65px;
+  bottom: 2rem;
+  left: 2rem;
+  background: var(--DC-orange, #e28743);
+  color: white;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
-  border: 12px;
+  border: none;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 999; 
+  box-shadow: 0 6px 20px rgba(226, 135, 67, 0.4);
+  display: grid;
+  place-items: center;
+  z-index: 999;
   transition: transform 0.2s ease;
 }
 
@@ -795,61 +874,54 @@ watch(
   transform: scale(1.08);
 }
 
-.floating-cart:active {
-  transform: scale(0.92);
+.cart-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  background: var(--DC-pink, #d80056);
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 900;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #ffffff;
+  padding: 0 4px;
 }
 
-/* Botón Flotante Volver Arriba */
 .floating-scroll-top {
   position: fixed;
-  bottom: 30px;
-  right: 30px;
-  width: 52px;
-  height: 52px;
+  bottom: 2rem;
+  right: 2rem;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: var(--DC-brown, #513119);
-  color: #ffffff;
-  border: 2px solid rgba(255, 255, 255, 0.35);
+  color: white;
+  border: none;
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  box-shadow: 0 4px 16px rgba(26, 14, 5, 0.25);
+  display: grid;
+  place-items: center;
   z-index: 998;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s ease;
 }
 
 .floating-scroll-top:hover {
-  background-color: var(--DC-orange, #e28743);
-  transform: translateY(-4px) scale(1.06);
-  box-shadow: 0 8px 22px rgba(226, 135, 67, 0.45);
+  background: var(--DC-orange, #e28743);
+  transform: translateY(-2px);
 }
 
-.floating-scroll-top:active {
-  transform: scale(0.92);
-}
-
-.fade-scale-enter-active,
-.fade-scale-leave-active {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.fade-scale-enter-from,
-.fade-scale-leave-to {
-  opacity: 0;
-  transform: scale(0.7) translateY(10px);
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
+/* ====================================================
+   SKELETON & ANIMACIONES
+==================================================== */
 .product-card-skeleton {
   background: white;
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 16px rgba(26, 14, 5, 0.04);
   display: flex;
   flex-direction: column;
 }
@@ -863,14 +935,14 @@ watch(
 }
 
 .skeleton-body {
-  padding: 16px;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0.5rem;
 }
 
 .skeleton-pill {
-  height: 16px;
+  height: 14px;
   border-radius: 6px;
   background: linear-gradient(90deg, #f0ede9 25%, #f8f6f3 50%, #f0ede9 75%);
   background-size: 200% 100%;
@@ -881,62 +953,62 @@ watch(
 .width-80 { width: 80px; }
 .width-120 { width: 120px; }
 
-.home-page {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh; /* Ocupa el 100% de la pantalla del usuario */
-  position: relative;
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.fade-scale-enter-active,
+.fade-scale-leave-active {
+  transition: all 0.25s ease;
+}
+
+.fade-scale-enter-from,
+.fade-scale-leave-to {
+  opacity: 0;
+  transform: scale(0.8);
 }
 
 .main-footer {
-  margin-top: auto; /* Garantía de empuje si la grilla de productos se vacía */
-  width: 100%;
+  margin-top: auto;
 }
 
-.cart-badge {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  background-color: #e11d48; /* Rojo llamativo */
-  color: white;
-  font-size: 0.85rem;
-  font-weight: 900;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  border: 2px solid #f5ebe0; /* Borde del color de tu fondo para resaltarlo */
-}
-
+/* ====================================================
+   RESPONSIVO
+==================================================== */
 @media (max-width: 600px) {
+  .store-status-wrapper {
+    padding: 0 0.85rem;
+  }
+
+  .store-status-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem;
+    gap: 0.65rem;
+  }
+
   .content-container {
-    padding: 10px; /* Reducimos el margen para ganar espacio en los lados */
+    padding: 0.85rem;
   }
 
   .products-grid {
-    /* Permite tarjetas más compactas en pantallas pequeñas */
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
-    gap: 12px; /* Juntamos un poco más los productos */
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+    gap: 0.75rem;
   }
 
   .floating-cart {
-    bottom: 20px;
-    right: 20px;   /* Lo posiciona a la derecha en móviles */
-    left: auto;    /* 🔥 CRÍTICO: Cancela el "left: 30px" del diseño de escritorio */
-    width: 55px;
-    height: 55px;  /* Un tamaño ligeramente menor para no tapar tanto contenido */
-    z-index: 999;  /* Por encima de tarjetas pero por debajo de modales (z-index: 2000+) */
+    bottom: 1.25rem;
+    left: 1.25rem;
+    width: 52px;
+    height: 52px;
   }
 
   .floating-scroll-top {
-    bottom: 85px;  /* Ubicado justo arriba del carrito flotante en móviles */
-    right: 20px;
+    bottom: 1.25rem;
+    right: 1.25rem;
     width: 44px;
     height: 44px;
-    z-index: 998;
   }
 }
 </style>

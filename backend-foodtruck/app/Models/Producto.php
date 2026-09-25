@@ -97,7 +97,8 @@ class Producto extends Model
     public function promocionActiva()
     {
         return $this->hasOne(Promocion::class, 'id_producto', 'id_producto')
-            ->where('activo', true);
+            ->where('activo', true)
+            ->latestOfMany('id_promocion');
     }
 
     // Antes usaba belongsToMany(Pedido::class, 'producto_pedido', ...) hacia una

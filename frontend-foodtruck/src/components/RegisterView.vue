@@ -3,7 +3,8 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
   Mail, Phone, ArrowLeft, 
-  Eye, EyeOff, Check, User
+  Eye, EyeOff, Check, User, Lock, 
+  UserPlus, AlertTriangle, RefreshCw, LogIn
 } from 'lucide-vue-next'
 import { authService } from '../services/authService'
 import SuccessAccountModal from './SuccessAccountModal.vue'
@@ -53,13 +54,16 @@ const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 
 const goBack = () => {
-  router.back()
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/login')
+  }
 }
 
 const handleRegister = async () => {
-  if (retrySecondsLeft.value > 0) return
+  if (retrySecondsLeft.value > 0 || isLoading.value) return
 
-  // 1. Validaciones básicas antes de enviar
   if (!form.value.nombre.trim() || !form.value.correo_electronico.trim() || !form.value.contrasena.trim()) {
     errorMessage.value = 'Por favor, completa todos los campos obligatorios.'
     return
@@ -71,12 +75,12 @@ const handleRegister = async () => {
   }
 
   if (!isPasswordValid.value) {
-    errorMessage.value = 'La contraseña debe tener al menos 8 caracteres y contener al menos 1 mayúscula, 1 número y 1 carácter especial.'
+    errorMessage.value = 'La contraseña no cumple con los requisitos de seguridad requeridos.'
     return
   }
 
   if (!acceptTerms.value) {
-    errorMessage.value = 'Debes aceptar los Términos, Condiciones y la Política de Privacidad (Ley N° 21.719) para crear tu cuenta.'
+    errorMessage.value = 'Debes aceptar los Términos, Condiciones y Política de Privacidad para continuar.'
     return
   }
 
@@ -84,7 +88,6 @@ const handleRegister = async () => {
   isLoading.value = true
 
   try {
-    // 2. Llamada al backend
     const res = await authService.registerDistribuidor({
       nombre: form.value.nombre.trim(),
       correo_electronico: form.value.correo_electronico.trim().toLowerCase(),
@@ -103,16 +106,14 @@ const handleRegister = async () => {
       }
     }
 
-    // 3. Éxito: Mostramos el modal
     showSuccessModal.value = true
   } catch (error: any) {
-    // 4. Error: Capturamos mensajes del backend
     if (error.response?.status === 429) {
       const waitSec = Number(error.response?.data?.retry_after || error.response?.headers?.['retry-after'] || 60)
       startCountdown(waitSec)
-      errorMessage.value = error.response?.data?.message || `Has realizado demasiados intentos. Por favor, espera ${waitSec} segundos antes de volver a intentarlo.`
+      errorMessage.value = error.response?.data?.message || `Demasiados intentos. Espera ${waitSec} segundos para continuar.`
     } else {
-      errorMessage.value = error.response?.data?.message || 'Error al crear la cuenta. Intenta nuevamente.'
+      errorMessage.value = error.response?.data?.message || error.response?.data?.error || 'No fue posible crear la cuenta. Intenta nuevamente.'
     }
   } finally {
     isLoading.value = false
@@ -127,127 +128,184 @@ const goToLogin = () => {
 <template>
   <div class="register-container">
     <div class="register-wrapper">
-      <div class="back-button" @click="goBack" v-if="!showSuccessModal">
-        <ArrowLeft :size="24" color="var(--DC-orange)" />
-        <span>Volver</span>
-      </div>
-
       <div class="register-card">
+        <!-- BOTÓN VOLVER -->
+        <button type="button" class="back-button" @click="goBack" v-if="!showSuccessModal" title="Volver atrás">
+          <ArrowLeft :size="18" />
+          <span>Volver</span>
+        </button>
+
+        <!-- SECCIÓN LOGO & BRANDING -->
         <div class="logo-section">
-          <img src="../assets/logo_jairo.webp" alt="J.Junior Logo" class="logo" />
+          <div class="auth-badge">
+            <UserPlus :size="13" />
+            <span>Registro de Cliente</span>
+          </div>
+          <img src="../assets/logo_jairo.webp" alt="Foodtruck J.Junior Logo" class="brand-logo" />
+          <h2 class="auth-title">Crea tu Cuenta</h2>
+          <p class="auth-subtitle">Regístrate para pedir más rápido y seguir tus compras</p>
         </div>
 
         <div class="divider"></div>
 
-        <div class="form-section">
-          <div class="page-title">Crea tu cuenta</div>
+        <!-- FORMULARIO DE REGISTRO -->
+        <form class="form-section" @submit.prevent="handleRegister">
+          <!-- BANNER DE ERROR -->
+          <Transition name="fade">
+            <div v-if="errorMessage" class="error-banner">
+              <AlertTriangle :size="18" class="error-icon" />
+              <span>{{ errorMessage }}</span>
+            </div>
+          </Transition>
 
-          <div v-if="errorMessage" class="error-banner">
-            {{ errorMessage }}
+          <!-- NOMBRE COMPLETO -->
+          <div class="form-field">
+            <label class="field-label" for="reg-name">Nombre y Apellido <span class="required">*</span></label>
+            <div class="input-group">
+              <input
+                id="reg-name"
+                v-model="form.nombre"
+                type="text"
+                placeholder="Ej: Juan Pérez"
+                class="custom-input"
+                :disabled="isLoading || retrySecondsLeft > 0"
+                autocomplete="name"
+                required
+              />
+              <User class="input-icon" :size="18" />
+            </div>
           </div>
 
-          <div class="input-group">
-            <input
-              v-model="form.nombre"
-              type="text"
-              placeholder="Nombre completo"
-              class="custom-input"
-              :disabled="isLoading"
-            />
-            <User class="input-icon" :size="20" />
+          <!-- CORREO ELECTRÓNICO -->
+          <div class="form-field">
+            <label class="field-label" for="reg-email">Correo Electrónico <span class="required">*</span></label>
+            <div class="input-group">
+              <input
+                id="reg-email"
+                v-model="form.correo_electronico"
+                type="email"
+                placeholder="ejemplo@correo.cl"
+                class="custom-input"
+                :disabled="isLoading || retrySecondsLeft > 0"
+                autocomplete="email"
+                required
+              />
+              <Mail class="input-icon" :size="18" />
+            </div>
           </div>
 
-          <div class="input-group">
-            <input
-              v-model="form.correo_electronico"
-              type="email"
-              placeholder="Correo electrónico"
-              class="custom-input"
-              :disabled="isLoading"
-            />
-            <Mail class="input-icon" :size="20" />
-          </div>
-
-          <div class="input-group">
-            <div class="phone-input-wrapper">
-              <div class="phone-prefix-outside">+56</div>
-              <div class="phone-input-container">
+          <!-- TELÉFONO DE CONTACTO -->
+          <div class="form-field">
+            <label class="field-label" for="reg-phone">Teléfono Móvil (WhatsApp)</label>
+            <div class="phone-input-group">
+              <span class="phone-prefix">+56</span>
+              <div class="input-group">
                 <input
+                  id="reg-phone"
                   v-model="form.telefono"
                   type="tel"
-                  placeholder="Teléfono"
-                  class="custom-input phone-input"
+                  placeholder="9 1234 5678"
+                  class="custom-input"
                   maxlength="9"
-                  :disabled="isLoading"
+                  :disabled="isLoading || retrySecondsLeft > 0"
+                  autocomplete="tel"
                 />
-                <Phone class="input-icon" :size="20" />
+                <Phone class="input-icon" :size="18" />
               </div>
             </div>
           </div>
 
-
-          <div class="input-group">
-            <input
-              v-model="form.contrasena"
-              :type="showPassword ? 'text' : 'password'"
-              placeholder="Contraseña"
-              class="custom-input"
-              :disabled="isLoading"
-            />
-            <div class="icon-wrapper" @click="showPassword = !showPassword">
-              <Eye v-if="!showPassword" class="input-icon clickable" :size="20" />
-              <EyeOff v-else class="input-icon clickable" :size="20" />
+          <!-- CONTRASEÑA -->
+          <div class="form-field">
+            <label class="field-label" for="reg-password">Contraseña <span class="required">*</span></label>
+            <div class="input-group">
+              <input
+                id="reg-password"
+                v-model="form.contrasena"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="Crea una contraseña segura"
+                class="custom-input with-toggle"
+                :disabled="isLoading || retrySecondsLeft > 0"
+                autocomplete="new-password"
+                required
+              />
+              <button 
+                type="button" 
+                class="icon-toggle-btn" 
+                @click="showPassword = !showPassword"
+                :title="showPassword ? 'Ocultar contraseña' : 'Ver contraseña'"
+                tabindex="-1"
+              >
+                <Eye v-if="!showPassword" :size="18" />
+                <EyeOff v-else :size="18" />
+              </button>
             </div>
           </div>
 
-          <!-- REQUISITOS DE CONTRASEÑA -->
-          <div v-if="form.contrasena" class="password-requirements-box">
-            <span class="requirements-title">Requisitos de seguridad:</span>
+          <!-- REQUISITOS DE CONTRASEÑA LEY N° 21.719 -->
+          <div v-if="form.contrasena" class="password-requirements-card">
+            <span class="requirements-title">
+              <Lock :size="12" />
+              Requisitos de seguridad (Ley N° 21.719):
+            </span>
             <div class="req-grid">
               <div class="req-item" :class="{ met: hasMinLength }">
-                <Check v-if="hasMinLength" :size="12" class="req-icon" />
+                <Check v-if="hasMinLength" :size="13" class="req-icon" />
                 <span v-else class="req-dot"></span>
                 <span>Mínimo 8 caracteres</span>
               </div>
               <div class="req-item" :class="{ met: hasUppercase }">
-                <Check v-if="hasUppercase" :size="12" class="req-icon" />
+                <Check v-if="hasUppercase" :size="13" class="req-icon" />
                 <span v-else class="req-dot"></span>
-                <span>1 letra mayúscula (A-Z)</span>
+                <span>Al menos 1 letra mayúscula (A-Z)</span>
               </div>
               <div class="req-item" :class="{ met: hasNumber }">
-                <Check v-if="hasNumber" :size="12" class="req-icon" />
+                <Check v-if="hasNumber" :size="13" class="req-icon" />
                 <span v-else class="req-dot"></span>
-                <span>1 número (0-9)</span>
+                <span>Al menos 1 número (0-9)</span>
               </div>
               <div class="req-item" :class="{ met: hasSpecialChar }">
-                <Check v-if="hasSpecialChar" :size="12" class="req-icon" />
+                <Check v-if="hasSpecialChar" :size="13" class="req-icon" />
                 <span v-else class="req-dot"></span>
-                <span>1 carácter especial (@, $, !, %, *, #, etc.)</span>
+                <span>Al menos 1 símbolo especial (@, $, !, %, *, #)</span>
               </div>
             </div>
           </div>
 
-          <div class="input-group">
-            <input
-              v-model="form.confirmPassword"
-              :type="showConfirmPassword ? 'text' : 'password'"
-              placeholder="Confirmar contraseña"
-              class="custom-input"
-              :disabled="isLoading"
-            />
-            <div class="icon-wrapper" @click="showConfirmPassword = !showConfirmPassword">
-              <Eye v-if="!showConfirmPassword" class="input-icon clickable" :size="20" />
-              <EyeOff v-else class="input-icon clickable" :size="20" />
+          <!-- CONFIRMAR CONTRASEÑA -->
+          <div class="form-field">
+            <label class="field-label" for="reg-confirm">Confirmar Contraseña <span class="required">*</span></label>
+            <div class="input-group">
+              <input
+                id="reg-confirm"
+                v-model="form.confirmPassword"
+                :type="showConfirmPassword ? 'text' : 'password'"
+                placeholder="Repite tu contraseña"
+                class="custom-input with-toggle"
+                :disabled="isLoading || retrySecondsLeft > 0"
+                autocomplete="new-password"
+                required
+              />
+              <button 
+                type="button" 
+                class="icon-toggle-btn" 
+                @click="showConfirmPassword = !showConfirmPassword"
+                :title="showConfirmPassword ? 'Ocultar' : 'Ver'"
+                tabindex="-1"
+              >
+                <Eye v-if="!showConfirmPassword" :size="18" />
+                <EyeOff v-else :size="18" />
+              </button>
             </div>
           </div>
 
-          <!-- CHECKBOX TÉRMINOS Y PRIVACIDAD LEY 21.719 -->
-          <div class="terms-checkbox-group">
+          <!-- CHECKBOX TÉRMINOS Y PRIVACIDAD -->
+          <div class="terms-container">
             <label class="terms-label">
               <input 
                 type="checkbox" 
                 v-model="acceptTerms" 
-                class="custom-checkbox" 
+                class="modern-checkbox" 
                 :disabled="isLoading" 
               />
               <span class="terms-text">
@@ -259,14 +317,28 @@ const goToLogin = () => {
             </label>
           </div>
 
+          <!-- BOTÓN REGISTRAR -->
           <button
-            @click="handleRegister"
-            class="btn btn-primary"
+            type="submit"
+            class="btn-primary-auth"
             :disabled="isLoading || !acceptTerms || retrySecondsLeft > 0"
           >
-            {{ retrySecondsLeft > 0 ? `ESPERA (${retrySecondsLeft}s)` : (isLoading ? 'PROCESANDO...' : 'CREAR CUENTA') }}
+            <RefreshCw v-if="isLoading" :size="18" class="spinning" />
+            <UserPlus v-else-if="retrySecondsLeft === 0" :size="18" />
+            <span>
+              {{ retrySecondsLeft > 0 ? `Espera (${retrySecondsLeft}s)` : (isLoading ? 'Creando cuenta...' : 'Crear Cuenta') }}
+            </span>
           </button>
-        </div>
+
+          <!-- ENLACE AL LOGIN -->
+          <div class="login-prompt">
+            <span>¿Ya tienes una cuenta registrada?</span>
+            <router-link to="/login" class="btn-secondary-auth">
+              <LogIn :size="16" />
+              <span>Iniciar Sesión</span>
+            </router-link>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -284,19 +356,21 @@ const goToLogin = () => {
 </template>
 
 <style scoped>
-.register-container {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--DC-bg-gray);
-  font-family: var(--font-main);
-  padding: 20px;
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
+.register-container {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--DC-bg-gray, #f8f6f3);
+  padding: 1.5rem 1rem;
+}
+
 .register-wrapper {
-  position: relative;
   width: 100%;
   max-width: 460px;
   display: flex;
@@ -304,445 +378,297 @@ const goToLogin = () => {
   align-items: center;
 }
 
-.back-button {
-  position: absolute;
-  left: 20px;
-  top: 20px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  color: var(--DC-orange);
-  font-weight: 800;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
-  z-index: 10;
-}
-
-.back-button:hover {
-  transform: translateX(-5px);
-  color: var(--DC-brown);
-}
-
 .register-card {
   position: relative;
-  background-color: white;
-  padding: 3rem 2rem 2rem 2rem;
-  border-radius: 1.5rem;
+  background-color: #ffffff;
+  padding: 2.5rem 2rem 2rem 2rem;
+  border-radius: 22px;
   width: 100%;
-  box-sizing: border-box;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-  border: 1px solid #eeedee;
+  box-shadow: 0 12px 36px rgba(26, 14, 5, 0.06);
+  border: 1px solid rgba(81, 49, 25, 0.08);
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
+/* BOTÓN VOLVER */
+.back-button {
+  position: absolute;
+  left: 1.25rem;
+  top: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--DC-text-gray, #7c7468);
+  font-weight: 700;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+}
+
+.back-button:hover {
+  color: var(--DC-brown, #513119);
+  background: var(--DC-bg-gray, #f8f6f3);
+  transform: translateX(-3px);
+}
+
+/* LOGO & BRANDING */
 .logo-section {
   width: 100%;
   display: flex;
-  justify-content: center;
-  margin-bottom: 1.5rem;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 0.5rem;
+  text-align: center;
 }
 
-.logo {
-  max-width: 180px;
-  height: auto;
+.auth-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(226, 135, 67, 0.12);
+  color: var(--DC-orange, #e28743);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.85rem;
+}
+
+.brand-logo {
+  height: 56px;
+  width: auto;
+  object-fit: contain;
+  margin-bottom: 0.65rem;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.1));
+}
+
+.auth-title {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: var(--DC-brown, #513119);
+}
+
+.auth-subtitle {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--DC-text-gray, #7c7468);
 }
 
 .divider {
-  width: 80%;
-  height: 2px;
-  background-color: var(--DC-brown);
-  margin-bottom: 1.5rem;
-  opacity: 0.2;
+  width: 100%;
+  height: 1px;
+  background-color: rgba(81, 49, 25, 0.08);
+  margin: 1.5rem 0;
 }
 
+/* FORMULARIO */
 .form-section {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  align-items: center;
+  gap: 1.1rem;
 }
 
-.page-title {
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: var(--DC-gray);
-  margin-bottom: 0.25rem;
-}
-
-.error-banner {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  background-color: #fff0f3;
-  border: 2px solid var(--DC-pink);
-  border-radius: 0.75rem;
-  color: var(--DC-pink);
-  font-size: 0.9rem;
-  font-weight: 800;
-  text-align: center;
-  box-sizing: border-box;
-}
-
-.input-row {
-  width: 100%;
+.form-field {
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.field-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--DC-brown, #513119);
+}
+
+.field-label .required {
+  color: #dc2626;
 }
 
 .input-group {
-  width: 100%;
   position: relative;
   display: flex;
   align-items: center;
-}
-
-.input-group.half {
-  flex: 1;
+  width: 100%;
 }
 
 .custom-input {
   width: 100%;
-  padding: 0.9rem 2.5rem 0.9rem 1.2rem;
-  background-color: #fcfbf9;
-  border: 2px solid #eeedee;
-  border-radius: 0.75rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--DC-gray);
+  padding: 0.75rem 2.6rem 0.75rem 1rem;
+  background-color: var(--DC-bg-gray, #f8f6f3);
+  border: 1.5px solid rgba(81, 49, 25, 0.12);
+  border-radius: 12px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--DC-gray, #2c2724);
   outline: none;
-  box-sizing: border-box;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  font-family: inherit;
 }
 
 .custom-input:focus {
-  background-color: #fff;
-  border-color: var(--DC-orange);
-  box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.2);
-}
-
-.disabled-input {
-  opacity: 0.7;
-  cursor: not-allowed;
+  background-color: #ffffff;
+  border-color: var(--DC-orange, #e28743);
+  box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.16);
 }
 
 .custom-input::placeholder {
-  color: var(--DC-text-gray);
+  color: #a89f95;
   font-weight: 500;
 }
 
-.custom-select {
-  appearance: none;
-  cursor: pointer;
-  color: var(--DC-gray);
-}
-
-.phone-input-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-}
-
-.phone-prefix-outside {
-  background-color: #fcfbf9;
-  border: 2px solid #eeedee;
-  border-radius: 0.75rem;
-  padding: 0.9rem 1.2rem;
-  font-weight: 800;
-  color: var(--DC-orange);
-  font-size: 1rem;
-  user-select: none;
-  min-width: 70px;
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-}
-
-.phone-input-container {
-  flex: 1;
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.phone-input {
-  padding-left: 1rem !important;
-}
-
-.custom-dropdown-container {
-  position: relative;
-}
-
-.clickable-input {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  user-select: none;
-}
-
-.placeholder-text {
-  color: var(--DC-text-gray) !important;
-}
-
-.rotated {
-  transform: rotate(180deg);
-}
-
-.dropdown-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  width: 100%;
-  background-color: white;
-  border: 1px solid var(--DC-orange);
-  border-radius: 1rem;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  animation: fadeIn 0.2s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.search-inner {
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid #f0f0f0;
-  background-color: #fafafa;
-}
-
-.inner-search-icon {
-  color: var(--DC-orange);
-}
-
-.inner-search-input {
-  border: none;
-  background: transparent;
-  outline: none;
-  font-size: 0.95rem;
-  width: 100%;
-  color: var(--DC-gray);
-  font-weight: 500;
-}
-
-.clear-icon {
-  color: var(--DC-text-gray);
-  cursor: pointer;
-  padding: 2px;
-  border-radius: 50%;
-  transition: background-color 0.2s;
-}
-
-.clear-icon:hover {
-  background-color: #eee;
-}
-
-.options-list {
-  max-height: 220px;
-  overflow-y: auto;
-  padding: 6px 0;
-}
-
-.options-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.options-list::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-.options-list::-webkit-scrollbar-thumb {
-  background: var(--DC-orange);
-  border-radius: 10px;
-}
-
-.option-item {
-  padding: 12px 20px;
-  font-size: 0.95rem;
-  color: #495057;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-}
-
-.option-item:hover {
-  background-color: #fff0f3;
-  color: var(--DC-orange);
-  padding-left: 25px;
-}
-
-.option-item.selected {
-  background-color: var(--DC-orange);
-  color: white;
-  font-weight: 600;
-}
-
-.no-results {
-  padding: 20px;
-  text-align: center;
-  font-size: 0.9rem;
-  color: var(--DC-text-gray);
-  font-style: italic;
+.custom-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .input-icon {
   position: absolute;
-  right: 1rem;
+  right: 0.9rem;
+  color: var(--DC-brown, #513119);
   pointer-events: none;
-  transition: transform 0.3s ease;
-  color: var(--DC-brown);
 }
 
-.icon-wrapper {
+.icon-toggle-btn {
   position: absolute;
-  right: 0;
-  height: 100%;
-  width: 3rem;
+  right: 0.4rem;
+  height: 32px;
+  width: 32px;
+  background: transparent;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  color: var(--DC-text-gray, #7c7468);
+  border-radius: 8px;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-.clickable {
-  pointer-events: auto;
+.icon-toggle-btn:hover {
+  color: var(--DC-brown, #513119);
+  background: rgba(81, 49, 25, 0.05);
 }
 
-.btn {
-  width: 100%;
-  padding: 0.9rem;
-  border: none;
-  border-radius: 0.75rem;
-  font-weight: 900;
-  cursor: pointer;
-  font-size: 1.05rem;
-  transition: all 0.2s ease;
-  margin-top: 0.5rem;
-}
-
-.btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  background-color: var(--DC-brown);
-  box-shadow: 0 6px 20px rgba(81, 49, 25, 0.3);
-}
-
-.btn:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  background-color: #ccc;
-  box-shadow: none;
-  color: #666;
-}
-
-.btn-primary {
-  background-color: var(--DC-orange);
-  color: white;
-  box-shadow: 0 4px 15px rgba(226, 135, 67, 0.3);
-}
-
-.terms-checkbox-group {
-  margin: 1rem 0 0.5rem 0;
+/* TELÉFONO INTEGRADO */
+.phone-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
 }
 
-.password-requirements-box {
-  background: #f8f6fb;
-  border: 1px solid #eae5f3;
+.phone-prefix {
+  background-color: var(--DC-bg-gray, #f8f6f3);
+  border: 1.5px solid rgba(81, 49, 25, 0.12);
   border-radius: 12px;
-  padding: 10px 14px;
-  margin: -0.5rem 0 1rem 0;
-  width: 100%;
-  box-sizing: border-box;
+  padding: 0.75rem 0.9rem;
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--DC-orange, #e28743);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+/* TARJETA REQUISITOS CONTRASEÑA */
+.password-requirements-card {
+  background-color: var(--DC-bg-gray, #f8f6f3);
+  border: 1px solid rgba(81, 49, 25, 0.08);
+  border-radius: 12px;
+  padding: 0.75rem 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .requirements-title {
-  display: block;
-  font-size: 0.76rem;
-  font-weight: 700;
-  color: #4a415a;
-  margin-bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--DC-brown, #513119);
 }
 
 .req-grid {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 .req-item {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 0.76rem;
-  color: #8c859d;
-  transition: all 0.2s ease;
+  gap: 6px;
+  font-size: 0.73rem;
+  color: var(--DC-text-gray, #7c7468);
+  font-weight: 600;
+  transition: color 0.2s ease;
 }
 
 .req-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: #d3cde0;
+  background-color: #cbd5e1;
   flex-shrink: 0;
 }
 
 .req-icon {
-  color: #10b981;
+  color: #16a34a;
   flex-shrink: 0;
 }
 
 .req-item.met {
-  color: #065f46;
-  font-weight: 600;
+  color: #15803d;
+  font-weight: 700;
+}
+
+/* CHECKBOX TÉRMINOS */
+.terms-container {
+  width: 100%;
+  margin-top: 0.25rem;
 }
 
 .terms-label {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
   cursor: pointer;
   user-select: none;
 }
 
-.custom-checkbox {
-  margin-top: 3px;
-  width: 17px;
-  height: 17px;
-  accent-color: var(--DC-orange);
+.modern-checkbox {
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--DC-orange, #e28743);
   cursor: pointer;
   flex-shrink: 0;
 }
 
 .terms-text {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   line-height: 1.45;
-  color: #4a415a;
+  color: var(--DC-text-gray, #7c7468);
 }
 
 .terms-link-btn {
   background: none;
   border: none;
   padding: 0;
-  color: var(--DC-orange);
-  font-weight: 700;
-  font-size: 0.82rem;
+  color: var(--DC-orange, #e28743);
+  font-weight: 800;
+  font-size: 0.78rem;
   text-decoration: underline;
   cursor: pointer;
   display: inline;
@@ -750,22 +676,133 @@ const goToLogin = () => {
 }
 
 .terms-link-btn:hover {
-  color: var(--DC-brown);
+  color: var(--DC-brown, #513119);
 }
 
-@media (max-width: 576px) {
+/* ALERTA DE ERROR */
+.error-banner {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 12px;
+  color: #c53030;
+  font-size: 0.84rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  text-align: left;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.error-icon {
+  flex-shrink: 0;
+}
+
+/* BOTÓN PRINCIPAL */
+.btn-primary-auth {
+  width: 100%;
+  padding: 0.85rem 1.25rem;
+  border: none;
+  border-radius: 12px;
+  background-color: var(--DC-orange, #e28743);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  margin-top: 0.25rem;
+  box-shadow: 0 4px 14px rgba(226, 135, 67, 0.3);
+}
+
+.btn-primary-auth:hover:not(:disabled) {
+  background-color: var(--DC-brown, #513119);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(81, 49, 25, 0.25);
+}
+
+.btn-primary-auth:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* LOGIN PROMPT */
+.login-prompt {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px dashed rgba(81, 49, 25, 0.08);
+  font-size: 0.84rem;
+  color: var(--DC-text-gray, #7c7468);
+  font-weight: 600;
+}
+
+.btn-secondary-auth {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1.5px solid rgba(81, 49, 25, 0.15);
+  background-color: #ffffff;
+  color: var(--DC-brown, #513119);
+  font-weight: 800;
+  font-size: 0.88rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary-auth:hover {
+  background-color: var(--DC-bg-gray, #f8f6f3);
+  border-color: var(--DC-orange, #e28743);
+  color: var(--DC-orange, #e28743);
+  transform: translateY(-1px);
+}
+
+.spinning {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+@media (max-width: 480px) {
   .register-card {
-    padding: 2.5rem 1rem 1.5rem;
+    padding: 2.25rem 1.25rem 1.75rem 1.25rem;
+    border-radius: 18px;
   }
 
-  .back-button {
-    top: 12px;
-    left: 12px;
-    font-size: 0.85rem;
+  .auth-title {
+    font-size: 1.45rem;
   }
 
-  .input-row {
-    flex-direction: column;
+  .brand-logo {
+    height: 48px;
   }
 }
 </style>
