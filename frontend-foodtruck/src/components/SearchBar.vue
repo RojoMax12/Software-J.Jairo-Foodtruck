@@ -176,19 +176,17 @@ const displayCategories = computed(() => {
 const KNOWN_GRADIENTS: Record<string, string> = {
   'papas & chorrillanas': 'linear-gradient(135deg, #e43351 0%, #f65c52 50%, #f67c46 100%)',
   'vianesas': 'linear-gradient(135deg, #ff9100, #ff6d00)',
-  'ass': 'linear-gradient(135deg, #c0392b, #962d22)',
+  'as': 'linear-gradient(135deg, #c0392b, #962d22)',
   'churrascos': 'linear-gradient(135deg, #00b0ff, #0072ff)',
   'lomitos': 'linear-gradient(135deg, #8e44ad, #6c3483)',
   'hamburguesas': 'linear-gradient(135deg, #27ae60, #1e8449)',
   'pizzas': 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
   'fajitas': 'linear-gradient(135deg, #16a085, #117a65)',
-  'sándwich de pollo': 'linear-gradient(135deg, #2980b9, #1f618d)',
-  'suprema de pollo': 'linear-gradient(135deg, #d35400, #a04000)',
-  'handroll': 'linear-gradient(135deg, #06b6d4, #0891b2)',
+  'sándwiches de pollo': 'linear-gradient(135deg, #2980b9, #1f618d)',
+  'handrolls & arrollados': 'linear-gradient(135deg, #06b6d4, #0891b2)',
   'empanadas & sopaipillas': 'linear-gradient(135deg, #e67e22, #d35400)',
   'bebidas frías': 'linear-gradient(135deg, #ec4899 0%, #d80056 100%)',
   'bebidas calientes': 'linear-gradient(135deg, #e74c3c, #c0392b)',
-  'bebestibles & jugos': 'linear-gradient(135deg, #ec4899 0%, #d80056 100%)'
 };
 
 // Paleta dinámica para cualquier nueva categoría creada por API/Admin
@@ -209,25 +207,25 @@ const DYNAMIC_PALETTE = [
 
 const getCategoryGradient = (cat: any, idx: number): string => {
   const nameLow = String(cat.nombre_categoria || '').toLowerCase().trim();
-  if (KNOWN_GRADIENTS[nameLow]) {
-    return KNOWN_GRADIENTS[nameLow];
+  const known = KNOWN_GRADIENTS[nameLow];
+  if (known) {
+    return known;
   }
   const id = Number(cat.id ?? cat.id_categoria);
   if (!isNaN(id) && id > 0) {
-    return DYNAMIC_PALETTE[(id - 1) % DYNAMIC_PALETTE.length];
+    return DYNAMIC_PALETTE[(id - 1) % DYNAMIC_PALETTE.length] ?? DYNAMIC_PALETTE[0]!;
   }
-  return DYNAMIC_PALETTE[idx % DYNAMIC_PALETTE.length];
+  return DYNAMIC_PALETTE[idx % DYNAMIC_PALETTE.length] ?? DYNAMIC_PALETTE[0]!;
 };
 
 // Títulos amigables y legibles para los badges redondos
 const SHORT_NAMES: Record<string, string> = {
   'Papas & Chorrillanas': 'Papas',
   'Empanadas & Sopaipillas': 'Empanadas',
-  'Sándwich de Pollo': 'Pollo',
-  'Suprema de Pollo': 'Suprema',
+  'Sándwiches de Pollo': 'Pollo',
   'Bebidas frías': 'Bebidas Frías',
   'Bebidas calientes': 'Bebidas Calientes',
-  'Bebestibles & Jugos': 'Bebestibles'
+  'Handrolls & Arrollados': 'Handrolls'
 };
 
 const formatCategoryName = (name: string): string => {

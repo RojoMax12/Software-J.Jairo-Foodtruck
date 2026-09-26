@@ -48,11 +48,11 @@ class ProductImageSeeder extends Seeder
             'Vianesa Completo' => 'productos/02-vianesa-completo.jpg',
             'Vianesa Dinámica' => 'productos/03-vianesa-dinamica.jpg',
 
-            // ASS
-            'Ass Italiano' => 'productos/04-as-italiano.jpg',
-            'Ass Completo' => 'productos/05-as-completo.jpg',
-            'Ass Dinámico' => 'productos/06-as-dinamico.jpg',
-            'Ass Barros Luco' => 'productos/07-as-luco.jpg',
+            // AS
+            'As Italiano' => 'productos/04-as-italiano.jpg',
+            'As Completo' => 'productos/05-as-completo.jpg',
+            'As Dinámico' => 'productos/06-as-dinamico.jpg',
+            'As Barros Luco' => 'productos/07-as-luco.jpg',
 
             // CHURRASCOS
             'Churrasco Italiano' => 'productos/08-churrasco-italiano.jpg',
@@ -70,53 +70,66 @@ class ProductImageSeeder extends Seeder
             'Hamburguesa Casera' => 'productos/16-hamburguesa-casera.jpg',
 
             // PIZZAS
-            'Pizza Artesanal' => 'productos/17-pizza-artesanal.jpg',
+            'Pizza Familiar' => 'productos/17-pizza-familiar.jpg',
+            'Pizza Individual Napolitana' => 'productos/18-pizza-individual-napolitana.jpg',
+            'Pizza Individual Pepperoni' => 'productos/19-pizza-individual-pepperoni.jpg',
+            'Pizza Individual Salame' => 'productos/20-pizza-individual-salame.jpg',
 
             // FAJITAS
-            'Fajita' => 'productos/18-fajita.jpg',
+            'Fajita de pollo' => 'productos/21-fajita-de-pollo.jpg',
+            'Fajita de carne' => 'productos/22-fajita-de-carne.jpg',
+            'Fajita de lomito' => 'productos/23-fajita-de-lomito.jpg',
+            'Fajita mixta' => 'productos/24-fajita-mixta.jpg',
 
             // SÁNDWICH DE POLLO
-            'Sandwich de Pollo' => 'productos/19-sandwich-de-pollo.jpg',
+            'Sandwich de Pollo Italiano' => 'productos/25-sandwich-de-pollo-italiano.jpg',
+            'Sandwich de Pollo Chacarero' => 'productos/26-sandwich-de-pollo-chacarero.jpg',
+            'Suprema de pollo' => 'productos/27-suprema-de-pollo.jpg',
 
             // PAPAS & CHORRILLANAS
-            'Papas Fritas' => 'productos/20-papas-fritas.jpg',
-            'Salchipapas' => 'productos/21-salchipapas.jpg',
-            'Papas Supremas' => 'productos/22-papas-supremas.jpg',
-            'Chorrillana Tradicional' => 'productos/23-chorrillana.jpg',
+            'Papas Fritas' => 'productos/28-papas-fritas.jpg',
+            'Salchipapas' => 'productos/29-salchipapas.jpg',
+            'Papas Supremas' => 'productos/30-papas-supremas.jpg',
+            'Papas y Filetillo' => 'productos/31-papas-y-filetillos.jpg',
+            'Chorrillana Tradicional' => 'productos/32-chorrillana.jpg',
+
+            // HANDROLLS & ARROLLADOS
+            'Handroll Pollo' => 'productos/33-handroll-pollo.jpg',
+            'Arrollado de Jamón y Queso (Unidad)' => 'productos/34-arrollado-jamon-y-queso.jpg',
+            'Arrollado de Jamón y Queso (2x$1000)' => 'productos/34-arrollado-jamon-y-queso.jpg',
 
             // EMPANADAS & SOPAIPILLAS
-            'Sopaipilla' => 'productos/24-sopaipillas.jpg',
-            'Empanada Individual' => 'productos/25-empanada-individual.jpg',
-            'Empanadas Queso 4x$1.000' => 'productos/26-empanada-queso-4x1000.jpg',
-            'Empanadas Variadas 3x$1.000' => 'productos/27-empanadas-variadas-3x1000.jpg',
+            'Sopaipilla' => 'productos/35-sopaipillas.jpg',
+            'Empanada Pollo Mandarín' => 'productos/36-empanada-pollo-mandarin.jpg',
+            'Empanada Carne Mandarín' => 'productos/37-empanada-carne-mandarin.jpg',
+            'Empanadas Queso 4x$1.000' => 'productos/38-empanada-queso-4x1000.jpg',
+            'Empanadas Variadas 3x$1.000' => 'productos/39-empanadas-variadas-3x1000.jpg',
 
-            // BEBIDAS CALIENTES
-            'Té' => 'productos/28-te.jpg',
-            'Café' => 'productos/29-cafe.jpg',
-            'Café Express' => 'productos/30-cafe-espresso.jpg',
+            // BEBESTIBLES CALIENTES
+            'Té' => 'productos/40-te.jpg',
+            'Café' => 'productos/41-cafe.jpg',
+            'Café Espresso' => 'productos/42-cafe-espresso.jpg',
 
             // BEBIDAS FRÍAS
-            'Agua Mineral' => 'productos/31-agua-mineral.jpg',
-            'Bebida en Lata' => 'productos/32-bebida-en-lata.jpg',
-            'Bebida 1L' => 'productos/33-bebida-1l.jpg',
+            'Agua Mineral' => 'productos/43-agua-mineral.jpg',
+            'Bebida en Lata' => 'productos/44-bebida-en-lata.jpg',
+            'Bebida 1L' => 'productos/45-bebida-1l.jpg',
+            'Agua Más' => 'productos/46-agua-mas.jpg',
+            'Jugo Benedictino' => 'productos/47-jugo-benedictino.jpg',
+            'Jugo Del Valle' => 'productos/48-jugo-del-valle.jpg',
 
-            // BEBESTIBLES & JUGOS
-            'Agua Max' => 'productos/34-agua-mas.jpg',
-            'Jugo Benedictino' => 'productos/35-jugo-benedictino.jpg',
-            'Jugo Del Valle' => 'productos/36-jugo-del-valle.jpg',
-
-            // PROMOCIONES
-            '2 Churrascos Promo' => 'productos/37-2-churrascos-promo.jpg',
-            '2 Hamburguesas Simples Promo' => 'productos/38-2-hamburguesas-simples-promo.jpg',
-            '2 Hamburguesas Dobles Promo' => 'productos/39-2-hamburguesas-dobles-promo.jpg',
+            // PROMOS / COMBOS
+            '2 Churrascos Promo' => 'productos/49-2-churrascos-promo.jpg',
+            '2 Hamburguesas Simples Promo' => 'productos/50-2-hamburguesas-simples-promo.jpg',
+            '2 Hamburguesas Dobles Promo' => 'productos/51-2-hamburguesas-dobles-promo.jpg',
         ];
 
         // Punto focal opcional para imágenes recortadas con object-fit: cover.
         $imagePositions = [
             'Té' => '50% 60%',
             'Café' => '75% 30%',
-            'Café Express' => '75% 50%',
-            'Agua Max' => '50% 60%',
+            'Café Espresso' => '75% 50%',
+            'Agua Más' => '50% 60%',
             'Jugo Benedictino' => '50% 60%',
             'Jugo Del Valle' => '50% 60%',
         ];
@@ -124,14 +137,14 @@ class ProductImageSeeder extends Seeder
         // Escala opcional: 1.00 es el tamaño original, 1.15 equivale a 15% de zoom.
         $imageZooms = [
             'Té' => 1.00,
-            'Café Express' => 1.00,
+            'Café Espresso' => 1.00,
         ];
 
             $imageFits = [
                 'Té' => 'cover',
                 'Café' => 'cover',
-                'Café Express' => 'cover',
-                'Jugo del valle' => 'cover',
+                'Café Espresso' => 'cover',
+                'Jugo Del Valle' => 'cover',
             ];
 
         foreach (Producto::all() as $product) {
