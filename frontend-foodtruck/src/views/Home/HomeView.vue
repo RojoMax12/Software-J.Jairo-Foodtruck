@@ -239,7 +239,7 @@ const filteredProducts = computed(() => {
       // Coincidencia directa y limpia con la categoría del producto (desde la API)
       results = results.filter((item) => {
         const itemCat = String(item.category ?? '').trim().toLowerCase();
-        return itemCat === selected || itemCat.includes(selected);
+        return itemCat === selected;
       });
     }
   }
@@ -529,41 +529,45 @@ const fetchCatalogProducts = async () => {
 
     const KNOWN_CATEGORY_COLORS: Record<string, string> = {
       'Vianesas': '#E28743',
-      'Ass': '#C0392B',
+      'As': '#C0392B',
       'Churrascos': '#D35400',
       'Lomitos': '#8E44AD',
       'Hamburguesas': '#27AE60',
       'Pizzas': '#F39C12',
       'Fajitas': '#16A085',
-      'Sándwich de Pollo': '#2980B9',
-      'Suprema de Pollo': '#D35400',
+      'Sándwiches de Pollo': '#2980B9',
       'Papas & Chorrillanas': '#F1C40F',
-      'Handroll': '#06B6D4',
       'Empanadas & Sopaipillas': '#E67E22',
+      'Handrolls & Arrollados': '#06B6D4',
       'Bebidas frías': '#3498DB',
       'Bebidas calientes': '#E74C3C',
-      'Bebestibles & Jugos': '#3498DB'
+      'Promos / Combos': '#3498DB'
     };
 
     const resolveCategoryColor = (catName: string, catId?: number): string => {
-      if (KNOWN_CATEGORY_COLORS[catName]) return KNOWN_CATEGORY_COLORS[catName];
+      const knownColor = KNOWN_CATEGORY_COLORS[catName];
+      if (knownColor) return knownColor;
+
       const PALETTE = [
         '#E28743', '#C0392B', '#D35400', '#8E44AD', '#27AE60',
         '#F39C12', '#16A085', '#2980B9', '#F1C40F', '#E67E22',
         '#3498DB', '#E74C3C', '#06B6D4', '#8B5CF6', '#EC4899'
       ];
+
       if (catId && !isNaN(catId) && catId > 0) {
-        return PALETTE[(catId - 1) % PALETTE.length];
+        return PALETTE[(catId - 1) % PALETTE.length] ?? '#E28743';
       }
+
       let hash = 0;
       const str = String(catName || '');
       for (let i = 0; i < str.length; i++) {
         hash = str.charCodeAt(i) + ((hash << 5) - hash);
       }
-      return PALETTE[Math.abs(hash) % PALETTE.length];
+
+      return PALETTE[Math.abs(hash) % PALETTE.length] ?? '#E28743';
     };
 
-    const groupableCategories = ['Vianesas', 'Ass', 'Churrascos', 'Lomitos', 'Bebidas frías', 'Bebidas calientes', 'Empanadas & Sopaipillas'];
+    const groupableCategories = ['Vianesas', 'As', 'Churrascos', 'Lomitos', 'Bebidas frías', 'Bebidas calientes', 'Empanadas & Sopaipillas'];
     const groupedMap: Record<string, any> = {};
 
     const normalizeSizeName = (value: any) => String(value ?? '').trim();

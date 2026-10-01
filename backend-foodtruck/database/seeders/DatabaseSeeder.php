@@ -71,17 +71,16 @@ class DatabaseSeeder extends Seeder
         // 4. Categorías Reales
         $categorias = [
             ['nombre_categoria' => 'Vianesas', 'descripcion_categoria' => 'Completos y vianesas en pan tradicional o XXL'],
-            ['nombre_categoria' => 'Ass', 'descripcion_categoria' => 'Sánguches estilo Ass en pan de completo'],
+            ['nombre_categoria' => 'As', 'descripcion_categoria' => 'Sánguches estilo As en pan de completo'],
             ['nombre_categoria' => 'Churrascos', 'descripcion_categoria' => 'Sánguches con carne de churrasco de vacuno'],
             ['nombre_categoria' => 'Lomitos', 'descripcion_categoria' => 'Sánguches con sabroso lomito de cerdo'],
             ['nombre_categoria' => 'Hamburguesas', 'descripcion_categoria' => 'Hamburguesas caseras personalizables (incluyen 3 ingredientes)'],
             ['nombre_categoria' => 'Pizzas', 'descripcion_categoria' => 'Pizzas artesanales personalizables (incluyen 3 ingredientes)'],
             ['nombre_categoria' => 'Fajitas', 'descripcion_categoria' => 'Fajitas de pollo o carne personalizables (incluyen 3 ingredientes)'],
-            ['nombre_categoria' => 'Sándwich de Pollo', 'descripcion_categoria' => 'Sándwiches preparados con pechuga de pollo'],
-            ['nombre_categoria' => 'Suprema de Pollo', 'descripcion_categoria' => 'Suprema de pollo'],
+            ['nombre_categoria' => 'Sándwiches de Pollo', 'descripcion_categoria' => 'Sándwiches preparados con pechuga de pollo'],
             ['nombre_categoria' => 'Papas & Chorrillanas', 'descripcion_categoria' => 'Papas fritas, salchipapas, papas supremas y chorrillanas'],
-            ['nombre_categoria' => 'Handroll', 'descripcion_categoria' => 'Handrolls de pollo y carne'],
             ['nombre_categoria' => 'Empanadas & Sopaipillas', 'descripcion_categoria' => 'Sopaipillas y empanadas variadas'],
+            ['nombre_categoria' => 'Handrolls & Arrollados', 'descripcion_categoria' => 'Handrolls de pollo y carne'],
             ['nombre_categoria' => 'Bebidas frías', 'descripcion_categoria' => 'Gaseosas, jugos, aguas minerales y bebidas energéticas'],
             ['nombre_categoria' => 'Bebidas calientes', 'descripcion_categoria' => ' Cafés, té, hierbas e infusiones calientes'],
             ['nombre_categoria' => 'Promos / Combos', 'descripcion_categoria' => 'Promociones especiales y combos de la casa'],
@@ -107,9 +106,6 @@ class DatabaseSeeder extends Seeder
             'Pollo',
             'Carne',
             'Mixta',
-            '2x $1.000',
-            '3x $1.000',
-            '4x $1.000',
         ];
         foreach ($tamañosList as $nombreTamaño) {
             Tamaño::firstOrCreate(['nombre' => $nombreTamaño]);
@@ -273,10 +269,10 @@ class DatabaseSeeder extends Seeder
                 ],
             ],
             
-            // --- ASS ---
+            // --- AS ---
             [
-                'nombre' => 'Ass Italiano',
-                'categoria' => 'Ass',
+                'nombre' => 'As Italiano',
+                'categoria' => 'As',
                 'descripcion' => 'Carne trozada en pan de completo con tomate, palta y mayo',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -289,8 +285,8 @@ class DatabaseSeeder extends Seeder
                 ],
             ],
             [
-                'nombre' => 'Ass Completo',
-                'categoria' => 'Ass',
+                'nombre' => 'As Completo',
+                'categoria' => 'As',
                 'descripcion' => 'Carne trozada en pan de completo con tomate, salsa americana y mayo',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -303,8 +299,8 @@ class DatabaseSeeder extends Seeder
                 ],
             ],
             [
-                'nombre' => 'Ass Dinámico',
-                'categoria' => 'Ass',
+                'nombre' => 'As Dinámico',
+                'categoria' => 'As',
                 'descripcion' => 'Carne trozada en pan de completo con combinación especial dinámica',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -317,8 +313,8 @@ class DatabaseSeeder extends Seeder
                 ],
             ],
             [
-                'nombre' => 'Ass Barros Luco',
-                'categoria' => 'Ass',
+                'nombre' => 'As Barros Luco',
+                'categoria' => 'As',
                 'descripcion' => 'Carne trozada en pan de completo con abundante queso gauda derretido',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -466,7 +462,7 @@ class DatabaseSeeder extends Seeder
             ],
 
             [
-                'nombre' => 'Pizza Individual Pepperonni',
+                'nombre' => 'Pizza Individual Pepperoni',
                 'categoria' => 'Pizzas',
                 'descripcion' => 'Pizza recién horneada personalizable.',
                 'tipo_armado' => 'Estandar',
@@ -555,7 +551,7 @@ class DatabaseSeeder extends Seeder
             // --- SANDWICH DE POLLO ---
             [
                 'nombre' => 'Sandwich de Pollo Italiano',
-                'categoria' => 'Sándwich de Pollo',
+                'categoria' => 'Sándwiches de Pollo',
                 'descripcion' => 'Exquisito sándwich de pechuga de pollo preparado',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -565,20 +561,17 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'nombre' => 'Sandwich de Pollo Chacarero',
-                'categoria' => 'Sándwich de Pollo',
+                'categoria' => 'Sándwiches de Pollo',
                 'descripcion' => 'Exquisito sándwich de pechuga de pollo preparado estilo chacarero',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
                 'precios_por_tamaño' => ['Único' => 3700],
-                'ingredientes_defecto' => ['Pan Mediano', 'Carne', 'Tomate', 'Porotos verdes'],
+                'ingredientes_defecto' => ['Pan Mediano', 'Pollo', 'Tomate', 'Porotos verdes'],
             ],
-            
-            // --- SUPREMA DE POLLO ---
-
             [
                 'nombre' => 'Suprema de pollo',
-                'categoria' => 'Suprema de Pollo',
+                'categoria' => 'Sándwiches de Pollo',
                 'descripcion' => 'Pollo apanado. Incluye 3 ingredientes a elección ($500 ingrediente extra)',
                 'tipo_armado' => 'Personalizable',
                 'cantidad_incluida' => 3,
@@ -647,11 +640,11 @@ class DatabaseSeeder extends Seeder
                 'ingredientes_defecto' => ['Papas fritas', 'Carne', 'Longaniza', 'Vianesa', 'Cebolla', 'Huevo'],
             ],
 
-            // --- HANDROLL ---
+            // --- HANDROLL & ARROLLADOS ---
 
             [
                 'nombre' => 'Handroll Pollo',
-                'categoria' => 'Handroll',
+                'categoria' => 'Handrolls & Arrollados',
                 'descripcion' => 'Rico handroll de pollo',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
@@ -660,15 +653,26 @@ class DatabaseSeeder extends Seeder
                 'ingredientes_defecto' => ['Handroll'],
             ],
             [
-                'nombre' => 'Arrollado de Jamón y Queso',
-                'categoria' => 'Handroll',
+                'nombre' => 'Arrollado de Jamón y Queso (Unidad)',
+                'categoria' => 'Handrolls & Arrollados',
                 'descripcion' => 'Delicioso arrollado de jamón y queso',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Único' => 600, '2x 1000' => 1000],
+                'precios_por_tamaño' => ['Único' => 600],
                 'ingredientes_defecto' => ['Arrollado'],
             ],
+            [
+                'nombre' => 'Arrollado de Jamón y Queso (2x$1000)',
+                'categoria' => 'Handrolls & Arrollados',
+                'descripcion' => 'Promo de 2 arrollados de jamón y queso',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 1000],
+                'ingredientes_defecto' => ['Arrollado'],
+            ],
+
 
             // --- EMPANADAS & SOPAIPILLAS ---
             [
@@ -702,25 +706,25 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'nombre' => 'Empanadas Queso 4x$1.000',
-                'categoria' => 'Promos / Combos',
+                'categoria' => 'Empanadas & Sopaipillas',
                 'descripcion' => 'Promoción de 4 empanadas de queso',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['4x $1.000' => 1000],
+                'precios_por_tamaño' => ['Único' => 1000],
                 'ingredientes_defecto' => ['Queso gauda'],
             ],
             [
                 'nombre' => 'Empanadas Variadas 3x$1.000',
-                'categoria' => 'Promos / Combos',
+                'categoria' => 'Empanadas & Sopaipillas',
                 'descripcion' => 'Promoción de 3 empanadas variadas (Queso aceituna, Jamón queso, Queso champiñón, Napolitana)',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['3x $1.000' => 1000],
+                'precios_por_tamaño' => ['Único' => 1000],
             ],
 
-            // --- BEBESTIBLES & JUGOS ---
+            // --- BEBIDAS CALIENTES ---
             [
                 'nombre' => 'Té',
                 'categoria' => 'Bebidas calientes',
@@ -740,7 +744,7 @@ class DatabaseSeeder extends Seeder
                 'precios_por_tamaño' => ['Único' => 600],
             ],
             [
-                'nombre' => 'Café Express',
+                'nombre' => 'Café Espresso',
                 'categoria' => 'Bebidas calientes',
                 'descripcion' => 'Café expreso concentrado',
                 'tipo_armado' => 'Estandar',
@@ -748,6 +752,8 @@ class DatabaseSeeder extends Seeder
                 'precio_ingrediente_extra' => 0,
                 'precios_por_tamaño' => ['Único' => 800],
             ],
+
+            // --- BEBIDAS FRÍAS ---
             [
                 'nombre' => 'Agua Mineral',
                 'categoria' => 'Bebidas frías',
@@ -776,7 +782,7 @@ class DatabaseSeeder extends Seeder
                 'precios_por_tamaño' => ['Único' => 1500],
             ],
             [
-                'nombre' => 'Agua Max',
+                'nombre' => 'Agua Más',
                 'categoria' => 'Bebidas frías',
                 'descripcion' => 'Agua saborizada Max 1.5L',
                 'tipo_armado' => 'Estandar',
