@@ -1,6 +1,9 @@
 <template>
-  <div class="offer-card">
-    <div class="offer-badge">
+  <div class="offer-card" :class="{ 'is-out-of-stock': isAvailable === false }">
+    <div v-if="isAvailable === false" class="card-out-of-stock-badge">
+      Agotado
+    </div>
+    <div v-else class="offer-badge">
       <span v-if="promoBadgeText && promoBadgeText !== 'Promoción' && promoBadgeText !== 'Oferta'">
         {{ promoBadgeText }} <template v-if="discountPercent">(-{{ discountPercent }}%)</template>
       </span>
@@ -9,7 +12,7 @@
     </div>
 
     <div class="card-image">
-      <img :src="image" :alt="name" :style="imageStyle" />
+      <img :src="image" :alt="name" :style="imageStyle" loading="lazy" decoding="async" />
     </div>
 
     <div class="card-content">
@@ -27,8 +30,12 @@
         </h4>
       </div>
 
-      <button class="details-btn" @click="$emit('view-details')">
-        Ver oferta
+      <button 
+        class="details-btn" 
+        :disabled="isAvailable === false" 
+        @click="isAvailable !== false && $emit('view-details')"
+      >
+        {{ isAvailable === false ? 'Agotado' : 'Ver oferta' }}
       </button>
     </div>
   </div>
@@ -49,6 +56,7 @@ const props = withDefaults(defineProps<{
   promoBadgeText?: string;
   discountPercent?: number;
   displayHint?: string;
+  isAvailable?: boolean;
 }>(), {
   price: 'Sin precio',
   displayPrice: undefined,
@@ -59,6 +67,7 @@ const props = withDefaults(defineProps<{
   imagePosition: '50% 50%',
   imageZoom: 1,
   imageFit: 'cover',
+  isAvailable: true,
 });
 
 const imageStyle = computed(() => ({
@@ -87,6 +96,32 @@ defineEmits(['view-details']);
 .offer-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 18px rgba(152, 76, 5, 0.18);
+}
+
+.offer-card.is-out-of-stock {
+  filter: grayscale(0.45);
+  opacity: 0.85;
+}
+
+.offer-card.is-out-of-stock:hover {
+  transform: none;
+  box-shadow: 0 4px 12px rgba(152, 76, 5, 0.12);
+}
+
+.card-out-of-stock-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  background: #c0392b;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .offer-badge {

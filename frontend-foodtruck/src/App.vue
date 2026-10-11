@@ -9,7 +9,20 @@
   </template>
 
   <GlobalLoader />
-  <router-view v-if="!globalLoading"/>
+  
+  <!-- BANNER DE CONEXIÓN OFFLINE / RECONECTADO -->
+  <Transition name="network-banner">
+    <div v-if="isOffline" class="network-banner banner-offline" role="alert">
+      <WifiOff :size="16" class="banner-icon" />
+      <span>Sin conexión a internet. Mostrando carta guardada...</span>
+    </div>
+    <div v-else-if="showReconnected" class="network-banner banner-online" role="alert">
+      <Wifi :size="16" class="banner-icon" />
+      <span>¡Conexión restablecida con éxito!</span>
+    </div>
+  </Transition>
+
+  <router-view />
 
   <div class="notification-container" aria-live="polite">
     <TransitionGroup name="toast">
@@ -36,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import AnnouncementBar from './components/AnnouncementBar.vue';
 import Navbar from './components/Navbar.vue';
@@ -45,12 +58,40 @@ import AdminSideMenu from './components/GeneralSideMenu.vue';
 import GlobalLoader from './components/LoadingScreen.vue';
 import { useNotification } from '@/composables/useNotification';
 import { globalLoading } from '@/composables/useLoading';
-import { CheckCircle2, AlertTriangle, XCircle, X } from 'lucide-vue-next';
+import { CheckCircle2, AlertTriangle, XCircle, X, Wifi, WifiOff } from 'lucide-vue-next';
 
 const route = useRoute();
 const { notifications, dismissNotification } = useNotification();
 
 const isAdminSidebarOpen = ref(false);
+const isOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false);
+const showReconnected = ref(false);
+let reconnectedTimer: any = null;
+
+const handleOnline = () => {
+  isOffline.value = false;
+  showReconnected.value = true;
+  if (reconnectedTimer) clearTimeout(reconnectedTimer);
+  reconnectedTimer = setTimeout(() => {
+    showReconnected.value = false;
+  }, 3500);
+};
+
+const handleOffline = () => {
+  isOffline.value = true;
+  showReconnected.value = false;
+};
+
+onMounted(() => {
+  window.addEventListener('online', handleOnline);
+  window.addEventListener('offline', handleOffline);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('online', handleOnline);
+  window.removeEventListener('offline', handleOffline);
+  if (reconnectedTimer) clearTimeout(reconnectedTimer);
+});
 
 const toggleAdminSidebar = () => {
   isAdminSidebarOpen.value = !isAdminSidebarOpen.value;
@@ -182,5 +223,46 @@ const getToastTitle = (type: string) => {
 .toast-leave-to {
   opacity: 0;
   transform: translateX(60px) scale(0.95);
+}
+
+/* ========================================================
+   🌐 NETWORK STATUS BANNER (OFFLINE / ONLINE)
+======================================================== */
+.network-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.banner-offline {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #ffffff;
+}
+
+.banner-online {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+}
+
+.network-banner-enter-active,
+.network-banner-leave-active {
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.network-banner-enter-from,
+.network-banner-leave-to {
+  transform: translateY(-100%);
+  opacity: 0;
 }
 </style>

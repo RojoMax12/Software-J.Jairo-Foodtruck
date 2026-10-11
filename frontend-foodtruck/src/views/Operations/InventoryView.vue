@@ -883,13 +883,21 @@ const getMovementConcept = (mov: StockMovement) => {
   return 'Ingreso / Ajuste manual de stock';
 };
 
+const inventoryItemsByIdMap = computed(() => {
+  const map = new Map<number, InventoryItem>();
+  for (const item of inventoryItems.value) {
+    map.set(Number(item.id), item);
+  }
+  return map;
+});
+
 const getIngredientNameById = (id: number) => {
-  const found = inventoryItems.value.find(i => Number(i.id) === Number(id));
+  const found = inventoryItemsByIdMap.value.get(Number(id));
   return found?.productName || `Insumo #${id}`;
 };
 
 const getIngredientFormatById = (id: number) => {
-  const found = inventoryItems.value.find(i => Number(i.id) === Number(id));
+  const found = inventoryItemsByIdMap.value.get(Number(id));
   return found?.formatName || 'unid';
 };
 

@@ -22,17 +22,26 @@
               type="text" 
               placeholder="Ej: 1, 5, 36..." 
               class="tracker-input" 
-              @keyup.enter="handleSearch"
+              @keyup.enter="handleSearch(false)"
             />
           </div>
           <button 
+            type="button"
             class="btn-track-submit" 
-            @click="handleSearch" 
+            @click="handleSearch(false)" 
             :disabled="isLoading"
           >
             <Search v-if="!isLoading" :size="16" />
             <RefreshCw v-else :size="16" class="spinning" />
             <span>{{ isLoading ? 'Buscando...' : 'Rastrear' }}</span>
+          </button>
+        </div>
+
+        <!-- ACCESO RÁPIDO A ÚLTIMO PEDIDO -->
+        <div v-if="recentOrderId && !orderResult" class="recent-order-pill">
+          <span>Tu último pedido: <strong>#{{ recentOrderId }}</strong></span>
+          <button type="button" class="btn-quick-recent" @click="searchRecentOrder">
+            Rastrear ahora
           </button>
         </div>
 
@@ -58,6 +67,15 @@
       <!-- TARJETA TICKET DE RESULTADO -->
       <Transition name="slide-up">
         <section v-if="orderResult" class="tracker-ticket-card">
+          
+          <!-- ALERTA DE PEDIDO LISTO PARA RETIRO -->
+          <div v-if="orderResult.currentStatus === 'listo'" class="ready-celebration-banner">
+            <span class="celebration-icon">🎉</span>
+            <div class="celebration-text">
+              <strong>¡Tu pedido está listo para retirar!</strong>
+              <span>Acércate a la ventanilla con tu comanda #{{ orderResult.numero_pedido_dia || orderResult.id }}.</span>
+            </div>
+          </div>
           
           <!-- Encabezado del Ticket -->
           <div class="ticket-header">
@@ -149,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { 
   Clock, ChefHat, CheckCircle, PackageCheck, UtensilsCrossed, 
@@ -160,9 +178,46 @@ import orderService from '@/services/orderService';
 const router = useRouter();
 const route = useRoute();
 const orderId = ref('');
+const recentOrderId = ref('');
 const isLoading = ref(false);
 const errorMessage = ref('');
 const orderResult = ref<any>(null);
+
+let pollingTimer: any = null;
+let lastKnownStatus = '';
+
+const playReadyChime = () => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+    const notes = [523.25, 659.25, 783.99, 1046.50]; // Arpegio alegre C5 -> E5 -> G5 -> C6
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.13);
+      gain.gain.setValueAtTime(0, ctx.currentTime + idx * 0.13);
+      gain.gain.linearRampToValueAtTime(0.28, ctx.currentTime + idx * 0.13 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.13 + 0.42);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + idx * 0.13);
+      osc.stop(ctx.currentTime + idx * 0.13 + 0.44);
+    });
+  } catch (e) {
+    console.debug('Error al reproducir timbre de pedido listo:', e);
+  }
+};
+
+const triggerHaptic = (pattern: number | number[]) => {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    try { navigator.vibrate(pattern); } catch {}
+  }
+};
 
 onMounted(() => {
   const queryId = route.query.id;
@@ -171,9 +226,30 @@ onMounted(() => {
     if (rawVal) {
       orderId.value = rawVal;
       handleSearch();
+      handleSearch(false);
     }
+  } else {
+    try {
+      const saved = localStorage.getItem('foodtruck_last_order_id');
+      if (saved) {
+        recentOrderId.value = saved;
+      }
+    } catch {}
   }
 });
+
+onUnmounted(() => {
+  if (pollingTimer) {
+    clearInterval(pollingTimer);
+    pollingTimer = null;
+  }
+});
+
+const searchRecentOrder = () => {
+  if (!recentOrderId.value) return;
+  orderId.value = recentOrderId.value;
+  handleSearch(false);
+};
 
 const timelineSteps = [
   { id: 'en_cola', label: 'En Cola', icon: Clock },
@@ -195,18 +271,32 @@ const isStepActive = (stepId: string) => {
   return orderResult.value.currentStatus === stepId;
 };
 
-const handleSearch = async () => {
-  errorMessage.value = '';
-  orderResult.value = null;
+const startPolling = () => {
+  if (pollingTimer) return;
+  pollingTimer = setInterval(() => {
+    if (orderId.value && orderResult.value && orderResult.value.currentStatus !== 'entregado') {
+      handleSearch(true);
+    } else if (pollingTimer) {
+      clearInterval(pollingTimer);
+      pollingTimer = null;
+    }
+  }, 8000);
+};
+
+const handleSearch = async (isSilent: boolean = false) => {
+  if (!isSilent) {
+    errorMessage.value = '';
+    orderResult.value = null;
+  }
 
   const rawInput = orderId.value.trim();
   if (!rawInput) {
-    errorMessage.value = 'Ingresa el número de tu comanda (ej: #1 o #4).';
+    if (!isSilent) errorMessage.value = 'Ingresa el número de tu comanda (ej: #1 o #4).';
     return;
   }
 
   const cleanQuery = rawInput.replace(/^#/, '');
-  isLoading.value = true;
+  if (!isSilent) isLoading.value = true;
 
   try {
     let data: any = null;
@@ -219,16 +309,22 @@ const handleSearch = async () => {
         const responseId = await orderService.getPublicOrderById(cleanQuery);
         data = responseId?.data?.data || responseId?.data;
       } catch (errId: any) {
-        const serverMsg = errComanda?.response?.data?.message || errId?.response?.data?.message;
-        errorMessage.value = serverMsg || `No encontramos el pedido #${cleanQuery} en el turno actual.`;
+        if (!isSilent) {
+          const serverMsg = errComanda?.response?.data?.message || errId?.response?.data?.message;
+          errorMessage.value = serverMsg || `No encontramos el pedido #${cleanQuery} en el turno actual.`;
+        }
         return;
       }
     }
 
     if (!data) {
-      errorMessage.value = `No encontramos el pedido #${cleanQuery} en el turno actual.`;
+      if (!isSilent) errorMessage.value = `No encontramos el pedido #${cleanQuery} en el turno actual.`;
       return;
     }
+
+    try {
+      localStorage.setItem('foodtruck_last_order_id', cleanQuery);
+    } catch {}
 
     const statusId = Number(data.id_estado_pedido || data.estado_id || 1);
 
@@ -238,6 +334,15 @@ const handleSearch = async () => {
       3: 'listo',
       4: 'entregado'
     };
+
+    const currentStep = statusStepMap[statusId] || 'en_cola';
+
+    // Alerta sonora y háptica cuando pasa a LISTO
+    if (lastKnownStatus && lastKnownStatus !== 'listo' && currentStep === 'listo') {
+      playReadyChime();
+      triggerHaptic([250, 100, 250, 100, 400]);
+    }
+    lastKnownStatus = currentStep;
 
     const statusName = data.estado_pedido?.nombre || (
       statusId === 1 ? 'Pendiente' :
@@ -279,16 +384,25 @@ const handleSearch = async () => {
       customerName: data.nombre_persona || 'Cliente',
       customerPhone: data.numero_telefono || 'Sin teléfono',
       customerMetododepago: data.metodo_pago || 'Efectivo',
-      currentStatus: statusStepMap[statusId] || 'en_cola',
+      currentStatus: currentStep,
       statusLabel: statusName,
       items: itemsMapped
     };
+
+    if (currentStep !== 'entregado') {
+      startPolling();
+    } else if (pollingTimer) {
+      clearInterval(pollingTimer);
+      pollingTimer = null;
+    }
   } catch (error: any) {
-    console.error('Error al buscar pedido:', error);
-    const serverMsg = error?.response?.data?.message;
-    errorMessage.value = serverMsg || `No encontramos el pedido #${cleanQuery} en el turno actual.`;
+    if (!isSilent) {
+      console.error('Error al buscar pedido:', error);
+      const serverMsg = error?.response?.data?.message;
+      errorMessage.value = serverMsg || `No encontramos el pedido #${cleanQuery} en el turno actual.`;
+    }
   } finally {
-    isLoading.value = false;
+    if (!isSilent) isLoading.value = false;
   }
 };
 </script>
@@ -433,6 +547,79 @@ const handleSearch = async () => {
 .btn-track-submit:disabled {
   opacity: 0.65;
   cursor: not-allowed;
+}
+
+.recent-order-pill {
+  margin-top: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: #fff7ed;
+  border: 1px solid #ffedd5;
+  font-size: 0.8rem;
+  color: #9a3412;
+}
+
+.btn-quick-recent {
+  background: #ea580c;
+  color: white;
+  border: none;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-quick-recent:hover {
+  background: #c2410c;
+  transform: translateY(-1px);
+}
+
+.ready-celebration-banner {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  padding: 1rem 1.25rem;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.25);
+  animation: pulse-border 2s infinite;
+}
+
+@keyframes pulse-border {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+  70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.celebration-icon {
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+.celebration-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.celebration-text strong {
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+.celebration-text span {
+  font-size: 0.82rem;
+  opacity: 0.95;
+  font-weight: 600;
 }
 
 .hero-footer-row {

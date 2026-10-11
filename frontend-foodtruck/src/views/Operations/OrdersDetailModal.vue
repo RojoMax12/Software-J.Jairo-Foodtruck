@@ -33,10 +33,6 @@
               <User :size="16" class="meta-icon" />
               <strong>{{ distributor || rawOrder?.nombre_persona || 'Cliente' }}</strong>
             </div>
-            <a v-if="whatsappUrl" :href="whatsappUrl" target="_blank" rel="noopener noreferrer" class="btn-whatsapp" title="Enviar WhatsApp al cliente">
-              <MessageCircle :size="15" />
-              <span>WhatsApp</span>
-            </a>
           </div>
 
           <div class="client-row">
@@ -344,6 +340,17 @@
           <strong class="footer-total-val">${{ formatNumber(totalAmount) }}</strong>
         </div>
         <div class="footer-actions">
+          <a 
+            v-if="whatsappUrl" 
+            :href="whatsappUrl" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            class="btn-footer-wa" 
+            title="Avisar por WhatsApp al cliente"
+          >
+            <MessageCircle :size="16" />
+            <span>Avisar WhatsApp</span>
+          </a>
           <button type="button" class="btn-print" @click="printOrder" title="Imprimir comanda">
             <Printer :size="17" />
             <span>Imprimir</span>
@@ -2375,6 +2382,27 @@ const printOrder = () => {
   font-size: 1.25rem;
   font-weight: 900;
   color: var(--DC-orange, #e28743);
+}
+
+.btn-footer-wa {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.65rem 1.15rem;
+  border-radius: 10px;
+  background-color: #25d366;
+  color: #ffffff;
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-footer-wa:hover {
+  background-color: #1ea952;
+  transform: translateY(-1px);
+  color: #ffffff;
 }
 
 .btn-print {

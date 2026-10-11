@@ -77,7 +77,7 @@
             class="tv-product-card"
           >
             <div class="card-img-wrap">
-              <img :src="item.image" :alt="item.name" class="product-img" loading="lazy" />
+              <img :src="item.image" :alt="item.name" class="product-img" loading="lazy" decoding="async" />
               <span v-if="item.isOffer" class="badge-offer">¡PROMO!</span>
             </div>
 
@@ -116,7 +116,7 @@
           class="banner-slide-layout"
         >
           <div class="banner-full-wrap">
-            <img :src="currentSlide.banner.image" :alt="currentSlide.banner.title || 'Promoción Especial'" class="banner-big-img" />
+            <img :src="currentSlide.banner.image" :alt="currentSlide.banner.title || 'Promoción Especial'" class="banner-big-img" loading="lazy" decoding="async" />
             <div v-if="currentSlide.banner.title || currentSlide.banner.subtitle" class="banner-overlay-text">
               <h2 v-if="currentSlide.banner.title">{{ currentSlide.banner.title }}</h2>
               <p v-if="currentSlide.banner.subtitle">{{ currentSlide.banner.subtitle }}</p>

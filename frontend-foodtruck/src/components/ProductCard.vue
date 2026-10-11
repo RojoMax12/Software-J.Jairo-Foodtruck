@@ -1,6 +1,9 @@
 <template>
-  <div class="card">
-    <div v-if="hasPromotion" class="card-promo-badge">
+  <div class="card" :class="{ 'is-out-of-stock': isAvailable === false }">
+    <div v-if="isAvailable === false" class="card-out-of-stock-badge">
+      Agotado
+    </div>
+    <div v-else-if="hasPromotion" class="card-promo-badge">
       <span v-if="promoBadgeText && promoBadgeText !== 'Promoción' && promoBadgeText !== 'Oferta'">
         {{ promoBadgeText }} <template v-if="discountPercent">(-{{ discountPercent }}%)</template>
       </span>
@@ -9,7 +12,7 @@
     </div>
 
     <div class="card-image">
-      <img :src="image" :alt="name" :style="imageStyle" />
+      <img :src="image" :alt="name" :style="imageStyle" loading="lazy" decoding="async" />
     </div>
 
     <div class="card-content">
@@ -27,8 +30,12 @@
         </h4>
       </div>
 
-      <button class="details-btn" @click="$emit('view-details')">
-        Ver detalles
+      <button 
+        class="details-btn" 
+        :disabled="isAvailable === false" 
+        @click="isAvailable !== false && $emit('view-details')"
+      >
+        {{ isAvailable === false ? 'Agotado' : 'Ver detalles' }}
       </button>
     </div>
   </div>
@@ -52,6 +59,7 @@ const props = withDefaults(defineProps<{
   promoBadgeText?: string;
   discountPercent?: number;
   displayHint?: string;
+  isAvailable?: boolean;
 }>(), {
   price: 'Sin precio',
   displayPrice: undefined,
@@ -63,6 +71,7 @@ const props = withDefaults(defineProps<{
   imagePosition: '50% 50%',
   imageZoom: 1,
   imageFit: 'cover',
+  isAvailable: true,
 });
 
 const imageStyle = computed(() => ({
@@ -90,6 +99,32 @@ defineEmits(['view-details']);
 .card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card.is-out-of-stock {
+  filter: grayscale(0.45);
+  opacity: 0.85;
+}
+
+.card.is-out-of-stock:hover {
+  transform: none;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.card-out-of-stock-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  background: #c0392b;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .card-promo-badge {

@@ -8,6 +8,18 @@
 
       <div class="header-actions">
         <button 
+          type="button"
+          class="btn-secondary" 
+          :class="{ 'btn-sound-active': isSoundEnabled }" 
+          @click="toggleSound"
+          :title="isSoundEnabled ? 'Sonido activado al recibir comandas' : 'Sonido silenciado'"
+        >
+          <Volume2 v-if="isSoundEnabled" :size="16" />
+          <VolumeX v-else :size="16" />
+          <span>{{ isSoundEnabled ? 'Audio On' : 'Audio Off' }}</span>
+        </button>
+
+        <button 
           class="btn-secondary" 
           :class="{ 'btn-live-active': autoRefresh }" 
           @click="autoRefresh = !autoRefresh"
@@ -126,7 +138,7 @@
         @click="selectStatus('Pendiente')"
       >
         <span class="tab-text">Pendientes</span>
-        <span class="tab-pill">{{ countByStatus(1) }}</span>
+        <span class="tab-pill">{{ statusCounts[1] || 0 }}</span>
       </button>
 
       <button 
@@ -136,7 +148,7 @@
         @click="selectStatus('En preparación')"
       >
         <span class="tab-text">En Preparación</span>
-        <span class="tab-pill">{{ countByStatus(2) }}</span>
+        <span class="tab-pill">{{ statusCounts[2] || 0 }}</span>
       </button>
 
       <button 
@@ -146,7 +158,7 @@
         @click="selectStatus('Listo')"
       >
         <span class="tab-text">Listos</span>
-        <span class="tab-pill">{{ countByStatus(3) }}</span>
+        <span class="tab-pill">{{ statusCounts[3] || 0 }}</span>
       </button>
 
       <button 
@@ -156,7 +168,7 @@
         @click="selectStatus('Entregado')"
       >
         <span class="tab-text">Entregados</span>
-        <span class="tab-pill">{{ countByStatus(4) }}</span>
+        <span class="tab-pill">{{ statusCounts[4] || 0 }}</span>
       </button>
 
       <button 
@@ -166,7 +178,7 @@
         @click="selectStatus('Cancelado')"
       >
         <span class="tab-text">Cancelados</span>
-        <span class="tab-pill">{{ countByStatus(5) }}</span>
+        <span class="tab-pill">{{ statusCounts[5] || 0 }}</span>
       </button>
     </div>
 
@@ -491,7 +503,7 @@ import {
   ClipboardCheck, Package, Truck, CheckCircle, Search,
   Calendar as CalendarIcon, Eye, ChevronsUpDown,
   RefreshCw, Clock, ArrowRight, ChevronLeft, ChevronRight, User, Phone,
-  Zap, History, TrendingUp, DollarSign, X
+  Zap, History, TrendingUp, DollarSign, X, Volume2, VolumeX
 } from 'lucide-vue-next';
 import orderService from '@/services/orderService';
 import { type ShiftWindow, fetchShiftWindowFromBackend } from '@/services/cashFlowService';
@@ -503,6 +515,48 @@ const autoRefresh = ref(true);
 const secondsCountdown = ref(20);
 const refreshInterval = ref<any>(null);
 const countdownTimer = ref<any>(null);
+
+const isSoundEnabled = ref(localStorage.getItem('kds_sound_enabled') !== 'false');
+
+const playOrderNotificationSound = () => {
+  if (!isSoundEnabled.value) return;
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+
+    const playTone = (freq: number, start: number, dur: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.25, start + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(start);
+      osc.stop(start + dur);
+    };
+
+    const now = ctx.currentTime;
+    playTone(587.33, now, 0.35); // D5
+    playTone(880.00, now + 0.15, 0.5); // A5
+  } catch (e) {
+    console.warn('Alerta sonora de cocina no disponible:', e);
+  }
+};
+
+const toggleSound = () => {
+  isSoundEnabled.value = !isSoundEnabled.value;
+  localStorage.setItem('kds_sound_enabled', String(isSoundEnabled.value));
+  if (isSoundEnabled.value) {
+    playOrderNotificationSound();
+  }
+};
 
 const userRole = ref<number | null>(null);
 const shiftWindow = ref<ShiftWindow | null>(null);
@@ -536,11 +590,30 @@ const advanceOrderStatus = async (order: any) => {
   const nextId = nextStatusMap[Number(order.rawStatusId)];
   if (!nextId) return;
 
+  const STATUS_NAMES: Record<number, string> = {
+    1: 'Pendiente',
+    2: 'En preparación',
+    3: 'Listo',
+    4: 'Entregado',
+    5: 'Cancelado'
+  };
+
+  const prevStatusId = order.rawStatusId;
+  const prevStatusName = order.status;
+
+  // Actualización optimista inmediata en la UI (0ms de latencia percibida)
+  order.rawStatusId = nextId;
+  order.status = STATUS_NAMES[nextId] || `Estado #${nextId}`;
+
   try {
     await orderService.updateOrder(order.real_id, { id_estado_pedido: nextId });
+    // Sincronización transparente en segundo plano
     await fetchOrders(true);
   } catch (err) {
     console.error('Error al avanzar estado de pedido:', err);
+    // Revertir cambio local si falla la petición en el servidor
+    order.rawStatusId = prevStatusId;
+    order.status = prevStatusName;
   }
 };
 
@@ -634,6 +707,15 @@ const fetchOrders = async (silent: boolean | unknown = false) => {
     const res = await orderService.getOrders();
     const rawOrders = res.data || [];
 
+    // Alerta sonora en KDS cuando ingresa una nueva comanda pendiente
+    if (orders.value.length > 0) {
+      const existingIds = new Set(orders.value.map((o: any) => o.real_id));
+      const hasNewPending = rawOrders.some((o: any) => !existingIds.has(o.id_pedido) && Number(o.id_estado_pedido || 1) === 1);
+      if (hasNewPending) {
+        playOrderNotificationSound();
+      }
+    }
+
     const DEFAULT_NAMES: Record<number, string> = {
       1: 'Pendiente',
       2: 'En preparación',
@@ -719,9 +801,19 @@ const filteredByShiftOrders = computed(() => {
 
 const shiftOrdersCount = computed(() => filteredByShiftOrders.value.length);
 
-const countByStatus = (statusId: number) => {
-  return filteredByShiftOrders.value.filter((o: any) => Number(o.rawStatusId) === Number(statusId)).length;
-};
+const statusCounts = computed(() => {
+  const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  const currentOrders = filteredByShiftOrders.value;
+  for (let i = 0; i < currentOrders.length; i++) {
+    const sId = Number(currentOrders[i].rawStatusId);
+    if (counts[sId] !== undefined) {
+      counts[sId]++;
+    }
+  }
+  return counts;
+});
+
+const countByStatus = (statusId: number) => statusCounts.value[statusId] || 0;
 
 const searchQuery = ref('');
 const statusFilter = ref('all');
@@ -965,6 +1057,12 @@ onUnmounted(() => {
   background: #f0fdf4;
   border-color: #86efac;
   color: #15803d;
+}
+
+.btn-secondary.btn-sound-active {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #b45309;
 }
 
 .btn-primary {

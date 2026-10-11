@@ -41,8 +41,8 @@
                 </div>
               </div>
 
-              <!-- 2. Variedad / Producto de la Categoría -->
-              <div v-if="activeTypes && activeTypes.length > 0" class="config-section">
+              <!-- 2. Variedad / Producto de la Categoría (solo si el producto tiene múltiples variedades) -->
+              <div v-if="activeTypes && activeTypes.length > 1" class="config-section">
                 <p class="section-subtitle">{{ product.sizes?.length > 1 ? '2.' : '1.' }} Variedad / Producto:</p>
                 <div class="types-list">
                   <div 
@@ -168,6 +168,29 @@
                 </div>
               </div>
 
+              <!-- 5. Notas o Preferencias para Cocina (Opcional) -->
+              <div class="config-section notes-section">
+                <div class="notes-header">
+                  <p class="section-subtitle">
+                    <MessageSquare :size="15" class="notes-icon" />
+                    <span>Instrucciones / Notas para cocina (Opcional):</span>
+                  </p>
+                </div>
+                <div class="notes-input-wrapper">
+                  <textarea
+                    v-model="customerNotes"
+                    class="kitchen-notes-input"
+                    rows="2"
+                    maxlength="200"
+                    :placeholder="notesPlaceholder"
+                  ></textarea>
+                  <div class="notes-meta-row">
+                    <span class="notes-helper-tip">{{ notesHelperTip }}</span>
+                    <span class="notes-counter">{{ customerNotes.length }}/200</span>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
             <!-- Footer con Selector de Cantidad y Botón de Añadir -->
@@ -213,10 +236,16 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { X, Plus, Minus } from 'lucide-vue-next';
+import { X, Plus, Minus, MessageSquare } from 'lucide-vue-next';
 import { useNotification } from '@/composables/useNotification';
 
 const { notify } = useNotification();
+
+const triggerHaptic = (duration = 10) => {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    try { navigator.vibrate(duration); } catch {}
+  }
+};
 
 const props = withDefaults(defineProps<{
   isOpen: boolean;
@@ -232,6 +261,7 @@ const selectedSize = ref('');
 const selectedType = ref<any>(null);
 const excludedIngredients = ref<string[]>([]);
 const addedExtraIngredients = ref<string[]>([]);
+const customerNotes = ref('');
 const quantity = ref(1);
 
 const selectedProductImage = computed(() => {
@@ -303,6 +333,7 @@ const resetModalState = () => {
   quantity.value = 1;
   excludedIngredients.value = [];
   addedExtraIngredients.value = [];
+  customerNotes.value = '';
   if (props.product && props.product.types) {
     const firstAvailable = props.product.types.find((t: any) => isTypeAvailable(t));
     const fallbackSize = firstAvailable
@@ -342,6 +373,7 @@ const selectType = (tipo: any) => {
   selectedType.value = tipo;
   excludedIngredients.value = [];
   addedExtraIngredients.value = [];
+  customerNotes.value = '';
 };
 
 const isIngredientAvailable = (pi: any) => {
@@ -356,6 +388,7 @@ const toggleIngredient = (piOrName: any) => {
   if (typeof piOrName === 'object' && !isIngredientAvailable(piOrName)) return;
   const nombre = typeof piOrName === 'object' ? piOrName.ingrediente?.nombre : piOrName;
   if (!nombre) return;
+  triggerHaptic(10);
   const index = excludedIngredients.value.indexOf(nombre);
   if (index > -1) {
     excludedIngredients.value.splice(index, 1);
@@ -368,6 +401,7 @@ const toggleExtraIngredient = (piOrName: any) => {
   if (typeof piOrName === 'object' && !isIngredientAvailable(piOrName)) return;
   const nombre = typeof piOrName === 'object' ? piOrName.ingrediente?.nombre : piOrName;
   if (!nombre) return;
+  triggerHaptic(10);
   const index = addedExtraIngredients.value.indexOf(nombre);
   if (index > -1) {
     addedExtraIngredients.value.splice(index, 1);
@@ -443,8 +477,8 @@ const optionalExtraIngredients = computed(() => {
   return result;
 });
 
-const increaseQuantity = () => quantity.value++;
-const decreaseQuantity = () => { if (quantity.value > 1) quantity.value--; };
+const increaseQuantity = () => { triggerHaptic(10); quantity.value++; };
+const decreaseQuantity = () => { if (quantity.value > 1) { triggerHaptic(10); quantity.value--; } };
 
 const isPersonalizableProduct = computed(() => {
   const tipo = String(selectedType.value?.tipo_armado ?? props.product?.tipo_armado ?? '').toLowerCase();
@@ -458,6 +492,26 @@ const isPersonalizableProduct = computed(() => {
          Number(selectedType.value?.cantidad_incluida ?? props.product?.cantidad_incluida ?? 0) > 0;
 });
 
+const isComboProduct = computed(() => {
+  const name = String(selectedType.value?.name || props.product?.name || '').toLowerCase();
+  const cat = String(props.product?.category || '').toLowerCase();
+  return name.includes('promo') || name.includes('combo') || name.startsWith('2 ') || cat.includes('promo');
+});
+
+const notesPlaceholder = computed(() => {
+  if (isComboProduct.value) {
+    return 'Ej: Hamburguesa 1 con queso cheddar y tocino; Hamburguesa 2 sin cebolla ni pepinillos...';
+  }
+  return 'Ej: Carne bien cocida, sin sal en las papas, aderezos aparte...';
+});
+
+const notesHelperTip = computed(() => {
+  if (isComboProduct.value) {
+    return '💡 Puedes detallar cómo quieres armada cada unidad de la promoción.';
+  }
+  return 'Escribe aquí cualquier indicación especial para quien prepare tu pedido.';
+});
+
 const minRequiredIngredients = computed(() => {
   if (!isPersonalizableProduct.value) return 0;
   const count = Number(selectedType.value?.cantidad_incluida ?? props.product?.cantidad_incluida ?? 0);
@@ -465,8 +519,9 @@ const minRequiredIngredients = computed(() => {
 });
 
 const remainingRequiredIngredients = computed(() => {
-  if (minRequiredIngredients.value <= 0) return 0;
-  return Math.max(0, minRequiredIngredients.value - addedExtraIngredients.value.length);
+  if (minRequiredIngredients.value <= 0 || optionalExtraIngredients.value.length === 0) return 0;
+  const targetRequired = Math.min(minRequiredIngredients.value, optionalExtraIngredients.value.length);
+  return Math.max(0, targetRequired - addedExtraIngredients.value.length);
 });
 
 const remainingRequiredCountText = computed(() => {
@@ -475,7 +530,10 @@ const remainingRequiredCountText = computed(() => {
 
 const isIngredientsSelectionValid = computed(() => {
   if (minRequiredIngredients.value <= 0) return true;
-  return addedExtraIngredients.value.length >= minRequiredIngredients.value;
+  // Fallback de seguridad: Si el producto no tiene ingredientes opcionales cargados en el catálogo, no bloquear la orden
+  if (optionalExtraIngredients.value.length === 0) return true;
+  const targetRequired = Math.min(minRequiredIngredients.value, optionalExtraIngredients.value.length);
+  return addedExtraIngredients.value.length >= targetRequired;
 });
 
 const extraPricePerUnit = computed(() => {
@@ -543,6 +601,7 @@ const selectedSizeId = computed(() => {
 
 const handleAddToCart = () => {
   if (!selectedType.value || !isTypeAvailable(selectedType.value)) return;
+  triggerHaptic(20);
 
   if (!isIngredientsSelectionValid.value) {
     notify(
@@ -555,7 +614,8 @@ const handleAddToCart = () => {
   const effectiveSize = selectedSize.value || getEffectiveSizeForType(selectedType.value);
   const exclusionKey = [...excludedIngredients.value].sort().join('-');
   const additionKey = [...addedExtraIngredients.value].sort().join('-');
-  const cartItemId = `${selectedType.value.id}_${effectiveSize}_${exclusionKey}_${additionKey}`;
+  const notesKey = customerNotes.value.trim().toLowerCase();
+  const cartItemId = `${selectedType.value.id}_${effectiveSize}_${exclusionKey}_${additionKey}_${notesKey}`;
 
   const excluidosDetails = excludedIngredients.value.map((name: string) => {
     const found = selectedType.value?.producto_ingrediente?.find(
@@ -597,7 +657,8 @@ const handleAddToCart = () => {
     excluidos: [...excludedIngredients.value],
     agregados: [...addedExtraIngredients.value],
     excluidosDetails,
-    agregadosDetails
+    agregadosDetails,
+    notas: customerNotes.value.trim()
   });
 
   handleClose();
@@ -909,6 +970,84 @@ const handleAddToCart = () => {
 @keyframes pulse-border {
   0%, 100% { border-color: #fcd34d; }
   50% { border-color: #f59e0b; }
+}
+
+/* SECCIÓN DE NOTAS / COCINA */
+.notes-section {
+  background: #fbf8f5;
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid #eaddcf;
+}
+
+.notes-header {
+  margin-bottom: 6px;
+}
+
+.notes-header .section-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 0;
+  color: var(--DC-coffee);
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.notes-icon {
+  color: var(--DC-orange);
+  flex-shrink: 0;
+}
+
+.notes-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kitchen-notes-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1.5px solid #dcd3cb;
+  background-color: #ffffff;
+  font-family: inherit;
+  font-size: 0.84rem;
+  color: #2c2523;
+  resize: vertical;
+  min-height: 52px;
+  max-height: 100px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.kitchen-notes-input:focus {
+  outline: none;
+  border-color: var(--DC-orange);
+  box-shadow: 0 0 0 3px rgba(226, 135, 67, 0.15);
+}
+
+.kitchen-notes-input::placeholder {
+  color: #9ca3af;
+  font-size: 0.8rem;
+}
+
+.notes-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.73rem;
+  color: #6b7280;
+  padding: 0 2px;
+}
+
+.notes-helper-tip {
+  color: #786f68;
+}
+
+.notes-counter {
+  font-weight: 600;
+  color: #9ca3af;
 }
 
 /* ANIMACIONES */

@@ -1,8 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import LoginView from '../components/LoginView.vue'
-import RegisterView from '../components/RegisterView.vue'
-import ForgotPasswordView from '../components/ForgotPasswordView.vue'
-import ResetPasswordView from '../components/ResetPasswordView.vue'
 import HomeView from '../views/Home/HomeView.vue'
 import { globalLoading } from '@/composables/useLoading';
 
@@ -18,25 +14,25 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
-      component: LoginView,
+      component: () => import('../components/LoginView.vue'),
       meta: { hideNavbar: true, useLoader: true }
     },
     {
       path: '/register',
       name: 'register',
-      component: RegisterView,
+      component: () => import('../components/RegisterView.vue'),
       meta: { hideNavbar: true, useLoader: true }
     },
     {
       path: '/forgot-password',
       name: 'forgot-password',
-      component: ForgotPasswordView,
+      component: () => import('../components/ForgotPasswordView.vue'),
       meta: { hideNavbar: true, useLoader: true }
     },
     {
       path: '/reset-password',
       name: 'reset-password',
-      component: ResetPasswordView,
+      component: () => import('../components/ResetPasswordView.vue'),
       meta: { hideNavbar: true, useLoader: true }
     },
     {
@@ -249,14 +245,8 @@ router.beforeEach((to, from, next) => {
   next();
 });
 
-router.afterEach((to) => {
-  if (!to.meta.useLoader) {
-    globalLoading.value = false;
-  } else {
-    setTimeout(() => {
-      globalLoading.value = false;
-    }, 400);
-  }
+router.afterEach(() => {
+  globalLoading.value = false;
 });
 
 export default router;

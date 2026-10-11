@@ -818,25 +818,46 @@ class DatabaseSeeder extends Seeder
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 500,
                 'precios_por_tamaño' => ['Único' => 7000],
-                'ingredientes_defecto' => ['Carne'],
+                'ingredientes_defecto' => ['Pan Mediano', 'Carne', 'Tomate', 'Palta', 'Mayonesa'],
+                'ingredientes_opcionales' => [
+                    'Queso gauda', 'Queso cheddar', 'Tocino', 'Cebolla', 'Huevo', 'Papas fritas', 'Porotos verdes'
+                ],
             ],
             [
                 'nombre' => '2 Hamburguesas Simples Promo',
                 'categoria' => 'Promos / Combos',
-                'descripcion' => 'Promoción especial 2 hamburguesas simples',
+                'descripcion' => 'Promoción especial 2 hamburguesas simples. Incluye 3 ingredientes a elección ($500 ingrediente extra)',
                 'tipo_armado' => 'Personalizable',
                 'cantidad_incluida' => 3,
                 'precio_ingrediente_extra' => 500,
                 'precios_por_tamaño' => ['Simple' => 6000],
+                'ingredientes_defecto' => [
+                    'Pan Frica',
+                    ['ingrediente' => 'Hamburguesa', 'tamaño' => 'Simple', 'cantidad' => 2],
+                ],
+                'ingredientes_opcionales' => [
+                    'Queso cheddar', 'Queso gauda', 'Tocino', 'Cebolla', 'Papa hilo',
+                    'Papas fritas', 'Aros de cebolla', 'Tomate', 'Lechuga', 'Palta',
+                    'Pepinillo', 'Champiñón', 'Huevo', 'Choclo', 'Aceitunas'
+                ],
             ],
             [
                 'nombre' => '2 Hamburguesas Dobles Promo',
                 'categoria' => 'Promos / Combos',
-                'descripcion' => 'Promoción especial 2 hamburguesas dobles',
+                'descripcion' => 'Promoción especial 2 hamburguesas dobles. Incluye 3 ingredientes a elección ($500 ingrediente extra)',
                 'tipo_armado' => 'Personalizable',
                 'cantidad_incluida' => 3,
                 'precio_ingrediente_extra' => 500,
                 'precios_por_tamaño' => ['Doble' => 7000],
+                'ingredientes_defecto' => [
+                    'Pan Frica',
+                    ['ingrediente' => 'Hamburguesa', 'tamaño' => 'Doble', 'cantidad' => 4],
+                ],
+                'ingredientes_opcionales' => [
+                    'Queso cheddar', 'Queso gauda', 'Tocino', 'Cebolla', 'Papa hilo',
+                    'Papas fritas', 'Aros de cebolla', 'Tomate', 'Lechuga', 'Palta',
+                    'Pepinillo', 'Champiñón', 'Huevo', 'Choclo', 'Aceitunas'
+                ],
             ],
         ];
 

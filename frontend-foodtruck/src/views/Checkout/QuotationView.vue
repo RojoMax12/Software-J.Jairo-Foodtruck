@@ -194,6 +194,12 @@
                       + {{ ing }}
                     </span>
                   </div>
+
+                  <!-- NOTAS / INSTRUCCIONES DE COCINA -->
+                  <div v-if="item.notas" class="item-notes-box">
+                    <MessageSquare :size="12" class="item-notes-icon" />
+                    <span class="item-notes-text">{{ item.notas }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -262,7 +268,7 @@ import { useRouter } from 'vue-router'
 import { 
   AlertTriangle, ShieldCheck, CheckCircle2, 
   Sparkles, User, CreditCard, Banknote, 
-  Smartphone, ShoppingBag, RefreshCw 
+  Smartphone, ShoppingBag, RefreshCw, MessageSquare
 } from 'lucide-vue-next'
 import boxPlaceholderImage from '@/assets/logo_jairo.webp'
 import orderService from '@/services/orderService'
@@ -345,7 +351,8 @@ const handleLastNameCacheSync = () => localStorage.setItem('dicreme_temp_last_na
 const getItemKey = (item: any) => {
   const ex = Array.isArray(item.excluidos) ? item.excluidos.join('-') : ''
   const ag = Array.isArray(item.agregados) ? item.agregados.join('-') : ''
-  return `${item.id}-${item.size || 'default'}-${ex}-${ag}`
+  const note = item.notas ? String(item.notas).trim() : ''
+  return `${item.id}-${item.size || 'default'}-${ex}-${ag}-${note}`
 }
 
 onMounted(async () => {
@@ -445,6 +452,11 @@ const handleConfirmQuotation = async () => {
     return sum + (cleanPrice * (Number(item.quantity) || 1))
   }, 0)
 
+  const itemNotesSummary = quotationItems.value
+    .filter(item => item.notas && String(item.notas).trim())
+    .map(item => `${item.fullName || item.name}: ${String(item.notas).trim()}`)
+    .join(' | ')
+
   const orderPayload = {
     nombre_persona: `${firstName.value.trim()} ${lastName.value.trim()}`,
     numero_telefono: cleanPhone,
@@ -453,6 +465,7 @@ const handleConfirmQuotation = async () => {
     metodo_pago: selectedPaymentMethod.value,
     id_estado_pago: 1, // Por pagar
     id_estado_pedido: 1, // Pendiente
+    notas: itemNotesSummary || null,
     detalles: quotationItems.value.map(item => {
       const unitPrice = typeof item.price === 'string'
         ? Number(item.price.replace(/[^0-9]/g, ''))
@@ -486,6 +499,7 @@ const handleConfirmQuotation = async () => {
         agregados: rawAgregadosList,
         opciones_seleccionadas: [
           ...(item.size ? [{ tipo: 'Tamaño', valor: item.size }] : []),
+          ...(item.notas && String(item.notas).trim() ? [{ tipo: 'Nota', valor: String(item.notas).trim() }] : []),
           ...rawExcluidosList.map((ex: any) => ({
             tipo: 'Exclusión',
             ingrediente: typeof ex === 'object' ? (ex.nombre || ex.name || '') : String(ex)
@@ -970,6 +984,31 @@ const handleConfirmQuotation = async () => {
   font-weight: 800;
   padding: 1px 6px;
   border-radius: 4px;
+}
+
+.item-notes-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: 4px;
+  padding: 3px 7px;
+  background-color: #faf5ee;
+  border-left: 3px solid #d97706;
+  border-radius: 4px;
+}
+
+.item-notes-icon {
+  color: #d97706;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.item-notes-text {
+  font-size: 0.74rem;
+  color: #4b5563;
+  line-height: 1.25;
+  font-style: italic;
+  word-break: break-word;
 }
 
 /* TOTAL */

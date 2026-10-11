@@ -89,6 +89,12 @@
                       + {{ ing }}
                     </span>
                   </div>
+
+                  <!-- NOTAS / INSTRUCCIONES DE COCINA -->
+                  <div v-if="item.notas" class="item-notes-box">
+                    <MessageSquare :size="12" class="item-notes-icon" />
+                    <span class="item-notes-text">{{ item.notas }}</span>
+                  </div>
                   
                   <div class="item-action-row">
                     <span class="item-price-info">${{ formatPrice(item.price) }}</span>
@@ -157,7 +163,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { X, Trash2, Plus, Minus, ShoppingCart, ShoppingBag, Clock, ArrowRight } from 'lucide-vue-next';
+import { X, Trash2, Plus, Minus, ShoppingCart, ShoppingBag, Clock, ArrowRight, MessageSquare } from 'lucide-vue-next';
 
 const props = withDefaults(
   defineProps<{
@@ -172,8 +178,8 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: 'close'): void;
-  (e: 'update-quantity', payload: { id: number; size: string; change: number }): void;
-  (e: 'remove-item', payload: { id: number; size: string }): void;
+  (e: 'update-quantity', payload: { id: number | string; size: string; change: number }): void;
+  (e: 'remove-item', payload: { id: number | string; size: string }): void;
   (e: 'checkout'): void;
 }>();
 
@@ -201,7 +207,8 @@ const cartTotal = computed(() => {
 const getItemKey = (item: any) => {
   const ex = Array.isArray(item.excluidos) ? item.excluidos.join('-') : '';
   const ag = Array.isArray(item.agregados) ? item.agregados.join('-') : '';
-  return `${item.id}-${item.size || 'default'}-${ex}-${ag}`;
+  const note = item.notas ? String(item.notas).trim() : '';
+  return `${item.id}-${item.size || 'default'}-${ex}-${ag}-${note}`;
 };
 </script>
 
@@ -501,6 +508,31 @@ const getItemKey = (item: any) => {
   font-weight: 800;
   padding: 1px 6px;
   border-radius: 4px;
+}
+
+.item-notes-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 3px 0 6px 0;
+  padding: 4px 8px;
+  background-color: #faf5ee;
+  border-left: 3px solid #d97706;
+  border-radius: 4px;
+}
+
+.item-notes-icon {
+  color: #d97706;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.item-notes-text {
+  font-size: 0.74rem;
+  color: #4b5563;
+  line-height: 1.25;
+  font-style: italic;
+  word-break: break-word;
 }
 
 .item-action-row {

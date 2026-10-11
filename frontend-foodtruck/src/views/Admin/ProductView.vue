@@ -316,11 +316,14 @@
               <td>
                 <div class="product-info">
                   <div class="product-image-container">
-                    <img :src="product.image" :alt="product.name" class="product-thumb-img" @error="handleImageError" />
+                    <img :src="product.image" :alt="product.name" class="product-thumb-img" loading="lazy" decoding="async" @error="handleImageError" />
                   </div>
                   <div>
                     <h4>{{ product.name }}</h4>
-                    <small>ID #{{ product.id }}</small>
+                    <div class="product-id-group-row">
+                      <small>ID #{{ product.id }}</small>
+                      <span v-if="product.grupo" class="badge-group-variety">📚 Variedad de: {{ product.grupo }}</span>
+                    </div>
                   </div>
                 </div>
               </td>
@@ -415,11 +418,14 @@
           <div class="mob-card-header">
             <div class="mob-prod-info">
               <div class="mob-thumb-container">
-                <img :src="product.image" :alt="product.name" class="mob-thumb-img" @error="handleImageError" />
+                <img :src="product.image" :alt="product.name" class="mob-thumb-img" loading="lazy" decoding="async" @error="handleImageError" />
               </div>
               <div>
                 <h4 class="mob-prod-name">{{ product.name }}</h4>
-                <small class="mob-prod-id">ID #{{ product.id }} · {{ product.category }}</small>
+                <div class="mob-prod-meta-row">
+                  <small class="mob-prod-id">ID #{{ product.id }} · {{ product.category }}</small>
+                  <span v-if="product.grupo" class="badge-group-variety mob-group-badge">📚 Variedad: {{ product.grupo }}</span>
+                </div>
               </div>
             </div>
             <strong class="mob-prod-price">${{ Number(product.price).toLocaleString('es-CL') }}</strong>
@@ -1007,28 +1013,44 @@
                 <Transition name="fade-slide">
                   <div v-if="productForm.es_agrupado" class="group-select-subpanel">
                     <label class="modal-label">
-                      <span>Tarjeta o Grupo del Menú donde se mostrará:</span>
-                      <div class="group-input-combobox">
-                        <select 
-                          v-model="productForm.grupo" 
-                          class="modal-input select-group-box"
-                        >
-                          <option value="" disabled>Selecciona tarjeta existente...</option>
+                      <span>Seleccionar Tarjeta / Producto Existente:</span>
+                      <select 
+                        v-model="productForm.grupo" 
+                        class="modal-input select-group-box"
+                      >
+                        <option value="" disabled>Selecciona tarjeta existente...</option>
+                        <option :value="getProductCategoryName">
+                          Categoría: "{{ getProductCategoryName }}"
+                        </option>
+                        <optgroup v-if="existingCategoryProducts.length > 0" label="Productos existentes en esta categoría">
                           <option 
-                            v-for="grp in availableCardGroups" 
-                            :key="grp" 
+                            v-for="pName in existingCategoryProducts" 
+                            :key="'prod-' + pName" 
+                            :value="pName"
+                          >
+                            Tarjeta de: "{{ pName }}"
+                          </option>
+                        </optgroup>
+                        <optgroup v-if="existingCategoryGroups.length > 0" label="Grupos de variedades creados">
+                          <option 
+                            v-for="grp in existingCategoryGroups" 
+                            :key="'grp-' + grp" 
                             :value="grp"
                           >
-                            Tarjeta: "{{ grp }}"
+                            Grupo: "{{ grp }}"
                           </option>
-                        </select>
-                        <input
-                          v-model="productForm.grupo"
-                          type="text"
-                          placeholder="O escribe nuevo nombre de tarjeta..."
-                          class="modal-input custom-group-input"
-                        />
-                      </div>
+                        </optgroup>
+                      </select>
+                    </label>
+
+                    <label class="modal-label" style="margin-top: 6px;">
+                      <span>O escribir un Nombre de Tarjeta Personalizado:</span>
+                      <input
+                        v-model="productForm.grupo"
+                        type="text"
+                        placeholder="Ej: Hamburguesas Caseras, Churrascos, etc."
+                        class="modal-input custom-group-input"
+                      />
                     </label>
 
                     <div class="grouping-info-hint">
@@ -1576,6 +1598,30 @@ const productForm = ref({
   inStock: true
 })
 
+const existingCategoryProducts = computed(() => {
+  const selectedCat = categoriesList.value.find((c: any) => String(c.id_categoria || c.id) === String(productForm.value.id_categoria))
+  const catName = selectedCat?.nombre_categoria || ''
+  const prods = new Set<string>()
+  products.value.forEach((p: any) => {
+    if ((!catName || p.category === catName) && p.name && String(p.name).trim() && p.id !== productForm.value.id) {
+      prods.add(String(p.name).trim())
+    }
+  })
+  return Array.from(prods)
+})
+
+const existingCategoryGroups = computed(() => {
+  const selectedCat = categoriesList.value.find((c: any) => String(c.id_categoria || c.id) === String(productForm.value.id_categoria))
+  const catName = selectedCat?.nombre_categoria || ''
+  const groups = new Set<string>()
+  products.value.forEach((p: any) => {
+    if ((!catName || p.category === catName) && p.grupo && String(p.grupo).trim() && String(p.grupo).trim() !== catName) {
+      groups.add(String(p.grupo).trim())
+    }
+  })
+  return Array.from(groups)
+})
+
 const availableCardGroups = computed(() => {
   const selectedCat = categoriesList.value.find((c: any) => String(c.id_categoria || c.id) === String(productForm.value.id_categoria))
   const catName = selectedCat?.nombre_categoria || ''
@@ -1583,20 +1629,18 @@ const availableCardGroups = computed(() => {
   if (catName) {
     groups.add(catName)
   }
-  products.value.forEach((p: any) => {
-    if (!catName || p.category === catName) {
-      if (p.grupo && String(p.grupo).trim()) {
-        groups.add(String(p.grupo).trim())
-      }
-    }
-  })
+  existingCategoryGroups.value.forEach(g => groups.add(g))
+  existingCategoryProducts.value.forEach(p => groups.add(p))
   return Array.from(groups)
 })
 
 const setGroupedMode = (grouped: boolean) => {
   productForm.value.es_agrupado = grouped
   if (grouped && !productForm.value.grupo) {
-    productForm.value.grupo = getProductCategoryName.value
+    // Sugerir primero el primer producto existente o la categoría
+    productForm.value.grupo = existingCategoryProducts.value[0] || getProductCategoryName.value
+  } else if (!grouped) {
+    productForm.value.grupo = ''
   }
 }
 
@@ -1951,15 +1995,22 @@ const submitEditProduct = async () => {
   isProductModalOpen.value = false
 }
 
-const getProductActivePromotion = (productId: number | string) => {
+const activePromotionsByProductId = computed(() => {
+  const map: Record<number, any> = {}
   const today = getLocalDateString()
-  return promotions.value.find((p: any) => {
-    if (!p.activo) return false
-    if (Number(p.id_producto) !== Number(productId)) return false
+  for (const p of promotions.value) {
+    if (!p.activo) continue
     const start = String(p.fecha_inicio || '').slice(0, 10)
     const end = String(p.fecha_fin || '').slice(0, 10)
-    return today >= start && today <= end
-  })
+    if (today >= start && today <= end) {
+      map[Number(p.id_producto)] = p
+    }
+  }
+  return map
+})
+
+const getProductActivePromotion = (productId: number | string) => {
+  return activePromotionsByProductId.value[Number(productId)] || null
 }
 
 const openCreatePromotionForProduct = (product: any) => {
@@ -3565,11 +3616,44 @@ onMounted(async () => {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 9999;
   display: grid;
   place-items: center;
   padding: 1rem;
   background: rgba(35, 20, 10, 0.46);
+  overflow-y: auto;
+}
+
+.customizer-backdrop {
+  z-index: 10000;
+}
+
+.product-id-group-row,
+.mob-prod-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.badge-group-variety {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #8b3a00;
+  background: #fff4ea;
+  border: 1px solid #ffd8b2;
+  border-radius: 6px;
+  line-height: 1.2;
+}
+
+.mob-group-badge {
+  font-size: 0.68rem;
+  padding: 1px 5px;
 }
 
 .modal-card {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { UtensilsCrossed } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,6 +30,14 @@ const formattedOrderId = computed(() => {
   return /^\d+$/.test(rawOrderId.value) ? rawOrderId.value.padStart(6, '0') : rawOrderId.value
 })
 
+onMounted(() => {
+  if (rawOrderId.value) {
+    try {
+      localStorage.setItem('foodtruck_last_order_id', String(rawOrderId.value));
+    } catch {}
+  }
+})
+
 const goToCheckStatus = () => {
   router.push({
     path: '/checkorderstatus',
@@ -48,11 +57,9 @@ const goToCheckStatus = () => {
         <h2 class="success-title">Tu Pedido ha sido Ingresado</h2>
         <p class="success-subtitle">¡Gracias por tu preferencia en Foodtruck J.Junior!</p>
         
+        
         <div class="divider-line"></div>
         
-        <p class="info-text sub-link">
-          Puedes revisar el detalle y el estado haciendo <a href="#" @click.prevent="goToCheckStatus">click aquí.</a>
-        </p>
 
         <!-- Bloque de datos dinámicos inyectados -->
         <div class="data-table">
@@ -70,9 +77,18 @@ const goToCheckStatus = () => {
           </div>
         </div>
 
-        <button class="btn-home" @click="router.push('/')">
-          Volver al inicio
-        </button>
+
+        <!-- Acciones principales -->
+        <div class="actions-group">
+          <button class="btn-track-primary" @click="goToCheckStatus">
+            <UtensilsCrossed :size="18" />
+            <span>Rastrear mi pedido en vivo</span>
+          </button>
+
+          <button class="btn-home-secondary" @click="router.push('/')">
+            Volver a la carta
+          </button>
+        </div>
       </div>
     </main>
   </div>
@@ -96,6 +112,55 @@ const goToCheckStatus = () => {
 .font-mono { font-family: monospace; font-size: 1.05rem; }
 .btn-home { width: 100%; margin-top: 24px; background-color: var(--DC-orange); color: white; border: none; padding: 12px 16px; border-radius: 12px; font-weight: 800; cursor: pointer; transition: all 0.2s; }
 .btn-home:hover { background-color: var(--DC-brown); transform: translateY(-1px); }
+.actions-group {
+  margin-top: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn-track-primary {
+  width: 100%;
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  color: white;
+  border: none;
+  padding: 14px 20px;
+  border-radius: 14px;
+  font-weight: 800;
+  font-size: 1.02rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 6px 20px rgba(234, 88, 12, 0.35);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-track-primary:hover {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(234, 88, 12, 0.45);
+}
+
+.btn-home-secondary {
+  width: 100%;
+  background: transparent;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-home-secondary:hover {
+  background-color: #f9fafb;
+  color: #1f2937;
+  border-color: #d1d5db;
+}
 
 @media (max-width: 480px) {
   .success-card {

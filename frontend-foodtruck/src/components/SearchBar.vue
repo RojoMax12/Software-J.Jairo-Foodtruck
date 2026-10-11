@@ -3,28 +3,130 @@
     <div class="divider"></div>
     
     <div class="search-controls">
-      <!-- 🔍 BUSCADOR DE TEXTO PRINCIPAL -->
-      <div class="search-input-wrapper">
-        <Search class="search-icon" :size="18" />
-        <input 
-          type="text" 
-          :value="searchQuery"
-          @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
-          placeholder="¿Qué se te antoja hoy? Busca por nombre o ingrediente..." 
-          class="search-input" 
-          aria-label="Buscar producto o ingrediente"
-        />
-        <button 
-          v-if="searchQuery" 
-          type="button"
-          class="clear-search-btn" 
-          @click="emit('update:searchQuery', '')"
-          title="Limpiar búsqueda"
-          aria-label="Limpiar búsqueda"
-        >
-          <X :size="15" />
-        </button>
+      <!-- 🔍 FILA SUPERIOR: BUSCADOR DE TEXTO + SELECTOR RÁPIDO DE CATEGORÍAS -->
+      <div class="search-top-row">
+        <div class="search-input-wrapper">
+          <Search class="search-icon" :size="18" />
+          <input 
+            type="text" 
+            :value="searchQuery"
+            @input="onSearchInput"
+            placeholder="¿Qué se te antoja hoy? Busca por nombre o ingrediente..." 
+            class="search-input" 
+            aria-label="Buscar producto o ingrediente"
+          />
+          <button 
+            v-if="searchQuery" 
+            type="button"
+            class="clear-search-btn" 
+            @click="clearSearch"
+            title="Limpiar búsqueda"
+            aria-label="Limpiar búsqueda"
+          >
+            <X :size="15" />
+          </button>
+        </div>
+
+        <!-- 📂 SELECTOR DIRECTO DE CATEGORÍAS (DROPDOWN) -->
+        <div class="category-dropdown-wrapper">
+          <button 
+            type="button" 
+            class="category-dropdown-trigger"
+            :class="{ 'is-active-filter': props.modelValue !== 'Todas' }"
+            @click.stop="toggleDropdown"
+            :aria-expanded="isCategoryDropdownOpen"
+            title="Ver y filtrar todas las categorías"
+          >
+            <Filter :size="15" class="dropdown-filter-icon" />
+            <span class="dropdown-trigger-text">{{ currentSelectedLabel }}</span>
+            <ChevronDown :size="14" class="dropdown-arrow-icon" :class="{ 'is-flipped': isCategoryDropdownOpen }" />
+          </button>
+
+          <!-- MENÚ DESPLEGABLE DE TODAS LAS CATEGORÍAS -->
+          <Transition name="fade-slide">
+            <div v-if="isCategoryDropdownOpen" class="category-dropdown-popover" @click.stop>
+              <div class="dropdown-popover-header">
+                <span>Categorías de la carta</span>
+                <button type="button" class="close-popover-btn" @click="closeDropdown" title="Cerrar">
+                  <X :size="13" />
+                </button>
+              </div>
+
+              <div class="dropdown-items-list">
+                <!-- Opción: Todas las categorías -->
+                <button
+                  type="button"
+                  class="dropdown-item"
+                  :class="{ 'is-selected': props.modelValue === 'Todas' }"
+                  @click="selectCategoryFromDropdown('Todas')"
+                >
+                  <div class="dropdown-item-info">
+                    <span class="cat-dot-icon">✨</span>
+                    <span class="cat-item-name">Todas las categorías</span>
+                  </div>
+                  <Check v-if="props.modelValue === 'Todas'" :size="14" class="cat-item-check" />
+                </button>
+
+                <!-- Opción: Promos / Combos -->
+                <button
+                  type="button"
+                  class="dropdown-item promo-dropdown-item"
+                  :class="{ 'is-selected': props.modelValue === 'Promos' || props.modelValue === 'Promos/Combos' }"
+                  @click="selectCategoryFromDropdown('Promos')"
+                >
+                  <div class="dropdown-item-info">
+                    <span class="cat-dot-icon">🔥</span>
+                    <span class="cat-item-name">Promos / Combos</span>
+                    <span v-if="(props.promotionsCount || 0) > 0" class="promo-count-pill">
+                      {{ props.promotionsCount }}
+                    </span>
+                  </div>
+                  <Check v-if="props.modelValue === 'Promos' || props.modelValue === 'Promos/Combos'" :size="14" class="cat-item-check" />
+                </button>
+
+                <div class="dropdown-divider"></div>
+
+                <!-- Lista de categorías de la BD -->
+                <button
+                  v-for="(cat, idx) in displayCategories"
+                  :key="'dd-cat-' + (cat.id || cat.nombre_categoria)"
+                  type="button"
+                  class="dropdown-item"
+                  :class="{ 'is-selected': props.modelValue === cat.nombre_categoria }"
+                  @click="selectCategoryFromDropdown(cat.nombre_categoria)"
+                >
+                  <div class="dropdown-item-info">
+                    <span 
+                      class="cat-color-dot"
+                      :style="{ background: getCategoryGradient(cat, idx) }"
+                    ></span>
+                    <span class="cat-item-name">{{ cat.nombre_categoria }}</span>
+                  </div>
+                  <Check v-if="props.modelValue === cat.nombre_categoria" :size="14" class="cat-item-check" />
+                </button>
+              </div>
+            </div>
+          </Transition>
+        </div>
       </div>
+
+      <!-- 💡 CHIPS DE SUGERENCIA CUANDO EL TEXTO COINCIDE CON UNA CATEGORÍA -->
+      <Transition name="fade-slide">
+        <div v-if="categorySuggestions.length > 0" class="category-suggestions-bar">
+          <span class="suggestions-label">🎯 Filtrar categoría:</span>
+          <div class="suggestions-chips">
+            <button
+              v-for="sug in categorySuggestions"
+              :key="'sug-' + sug.nombre_categoria"
+              type="button"
+              class="suggestion-chip"
+              @click="applyCategorySuggestion(sug.nombre_categoria)"
+            >
+              <span>{{ sug.nombre_categoria }}</span>
+            </button>
+          </div>
+        </div>
+      </Transition>
 
       <!-- 🏷️ BARRA DE FILTRO ACTIVO -->
       <Transition name="fade-slide">
@@ -62,41 +164,7 @@
         </Transition>
 
         <!-- Track horizontal de 1 sola fila con scroll suave -->
-        <div 
-          ref="scrollContainerRef"
-          class="categories-scroll-container"
-          @scroll.passive="updateScrollButtons"
-        >
-          <div class="inputs-group">
-            <!-- 1. Botón exclusivo de Promociones con contador dinámico de fuego -->
-            <button
-              type="button"
-              class="badge-button color-promos"
-              :class="{ 'is-active': props.modelValue === 'Promos' || props.modelValue === 'Promos/Combos' }"
-              :aria-pressed="props.modelValue === 'Promos' || props.modelValue === 'Promos/Combos'"
-              @click="toggleCategory('Promos')"
-            >
-              <span v-if="(props.promotionsCount || 0) > 0" class="badge-fire-tag">
-                {{ props.promotionsCount }}
-              </span>
-              <span class="badge-text">Promos</span>
-            </button>
-
-            <!-- 2. Botones de Categorías Dinámicas cargadas desde el backend -->
-            <button
-              v-for="(cat, idx) in displayCategories"
-              :key="cat.id || cat.nombre_categoria"
-              type="button"
-              class="badge-button dynamic-category-badge"
-              :style="{ '--badge-gradient': getCategoryGradient(cat, idx) }"
-              :class="{ 'is-active': props.modelValue === cat.nombre_categoria }"
-              :aria-pressed="props.modelValue === cat.nombre_categoria"
-              @click="toggleCategory(cat.nombre_categoria)"
-            >
-              <span class="badge-text">{{ formatCategoryName(cat.nombre_categoria) }}</span>
-            </button>
-          </div>
-        </div>
+        
 
         <!-- Flecha Siguiente (Desktop) -->
         <Transition name="fade-scale">
@@ -120,13 +188,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
-import { Search, X, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { Search, X, ChevronLeft, ChevronRight, Filter, ChevronDown, Check } from 'lucide-vue-next';
 
 const props = defineProps<{
   modelValue: string;
   searchQuery: string; 
   categories: any[];
   promotionsCount?: number;
+  availableCategoryNames?: string[] | Set<string>;
 }>();
 
 const emit = defineEmits<{
@@ -163,12 +232,26 @@ const scrollToActiveCategory = () => {
   });
 };
 
-// Excluir categoría 'Promos / Combos' del loop de categorías para evitar duplicar el botón de Promos
+// Excluir categoría 'Promos / Combos' y categorías sin productos activos del carrusel
 const displayCategories = computed(() => {
   if (!props.categories || !props.categories.length) return [];
+  const filterNames = props.availableCategoryNames;
+
   return props.categories.filter((cat: any) => {
-    const name = String(cat.nombre_categoria || '').toLowerCase().trim();
-    return !name.includes('promo') && !name.includes('combo');
+    const rawName = String(cat.nombre_categoria || '').trim();
+    const nameLow = rawName.toLowerCase();
+    if (nameLow.includes('promo') || nameLow.includes('combo')) return false;
+
+    if (filterNames) {
+      if (filterNames instanceof Set) {
+        return filterNames.has(nameLow) || filterNames.has(rawName);
+      }
+      if (Array.isArray(filterNames) && filterNames.length > 0) {
+        return filterNames.some((c: string) => c.toLowerCase() === nameLow);
+      }
+    }
+
+    return true;
   });
 });
 
@@ -238,6 +321,77 @@ const toggleCategory = (category: string) => {
   emit('update:modelValue', props.modelValue === category ? 'Todas' : category);
 };
 
+// 📂 Estado y acciones del menú desplegable de categorías
+const isCategoryDropdownOpen = ref(false);
+
+const toggleDropdown = () => {
+  isCategoryDropdownOpen.value = !isCategoryDropdownOpen.value;
+};
+
+const closeDropdown = () => {
+  isCategoryDropdownOpen.value = false;
+};
+
+const currentSelectedLabel = computed(() => {
+  if (!props.modelValue || props.modelValue === 'Todas') {
+    return `Categorías (${displayCategories.value.length})`;
+  }
+  if (props.modelValue === 'Promos' || props.modelValue === 'Promos/Combos') {
+    return '🔥 Promos';
+  }
+  return formatCategoryName(props.modelValue);
+});
+
+const selectCategoryFromDropdown = (catName: string) => {
+  emit('update:modelValue', catName);
+  isCategoryDropdownOpen.value = false;
+  if (catName !== 'Todas') {
+    scrollToActiveCategory();
+  }
+};
+
+// 🎯 Sugerencias de categorías mientras el usuario escribe en el buscador
+const categorySuggestions = computed(() => {
+  const query = props.searchQuery?.trim().toLowerCase();
+  if (!query || query.length < 2) return [];
+
+  const currentCat = (props.modelValue || '').toLowerCase();
+  return displayCategories.value.filter((cat: any) => {
+    const catName = String(cat.nombre_categoria || '').toLowerCase();
+    const isAlreadySelected = currentCat === catName;
+    return !isAlreadySelected && catName.includes(query);
+  }).slice(0, 3);
+});
+
+const applyCategorySuggestion = (catName: string) => {
+  emit('update:modelValue', catName);
+  emit('update:searchQuery', '');
+  scrollToActiveCategory();
+};
+
+const onDocumentClick = (e: MouseEvent) => {
+  const target = e.target as HTMLElement;
+  if (!target.closest('.category-dropdown-wrapper')) {
+    isCategoryDropdownOpen.value = false;
+  }
+};
+
+// Búsqueda con debounce para evitar re-renderizados continuos en cada tecla
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+const onSearchInput = (event: Event) => {
+  const value = (event.target as HTMLInputElement).value;
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    emit('update:searchQuery', value);
+  }, 200);
+};
+
+const clearSearch = () => {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  emit('update:searchQuery', '');
+};
+
 // Auto-centrar la categoría activa al cambiar
 watch(() => props.modelValue, () => {
   scrollToActiveCategory();
@@ -256,10 +410,13 @@ onMounted(() => {
     scrollToActiveCategory();
   });
   window.addEventListener('resize', updateScrollButtons);
+  document.addEventListener('click', onDocumentClick);
 });
 
 onUnmounted(() => {
+  if (debounceTimer) clearTimeout(debounceTimer);
   window.removeEventListener('resize', updateScrollButtons);
+  document.removeEventListener('click', onDocumentClick);
 });
 </script>
 
@@ -282,19 +439,28 @@ onUnmounted(() => {
   width: 100%;
 }
 
-/* 🔍 BUSCADOR DE TEXTO */
+/* 🔍 FILA SUPERIOR: BUSCADOR + SELECTOR DE CATEGORÍAS */
+.search-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
 .search-input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
-  width: 100%;
-  max-width: 580px;
-  margin: 0 auto;
+  flex: 1;
+  min-width: 0;
 }
 
 .search-input {
   width: 100%; 
-  padding: 0.85rem 2.75rem 0.85rem 2.85rem;
+  padding: 0.82rem 2.75rem 0.82rem 2.85rem;
   border-radius: 999px;
   border: 1.5px solid rgba(81, 49, 25, 0.2);
   background-color: #ffffff;
@@ -351,6 +517,242 @@ onUnmounted(() => {
   border-color: var(--DC-orange, #e28743);
   color: #ffffff;
   transform: scale(1.08);
+}
+
+/* 📂 SELECTOR DIRECTO DE CATEGORÍAS (DROPDOWN) */
+.category-dropdown-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.category-dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #ffffff;
+  border: 1.5px solid rgba(81, 49, 25, 0.2);
+  border-radius: 999px;
+  padding: 0.78rem 1.15rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--DC-brown, #513119);
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(26, 14, 5, 0.05);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.category-dropdown-trigger:hover {
+  border-color: var(--DC-orange, #e28743);
+  color: var(--DC-orange, #e28743);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(226, 135, 67, 0.15);
+}
+
+.category-dropdown-trigger.is-active-filter {
+  background: #fff4ea;
+  border-color: var(--DC-orange, #e28743);
+  color: #c0392b;
+}
+
+.dropdown-filter-icon {
+  color: var(--DC-orange, #e28743);
+  flex-shrink: 0;
+}
+
+.dropdown-trigger-text {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-arrow-icon {
+  color: var(--DC-text-gray, #7c7468);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.dropdown-arrow-icon.is-flipped {
+  transform: rotate(180deg);
+}
+
+.category-dropdown-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 290px;
+  max-height: 400px;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1.5px solid rgba(81, 49, 25, 0.12);
+  box-shadow: 0 16px 45px rgba(26, 14, 5, 0.18);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dropdown-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem 0.6rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--DC-text-gray, #7c7468);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid rgba(81, 49, 25, 0.08);
+  background: #faf8f5;
+}
+
+.close-popover-btn {
+  background: none;
+  border: none;
+  color: var(--DC-text-gray, #7c7468);
+  cursor: pointer;
+  display: flex;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.close-popover-btn:hover {
+  background: rgba(81, 49, 25, 0.08);
+  color: var(--DC-brown, #513119);
+}
+
+.dropdown-items-list {
+  overflow-y: auto;
+  max-height: 330px;
+  padding: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--DC-gray, #2c2724);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.dropdown-item:hover {
+  background: #fdf5ec;
+  color: var(--DC-orange, #e28743);
+}
+
+.dropdown-item.is-selected {
+  background: #fff0e2;
+  color: #c0392b;
+  font-weight: 800;
+}
+
+.dropdown-item-info {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+}
+
+.cat-dot-icon {
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.cat-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.cat-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat-item-check {
+  color: #c0392b;
+  flex-shrink: 0;
+}
+
+.promo-count-pill {
+  background: var(--DC-pink, #d80056);
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 900;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: 4px;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: rgba(81, 49, 25, 0.08);
+  margin: 4px 6px;
+}
+
+/* 🎯 CHIPS DE SUGERENCIA DE CATEGORÍA */
+.category-suggestions-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 760px;
+  margin: -0.4rem auto 0 auto;
+  padding: 0 0.5rem;
+}
+
+.suggestions-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--DC-text-gray, #7c7468);
+}
+
+.suggestions-chips {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.suggestion-chip {
+  display: inline-flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1.5px solid var(--DC-orange, #e28743);
+  color: var(--DC-brown, #513119);
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(226, 135, 67, 0.12);
+  transition: all 0.18s ease;
+}
+
+.suggestion-chip:hover {
+  background: var(--DC-orange, #e28743);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(226, 135, 67, 0.25);
 }
 
 /* 🏷️ BARRA DE FILTRO ACTIVO */
@@ -465,7 +867,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: safe center;
-  gap: 1.15rem;
+  gap: 0.85rem;
   flex-wrap: nowrap; /* FILA ÚNICA: NUNCA SE EXTIENDE HACIA ABAJO */
   width: max-content;
   min-width: 100%;
@@ -474,8 +876,8 @@ onUnmounted(() => {
 
 .badge-button {
   position: relative;
-  width: 105px;
-  height: 105px;
+  width: 82px;
+  height: 82px;
   border: none;
   background: none;
   cursor: pointer;
@@ -523,16 +925,16 @@ onUnmounted(() => {
   z-index: 3;
   color: #ffffff;
   font-family: inherit;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 800;
   text-align: center;
   line-height: 1.15;
-  padding: 6px;
+  padding: 4px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   pointer-events: none;
   user-select: none;
   word-break: break-word;
-  max-width: 90px;
+  max-width: 74px;
 }
 
 .badge-fire-tag {
@@ -586,7 +988,7 @@ onUnmounted(() => {
 
 .fade-scale-enter-from,
 .fade-scale-leave-to {
-  opacity: 0;
+  opacity: 0; 
   transform: translateY(-50%) scale(0.7);
 }
 
@@ -604,6 +1006,32 @@ onUnmounted(() => {
   .search-controls {
     gap: 0.85rem;
     padding: 0.35rem 0;
+  }
+
+  .search-top-row {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.6rem;
+  }
+
+  .category-dropdown-wrapper {
+    width: 100%;
+  }
+
+  .category-dropdown-trigger {
+    width: 100%;
+    justify-content: center;
+    padding: 0.65rem 1rem;
+  }
+
+  .dropdown-trigger-text {
+    max-width: none;
+  }
+
+  .category-dropdown-popover {
+    right: 0;
+    left: 0;
+    width: 100%;
   }
 
   .search-input {
@@ -635,17 +1063,18 @@ onUnmounted(() => {
     flex-wrap: nowrap;
     justify-content: flex-start;
     width: max-content;
-    gap: 0.75rem;
+    gap: 0.55rem;
   }
 
   .badge-button {
-    width: 82px;
-    height: 82px;
+    width: 72px;
+    height: 72px;
   }
 
   .badge-text {
-    font-size: 0.68rem;
-    padding: 3px;
+    font-size: 0.64rem;
+    padding: 2px;
+    max-width: 62px;
   }
 
   .active-filter-bar {

@@ -4,6 +4,7 @@
 
     <!-- MODALES -->
     <CartModal 
+      v-if="isCartOpen"
       :isOpen="isCartOpen"
       :cart-items="cartItems"
       :isStoreOpen="isStoreOpen"
@@ -14,6 +15,7 @@
     />
 
     <ProductDetailModal 
+      v-if="isDetailOpen"
       :isOpen="isDetailOpen" 
       :product="selectedProduct" 
       :isStoreOpen="isStoreOpen"
@@ -22,6 +24,7 @@
     />
 
     <LoginNoticeModal
+      v-if="isNoticeOpen"
       :isOpen="isNoticeOpen"
       @close="isNoticeOpen = false"
       @confirm="router.push('/login')"
@@ -64,6 +67,7 @@
         v-model:searchQuery="searchQueryText"
         :categories="categoriesList"
         :promotions-count="activePromotionsCount"
+        :available-category-names="activeCategoryNames"
       />
 
       <!-- SKELETON LOADING -->
@@ -78,9 +82,30 @@
         </div>
       </div>
 
+      <!-- ESTADO VACÍO CUANDO NO HAY COINCIDENCIAS -->
+      <div v-else-if="filteredProducts.length === 0" class="empty-search-state">
+        <div class="empty-icon-bubble">
+          <SearchX :size="36" />
+        </div>
+        <h3 class="empty-search-title">No encontramos productos</h3>
+        <p class="empty-search-desc">
+          No hay opciones que coincidan con <strong v-if="searchQueryText">"{{ searchQueryText }}"</strong>
+          <span v-if="searchQueryText && selectedCategory !== 'Todas'"> en la categoría <strong>{{ selectedCategory }}</strong></span>
+          <span v-else-if="selectedCategory !== 'Todas'"> en la categoría <strong>{{ selectedCategory }}</strong></span>.
+        </p>
+        <div class="empty-search-actions">
+          <button v-if="searchQueryText" type="button" class="btn-empty-clear" @click="searchQueryText = ''">
+            Limpiar búsqueda
+          </button>
+          <button v-if="selectedCategory !== 'Todas'" type="button" class="btn-empty-reset" @click="selectedCategory = 'Todas'">
+            Ver toda la carta
+          </button>
+        </div>
+      </div>
+
       <!-- GRILLA DE PRODUCTOS -->
       <div v-else class="products-grid">
-        <template v-for="item in filteredProducts" :key="item.name">
+        <template v-for="item in filteredProducts" :key="item.id || item.name">
           <OfferCard
             v-if="item.kind === 'offer'"
             :name="item.name"
@@ -94,6 +119,7 @@
             :promo-badge-text="item.promocionTitulo"
             :discount-percent="item.discountPercent"
             :display-hint="item.displayHint"
+            :is-available="item.isAvailable"
             @view-details="openDetails(item)"
           />
 
@@ -113,6 +139,7 @@
             :promo-badge-text="item.promocionTitulo"
             :discount-percent="item.discountPercent"
             :display-hint="item.displayHint"
+            :is-available="item.isAvailable"
             @view-details="openDetails(item)"
           />
         </template>
@@ -124,6 +151,7 @@
       <button 
         v-if="showScrollTop && !isCartOpen && !isDetailOpen" 
         class="floating-scroll-top"
+        :class="{ 'with-bottom-bar': totalCartQuantity > 0 }"
         @click="scrollToTop"
         title="Volver arriba"
         aria-label="Volver arriba"
@@ -133,6 +161,32 @@
     </Transition>
 
     <!-- BOTÓN FLOTANTE DEL CARRITO -->
+    <!-- BARRA INFERIOR FLOTANTE DE PEDIDO (MOBILE STICKY CART BAR) -->
+    <Transition name="slide-up-bottom">
+      <div 
+        v-if="totalCartQuantity > 0 && !isCartOpen && !isDetailOpen" 
+        class="mobile-bottom-cart-bar"
+        @click="isCartOpen = true"
+      >
+        <div class="cart-bar-left">
+          <div class="cart-bar-bubble">
+            <ShoppingCart :size="20" />
+            <span class="cart-bar-badge">{{ totalCartQuantity }}</span>
+          </div>
+          <div class="cart-bar-texts">
+            <span class="cart-bar-label">Mi Pedido ({{ totalCartQuantity }})</span>
+            <strong class="cart-bar-total">{{ totalCartAmountFormatted }}</strong>
+          </div>
+        </div>
+
+        <div class="cart-bar-action">
+          <span>Ver Carrito</span>
+          <ArrowRight :size="16" />
+        </div>
+      </div>
+    </Transition>
+
+    <!-- BOTÓN FLOTANTE DEL CARRITO (DESKTOP) -->
     <button 
       v-if="!isCartOpen && !isDetailOpen" 
       class="floating-cart" 
@@ -150,25 +204,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed, defineAsyncComponent } from 'vue';
 import { useRouter } from 'vue-router';
 import SearchBar from '@/components/SearchBar.vue';
 import ProductCard from '@/components/ProductCard.vue';
 import OfferCard from '@/components/OfferCard.vue';
-import CartModal from '@/components/CartModal.vue';
-import ProductDetailModal from '@/components/ProductDetailModal.vue';
-import LoginNoticeModal from '@/components/LoginNoticeModal.vue';
-import { ShoppingCart, ChevronUp, ArrowRight, Sparkles } from 'lucide-vue-next';
+
+const CartModal = defineAsyncComponent(() => import('@/components/CartModal.vue'));
+const ProductDetailModal = defineAsyncComponent(() => import('@/components/ProductDetailModal.vue'));
+const LoginNoticeModal = defineAsyncComponent(() => import('@/components/LoginNoticeModal.vue'));
+import { ShoppingCart, ChevronUp, ArrowRight, Sparkles, SearchX } from 'lucide-vue-next';
 import categoryService from '@/services/productCategoryService';
 import productService from '@/services/productService';
 import Footer from '@/components/Footer.vue';
 import Carousel from '@/components/Carousel.vue';
 import AdminPreviewBar from '@/components/AdminPreviewBar.vue';
+import logoImg from '@/assets/logo_jairo.webp';
 import { useNotification } from '@/composables/useNotification';
 import cashFlowService, { type ShiftWindow } from '@/services/cashFlowService';
 
 const { notify } = useNotification();
 const router = useRouter();
+
+const triggerHaptic = (duration = 10) => {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    try { navigator.vibrate(duration); } catch {}
+  }
+};
 
 // Estados
 const showScrollTop = ref(false);
@@ -199,6 +261,19 @@ const totalCartQuantity = computed(() => {
   return cartItems.value.reduce((total, item) => total + item.quantity, 0);
 });
 
+const totalCartAmount = computed(() => {
+  return cartItems.value.reduce((sum, item) => {
+    const cleanPrice = typeof item.price === 'string'
+      ? Number(item.price.replace(/[^0-9]/g, ''))
+      : Number(item.price || 0);
+    return sum + (cleanPrice * (Number(item.quantity) || 1));
+  }, 0);
+});
+
+const totalCartAmountFormatted = computed(() => {
+  return `$${totalCartAmount.value.toLocaleString('es-CL')}`;
+});
+
 const activePromotionsCount = computed(() => {
   return catalogProducts.value.filter(item => {
     const catLow = String(item.category ?? '').toLowerCase();
@@ -213,6 +288,16 @@ const activePromotionsCount = computed(() => {
       nameLow.includes('combo')
     );
   }).length;
+});
+
+const activeCategoryNames = computed(() => {
+  const set = new Set<string>();
+  for (const p of catalogProducts.value) {
+    if (p.category) {
+      set.add(String(p.category).trim().toLowerCase());
+    }
+  }
+  return set;
 });
 
 // Filtro por categoría y texto
@@ -269,6 +354,10 @@ const filteredProducts = computed(() => {
 });
 
 const openDetails = (product: any) => {
+  if (product.isAvailable === false) {
+    notify('Este producto se encuentra temporalmente agotado.', 'warning');
+    return;
+  }
   selectedProduct.value = product;
   isDetailOpen.value = true;
 };
@@ -422,6 +511,7 @@ const normalizeGroupedProduct = (product: any) => {
     ...product,
     kind: isOffer ? 'offer' : (product.kind || 'catalog'),
     hasPromotion: isOffer,
+    isAvailable: product.isAvailable ?? true,
     promocion_activa: activePromoObj,
     promocionTitulo: promoTitle || (isCategoryPromo ? 'Combo / Promo' : 'Promoción'),
     originalPrice: originalDisplayPrice,
@@ -437,6 +527,7 @@ const normalizeGroupedProduct = (product: any) => {
 
 // Agregar al carrito
 const addToCart = (purchaseItem: any) => {
+  triggerHaptic(12);
   if (!isStoreOpen.value) {
     const msg = shiftWindow.value?.es_dia_cerrado
       ? 'El foodtruck se encuentra en día de descanso. No es posible realizar pedidos hoy.'
@@ -459,7 +550,8 @@ const addToCart = (purchaseItem: any) => {
   notify(`¡${purchaseItem.fullName || purchaseItem.name || 'Producto'} añadido al pedido!`, 'success');
 };
 
-const handleUpdateQuantity = (payload: { id: number, size: string, change: number }) => {
+const handleUpdateQuantity = (payload: { id: number | string, size: string, change: number }) => {
+  triggerHaptic(10);
   const targetItem = cartItems.value.find(
     item => item.id === payload.id && item.size === payload.size
   );
@@ -472,7 +564,8 @@ const handleUpdateQuantity = (payload: { id: number, size: string, change: numbe
   }
 };
 
-const handleRemoveItem = (payload: { id: number, size: string }) => {
+const handleRemoveItem = (payload: { id: number | string, size: string }) => {
+  triggerHaptic(15);
   cartItems.value = cartItems.value.filter(
     item => !(item.id === payload.id && item.size === payload.size)
   );
@@ -519,6 +612,7 @@ const fetchCatalogProducts = async () => {
       const isActivo = p.activo !== false && p.activo !== 0 && p.active !== false;
       const isDisponible = p.disponible !== false && p.disponible !== 0 && p.inStock !== false;
       return isActivo && isDisponible;
+      return isActivo;
     });
 
     categoriesList.value = dbCategories.map((c: any) => ({
@@ -567,52 +661,22 @@ const fetchCatalogProducts = async () => {
       return PALETTE[Math.abs(hash) % PALETTE.length] ?? '#E28743';
     };
 
-    const groupableCategories = ['Vianesas', 'As', 'Churrascos', 'Lomitos', 'Bebidas frías', 'Bebidas calientes', 'Empanadas & Sopaipillas'];
-    const groupedMap: Record<string, any> = {};
-
     const normalizeSizeName = (value: any) => String(value ?? '').trim();
 
-    activeDbProducts.forEach((prod: any) => {
+    // 1. Mapear cada producto de la BD a su estructura individual con precios y tamaños
+    const rawItems = activeDbProducts.map((prod: any) => {
       const catName = prod.categoria?.nombre_categoria || 'Varios';
       const activePromo = prod.promocion_activa || prod.promocionActiva || null;
       const isPromoValid = isPromotionActive(activePromo);
-      const isPersonalizable = String(prod.tipo_armado || '').toLowerCase() === 'personalizable' || Number(prod.cantidad_incluida || 0) > 0;
-
-      // Si el producto tiene un grupo asignado explícito (ej: 'Hamburguesas', 'Vianesas')
-      // o pertenece a una categoría tradicional agrupable, se agrupa en esa tarjeta.
-      // Si tiene promoción activa válida, se muestra con su propia tarjeta destacada de oferta.
-      const hasExplicitGroup = Boolean(prod.grupo && String(prod.grupo).trim() !== '');
-      const groupTitle = hasExplicitGroup ? String(prod.grupo).trim() : (groupableCategories.includes(catName) ? catName : null);
-      const isGroupable = Boolean(groupTitle) && !isPromoValid && !isPersonalizable;
-      const groupKey = isGroupable ? groupTitle! : prod.nombre;
-      const prodImage = prod.imagen_url || prod.imagen || prod.image || '/src/assets/placeholder-food.webp';
+      const prodImage = prod.imagen_url || prod.imagen || prod.image || logoImg;
       const prodImagePosition = prod.imagen_posicion || prod.imagePosition || '50% 50%';
       const prodImageZoom = Number(prod.imagen_zoom || prod.imageZoom || 1);
       const prodImageFit = prod.imagen_ajuste === 'contain' || prod.imageFit === 'contain' ? 'contain' : 'cover';
 
-      if (!groupedMap[groupKey]) {
-        groupedMap[groupKey] = {
-          id: prod.id_producto,
-          name: isGroupable ? groupTitle! : prod.nombre,
-          category: catName,
-          grupo: prod.grupo || '',
-          color: resolveCategoryColor(catName, prod.categoria?.id_categoria),
-          image: prodImage,
-          imagePosition: prodImagePosition,
-          imageZoom: prodImageZoom,
-          imageFit: prodImageFit,
-          descripcion: prod.descripcion,
-          tipo_armado: prod.tipo_armado,
-          cantidad_incluida: prod.cantidad_incluida,
-          precio_ingrediente_extra: prod.precio_ingrediente_extra,
-          sizes: [],
-          tamaños_obj: [],
-          types: []
-        };
-      }
-
       const originalPricesMap: Record<string, number> = {};
       const pricesMap: Record<string, number> = {};
+      const sizes: string[] = [];
+      const tamaños_obj: any[] = [];
 
       if (prod.tamaños && prod.tamaños.length > 0) {
         prod.tamaños.forEach((t: any) => {
@@ -623,19 +687,18 @@ const fetchCatalogProducts = async () => {
           originalPricesMap[sizeName] = baseVal;
           pricesMap[sizeName] = baseVal;
 
-          const hasSameSize = groupedMap[groupKey].sizes.some((existing: string) => existing.toLowerCase() === sizeName.toLowerCase());
-          if (!hasSameSize) {
-            groupedMap[groupKey].sizes.push(sizeName);
+          if (!sizes.some(s => s.toLowerCase() === sizeName.toLowerCase())) {
+            sizes.push(sizeName);
           }
 
           const sizeIdentifier = String(t.id_tamaño ?? sizeName).toLowerCase();
-          const hasSameTamaño = groupedMap[groupKey].tamaños_obj.some((existing: any) => {
+          const hasSameTamaño = tamaños_obj.some((existing: any) => {
             const existingId = String(existing.id_tamaño ?? existing.nombre ?? '').toLowerCase();
             return existingId === sizeIdentifier || normalizeSizeName(existing.nombre).toLowerCase() === sizeName.toLowerCase();
           });
 
           if (!hasSameTamaño) {
-            groupedMap[groupKey].tamaños_obj.push(t);
+            tamaños_obj.push(t);
           }
         });
       } else {
@@ -643,9 +706,7 @@ const fetchCatalogProducts = async () => {
         const baseVal = Number(prod.precio ?? 0);
         originalPricesMap[defaultSizeName] = baseVal;
         pricesMap[defaultSizeName] = baseVal;
-        if (!groupedMap[groupKey].sizes.includes(defaultSizeName)) {
-          groupedMap[groupKey].sizes.push(defaultSizeName);
-        }
+        sizes.push(defaultSizeName);
       }
 
       const promotionPrice = isPromoValid ? Number(activePromo?.precio_promocional ?? 0) : 0;
@@ -660,45 +721,133 @@ const fetchCatalogProducts = async () => {
         });
       }
 
-      const normalizedPrices = Object.fromEntries(
-        groupedMap[groupKey].sizes.map((size: string) => [size, 0])
-      );
-      const normalizedOriginalPrices = Object.fromEntries(
-        groupedMap[groupKey].sizes.map((size: string) => [size, 0])
-      );
+      const isAvailable = prod.disponible !== false && prod.disponible !== 0 && prod.inStock !== false;
 
-      Object.entries(pricesMap).forEach(([sizeName, value]) => {
-        normalizedPrices[sizeName] = Number(value || 0);
-      });
-      Object.entries(originalPricesMap).forEach(([sizeName, value]) => {
-        normalizedOriginalPrices[sizeName] = Number(value || 0);
-      });
-
-      groupedMap[groupKey].types.push({
-        id: prod.id_producto,
-        name: prod.nombre,
-        grupo: prod.grupo || '',
-        desc: prod.descripcion,
-        tipo_armado: prod.tipo_armado,
-        cantidad_incluida: prod.cantidad_incluida,
-        precio_ingrediente_extra: prod.precio_ingrediente_extra,
-        active: true,
-        image: prodImage,
-        imagePosition: prodImagePosition,
-        imageZoom: prodImageZoom,
-        imageFit: prodImageFit,
-        prices: normalizedPrices,
-        originalPrices: normalizedOriginalPrices,
-        promocion_activa: isPromoValid ? activePromo : null,
-        hasPromotion: isPromoValid && Boolean(activePromo),
-        tamaños_obj: prod.tamaños || [],
-        producto_ingrediente: prod.ingredientes || []
-      });
+      return {
+        prod,
+        catName,
+        catId: prod.categoria?.id_categoria,
+        prodImage,
+        prodImagePosition,
+        prodImageZoom,
+        prodImageFit,
+        sizes,
+        tamaños_obj,
+        isAvailable,
+        typeItem: {
+          id: prod.id_producto,
+          name: prod.nombre,
+          grupo: prod.grupo || '',
+          desc: prod.descripcion,
+          tipo_armado: prod.tipo_armado,
+          cantidad_incluida: prod.cantidad_incluida,
+          precio_ingrediente_extra: prod.precio_ingrediente_extra,
+          active: true,
+          isAvailable,
+          image: prodImage,
+          imagePosition: prodImagePosition,
+          imageZoom: prodImageZoom,
+          imageFit: prodImageFit,
+          prices: pricesMap,
+          originalPrices: originalPricesMap,
+          promocion_activa: isPromoValid ? activePromo : null,
+          hasPromotion: isPromoValid && Boolean(activePromo),
+          tamaños_obj: prod.tamaños || [],
+          producto_ingrediente: prod.ingredientes || []
+        }
+      };
     });
 
-    catalogProducts.value = Object.values(groupedMap)
-      .filter((g: any) => g.types && g.types.length > 0)
-      .map((group: any) => normalizeGroupedProduct(group));
+    // 2. Consolidar productos que comparten 'grupo' en una sola tarjeta con múltiples variedades
+    const mappedProducts: any[] = [];
+    const processedGroupKeys = new Set<string>();
+
+    rawItems.forEach((item: any) => {
+      const groupName = String(item.prod.grupo || '').trim();
+
+      if (groupName) {
+        const groupKey = `${item.catName}____${groupName.toLowerCase()}`;
+        if (processedGroupKeys.has(groupKey)) {
+          return; // Ya fue consolidado en la primera aparición del grupo
+        }
+        processedGroupKeys.add(groupKey);
+
+        const groupMembers = rawItems.filter((m: any) => {
+          const mGroup = String(m.prod.grupo || '').trim().toLowerCase();
+          return m.catName === item.catName && mGroup === groupName.toLowerCase();
+        });
+
+        // Unificar tamaños y tamaños_obj entre todos los miembros de la variedad
+        const combinedSizes: string[] = [];
+        const combinedTamañosObj: any[] = [];
+
+        groupMembers.forEach((m: any) => {
+          m.sizes.forEach((s: string) => {
+            if (!combinedSizes.some(cs => cs.toLowerCase() === s.toLowerCase())) {
+              combinedSizes.push(s);
+            }
+          });
+          m.tamaños_obj.forEach((to: any) => {
+            const toId = String(to.id_tamaño ?? to.nombre ?? '').toLowerCase();
+            if (!combinedTamañosObj.some(e => String(e.id_tamaño ?? e.nombre ?? '').toLowerCase() === toId)) {
+              combinedTamañosObj.push(to);
+            }
+          });
+        });
+
+        const anyAvailable = groupMembers.some((m: any) => m.isAvailable);
+        const cardName = groupMembers.length > 1 ? groupName : item.prod.nombre;
+        const types = groupMembers.map((m: any) => m.typeItem);
+        const primaryMember = groupMembers.find((m: any) => m.prod.imagen_url || m.prod.imagen) || item;
+
+        const productEntry = {
+          id: primaryMember.prod.id_producto,
+          name: cardName,
+          category: item.catName,
+          grupo: groupName,
+          color: resolveCategoryColor(item.catName, item.catId),
+          image: primaryMember.prodImage,
+          imagePosition: primaryMember.prodImagePosition,
+          imageZoom: primaryMember.prodImageZoom,
+          imageFit: primaryMember.prodImageFit,
+          descripcion: primaryMember.prod.descripcion || item.prod.descripcion,
+          tipo_armado: primaryMember.prod.tipo_armado,
+          cantidad_incluida: primaryMember.prod.cantidad_incluida,
+          precio_ingrediente_extra: primaryMember.prod.precio_ingrediente_extra,
+          isAvailable: anyAvailable,
+          sizes: combinedSizes,
+          tamaños_obj: combinedTamañosObj,
+          types
+        };
+
+        mappedProducts.push(normalizeGroupedProduct(productEntry));
+      } else {
+        // Producto independiente sin grupo
+        const productEntry = {
+          id: item.prod.id_producto,
+          name: item.prod.nombre,
+          category: item.catName,
+          grupo: '',
+          color: resolveCategoryColor(item.catName, item.catId),
+          image: item.prodImage,
+          imagePosition: item.prodImagePosition,
+          imageZoom: item.prodImageZoom,
+          imageFit: item.prodImageFit,
+          descripcion: item.prod.descripcion,
+          tipo_armado: item.prod.tipo_armado,
+          cantidad_incluida: item.prod.cantidad_incluida,
+          precio_ingrediente_extra: item.prod.precio_ingrediente_extra,
+          isAvailable: item.isAvailable,
+          sizes: item.sizes,
+          tamaños_obj: item.tamaños_obj,
+          types: [item.typeItem]
+        };
+
+        mappedProducts.push(normalizeGroupedProduct(productEntry));
+      }
+    });
+
+    catalogProducts.value = mappedProducts;
   } catch (error) {
     console.error('Error al cargar catálogo de productos:', error);
   } finally {
@@ -1064,8 +1213,207 @@ watch(
 }
 
 /* ====================================================
+   🔍 EMPTY SEARCH STATE
+==================================================== */
+.empty-search-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3.5rem 1.5rem;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px dashed rgba(81, 49, 25, 0.15);
+  margin: 1.5rem 0;
+  width: 100%;
+}
+
+.empty-icon-bubble {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: rgba(226, 135, 67, 0.1);
+  color: var(--DC-orange, #e28743);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.empty-search-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--DC-gray, #2c2724);
+  margin-bottom: 0.5rem;
+}
+
+.empty-search-desc {
+  font-size: 0.92rem;
+  color: #6b7280;
+  max-width: 440px;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+.empty-search-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn-empty-clear {
+  background: var(--DC-orange, #e28743);
+  color: #ffffff;
+  border: none;
+  padding: 0.65rem 1.25rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-empty-clear:hover {
+  background: var(--DC-brown, #513119);
+}
+
+.btn-empty-reset {
+  background: transparent;
+  color: var(--DC-gray, #2c2724);
+  border: 1px solid rgba(81, 49, 25, 0.2);
+  padding: 0.65rem 1.25rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-empty-reset:hover {
+  background: rgba(81, 49, 25, 0.05);
+}
+
+/* ====================================================
+   🛒 MOBILE BOTTOM STICKY CART BAR
+==================================================== */
+.mobile-bottom-cart-bar {
+  display: none;
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 2000;
+  background: linear-gradient(135deg, #e28743 0%, #c0392b 100%);
+  color: #ffffff;
+  border-radius: 18px;
+  padding: 0.75rem 1.25rem;
+  box-shadow: 0 10px 30px rgba(192, 57, 43, 0.35), 0 2px 10px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  align-items: center;
+  justify-content: space-between;
+  backdrop-filter: blur(8px);
+}
+
+.cart-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.cart-bar-bubble {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cart-bar-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ffffff;
+  color: #c0392b;
+  font-size: 0.7rem;
+  font-weight: 900;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.cart-bar-texts {
+  display: flex;
+  flex-direction: column;
+}
+
+.cart-bar-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.9;
+}
+
+.cart-bar-total {
+  font-size: 1.15rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.cart-bar-action {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  padding: 0.55rem 1rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s;
+}
+
+.mobile-bottom-cart-bar:hover .cart-bar-action {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.slide-up-bottom-enter-active,
+.slide-up-bottom-leave-active {
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.slide-up-bottom-enter-from,
+.slide-up-bottom-leave-to {
+  transform: translateY(120%);
+  opacity: 0;
+}
+
+/* ====================================================
    RESPONSIVO
 ==================================================== */
+@media (max-width: 768px) {
+  .mobile-bottom-cart-bar {
+    display: flex;
+  }
+
+  .floating-cart {
+    display: none;
+  }
+
+  .floating-scroll-top.with-bottom-bar {
+    bottom: 5.5rem !important;
+  }
+}
+
 @media (max-width: 600px) {
   .store-status-wrapper {
     padding: 0 0.85rem;
