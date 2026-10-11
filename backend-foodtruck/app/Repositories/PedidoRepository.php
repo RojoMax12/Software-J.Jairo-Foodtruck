@@ -190,6 +190,28 @@ class PedidoRepository
             ->orderBy('id_pedido', 'desc')
             ->first();
 
+        // Si no encontró pedido Y el turno de hoy aún no ha abierto (antes de apertura),
+        // buscar también en el turno inmediatamente anterior (ayer por la noche).
+        // Esto cubre el caso: cliente pide a las 21:00, revisa estado al día siguiente
+        // a las 13:00 antes de que abra el local. Solo retrocede UN día, nunca más.
+        if (!$pedido && !($window['is_active'] ?? false) && !($window['is_day_off'] ?? false)) {
+            $referenceYesterday = $targetDate
+                ? \Carbon\Carbon::parse($targetDate)->subDay()
+                : now()->subDay();
+            $windowAyer = $this->getShiftWindow($referenceYesterday);
+
+            $pedidoAyer = Pedido::with($relations)
+                ->where('numero_pedido_dia', (int)$numeroComanda)
+                ->whereBetween('created_at', [$windowAyer['start'], $windowAyer['end']])
+                ->orderBy('id_pedido', 'desc')
+                ->first();
+
+            if ($pedidoAyer) {
+                $pedido = $pedidoAyer;
+                $window = $windowAyer;
+            }
+        }
+
         return [
             'pedido' => $pedido,
             'jornada' => [

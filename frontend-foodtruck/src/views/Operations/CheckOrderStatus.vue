@@ -225,7 +225,6 @@ onMounted(() => {
     const rawVal = Array.isArray(queryId) ? queryId[0] : String(queryId);
     if (rawVal) {
       orderId.value = rawVal;
-      handleSearch();
       handleSearch(false);
     }
   } else {
