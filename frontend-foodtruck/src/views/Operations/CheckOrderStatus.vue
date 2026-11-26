@@ -381,7 +381,7 @@ const handleSearch = async (isSilent: boolean = false) => {
       id: data.id_pedido || data.id,
       numero_pedido_dia: data.numero_pedido_dia || null,
       customerName: data.nombre_persona || 'Cliente',
-      customerPhone: data.numero_telefono || 'Sin teléfono',
+      customerPhone: data.numero_telefono ? String(data.numero_telefono).replace(/^(\+?56)\s*9\s*/, '$1 ') : 'Sin teléfono',
       customerMetododepago: data.metodo_pago || 'Efectivo',
       currentStatus: currentStep,
       statusLabel: statusName,

@@ -15,6 +15,12 @@ class AuditLogMiddleware
      */
     protected array $maskedFields = [
         'contrasena',
+        'contrasena_actual',
+        'password_actual',
+        'nueva_password',
+        'current_password',
+        'new_password',
+        'nueva_contrasena',
         'password',
         'password_confirmation',
         'contrasena_confirmation',

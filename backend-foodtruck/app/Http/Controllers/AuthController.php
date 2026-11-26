@@ -35,9 +35,12 @@ class AuthController extends Controller
             return response()->json(['error' => 'Por favor, ingresa tu correo/usuario y contraseña.'], 422);
         }
 
-        $user = \App\Models\Usuario::where('correo', $loginInput)
-            ->orWhere('nombre', $loginInput)
-            ->first();
+        $user = \App\Models\Usuario::where('correo', $loginInput)->first();
+        if (!$user && !str_contains((string) $loginInput, '@')) {
+            // Login por nombre solo si es inequívoco (un único usuario con ese nombre)
+            $candidatos = \App\Models\Usuario::where('nombre', $loginInput)->limit(2)->get();
+            $user = $candidatos->count() === 1 ? $candidatos->first() : null;
+        }
 
         if (!$user || !Hash::check($contrasena, $user->contrasena)) {
             return response()->json(['error' => 'Credenciales inválidas. Revisa tu usuario/correo y contraseña.'], 401);
@@ -192,7 +195,7 @@ class AuthController extends Controller
         $request->validate([
             'token' => 'required|string',
             'correo' => 'required|email',
-            'password' => 'required|string|min:6|confirmed',
+            'password' => ['required', 'string', 'confirmed', \Illuminate\Validation\Rules\Password::min(8)->mixedCase()->numbers()->symbols()],
         ]);
 
         $status = $this->authService->restablecerContrasena(

@@ -630,7 +630,14 @@ const whatsappUrl = computed(() => {
     formatted = `569${cleanPhone}`;
   }
 
-  const text = encodeURIComponent(`Hola ${props.distributor || 'cliente'}, tu pedido #${props.orderId} en J.Junior Foodtruck está listo! 🍔`);
+  const detalle = products.value
+    .map((p: any) => {
+      const extras = (p.addedExtras || []).map((e: any) => e.name).filter(Boolean);
+      return `- ${p.quantity || 1}x ${p.name || p.nombre || 'Producto'}${extras.length ? ` (+ ${extras.join(', ')})` : ''}`;
+    })
+    .join('\n');
+  const total = props.total ? `\nTotal: $${Number(props.total).toLocaleString('es-CL')}` : '';
+  const text = encodeURIComponent(`Hola ${props.distributor || 'cliente'}, tu pedido #${props.orderId} en J.Junior Foodtruck está listo! 🍔${detalle ? `\n\nDetalle:\n${detalle}` : ''}${total}`);
   return `https://wa.me/${formatted}?text=${text}`;
 });
 

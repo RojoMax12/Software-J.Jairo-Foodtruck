@@ -44,7 +44,12 @@ const currentStatusName = computed(() => {
 })
 
 const abrirWhatsapp = () => {
-  window.open('https://wa.me/56977579783', '_blank');
+  const numero = import.meta.env.VITE_WHATSAPP_NUMBER || '56977579783';
+  const detalle = (orderData.value?.items || orderData.value?.detalles || [])
+    .map((d: any) => `- ${d.cantidad || d.quantity || 1}x ${d.nombre || d.producto?.nombre || d.name || 'Producto'}`)
+    .join('\n');
+  const texto = `Hola, consulto por mi pedido N° ${orderData.value?.id_pedido ?? pedidoId.value}.${detalle ? `\nDetalle:\n${detalle}` : ''}`;
+  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(texto)}`, '_blank');
 };
 
 // --- CARGA DE DATOS OPTIMIZADA ---

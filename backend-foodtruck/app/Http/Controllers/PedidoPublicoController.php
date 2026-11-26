@@ -46,10 +46,9 @@ class PedidoPublicoController extends Controller
         }
 
         $data = $request->all();
-        $user = $request->user();
-        if (empty($data['id_usuario']) && $user) {
-            $data['id_usuario'] = $user->id_usuario;
-        }
+        $user = $this->resolverUsuarioOpcional($request);
+        // El pedido siempre se asocia al usuario autenticado, nunca a un id enviado por el cliente
+        $data['id_usuario'] = $user?->id_usuario;
 
         try {
             $pedido = $this->pedidoService->createPedido($data);
@@ -96,7 +95,7 @@ class PedidoPublicoController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $pedido
+                'data' => $this->sanitizarPedidoPublico($pedido)
             ]);
         } catch (\Exception $e) {
             Log::error("Error al consultar pedido ID #{$id}: " . $e->getMessage());
@@ -143,9 +142,48 @@ class PedidoPublicoController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $pedido,
+            'data' => $this->sanitizarPedidoPublico($pedido),
             'jornada' => $jornada
         ]);
+    }
+
+    /**
+     * La ruta pública no usa jwt.auth: si llega un token válido se asocia el pedido
+     * a ese usuario; si no, el pedido queda anónimo. Nunca se confía en id_usuario del body.
+     */
+    private function resolverUsuarioOpcional(Request $request)
+    {
+        $token = $request->bearerToken();
+        if (!$token) {
+            return null;
+        }
+
+        try {
+            $jwt = app(\App\Services\JwtService::class);
+            $claims = $jwt->decode($token);
+            if ($jwt->isBlacklisted($claims->jti ?? null)) {
+                return null;
+            }
+            $user = \App\Models\Usuario::find($claims->sub ?? null);
+            if (!$user || (isset($user->estado) && !$user->estado)) {
+                return null;
+            }
+            if (!hash_equals($jwt->passwordVersion($user), (string) ($claims->pv ?? ''))) {
+                return null;
+            }
+            return $user;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Oculta datos personales y relaciones internas en las consultas públicas.
+     */
+    private function sanitizarPedidoPublico($pedido)
+    {
+        $pedido->unsetRelation('usuario');
+        return $pedido->makeHidden(['id_usuario', 'usuario']);
     }
 
     private function maskPhone($phone): string

@@ -151,6 +151,11 @@ class DatabaseSeeder extends Seeder
             ['nombre' => 'Pan Grande', 'descripcion' => 'Pan grande', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
             ['nombre' => 'Pan XL', 'descripcion' => 'Pan XL', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
             ['nombre' => 'Chucrut', 'descripcion' => 'Chucrut tradicional', 'cantidad_actual' => 50, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Ketchup', 'descripcion' => 'Aderezo ketchup', 'cantidad_actual' => 60, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Mostaza', 'descripcion' => 'Aderezo mostaza', 'cantidad_actual' => 60, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Mayonesa de ajo', 'descripcion' => 'Aderezo mayonesa de ajo', 'cantidad_actual' => 60, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Salsa de queso', 'descripcion' => 'Aderezo salsa de queso', 'cantidad_actual' => 60, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
+            ['nombre' => 'Salsa de ají', 'descripcion' => 'Aderezo salsa de ají', 'cantidad_actual' => 60, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
             ['nombre' => 'Salsa verde', 'descripcion' => 'Salsa verde tradicional', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
             ['nombre' => 'Masa de pizzeta', 'descripcion' => 'Masa base para pizzeta', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
             ['nombre' => 'Salsa de tomate', 'descripcion' => 'Salsa de tomate natural', 'cantidad_actual' => 40, 'cantidad_minima' => 5, 'fecha_de_ingreso' => '2026-01-01', 'disponible' => true],
@@ -239,7 +244,7 @@ class DatabaseSeeder extends Seeder
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Chico' => 1400, 'Grande' => 1850, 'XXL' => 2600],
+                'precios_por_tamaño' => ['Chico' => 1600, 'Grande' => 2200, 'XXL' => 3000],
                 'ingredientes_defecto' => [
                     ['ingrediente' => 'Pan Chico', 'tamaño' => 'Chico', 'cantidad' => 1],
                     ['ingrediente' => 'Pan Grande', 'tamaño' => 'Grande', 'cantidad' => 1],
@@ -277,7 +282,7 @@ class DatabaseSeeder extends Seeder
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Chico' => 2800, 'Grande' => 3200],
+                'precios_por_tamaño' => ['Chico' => 3000, 'Grande' => 3300],
                 'ingredientes_defecto' => [
                     ['ingrediente' => 'Pan Chico', 'tamaño' => 'Chico', 'cantidad' => 1],
                     ['ingrediente' => 'Pan Grande', 'tamaño' => 'Grande', 'cantidad' => 1],
@@ -291,7 +296,7 @@ class DatabaseSeeder extends Seeder
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Chico' => 2700, 'Grande' => 3100],
+                'precios_por_tamaño' => ['Chico' => 3000, 'Grande' => 3300],
                 'ingredientes_defecto' => [
                     ['ingrediente' => 'Pan Chico', 'tamaño' => 'Chico', 'cantidad' => 1],
                     ['ingrediente' => 'Pan Grande', 'tamaño' => 'Grande', 'cantidad' => 1],
@@ -301,15 +306,15 @@ class DatabaseSeeder extends Seeder
             [
                 'nombre' => 'As Dinámico',
                 'categoria' => 'As',
-                'descripcion' => 'Carne trozada en pan de completo con combinación especial dinámica',
+                'descripcion' => 'Carne trozada en pan de completo con tomate, palta, chucrut, salsa americana y mayo (sin salsa verde)',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Chico' => 2900, 'Grande' => 3300],
+                'precios_por_tamaño' => ['Chico' => 3000, 'Grande' => 3300],
                 'ingredientes_defecto' => [
                     ['ingrediente' => 'Pan Chico', 'tamaño' => 'Chico', 'cantidad' => 1],
                     ['ingrediente' => 'Pan Grande', 'tamaño' => 'Grande', 'cantidad' => 1],
-                    'Carne', 'Tomate', 'Palta', 'Salsa verde', 'Mayonesa'
+                    'Carne', 'Tomate', 'Palta', 'Chucrut', 'Salsa Americana', 'Mayonesa'
                 ],
             ],
             [
@@ -319,7 +324,7 @@ class DatabaseSeeder extends Seeder
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Chico' => 2900, 'Grande' => 3300],
+                'precios_por_tamaño' => ['Chico' => 3000, 'Grande' => 3300],
                 'ingredientes_defecto' => [
                     ['ingrediente' => 'Pan Chico', 'tamaño' => 'Chico', 'cantidad' => 1],
                     ['ingrediente' => 'Pan Grande', 'tamaño' => 'Grande', 'cantidad' => 1],
@@ -347,7 +352,7 @@ class DatabaseSeeder extends Seeder
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
                 'precios_por_tamaño' => ['Único' => 3700],
-                'ingredientes_defecto' => ['Pan Mediano', 'Carne', 'Tomate', 'Porotos verdes'],
+                'ingredientes_defecto' => ['Pan Mediano', 'Carne', 'Tomate', 'Porotos verdes', 'Mayonesa', 'Salsa de ají'],
             ],
             [
                 'nombre' => 'Churrasco Barros Luco',
@@ -376,7 +381,7 @@ class DatabaseSeeder extends Seeder
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Único' => 4000],
+                'precios_por_tamaño' => ['Único' => 4500],
                 'ingredientes_defecto' => ['Pan Mediano', 'Carne', 'Cebolla', 'Huevo', 'Papas fritas', 'Mayonesa'],
             ],
 
@@ -399,7 +404,7 @@ class DatabaseSeeder extends Seeder
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
                 'precios_por_tamaño' => ['Único' => 3600],
-                'ingredientes_defecto' => ['Pan Mediano', 'Lomito', 'Tomate', 'Porotos verdes'],
+                'ingredientes_defecto' => ['Pan Mediano', 'Lomito', 'Tomate', 'Porotos verdes', 'Mayonesa', 'Salsa de ají'],
             ],
             [
                 'nombre' => 'Lomito Barros Luco',
@@ -456,8 +461,8 @@ class DatabaseSeeder extends Seeder
                 'descripcion' => 'Pizza individual recién horneada personalizable.',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
-                'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Único' => 1700],
+                'precio_ingrediente_extra' => 1000,
+                'precios_por_tamaño' => ['Único' => 1500],
                 'ingredientes_defecto' => ['Masa de pizzeta', 'Salsa de tomate', 'Queso gauda', 'Tomate', 'Oregano'],
             ],
 
@@ -467,8 +472,8 @@ class DatabaseSeeder extends Seeder
                 'descripcion' => 'Pizza recién horneada personalizable.',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
-                'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Único' => 1700],
+                'precio_ingrediente_extra' => 1000,
+                'precios_por_tamaño' => ['Único' => 1500],
                 'ingredientes_defecto' => ['Masa de pizzeta', 'Salsa de tomate', 'Queso gauda', 'Pepperoni', 'Oregano'],
             ],
 
@@ -478,8 +483,8 @@ class DatabaseSeeder extends Seeder
                 'descripcion' => 'Pizza recién horneada personalizable.',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
-                'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Único' => 1700],
+                'precio_ingrediente_extra' => 1000,
+                'precios_por_tamaño' => ['Único' => 1500],
                 'ingredientes_defecto' => ['Masa de pizzeta', 'Salsa de tomate', 'Queso gauda', 'Salame', 'Oregano'],
             ],
 
@@ -567,7 +572,7 @@ class DatabaseSeeder extends Seeder
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
                 'precios_por_tamaño' => ['Único' => 3700],
-                'ingredientes_defecto' => ['Pan Mediano', 'Pollo', 'Tomate', 'Porotos verdes'],
+                'ingredientes_defecto' => ['Pan Mediano', 'Pollo', 'Tomate', 'Porotos verdes', 'Mayonesa', 'Salsa de ají'],
             ],
             [
                 'nombre' => 'Suprema de pollo',
@@ -606,7 +611,7 @@ class DatabaseSeeder extends Seeder
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Chico' => 2000, 'Mediana' => 3000, 'Grande' => 4000],
+                'precios_por_tamaño' => ['Chico' => 2500, 'Mediana' => 3500, 'Grande' => 4500],
                 'ingredientes_defecto' => ['Papas fritas', 'Vianesa'],
             ],
             [
@@ -766,7 +771,7 @@ class DatabaseSeeder extends Seeder
             [
                 'nombre' => 'Bebida en Lata',
                 'categoria' => 'Bebidas frías',
-                'descripcion' => 'Gaseosa en lata 350ml',
+                'descripcion' => 'Gaseosa en lata 350ml: Coca-Cola, Fanta, Sprite, Coca-Cola Zero, jugo, Kem, limón, papaya, Crush o Pepsi',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
@@ -806,7 +811,56 @@ class DatabaseSeeder extends Seeder
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Único' => 1900],
+                'precios_por_tamaño' => ['Único' => 2000],
+            ],
+
+            // --- Reunión 11/10 ---
+            [
+                'nombre' => 'Papas Nuevas',
+                'categoria' => 'Papas & Chorrillanas',
+                'descripcion' => 'Papas nuevas con acompañamientos de la casa',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Chico' => 6500, 'Grande' => 12500],
+                'ingredientes_defecto' => ['Papas fritas'],
+            ],
+            [
+                'nombre' => 'Papa Italiana',
+                'categoria' => 'Papas & Chorrillanas',
+                'descripcion' => 'Papas fritas con tomate, palta y mayo',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Chico' => 7000, 'Grande' => 12000],
+                'ingredientes_defecto' => ['Papas fritas', 'Tomate', 'Palta', 'Mayonesa'],
+            ],
+            [
+                'nombre' => 'Coca-Cola Express',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Bebida express Coca-Cola',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 800],
+            ],
+            [
+                'nombre' => 'Fanta y Sprite Express',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Bebida express Fanta o Sprite',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 800],
+            ],
+            [
+                'nombre' => 'Jugo Watts Botella',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Jugo Watts en botella',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 1200],
             ],
 
             // --- PROMOS / COMBOS ---
@@ -861,12 +915,21 @@ class DatabaseSeeder extends Seeder
             ],
         ];
 
+        // Aderezos disponibles en hamburguesas y fajitas (reunión 11/10)
+        $aderezos = ['Ketchup', 'Mostaza', 'Salsa BBQ', 'Mayonesa de ajo', 'Salsa de queso', 'Salsa de ají'];
+        foreach ($productosEstructurados as &$prodRef) {
+            if (in_array($prodRef['categoria'], ['Hamburguesas', 'Fajitas'], true)) {
+                $prodRef['ingredientes_opcionales'] = array_values(array_unique(array_merge($prodRef['ingredientes_opcionales'] ?? [], $aderezos)));
+            }
+        }
+        unset($prodRef);
+
         // 9. Guardar Productos, Precios por Tamaño e Ingredientes Asociados
         foreach ($productosEstructurados as $prodData) {
             $cat = $categoriasMap->get($prodData['categoria']);
             if (!$cat) continue;
 
-            $producto = Producto::firstOrCreate(
+            $producto = Producto::updateOrCreate(
                 ['nombre' => $prodData['nombre']],
                 [
                     'id_categoria' => $cat->id_categoria,
@@ -881,7 +944,7 @@ class DatabaseSeeder extends Seeder
             foreach ($prodData['precios_por_tamaño'] as $nombreTam => $precio) {
                 $tamObj = $tamañosMap->get($nombreTam);
                 if ($tamObj) {
-                    Producto_Tamaño::firstOrCreate(
+                    Producto_Tamaño::updateOrCreate(
                         [
                             'id_producto' => $producto->id_producto,
                             'id_tamaño' => $tamObj->id_tamaño,
@@ -891,6 +954,13 @@ class DatabaseSeeder extends Seeder
                         ]
                     );
                 }
+            }
+
+            // As Dinámico: sin salsa verde (reunión 11/10)
+            if ($prodData['nombre'] === 'As Dinámico' && ($salsaVerde = $ingredientesMap->get('Salsa verde'))) {
+                Producto_ingrediente::where('id_producto', $producto->id_producto)
+                    ->where('id_ingrediente', $salsaVerde->id_ingrediente)
+                    ->delete();
             }
 
             // Ingredientes por defecto (si existen)

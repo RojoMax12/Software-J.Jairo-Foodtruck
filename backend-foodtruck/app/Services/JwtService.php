@@ -25,6 +25,7 @@ class JwtService
             'jti' => (string) Str::uuid(),
             'id_rol' => $user->id_rol ?? null,
             'nombre' => $user->nombre ?? null,
+            'pv' => $this->passwordVersion($user),
         ], $extraClaims);
 
         $claims = array_filter($claims, static fn ($value) => $value !== null);
@@ -35,6 +36,15 @@ class JwtService
             'expires_in' => $expiresIn,
             'user' => $user,
         ];
+    }
+
+    /**
+     * Huella de la contraseña actual: cambia al cambiar/restablecer la contraseña
+     * e invalida los tokens emitidos antes.
+     */
+    public function passwordVersion(object $user): string
+    {
+        return substr(hash_hmac('sha256', (string) ($user->contrasena ?? ''), $this->secret()), 0, 16);
     }
 
     public function decode(string $token): object
