@@ -50,7 +50,10 @@ class ProductoController extends Controller
         }
 
         // Si la imagen viene como base64 en el cuerpo, procesarla y guardarla en storage
-        if (!empty($data['imagen']) && str_starts_with($data['imagen'], 'data:image')) {
+        if (!empty($data['imagen']) && is_string($data['imagen']) && str_starts_with($data['imagen'], 'data:image')) {
+            if (!preg_match('#^data:image/(jpeg|png|jpg|webp);base64,#', $data['imagen'])) {
+                return response()->json(['message' => 'El formato Base64 debe ser JPEG, PNG o WEBP.'], 422);
+            }
             $data['imagen'] = $this->saveBase64Image($data['imagen'], 'prod_new_' . time());
         }
 
@@ -74,7 +77,10 @@ class ProductoController extends Controller
         }
 
         // Si la imagen viene como base64 en el cuerpo, procesarla y guardarla en storage
-        if (!empty($data['imagen']) && str_starts_with($data['imagen'], 'data:image')) {
+        if (!empty($data['imagen']) && is_string($data['imagen']) && str_starts_with($data['imagen'], 'data:image')) {
+            if (!preg_match('#^data:image/(jpeg|png|jpg|webp);base64,#', $data['imagen'])) {
+                return response()->json(['message' => 'El formato Base64 debe ser JPEG, PNG o WEBP.'], 422);
+            }
             $data['imagen'] = $this->saveBase64Image($data['imagen'], 'prod_' . $id . '_' . time());
         }
 
@@ -172,7 +178,7 @@ class ProductoController extends Controller
                     return response()->json(['message' => 'El formato Base64 debe ser una imagen JPEG, PNG o WEBP válida.'], 422);
                 }
                 $path = $this->saveBase64Image($raw, 'prod_' . $id . '_' . time());
-            } elseif (filter_var($raw, FILTER_VALIDATE_URL)) {
+            } elseif (filter_var($raw, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $raw)) {
                 $path = $raw;
             } else {
                 return response()->json(['message' => 'La URL o dato de imagen proporcionado no es válido.'], 422);

@@ -40,6 +40,14 @@ class AuthenticateJwt
             return $this->unauthorized('Usuario no encontrado.');
         }
 
+        if (isset($user->estado) && ! $user->estado) {
+            return $this->unauthorized('Usuario inactivo.');
+        }
+
+        if (! hash_equals($this->jwtService->passwordVersion($user), (string) ($claims->pv ?? ''))) {
+            return $this->unauthorized('Sesión expirada. Inicia sesión nuevamente.');
+        }
+
         Auth::setUser($user);
         $request->setUserResolver(static fn () => $user);
         $request->attributes->set('jwt_claims', $claims);

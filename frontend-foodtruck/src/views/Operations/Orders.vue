@@ -528,11 +528,11 @@ const playOrderNotificationSound = () => {
     const playTone = (freq: number, start: number, dur: number) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'sine';
+      osc.type = 'triangle';
       osc.frequency.setValueAtTime(freq, start);
 
       gain.gain.setValueAtTime(0, start);
-      gain.gain.linearRampToValueAtTime(0.25, start + 0.04);
+      gain.gain.linearRampToValueAtTime(0.95, start + 0.04);
       gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
 
       osc.connect(gain);

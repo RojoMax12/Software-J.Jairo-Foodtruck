@@ -4426,4 +4426,38 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 }
+/* Responsive extra: gestión de catálogo en pantallas pequeñas */
+@media (max-width: 600px) {
+  .page-header,
+  .header-actions,
+  .panel-toolbar,
+  .toolbar-left,
+  .toolbar-right {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+  .header-copy h1 {
+    font-size: 1.6rem;
+  }
+  .search-box,
+  .select-box {
+    width: 100%;
+    min-width: 0;
+  }
+  .catalog-cards-grid {
+    grid-template-columns: 1fr;
+  }
+  .cards-grid-wrapper {
+    padding: 0.75rem;
+  }
+  .modal-card,
+  .modal-card-wide {
+    width: 100%;
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+    overflow-y: auto;
+  }
+}
 </style>

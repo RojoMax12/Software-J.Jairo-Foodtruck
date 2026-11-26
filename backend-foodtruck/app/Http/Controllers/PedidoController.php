@@ -55,8 +55,9 @@ class PedidoController extends Controller
             }
         }
 
-        if (empty($data['id_usuario']) && $user) {
-            $data['id_usuario'] = $user->id_usuario;
+        // Solo admin/trabajador pueden crear pedidos a nombre de otro usuario
+        if (!$user || !in_array((int)$user->id_rol, [1, 3], true) || empty($data['id_usuario'])) {
+            $data['id_usuario'] = $user?->id_usuario;
         }
         return response()->json($this->pedidoService->createPedido($data), 201);
     }

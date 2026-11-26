@@ -50,7 +50,9 @@ const currentStep = computed(() => {
 
 const abrirWhatsapp = () => {
   // Aquí sí puedes usar window con total libertad porque estamos en JavaScript puro
-  window.open('https://wa.me/56977579783', '_blank');
+  const numero = import.meta.env.VITE_WHATSAPP_NUMBER || '56977579783';
+  const texto = `Hola, consulto por mi pedido N° ${quotationId.value}.`;
+  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(texto)}`, '_blank');
 };
 
 // --- CARGA DE DATOS EN CADENA Y PARALELO ---
