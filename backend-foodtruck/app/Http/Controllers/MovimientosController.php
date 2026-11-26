@@ -32,14 +32,24 @@ class MovimientosController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'id_ingrediente' => 'required|integer|exists:ingredientes,id_ingrediente',
+            'cantidad' => 'required|numeric|min:0',
+            'tipo_movimiento' => 'required|string|max:60',
+            'fecha_movimiento' => 'nullable|date',
+        ]);
         $movimiento = $this->movimientosService->createMovimiento($data);
         return response()->json($movimiento, 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'id_ingrediente' => 'sometimes|required|integer|exists:ingredientes,id_ingrediente',
+            'cantidad' => 'sometimes|required|numeric|min:0',
+            'tipo_movimiento' => 'sometimes|required|string|max:60',
+            'fecha_movimiento' => 'nullable|date',
+        ]);
         $movimiento = $this->movimientosService->updateMovimiento($id, $data);
         if (!$movimiento) {
             return response()->json(['message' => 'Movimiento no encontrado'], 404);
@@ -56,7 +66,6 @@ class MovimientosController extends Controller
         return response()->json(null, 204);
     }
 
-    // Aliases para compatibilidad
     public function createMovimiento(Request $request)
     {
         return $this->store($request);

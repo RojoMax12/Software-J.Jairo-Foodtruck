@@ -26,13 +26,17 @@ class EstadoPedidoController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'nombre' => 'required|string|max:80',
+        ]);
         return response()->json($this->estadoPedidoService->createEstadoPedido($data), 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'nombre' => 'sometimes|required|string|max:80',
+        ]);
         return response()->json($this->estadoPedidoService->updateEstadoPedido($id, $data));
     }
 

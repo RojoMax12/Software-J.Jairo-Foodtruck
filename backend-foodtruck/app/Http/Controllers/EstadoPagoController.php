@@ -30,14 +30,18 @@ class EstadoPagoController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'nombre' => 'required|string|max:80',
+        ]);
         $estadoPago = $this->estadoPagoService->createEstadoPago($data);
         return response()->json($estadoPago, 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'nombre' => 'sometimes|required|string|max:80',
+        ]);
         $estadoPago = $this->estadoPagoService->updateEstadoPago($id, $data);
         if (!$estadoPago) {
             return response()->json(['message' => 'Estado de pago no encontrado'], 404);
@@ -54,7 +58,6 @@ class EstadoPagoController extends Controller
         return response()->json(null, 204);
     }
 
-    // Aliases para compatibilidad
     public function getAllEstadoPagos()
     {
         return $this->index();

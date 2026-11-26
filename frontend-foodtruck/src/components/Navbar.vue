@@ -4,7 +4,7 @@
       <!-- LADO IZQUIERDO: LOGO Y MARCA -->
       <div class="nav-left">
         <div class="brand-group" @click="goToHome" title="Ir al inicio">
-          <img src="@/assets/logo_jairo.webp" alt="Foodtruck J.Junior Logo" class="brand-logo" />
+          <img src="@/assets/logo_jairo.webp" alt="Foodtruck J.Junior Logo" class="brand-logo" width="40" height="40" decoding="async" />
           <div class="brand-info">
             <span class="brand-text">J.Junior</span>
           </div>

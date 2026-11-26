@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { formatCLP } from '@/utils/format'
 import { useRouter } from 'vue-router'
 import { FileText, Calendar, Clock, ChevronRight, IceCream } from 'lucide-vue-next'
 import Navbar from '@/components/Navbar.vue'
@@ -129,7 +130,7 @@ const handleGoBack = () => {
 
           <div class="card-right">
             <span class="quotation-total" v-if="quote.total_cotizacion || quote.total">
-              ${{ Number(quote.total_cotizacion || quote.total).toLocaleString('es-CL') }}
+              ${{ formatCLP(quote.total_cotizacion || quote.total) }}
             </span>
             
             <span class="status-badge" :class="getStatusClassName(quote.id_estado_cotizacion || quote.estado_cotizacion)">

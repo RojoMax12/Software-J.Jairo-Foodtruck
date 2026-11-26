@@ -75,6 +75,7 @@ Route::middleware('jwt.auth')->group(function () {
     Route::get('/pedidos/mis-pedidos', [PedidoController::class, 'getMisPedidos'])->middleware('throttle:api_lectura');
     Route::get('/pedidos/{id}/usuario_distribuidor', [PedidoController::class, 'getPedidosByUsuario'])->middleware('throttle:api_lectura');
     Route::get('/pedidos/usuario/{id}', [PedidoController::class, 'getPedidosByUsuario'])->middleware('throttle:api_lectura');
+    Route::get('/pedidos/{id}', [PedidoController::class, 'show'])->whereNumber('id')->middleware('throttle:api_lectura');
 });
 
 
@@ -90,7 +91,6 @@ Route::middleware('jwt.auth')->group(function () {
         Route::get('usuarios-administrativos', [UsuarioController::class, 'administrativos']);
         Route::apiResource('roles', RolController::class);
         Route::apiResource('horario_atenciones', HorarioAtencionController::class);
-        
     });
 
     // B. ADMINISTRADORES Y TRABAJADORES (Rol 1 = Admin, Rol 3 = Trabajador/Cocina)
@@ -108,7 +108,7 @@ Route::middleware('jwt.auth')->group(function () {
         Route::apiResource('ofertas', OfertaController::class);
         Route::apiResource('oferta_productos', OfertaProductoController::class);
         Route::apiResource('ingredientes', IngredienteController::class);
-        Route::apiResource('pedidos', PedidoController::class)->except(['store']);
+        Route::apiResource('pedidos', PedidoController::class)->except(['store', 'show']);
         Route::apiResource('detalle_pedidos', DetallePedidoController::class);
         Route::apiResource('detalle_pedido_ingredientes', DetallePedidoIngredienteController::class);
         Route::apiResource('estado_pedidos', EstadoPedidoController::class);

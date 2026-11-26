@@ -222,18 +222,17 @@ class AuthController extends Controller
         $request->validate([
             'nombre' => 'sometimes|nullable|string|max:150',
             'nombre_empresa' => 'sometimes|nullable|string|max:150',
-            'correo_electronico' => 'sometimes|nullable|email',
-            'correo' => 'sometimes|nullable|email',
+            'telefono' => 'sometimes|nullable|string|max:30',
+            'correo_electronico' => 'required_without:correo|nullable|email|max:150',
+            'correo' => 'required_without:correo_electronico|nullable|email|max:150',
             'contrasena' => [
                 'required',
                 'string',
-                'min:8',
-                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&_#\-+=~`^()])[A-Za-z\d@$!%*?&_#\-+=~`^()]{8,}$/'
+                \Illuminate\Validation\Rules\Password::min(8)->mixedCase()->numbers()->symbols(),
             ],
             'id_rol' => 'sometimes|integer',
         ], [
             'contrasena.min' => 'La contraseña debe tener al menos 8 caracteres.',
-            'contrasena.regex' => 'La contraseña debe contener al menos una letra mayúscula, un número y un carácter especial (@, $, !, %, *, #, etc.).',
         ]);
 
         $email = $request->input('correo_electronico') ?? $request->input('correo');

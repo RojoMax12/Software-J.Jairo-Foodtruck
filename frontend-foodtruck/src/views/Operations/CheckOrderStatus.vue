@@ -50,9 +50,9 @@
             <ArrowLeft :size="14" />
             <span>Volver a la carta</span>
           </button>
-          <span class="live-status-pill">
-            <span class="pulse-dot"></span>
-            Cocina Operativa
+          <span class="live-status-pill" :class="kitchenStatusClass">
+            <span class="pulse-dot" :class="kitchenDotClass"></span>
+            {{ kitchenStatusLabel }}
           </span>
         </div>
 
@@ -167,24 +167,70 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { 
   Clock, ChefHat, CheckCircle, PackageCheck, UtensilsCrossed, 
   Search, ArrowLeft, RefreshCw, AlertTriangle, Utensils 
 } from 'lucide-vue-next';
 import orderService from '@/services/orderService';
+import cashFlowService, { type ShiftWindow } from '@/services/cashFlowService';
 
 const router = useRouter();
 const route = useRoute();
 const orderId = ref('');
+const orderToken = ref('');
 const recentOrderId = ref('');
 const isLoading = ref(false);
 const errorMessage = ref('');
 const orderResult = ref<any>(null);
+const shiftWindow = ref<ShiftWindow | null>(null);
+const isLoadingShift = ref(true);
+
+const kitchenStatusLabel = computed(() => {
+  if (!shiftWindow.value) {
+    return isLoadingShift.value ? 'Verificando horario...' : 'Horario no disponible';
+  }
+  const ap = String(shiftWindow.value.hora_apertura || '19:00').slice(0, 5);
+  const ci = String(shiftWindow.value.hora_cierre || '00:30').slice(0, 5);
+  if (shiftWindow.value.es_dia_cerrado) {
+    return 'Cocina Cerrada (Día de Descanso)';
+  }
+  if (shiftWindow.value.es_jornada_activa) {
+    return `Cocina Operativa (${ap} - ${ci} hrs)`;
+  }
+  return `Cocina Cerrada (Abre ${ap} - ${ci} hrs)`;
+});
+
+const kitchenStatusClass = computed(() => {
+  if (!shiftWindow.value) return 'status-neutral';
+  if (shiftWindow.value.es_jornada_activa && !shiftWindow.value.es_dia_cerrado) {
+    return 'status-open';
+  }
+  return 'status-closed';
+});
+
+const kitchenDotClass = computed(() => {
+  if (!shiftWindow.value) return 'dot-neutral';
+  if (shiftWindow.value.es_jornada_activa && !shiftWindow.value.es_dia_cerrado) {
+    return 'dot-open';
+  }
+  return 'dot-closed';
+});
 
 let pollingTimer: any = null;
+let shiftRefreshTimer: any = null;
 let lastKnownStatus = '';
+
+const loadShiftStatus = async () => {
+  try {
+    shiftWindow.value = await cashFlowService.fetchShiftWindowFromBackend();
+  } catch (err) {
+    console.warn('Error consultando horario en CheckOrderStatus:', err);
+  } finally {
+    isLoadingShift.value = false;
+  }
+};
 
 const playReadyChime = () => {
   try {
@@ -220,13 +266,18 @@ const triggerHaptic = (pattern: number | number[]) => {
 };
 
 onMounted(() => {
+  loadShiftStatus();
+  shiftRefreshTimer = setInterval(loadShiftStatus, 60000);
+  const queryToken = route.query.token;
+  if (queryToken) {
+    orderToken.value = Array.isArray(queryToken) ? (queryToken[0] || '') : String(queryToken);
+  }
+
   const queryId = route.query.id;
-  if (queryId) {
-    const rawVal = Array.isArray(queryId) ? queryId[0] : String(queryId);
-    if (rawVal) {
-      orderId.value = rawVal;
-      handleSearch(false);
-    }
+  if (queryId || orderToken.value) {
+    const rawVal = Array.isArray(queryId) ? queryId[0] : (queryId ? String(queryId) : '');
+    orderId.value = rawVal || '';
+    handleSearch(false);
   } else {
     try {
       const saved = localStorage.getItem('foodtruck_last_order_id');
@@ -242,11 +293,20 @@ onUnmounted(() => {
     clearInterval(pollingTimer);
     pollingTimer = null;
   }
+  if (shiftRefreshTimer) {
+    clearInterval(shiftRefreshTimer);
+    shiftRefreshTimer = null;
+  }
 });
 
 const searchRecentOrder = () => {
   if (!recentOrderId.value) return;
   orderId.value = recentOrderId.value;
+  try {
+    orderToken.value = localStorage.getItem('foodtruck_last_order_token') || '';
+  } catch {
+    orderToken.value = '';
+  }
   handleSearch(false);
 };
 
@@ -273,7 +333,7 @@ const isStepActive = (stepId: string) => {
 const startPolling = () => {
   if (pollingTimer) return;
   pollingTimer = setInterval(() => {
-    if (orderId.value && orderResult.value && orderResult.value.currentStatus !== 'entregado') {
+    if ((orderId.value || orderToken.value) && orderResult.value && orderResult.value.currentStatus !== 'entregado') {
       handleSearch(true);
     } else if (pollingTimer) {
       clearInterval(pollingTimer);
@@ -289,7 +349,9 @@ const handleSearch = async (isSilent: boolean = false) => {
   }
 
   const rawInput = orderId.value.trim();
-  if (!rawInput) {
+  const activeToken = orderToken.value.trim();
+
+  if (!rawInput && !activeToken) {
     if (!isSilent) errorMessage.value = 'Ingresa el número de tu comanda (ej: #1 o #4).';
     return;
   }
@@ -300,29 +362,42 @@ const handleSearch = async (isSilent: boolean = false) => {
   try {
     let data: any = null;
 
-    try {
-      const responseComanda = await orderService.getOrderByComanda(cleanQuery);
-      data = responseComanda?.data?.data || responseComanda?.data;
-    } catch (errComanda: any) {
+    if (cleanQuery) {
       try {
-        const responseId = await orderService.getPublicOrderById(cleanQuery);
-        data = responseId?.data?.data || responseId?.data;
-      } catch (errId: any) {
-        if (!isSilent) {
-          const serverMsg = errComanda?.response?.data?.message || errId?.response?.data?.message;
-          errorMessage.value = serverMsg || `No encontramos el pedido #${cleanQuery} en el turno actual.`;
+        const responseComanda = await orderService.getOrderByComanda(cleanQuery);
+        data = responseComanda?.data?.data || responseComanda?.data;
+      } catch (errComanda: any) {
+        // Si falló la búsqueda por comanda del turno y venimos con un tracking_token criptográfico
+        // (ej. desde enlace directo o cambio de turno de madrugada), consultamos por token seguro.
+        if (activeToken && isSilent) {
+          const responseToken = await orderService.getPublicOrderByToken(activeToken);
+          data = responseToken?.data?.data || responseToken?.data;
+        } else {
+          if (!isSilent) {
+            const serverMsg = errComanda?.response?.data?.message;
+            errorMessage.value = serverMsg || `No encontramos el pedido #${cleanQuery} en la jornada actual.`;
+          }
+          return;
         }
-        return;
       }
+    } else if (activeToken) {
+      const responseToken = await orderService.getPublicOrderByToken(activeToken);
+      data = responseToken?.data?.data || responseToken?.data;
     }
 
     if (!data) {
-      if (!isSilent) errorMessage.value = `No encontramos el pedido #${cleanQuery} en el turno actual.`;
+      if (!isSilent) errorMessage.value = `No encontramos el pedido #${cleanQuery} en la jornada actual.`;
       return;
     }
 
+    if (data.tracking_token) {
+      orderToken.value = String(data.tracking_token);
+    }
+
     try {
-      localStorage.setItem('foodtruck_last_order_id', cleanQuery);
+      const comandaSave = String(data.numero_pedido_dia || cleanQuery);
+      if (comandaSave) localStorage.setItem('foodtruck_last_order_id', comandaSave);
+      if (orderToken.value) localStorage.setItem('foodtruck_last_order_token', orderToken.value);
     } catch {}
 
     const statusId = Number(data.id_estado_pedido || data.estado_id || 1);
@@ -381,7 +456,11 @@ const handleSearch = async (isSilent: boolean = false) => {
       id: data.id_pedido || data.id,
       numero_pedido_dia: data.numero_pedido_dia || null,
       customerName: data.nombre_persona || 'Cliente',
-      customerPhone: data.numero_telefono ? String(data.numero_telefono).replace(/^(\+?56)\s*9\s*/, '$1 ') : 'Sin teléfono',
+      customerPhone: data.numero_telefono
+        ? String(data.numero_telefono)
+            .replace(/^(\+?56)\s*9\s*/, '$1 ')
+            .replace(/^9(?=\d{8}$)/, '')
+        : 'Sin teléfono',
       customerMetododepago: data.metodo_pago || 'Efectivo',
       currentStatus: currentStep,
       statusLabel: statusName,
@@ -660,6 +739,18 @@ const handleSearch = async (isSilent: boolean = false) => {
   white-space: nowrap;
 }
 
+.live-status-pill.status-open {
+  color: #15803d;
+}
+
+.live-status-pill.status-closed {
+  color: #b91c1c;
+}
+
+.live-status-pill.status-neutral {
+  color: #64748b;
+}
+
 .pulse-dot {
   width: 7px;
   height: 7px;
@@ -668,6 +759,18 @@ const handleSearch = async (isSilent: boolean = false) => {
   box-shadow: 0 0 0 rgba(22, 163, 74, 0.7);
   animation: pulse-dot 1.8s infinite;
   flex-shrink: 0;
+}
+
+.pulse-dot.dot-closed {
+  background: #dc2626;
+  box-shadow: none;
+  animation: none;
+}
+
+.pulse-dot.dot-neutral {
+  background: #94a3b8;
+  box-shadow: none;
+  animation: none;
 }
 
 @keyframes pulse-dot {

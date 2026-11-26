@@ -276,6 +276,14 @@
                     <span>Actualizado: {{ item.updatedLabel }}</span>
                   </div>
                   <div class="mobile-actions-wrap">
+                    <button
+                      type="button"
+                      class="disponible-toggle-btn"
+                      :class="item.disponible ? 'is-available' : 'is-disabled'"
+                      @click="toggleIngredientAvailability(item)"
+                    >
+                      {{ item.disponible ? 'Disponible' : 'Agotado' }}
+                    </button>
                     <button type="button" class="stock-action-btn" @click="openStockModal(item)">
                       <Edit3 :size="14" />
                       <span>Stock</span>
@@ -2143,6 +2151,12 @@ onMounted(() => {
     align-items: center;
     justify-content: space-between;
     font-size: 0.78rem;
+  }
+
+  .mobile-actions-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .toolbar-left,

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\ProductoService;
+use App\Support\CatalogCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -15,9 +16,13 @@ class ProductoController extends Controller
         $this->productoService = $productoService;
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json($this->productoService->getAllProductos());
+        $summary = $request->boolean('summary');
+        $data = $summary
+            ? CatalogCache::rememberSummaryProducts(fn () => $this->productoService->getPublicProductos(true))
+            : CatalogCache::rememberProducts(fn () => $this->productoService->getPublicProductos(false));
+        return CatalogCache::respondWithEtag($request, $data);
     }
 
     public function show($id)
@@ -27,7 +32,25 @@ class ProductoController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'nombre' => 'required|string|max:150',
+            'descripcion' => 'nullable|string|max:1000',
+            'id_categoria' => 'nullable|integer|exists:categorias,id_categoria',
+            'grupo' => 'nullable|string|max:120',
+            'tipo_armado' => 'nullable|string|max:40',
+            'cantidad_incluida' => 'nullable|integer|min:0|max:50',
+            'precio_ingrediente_extra' => 'nullable|integer|min:0',
+            'activo' => 'sometimes|boolean',
+            'disponible' => 'sometimes|boolean',
+            'imagen' => 'nullable|string',
+            'imagen_posicion' => 'nullable|string|max:40',
+            'imagen_zoom' => 'nullable|numeric|min:0.5|max:4',
+            'imagen_ajuste' => 'nullable|string|max:20',
+            'precio_base' => 'nullable|numeric|min:0',
+            'precio' => 'nullable|numeric|min:0',
+            'id_tamaño' => 'nullable|integer|exists:tamaños,id_tamaño',
+            'precios_tamanos' => 'nullable|array',
+        ]);
 
         // Normalización de campos obligatorios para PostgreSQL
         if (!isset($data['descripcion']) || $data['descripcion'] === null || trim($data['descripcion']) === '') {
@@ -64,12 +87,32 @@ class ProductoController extends Controller
             $this->syncTamañosPrecios($producto, $data);
         }
 
+        CatalogCache::invalidate();
+
         return response()->json($this->productoService->getProductoById($producto->id_producto ?? $producto->id) ?? $producto, 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'nombre' => 'sometimes|required|string|max:150',
+            'descripcion' => 'nullable|string|max:1000',
+            'id_categoria' => 'nullable|integer|exists:categorias,id_categoria',
+            'grupo' => 'nullable|string|max:120',
+            'tipo_armado' => 'nullable|string|max:40',
+            'cantidad_incluida' => 'nullable|integer|min:0|max:50',
+            'precio_ingrediente_extra' => 'nullable|integer|min:0',
+            'activo' => 'sometimes|boolean',
+            'disponible' => 'sometimes|boolean',
+            'imagen' => 'nullable|string',
+            'imagen_posicion' => 'nullable|string|max:40',
+            'imagen_zoom' => 'nullable|numeric|min:0.5|max:4',
+            'imagen_ajuste' => 'nullable|string|max:20',
+            'precio_base' => 'nullable|numeric|min:0',
+            'precio' => 'nullable|numeric|min:0',
+            'id_tamaño' => 'nullable|integer|exists:tamaños,id_tamaño',
+            'precios_tamanos' => 'nullable|array',
+        ]);
 
         // Normalización si se envían valores vacíos
         if (array_key_exists('descripcion', $data) && ($data['descripcion'] === null || trim($data['descripcion']) === '')) {
@@ -90,6 +133,8 @@ class ProductoController extends Controller
         if ($producto) {
             $this->syncTamañosPrecios($producto, $data);
         }
+
+        CatalogCache::invalidate();
 
         return response()->json($this->productoService->getProductoById($id) ?? $producto);
     }
@@ -123,9 +168,13 @@ class ProductoController extends Controller
             // 2. Si no viene array múltiple pero viene precio_base o precio
             if (empty($syncData)) {
                 $precio = $data['precio_base'] ?? $data['precio'] ?? null;
-                if ($precio !== null) {
-                    $idTamaño = $data['id_tamaño'] ?? 1;
-                    $syncData[$idTamaño] = ['precio' => (float)$precio];
+                if ($precio !== null && (float)$precio > 0) {
+                    $idTamaño = $data['id_tamaño']
+                        ?? \App\Models\Tamaño::whereRaw('LOWER(nombre) = ?', ['normal'])->value('id_tamaño')
+                        ?? \App\Models\Tamaño::value('id_tamaño');
+                    if ($idTamaño) {
+                        $syncData[(int)$idTamaño] = ['precio' => (float)$precio];
+                    }
                 }
             }
 
@@ -195,6 +244,7 @@ class ProductoController extends Controller
         }
 
         $updated = $this->productoService->updateProducto($id, ['imagen' => $path]);
+        CatalogCache::invalidate();
 
         return response()->json($updated);
     }
@@ -234,6 +284,7 @@ class ProductoController extends Controller
     public function destroy($id)
     {
         $this->productoService->deleteProductoById($id);
+        CatalogCache::invalidate();
         return response()->json(['message' => 'Producto desactivado del catálogo correctamente.'], 200);
     }
 }

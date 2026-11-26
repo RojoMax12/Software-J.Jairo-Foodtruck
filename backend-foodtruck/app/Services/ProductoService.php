@@ -38,6 +38,11 @@ class ProductoService
         return $this->productoRepository->getAllProductos();
     }
 
+    public function getPublicProductos(bool $summary = false): array
+    {
+        return $this->productoRepository->getPublicProductos($summary);
+    }
+
     public function getProductoById($id)
     {
         return $this->productoRepository->getProductoById($id);

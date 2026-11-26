@@ -13,6 +13,12 @@ const rawOrderId = computed(() => {
   return param ? String(param) : ''
 })
 
+const rawOrderToken = computed(() => {
+  const param = route.query.token
+  if (Array.isArray(param)) return param[0] || ''
+  return param ? String(param) : ''
+})
+
 const orderDate = computed(() => {
   const param = route.query.fecha
   const val = Array.isArray(param) ? param[0] : param
@@ -34,6 +40,9 @@ onMounted(() => {
   if (rawOrderId.value) {
     try {
       localStorage.setItem('foodtruck_last_order_id', String(rawOrderId.value));
+      if (rawOrderToken.value) {
+        localStorage.setItem('foodtruck_last_order_token', String(rawOrderToken.value));
+      }
     } catch {}
   }
 })
@@ -41,7 +50,10 @@ onMounted(() => {
 const goToCheckStatus = () => {
   router.push({
     path: '/checkorderstatus',
-    query: rawOrderId.value ? { id: rawOrderId.value } : {}
+    query: {
+      ...(rawOrderId.value ? { id: rawOrderId.value } : {}),
+      ...(rawOrderToken.value ? { token: rawOrderToken.value } : {}),
+    }
   })
 }
 </script>

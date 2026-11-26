@@ -1,30 +1,30 @@
 import api from './api';
 
 export default {
-    getProducts(){
-        return api.get('/productos');
+    getProducts(params?: { summary?: 0 | 1 }) {
+        return api.get('/productos', { params });
     },
 
-    getProductById(id: number | string){
+    getProductById(id: number | string) {
         return api.get(`/productos/${id}`);
     },
 
-    updateProduct(id: number | string, data: unknown){
+    updateProduct(id: number | string, data: unknown) {
         return api.put(`/productos/${id}`, data);
     },
 
-    deleteProduct(id: number | string){
+    deleteProduct(id: number | string) {
         return api.delete(`/productos/${id}`);
     },
 
-    createProduct(data: unknown){
+    createProduct(data: unknown) {
         return api.post('/productos', data);
     },
 
-    uploadProductImage(id: number | string, file: File){
+    uploadProductImage(id: number | string, file: File) {
         const formData = new FormData();
         formData.append('imagen', file);
-        return api.post(`/public/productos/${id}/imagen`, formData, {
+        return api.post(`/productos/${id}/imagen`, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             }
@@ -32,11 +32,11 @@ export default {
     },
 
     // RUTAS PÚBLICAS PARA QR Y CLIENTES
-    getPublicProducts(){
-        return api.get('/public/productos');
+    getPublicProducts(params?: { summary?: 0 | 1 }) {
+        return api.get('/public/productos', { params });
     },
 
-    getPublicProductById(id: number | string){
+    getPublicProductById(id: number | string) {
         return api.get(`/public/productos/${id}`);
     }
-}
+};

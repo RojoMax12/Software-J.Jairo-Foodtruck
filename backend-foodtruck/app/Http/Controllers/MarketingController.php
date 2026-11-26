@@ -51,7 +51,7 @@ class MarketingController extends Controller
                     'id' => 'ann-2',
                     'badge' => 'HORARIOS',
                     'type' => 'schedule',
-                    'text' => 'Atención de Lunes a Domingo de 19:00 a 00:30 hrs.',
+                    'text' => 'Dom a Jue: 19:00 a 00:30 hrs · Vie y Sáb: 19:00 a 01:30 hrs.',
                     'highlight' => '🔥 ¡Abierto hoy!',
                     'active' => true,
                 ],
@@ -101,6 +101,24 @@ class MarketingController extends Controller
 
     public function store(Request $request)
     {
+        $validated = $request->validate([
+            'banners' => 'sometimes|array|max:20',
+            'banners.*.id' => 'required_with:banners|string|max:80',
+            'banners.*.title' => 'nullable|string|max:180',
+            'banners.*.subtitle' => 'nullable|string|max:250',
+            'banners.*.image' => ['required_with:banners', 'string', 'max:7500000', 'regex:#^(?:/storage/|https?://|data:image/(?:jpeg|jpg|png|webp);base64,)#i'],
+            'banners.*.active' => 'sometimes|boolean',
+            'banners.*.order' => 'sometimes|integer|min:0|max:100',
+            'announcements' => 'sometimes|array|max:30',
+            'announcements.*.id' => 'required_with:announcements|string|max:80',
+            'announcements.*.badge' => 'nullable|string|max:60',
+            'announcements.*.type' => 'nullable|string|max:40',
+            'announcements.*.text' => 'required_with:announcements|string|max:300',
+            'announcements.*.highlight' => 'nullable|string|max:80',
+            'announcements.*.active' => 'sometimes|boolean',
+            'autoPlayInterval' => 'sometimes|integer|min:1000|max:60000',
+        ]);
+
         $current = self::getDefaultConfig();
         if (Storage::exists($this->storagePath)) {
             $existing = json_decode(Storage::get($this->storagePath), true);
@@ -109,14 +127,14 @@ class MarketingController extends Controller
             }
         }
 
-        if ($request->has('banners')) {
-            $current['banners'] = $request->input('banners');
+        if (array_key_exists('banners', $validated)) {
+            $current['banners'] = array_map(fn ($banner) => $this->persistBannerImage($banner), $validated['banners']);
         }
-        if ($request->has('announcements')) {
-            $current['announcements'] = $request->input('announcements');
+        if (array_key_exists('announcements', $validated)) {
+            $current['announcements'] = $validated['announcements'];
         }
-        if ($request->has('autoPlayInterval')) {
-            $current['autoPlayInterval'] = (int)$request->input('autoPlayInterval');
+        if (array_key_exists('autoPlayInterval', $validated)) {
+            $current['autoPlayInterval'] = (int)$validated['autoPlayInterval'];
         }
 
         Storage::put($this->storagePath, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
@@ -127,5 +145,35 @@ class MarketingController extends Controller
             'data' => $current
         ]);
     }
-}
 
+    protected function persistBannerImage(array $banner): array
+    {
+        $raw = (string) ($banner['image'] ?? '');
+        if (!str_starts_with($raw, 'data:image/')) {
+            return $banner;
+        }
+
+        if (!preg_match('#^data:image/(jpeg|jpg|png|webp);base64,(.+)$#is', $raw, $matches)) {
+            return $banner;
+        }
+
+        $ext = strtolower($matches[1]) === 'jpeg' ? 'jpg' : strtolower($matches[1]);
+        $binary = base64_decode($matches[2], true);
+        if ($binary === false || strlen($binary) > 5242880 || @getimagesizefromstring($binary) === false) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'banners' => ['La imagen del banner no es válida o supera los 5 MB.'],
+            ]);
+        }
+
+        if (!Storage::disk('public')->exists('carousel')) {
+            Storage::disk('public')->makeDirectory('carousel');
+        }
+
+        $safeId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($banner['id'] ?? 'banner'));
+        $filename = 'carousel/' . ($safeId ?: 'banner') . '_' . time() . '_' . uniqid() . '.' . $ext;
+        Storage::disk('public')->put($filename, $binary);
+        $banner['image'] = '/storage/' . $filename;
+
+        return $banner;
+    }
+}

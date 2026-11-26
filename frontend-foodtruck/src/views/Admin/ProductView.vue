@@ -331,7 +331,7 @@
                 <span class="category-pill">{{ product.category }}</span>
               </td>
               <td>
-                <strong class="product-price">${{ Number(product.price).toLocaleString('es-CL') }}</strong>
+                <strong class="product-price">${{ formatCLP(product.price) }}</strong>
               </td>
               <td>
                 <div class="ingredients">
@@ -364,9 +364,13 @@
                 <div v-if="getProductActivePromotion(product.id)" class="promo-cell-active">
                   <span 
                     class="promo-pill-badge clickable" 
-                    :title="'Promoción: $' + Number(getProductActivePromotion(product.id)?.precio_promocional || 0).toLocaleString('es-CL') + ' (Clic para ver/editar)'"
+                    :title="'Promoción: $' + formatCLP(getProductActivePromotion(product.id)?.precio_promocional || 0) + ' (Clic para ver/editar)'"
+                    @click="openEditPromotionModal(getProductActivePromotion(product.id)!)"
                   >
-                    ${{ Number(getProductActivePromotion(product.id)?.precio_promocional || 0).toLocaleString('es-CL') }}
+                    ${{ formatCLP(getProductActivePromotion(product.id)?.precio_promocional || 0) }}
+                    <template v-if="getProductActivePromotion(product.id)?.tamano?.nombre">
+                      ({{ getProductActivePromotion(product.id)?.tamano?.nombre }})
+                    </template>
                   </span>
                 </div>
                 <span 
@@ -420,7 +424,7 @@
               <div class="mob-thumb-container">
                 <img :src="product.image" :alt="product.name" class="mob-thumb-img" loading="lazy" decoding="async" @error="handleImageError" />
               </div>
-              <div>
+              <div class="mob-prod-text">
                 <h4 class="mob-prod-name">{{ product.name }}</h4>
                 <div class="mob-prod-meta-row">
                   <small class="mob-prod-id">ID #{{ product.id }} · {{ product.category }}</small>
@@ -428,7 +432,7 @@
                 </div>
               </div>
             </div>
-            <strong class="mob-prod-price">${{ Number(product.price).toLocaleString('es-CL') }}</strong>
+            <strong class="mob-prod-price">${{ formatCLP(product.price) }}</strong>
           </div>
           <div class="mob-card-body">
             <div class="mob-status-row">
@@ -444,7 +448,10 @@
                 class="promo-pill-badge clickable"
                 @click="openEditPromotionModal(getProductActivePromotion(product.id)!)"
               >
-                🔥 ${{ Number(getProductActivePromotion(product.id)!.precio_promocional).toLocaleString('es-CL') }}
+                🔥 ${{ formatCLP(getProductActivePromotion(product.id)!.precio_promocional) }}
+                <template v-if="getProductActivePromotion(product.id)?.tamano?.nombre">
+                  · {{ getProductActivePromotion(product.id)?.tamano?.nombre }}
+                </template>
               </span>
               <button
                 v-else
@@ -766,6 +773,11 @@
                       <div>
                         <h5>{{ promo.titulo }}</h5>
                         <span class="panel-product-tag">{{ promo.producto?.nombre || promo.productName || 'Producto' }}</span>
+                        <span class="panel-product-tag">
+                          {{ promo.producto?.nombre || promo.productName || 'Producto' }}
+                          <strong v-if="promo.tamano?.nombre" class="promo-size-tag"> · {{ promo.tamano.nombre }}</strong>
+                          <span v-else class="promo-size-tag"> · Todos los tamaños</span>
+                        </span>
                       </div>
                       <strong class="panel-promo-price">{{ formatPrice(promo.precio_promocional) }}</strong>
                     </div>
@@ -803,99 +815,18 @@
     </section>
 
     <!-- ===================== MODALES (CATEGORÍA, TAMAÑO, PRODUCTO, PROMO, CUSTOMIZER) ===================== -->
-    <!-- MODAL CATEGORÍA -->
-    <div v-if="isCategoryModalOpen" class="modal-backdrop" @click.self="isCategoryModalOpen = false">
-      <div class="modal-card">
-        <div class="modal-header">
-          <div class="modal-header-title">
-            <div class="header-icon-pill"><FolderTree :size="18" /></div>
-            <div>
-              <h3>{{ isEditingCategory ? 'Editar Categoría' : 'Nueva Categoría' }}</h3>
-              <p class="modal-header-desc">Organiza tu carta gastronómica por secciones</p>
-            </div>
-          </div>
-          <button class="close-btn" @click="isCategoryModalOpen = false"><X :size="18" /></button>
-        </div>
-
-        <form class="modal-body" @submit.prevent="submitCategoryForm">
-          <label class="modal-label">
-            <span>Nombre de la Categoría <span class="required">*</span></span>
-            <input
-              v-model="categoryForm.nombre_categoria"
-              type="text"
-              required
-              placeholder="Ej: Hamburguesas Smash, Chorrillanas, Bebidas..."
-              class="modal-input"
-            />
-          </label>
-
-          <label class="modal-label">
-            <span>Descripción</span>
-            <textarea
-              v-model="categoryForm.descripcion_categoria"
-              rows="3"
-              placeholder="Breve detalle de los productos incluidos en esta categoría..."
-              class="modal-input"
-            ></textarea>
-          </label>
-
-          <div class="modal-actions">
-            <button type="button" class="btn-cancel" @click="isCategoryModalOpen = false">Cancelar</button>
-            <button type="submit" class="btn-save">
-              <Check :size="16" />
-              <span>{{ isEditingCategory ? 'Guardar Cambios' : 'Crear Categoría' }}</span>
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- MODAL TAMAÑO -->
-    <div v-if="isSizeModalOpen" class="modal-backdrop" @click.self="isSizeModalOpen = false">
-      <div class="modal-card">
-        <div class="modal-header">
-          <div class="modal-header-title">
-            <div class="header-icon-pill"><Tag :size="18" /></div>
-            <div>
-              <h3>{{ isEditingSize ? 'Editar Tamaño' : 'Nuevo Tamaño' }}</h3>
-              <p class="modal-header-desc">Define las porciones o formatos disponibles en la carta</p>
-            </div>
-          </div>
-          <button class="close-btn" @click="isSizeModalOpen = false"><X :size="18" /></button>
-        </div>
-
-        <form class="modal-body" @submit.prevent="submitSizeForm">
-          <label class="modal-label">
-            <span>Nombre del Tamaño <span class="required">*</span></span>
-            <input
-              v-model="sizeForm.nombre"
-              type="text"
-              required
-              placeholder="Ej: Normal, Doble, XL, Familiar, Individual..."
-              class="modal-input"
-            />
-          </label>
-
-          <label class="modal-label">
-            <span>Descripción / Nota</span>
-            <input
-              v-model="sizeForm.descripcion"
-              type="text"
-              placeholder="Ej: Porción estándar individual con papas"
-              class="modal-input"
-            />
-          </label>
-
-          <div class="modal-actions">
-            <button type="button" class="btn-cancel" @click="isSizeModalOpen = false">Cancelar</button>
-            <button type="submit" class="btn-save">
-              <Check :size="16" />
-              <span>{{ isEditingSize ? 'Guardar Cambios' : 'Crear Tamaño' }}</span>
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <CatalogTaxonomyModals
+      :is-category-open="isCategoryModalOpen"
+      :is-editing-category="isEditingCategory"
+      :category-form="categoryForm"
+      :is-size-open="isSizeModalOpen"
+      :is-editing-size="isEditingSize"
+      :size-form="sizeForm"
+      @close-category="isCategoryModalOpen = false"
+      @submit-category="submitCategoryForm"
+      @close-size="isSizeModalOpen = false"
+      @submit-size="submitSizeForm"
+    />
 
     <!-- MODAL PRODUCTO -->
     <!-- MODAL PRODUCTO / VARIEDAD REDISEÑADO -->
@@ -1308,172 +1239,22 @@
       </div>
     </div>
 
-    <!-- MODAL PROMOCIÓN -->
-    <div v-if="isPromotionModalOpen" class="modal-backdrop" @click.self="isPromotionModalOpen = false">
-      <div class="modal-card">
-        <div class="modal-header">
-          <div class="modal-header-title">
-            <div class="header-icon-pill"><BadgePercent :size="18" /></div>
-            <div>
-              <h3>{{ isEditingPromotion ? 'Editar Promoción' : 'Nueva Promoción' }}</h3>
-              <p class="modal-header-desc">Configura producto, fechas y precio promocional</p>
-            </div>
-          </div>
-          <button class="close-btn" @click="isPromotionModalOpen = false"><X :size="18" /></button>
-        </div>
+    <PromotionFormModal
+      :is-open="isPromotionModalOpen"
+      :is-editing="isEditingPromotion"
+      :promotion-form="promotionForm"
+      :products="products"
+      :selected-product-sizes="selectedPromotionProductSizes"
+      @close="isPromotionModalOpen = false"
+      @submit="submitPromotion"
+    />
 
-        <form class="modal-body" @submit.prevent="submitPromotion">
-          <label class="modal-label">
-            <span>Producto Asociado <span class="required">*</span></span>
-            <select v-model.number="promotionForm.id_producto" class="modal-input" required>
-              <option value="" disabled>Selecciona un producto</option>
-              <option v-for="product in products" :key="product.id" :value="product.id">
-                {{ product.name }} (${{ Number(product.price).toLocaleString('es-CL') }})
-              </option>
-            </select>
-          </label>
-
-          <label class="modal-label">
-            <span>Título de la Promoción <span class="required">*</span></span>
-            <input 
-              v-model="promotionForm.titulo" 
-              class="modal-input" 
-              required 
-              maxlength="120" 
-              placeholder="Ej: Promo Combo Doble Cheddar"
-            />
-          </label>
-
-          <div class="form-row-2">
-            <label class="modal-label">
-              <span>Precio Promocional ($) <span class="required">*</span></span>
-              <input 
-                v-model.number="promotionForm.precio_promocional" 
-                class="modal-input" 
-                type="number" 
-                min="1" 
-                required 
-                placeholder="Ej: 2990"
-              />
-            </label>
-            <label class="modal-label">
-              <span>Estado</span>
-              <select v-model="promotionForm.activo" class="modal-input">
-                <option :value="true">Activa (Visible)</option>
-                <option :value="false">Inactiva (Oculta)</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="form-row-2">
-            <label class="modal-label">
-              <span>Fecha Inicio <span class="required">*</span></span>
-              <input 
-                v-model="promotionForm.fecha_inicio" 
-                class="modal-input" 
-                type="date" 
-                required
-              />
-            </label>
-            <label class="modal-label">
-              <span>Fecha Término <span class="required">*</span></span>
-              <input 
-                v-model="promotionForm.fecha_fin" 
-                class="modal-input" 
-                type="date" 
-                required 
-                :min="promotionForm.fecha_inicio"
-              />
-            </label>
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" class="btn-cancel" @click="isPromotionModalOpen = false">Cancelar</button>
-            <button type="submit" class="btn-save">
-              <Check :size="16" />
-              <span>{{ isEditingPromotion ? 'Guardar Cambios' : 'Crear Promoción' }}</span>
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- MODAL CUSTOMIZER IMAGEN -->
-    <div v-if="isImageCustomizerOpen" class="modal-backdrop customizer-backdrop" @click.self="cancelImageCustomization">
-      <div class="modal-card customizer-modal-card">
-        <div class="modal-header">
-          <div class="modal-header-title">
-            <div class="header-icon-pill"><SlidersHorizontal :size="18" /></div>
-            <div>
-              <h3>Personalizar Imagen</h3>
-              <p class="modal-header-desc">Ajusta encuadre y zoom en pantalla</p>
-            </div>
-          </div>
-          <button class="close-btn" @click="cancelImageCustomization"><X :size="18" /></button>
-        </div>
-
-        <div class="customizer-body">
-          <div class="customizer-columns">
-            <div class="customizer-preview-large">
-              <img
-                :src="productForm.image"
-                alt="Preview"
-                class="customizer-preview-img"
-                :style="{
-                  objectPosition: productForm.imagePosition,
-                  objectFit: productForm.imageFit,
-                  transform: 'scale(' + Math.max(1, productForm.imageZoom) + ')'
-                }"
-              />
-            </div>
-
-            <div class="customizer-controls">
-              <div class="customizer-control-group">
-                <span class="sub-legend">Ajuste de Marco</span>
-                <div class="control-options-grid">
-                  <button
-                    type="button"
-                    class="control-option-btn"
-                    :class="{ active: productForm.imageFit === 'cover' }"
-                    @click="productForm.imageFit = 'cover'"
-                  >
-                    Llenar marco
-                  </button>
-                  <button
-                    type="button"
-                    class="control-option-btn"
-                    :class="{ active: productForm.imageFit === 'contain' }"
-                    @click="productForm.imageFit = 'contain'"
-                  >
-                    Completa
-                  </button>
-                </div>
-              </div>
-
-              <div class="customizer-control-group">
-                <span class="sub-legend">Zoom ({{ Math.round(productForm.imageZoom * 100) }}%)</span>
-                <input
-                  v-model.number="productForm.imageZoom"
-                  type="range"
-                  min="1"
-                  max="1.6"
-                  step="0.05"
-                  class="customizer-zoom-range"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-actions">
-          <button type="button" class="btn-cancel" @click="cancelImageCustomization">Cancelar</button>
-          <button type="button" class="btn-save" @click="applyImageCustomization">
-            <Check :size="16" />
-            <span>Aplicar</span>
-          </button>
-        </div>
-      </div>
-    </div>
+    <ProductImageCustomizerModal
+      :is-open="isImageCustomizerOpen"
+      :product-form="productForm"
+      @cancel="cancelImageCustomization"
+      @apply="applyImageCustomization"
+    />
 
   </div>
 </template>
@@ -1488,6 +1269,10 @@ import stockService from '@/services/stockService'
 import promotionService from '@/services/promotionService'
 import { useNotification } from '@/composables/useNotification'
 import { useImageOptimizer } from '@/composables/useImageOptimizer'
+import { formatCLP } from '@/utils/format'
+import CatalogTaxonomyModals from './components/CatalogTaxonomyModals.vue'
+import PromotionFormModal from './components/PromotionFormModal.vue'
+import ProductImageCustomizerModal from './components/ProductImageCustomizerModal.vue'
 
 import {
   BadgePercent,
@@ -1647,6 +1432,7 @@ const setGroupedMode = (grouped: boolean) => {
 const promotionForm = ref({
   id: 0,
   id_producto: '' as string | number,
+  id_tamaño: null as number | null,
   titulo: '',
   descripcion: '',
   precio_promocional: 0,
@@ -1655,9 +1441,28 @@ const promotionForm = ref({
   activo: true
 })
 
+const selectedPromotionProductSizes = computed(() => {
+  const prod = products.value.find((p: any) => Number(p.id) === Number(promotionForm.value.id_producto))
+  if (prod && Array.isArray(prod.sizes_obj) && prod.sizes_obj.length > 0) {
+    return prod.sizes_obj
+  }
+  return sizesList.value
+})
+
+watch(() => promotionForm.value.id_producto, (newProdId) => {
+  if (!promotionForm.value.id_tamaño) return
+  const prod = products.value.find((p: any) => Number(p.id) === Number(newProdId))
+  if (prod && Array.isArray(prod.sizes_obj) && prod.sizes_obj.length > 0) {
+    const stillValid = prod.sizes_obj.some((s: any) => Number(s.id_tamaño) === Number(promotionForm.value.id_tamaño))
+    if (!stillValid) {
+      promotionForm.value.id_tamaño = null
+    }
+  }
+})
+
 
 const formatPrice = (val: number | string) => {
-  return '$' + Number(val || 0).toLocaleString('es-CL')
+  return '$' + formatCLP(val)
 }
 
 const getProductCategoryName = computed(() => {
@@ -1914,11 +1719,12 @@ const submitCreateProduct = async () => {
     }
 
     notify('¡Producto guardado exitosamente!', 'success')
-  } catch {
-    notify('Producto creado', 'success')
+    window.dispatchEvent(new Event('foodtruck-products-update'))
+    isProductModalOpen.value = false
+  } catch (error: any) {
+    products.value = products.value.filter((item: any) => item !== localItem)
+    notify(error?.response?.data?.message || 'Error al crear el producto en el servidor.', 'error')
   }
-  window.dispatchEvent(new Event('foodtruck-products-update'))
-  isProductModalOpen.value = false
 }
 
 const submitEditProduct = async () => {
@@ -1940,6 +1746,7 @@ const submitEditProduct = async () => {
     productForm.value.cantidad_incluida || (productForm.value.tipo_armado === 'personalizable' ? 3 : 0)
   )
 
+  const prevSnapshot = p ? { ...p, sizes: [...(p.sizes || [])], ingredients: [...(p.ingredients || [])] } : null
   if (p) {
     p.name = productForm.value.nombre
     p.category = catName
@@ -1988,11 +1795,12 @@ const submitEditProduct = async () => {
     }
 
     notify('Producto actualizado exitosamente', 'success')
-  } catch {
-    notify('Producto actualizado', 'success')
+    window.dispatchEvent(new Event('foodtruck-products-update'))
+    isProductModalOpen.value = false
+  } catch (error: any) {
+    if (p && prevSnapshot) Object.assign(p, prevSnapshot)
+    notify(error?.response?.data?.message || 'Error al actualizar el producto en el servidor.', 'error')
   }
-  window.dispatchEvent(new Event('foodtruck-products-update'))
-  isProductModalOpen.value = false
 }
 
 const activePromotionsByProductId = computed(() => {
@@ -2015,10 +1823,11 @@ const getProductActivePromotion = (productId: number | string) => {
 
 const openCreatePromotionForProduct = (product: any) => {
   isEditingPromotion.value = false
-  const today = getLocalDateString()  
-promotionForm.value = {
+  const today = getLocalDateString()
+  promotionForm.value = {
     id: 0,
     id_producto: product.id,
+    id_tamaño: null,
     titulo: `Promo ${product.name}`,
     descripcion: '',
     precio_promocional: Math.round(Number(product.price || 0) * 0.85),
@@ -2040,6 +1849,7 @@ const openCreatePromotionModal = () => {
   promotionForm.value = {
     id: 0,
     id_producto: products.value[0]?.id || '',
+    id_tamaño: null,
     titulo: '',
     descripcion: '',
     precio_promocional: 0,
@@ -2055,6 +1865,7 @@ const openEditPromotionModal = (promotion: any) => {
   promotionForm.value = {
     id: promotion.id_promocion,
     id_producto: promotion.id_producto,
+    id_tamaño: promotion.id_tamaño ? Number(promotion.id_tamaño) : null,
     titulo: promotion.titulo,
     descripcion: promotion.descripcion || '',
     precio_promocional: Number(promotion.precio_promocional || 0),
@@ -2073,6 +1884,7 @@ const submitPromotion = async () => {
 
   const payload = {
     id_producto: Number(promotionForm.value.id_producto),
+    id_tamaño: promotionForm.value.id_tamaño ? Number(promotionForm.value.id_tamaño) : null,
     titulo: promotionForm.value.titulo.trim(),
     descripcion: promotionForm.value.descripcion.trim() || null,
     precio_promocional: Number(promotionForm.value.precio_promocional),
@@ -2104,6 +1916,7 @@ const togglePromotionStatus = async (promotion: any) => {
   const nextStatus = !promotion.activo
   const payload = {
     id_producto: Number(promotion.id_producto),
+    id_tamaño: promotion.id_tamaño ? Number(promotion.id_tamaño) : null,
     titulo: promotion.titulo,
     descripcion: promotion.descripcion || null,
     precio_promocional: Number(promotion.precio_promocional),
@@ -2287,6 +2100,7 @@ const openCreatePromotionForDate = (dateStr?: string) => {
   promotionForm.value = {
     id: 0,
     id_producto: products.value[0]?.id || '',
+    id_tamaño: null,
     titulo: '',
     descripcion: '',
     precio_promocional: 0,
@@ -2304,15 +2118,19 @@ const handleDeleteProduct = async (product: any) => {
   }
   if (!confirm(`¿Estás seguro de desactivar el producto "${product.name}"?`)) return
   
+  const prevActive = product.active
+  const prevStock = product.inStock
   product.active = false
   product.inStock = false
   try {
     await productService.updateProduct(product.id, { activo: false, disponible: false })
     notify(`Producto "${product.name}" desactivado correctamente`, 'warning')
-  } catch {
-    notify(`Producto "${product.name}" marcado como inactivo`, 'warning')
+    window.dispatchEvent(new Event('foodtruck-products-update'))
+  } catch (error: any) {
+    product.active = prevActive
+    product.inStock = prevStock
+    notify(error?.response?.data?.message || 'No se pudo desactivar el producto.', 'error')
   }
-  window.dispatchEvent(new Event('foodtruck-products-update'))
 }
 
 const loadCatalogData = async () => {
@@ -2358,6 +2176,7 @@ const loadCatalogData = async () => {
         price: Number(firstPrice),
         ingredients: (p.ingredientes || []).map((i: any) => i.ingrediente?.nombre || 'Ingrediente'),
         sizes: (p.tamaños || []).map((t: any) => t.nombre),
+        sizes_obj: p.tamaños || [],
         precio_ingrediente_extra: p.precio_ingrediente_extra || 0,
         tipo_armado: p.tipo_armado || 'estandar',
         descripcion: p.descripcion || '',
@@ -2425,9 +2244,10 @@ const filteredProducts = computed(() => {
     const matchStatus = !selectedStatus.value ||
       (selectedStatus.value === 'active' && product.active) ||
       (selectedStatus.value === 'inactive' && !product.active)
+    const hasOffer = Boolean(getProductActivePromotion(product.id))
     const matchOffer = !selectedOffer.value ||
-      (selectedOffer.value === 'yes' && product.offer) ||
-      (selectedOffer.value === 'no' && !product.offer)
+      (selectedOffer.value === 'yes' && hasOffer) ||
+      (selectedOffer.value === 'no' && !hasOffer)
 
     return matchSearch && matchCategory && matchStatus && matchOffer
   })
@@ -2454,7 +2274,7 @@ const paginatedProducts = computed(() => {
 
 const activeProducts = computed(() => products.value.filter(product => product.active).length)
 const inactiveProducts = computed(() => products.value.filter(product => !product.active).length)
-const offerProducts = computed(() => products.value.filter(product => product.offer).length)
+const offerProducts = computed(() => products.value.filter(product => Boolean(getProductActivePromotion(product.id))).length)
 
 const getProductsCountByCategory = (catName: string) => productCategoryCounts.value.get(catName) || 0
 const getProductsCountBySize = (sizeName: string) => productSizeCounts.value.get(sizeName) || 0
@@ -2507,6 +2327,7 @@ const submitCategoryForm = async () => {
   if (!categoryForm.value.nombre_categoria) return
   if (isEditingCategory.value) {
     const target = categoriesList.value.find((c: any) => (c.id_categoria || c.id) === categoryForm.value.id_categoria)
+    const prevCat = target ? { ...target } : null
     if (target) {
       target.nombre_categoria = categoryForm.value.nombre_categoria
       target.descripcion_categoria = categoryForm.value.descripcion_categoria
@@ -2517,9 +2338,12 @@ const submitCategoryForm = async () => {
         descripcion_categoria: categoryForm.value.descripcion_categoria
       })
       notify('Categoría actualizada', 'success')
-    } catch {
-      notify('Categoría actualizada', 'success')
+      isCategoryModalOpen.value = false
+    } catch (error: any) {
+      if (target && prevCat) Object.assign(target, prevCat)
+      notify(error?.response?.data?.message || 'No se pudo actualizar la categoría.', 'error')
     }
+    return
   } else {
     const newCat = {
       id_categoria: Date.now(),
@@ -2534,8 +2358,10 @@ const submitCategoryForm = async () => {
       })
       if (res.data?.id_categoria) newCat.id_categoria = res.data.id_categoria
       notify('¡Categoría creada exitosamente!', 'success')
-    } catch {
-      notify('Categoría creada', 'success')
+      isCategoryModalOpen.value = false
+    } catch (error: any) {
+      categoriesList.value = categoriesList.value.filter((c: any) => c !== newCat)
+      notify(error?.response?.data?.message || 'No se pudo crear la categoría.', 'error')
     }
   }
   isCategoryModalOpen.value = false
@@ -2550,12 +2376,14 @@ const handleDeleteCategory = async (cat: any) => {
     if (!confirm(`¿Eliminar la categoría "${cat.nombre_categoria}"?`)) return
   }
 
+  const prevCats = [...categoriesList.value]
   categoriesList.value = categoriesList.value.filter((c: any) => (c.id_categoria || c.id) !== catId)
   try {
     await categoryService.deleteCategory(catId)
     notify('Categoría eliminada', 'warning')
-  } catch {
-    notify('Categoría eliminada', 'warning')
+  } catch (error: any) {
+    categoriesList.value = prevCats
+    notify(error?.response?.data?.message || 'No se pudo eliminar la categoría.', 'error')
   }
 }
 
@@ -2579,6 +2407,7 @@ const submitSizeForm = async () => {
   if (!sizeForm.value.nombre) return
   if (isEditingSize.value) {
     const target = sizesList.value.find((s: any) => (s.id_tamaño || s.id) === sizeForm.value.id_tamaño)
+    const prevSz = target ? { ...target } : null
     if (target) {
       target.nombre = sizeForm.value.nombre
       target.descripcion = sizeForm.value.descripcion
@@ -2588,9 +2417,12 @@ const submitSizeForm = async () => {
         nombre: sizeForm.value.nombre
       })
       notify('Tamaño actualizado', 'success')
-    } catch {
-      notify('Tamaño actualizado', 'success')
+      isSizeModalOpen.value = false
+    } catch (error: any) {
+      if (target && prevSz) Object.assign(target, prevSz)
+      notify(error?.response?.data?.message || 'No se pudo actualizar el tamaño.', 'error')
     }
+    return
   } else {
     const newSz = {
       id_tamaño: Date.now(),
@@ -2604,8 +2436,10 @@ const submitSizeForm = async () => {
       })
       if (res.data?.id_tamaño) newSz.id_tamaño = res.data.id_tamaño
       notify('Tamaño creado exitosamente', 'success')
-    } catch {
-      notify('Tamaño creado', 'success')
+      isSizeModalOpen.value = false
+    } catch (error: any) {
+      sizesList.value = sizesList.value.filter((s: any) => s !== newSz)
+      notify(error?.response?.data?.message || 'No se pudo crear el tamaño.', 'error')
     }
   }
   isSizeModalOpen.value = false
@@ -2615,12 +2449,14 @@ const handleDeleteSize = async (sz: any) => {
   const sizeId = sz.id_tamaño || sz.id
   if (!confirm(`¿Eliminar el formato "${sz.nombre}"?`)) return
 
+  const prevSizes = [...sizesList.value]
   sizesList.value = sizesList.value.filter((s: any) => (s.id_tamaño || s.id) !== sizeId)
   try {
     await sizeService.deleteSize(sizeId)
     notify('Tamaño eliminado', 'warning')
-  } catch {
-    notify('Tamaño eliminado', 'warning')
+  } catch (error: any) {
+    sizesList.value = prevSizes
+    notify(error?.response?.data?.message || 'No se pudo eliminar el tamaño.', 'error')
   }
 }
 
@@ -4375,6 +4211,20 @@ onMounted(async () => {
 .mobile-only { display: none !important; }
 
 @media (max-width: 900px) {
+  .products-page {
+    padding: 1rem 0.75rem 2.5rem;
+    gap: 1rem;
+    overflow-x: hidden;
+  }
+  .inventory-tabs-nav {
+    width: 100%;
+    display: flex;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab-nav-btn {
+    padding: 7px 12px;
+    font-size: 0.82rem;
+  }
   .summary-grid {
     grid-template-columns: 1fr;
   }
@@ -4386,25 +4236,65 @@ onMounted(async () => {
     flex-direction: column;
     gap: 0.85rem;
     padding: 1rem;
+    padding: 0.85rem;
   }
   .mobile-product-card {
     background: white;
     border: 1px solid rgba(81, 49, 25, 0.08);
     border-radius: 14px;
     padding: 1rem;
+    padding: 0.9rem;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    /* Evitar desbordamiento horizontal */
+    min-width: 0;
+    overflow: hidden;
   }
   .mob-card-header {
     display: flex;
     align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
+    gap: 0.5rem;
+    min-width: 0;
   }
   .mob-prod-info {
     display: flex;
     align-items: center;
     gap: 8px;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+  .mob-prod-text {
+    min-width: 0;
+    flex: 1;
+  }
+  .mob-prod-name {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .mob-prod-id {
+    font-size: 0.72rem;
+    color: var(--DC-text-gray, #7c7468);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+  }
+  .mob-prod-price {
+    font-size: 1rem;
+    font-size: 0.98rem;
+    font-weight: 900;
+    color: var(--DC-brown, #513119);
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .mob-card-body {
     display: flex;
@@ -4412,9 +4302,52 @@ onMounted(async () => {
     justify-content: space-between;
     border-top: 1px dashed #eee;
     padding-top: 8px;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .mob-status-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .promo-add-btn-mob {
+    border: 1px dashed rgba(226, 135, 67, 0.5);
+    background: #fff7ed;
+    color: var(--DC-orange, #e28743);
+    border-radius: 999px;
+    padding: 0.28rem 0.65rem;
+    font-size: 0.74rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  /* Thumbnail en móvil */
+  .mob-thumb-container {
+    width: 40px;
+    height: 40px;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 1px solid #e2e8f0;
+  }
+  .mob-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
   .calendar-main-layout {
     grid-template-columns: 1fr;
+  }
+  .calendar-grid-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .calendar-weekdays-header,
+  .calendar-days-grid {
+    min-width: 540px;
   }
   .modal-columns-grid {
     grid-template-columns: 1fr;
@@ -4424,6 +4357,29 @@ onMounted(async () => {
   }
   .toggles-row {
     grid-template-columns: 1fr;
+  }
+  /* Panel toolbar compacta */
+  .panel-toolbar {
+    padding: 0.75rem 0.85rem;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+  }
+  .toolbar-left,
+  .toolbar-right {
+    width: 100%;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+  .search-box,
+  .select-box {
+    flex: 1 1 200px;
+    min-width: 0;
+  }
+  .search-box input,
+  .select-box select {
+    min-width: 0;
+    width: 100%;
+    flex: 1;
   }
 }
 /* Responsive extra: gestión de catálogo en pantallas pequeñas */
@@ -4437,26 +4393,48 @@ onMounted(async () => {
     align-items: stretch;
     width: 100%;
   }
+  .header-actions .btn-primary,
+  .header-actions .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
   .header-copy h1 {
-    font-size: 1.6rem;
+    font-size: 1.55rem;
   }
   .search-box,
   .select-box {
     width: 100%;
+    flex: none;
     min-width: 0;
   }
   .catalog-cards-grid {
     grid-template-columns: 1fr;
   }
-  .cards-grid-wrapper {
+  .cards-grid-wrapper,
+  .promo-content-wrapper {
     padding: 0.75rem;
+  }
+  .calendar-nav-bar,
+  .calendar-month-nav {
+    flex-wrap: wrap;
+  }
+  .cal-current-month {
+    min-width: 0;
+    font-size: 0.92rem;
+  }
+  .modal-row,
+  .form-row-2 {
+    grid-template-columns: 1fr;
+  }
+  .modal-backdrop {
+    padding: 0.5rem;
   }
   .modal-card,
   .modal-card-wide {
     width: 100%;
     max-width: 100%;
-    max-height: 100vh;
-    border-radius: 0;
+    max-height: 94vh;
+    border-radius: 14px;
     overflow-y: auto;
   }
 }

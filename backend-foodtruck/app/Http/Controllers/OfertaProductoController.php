@@ -26,13 +26,27 @@ class OfertaProductoController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'id_oferta' => 'required|integer|exists:ofertas,id_oferta',
+            'id_productos' => 'required|integer|exists:productos,id_producto',
+            'id_tamaño' => 'nullable|integer|exists:tamaños,id_tamaño',
+            'descripcion' => 'nullable|string|max:500',
+            'precio_oferta' => 'nullable|integer|min:0',
+            'tipo' => 'nullable|string|max:60',
+        ]);
         return response()->json($this->ofertaProductoService->createOfertaProducto($data), 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'id_oferta' => 'sometimes|required|integer|exists:ofertas,id_oferta',
+            'id_productos' => 'sometimes|required|integer|exists:productos,id_producto',
+            'id_tamaño' => 'nullable|integer|exists:tamaños,id_tamaño',
+            'descripcion' => 'nullable|string|max:500',
+            'precio_oferta' => 'nullable|integer|min:0',
+            'tipo' => 'nullable|string|max:60',
+        ]);
         return response()->json($this->ofertaProductoService->updateOfertaProducto($id, $data));
     }
 

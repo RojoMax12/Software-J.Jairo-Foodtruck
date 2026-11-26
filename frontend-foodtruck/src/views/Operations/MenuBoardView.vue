@@ -95,13 +95,13 @@
                   <div class="sizes-price-grid">
                     <div v-for="sp in item.sizePrices" :key="sp.size" class="size-chip">
                       <span class="size-name">{{ sp.size }}</span>
-                      <strong class="size-amount">${{ Number(sp.price).toLocaleString('es-CL') }}</strong>
+                      <strong class="size-amount">${{ formatCLP(sp.price) }}</strong>
                     </div>
                   </div>
                 </template>
                 <template v-else>
                   <div class="single-price-box">
-                    <strong class="single-amount">${{ Number(item.singlePrice || 0).toLocaleString('es-CL') }}</strong>
+                    <strong class="single-amount">${{ formatCLP(item.singlePrice || 0) }}</strong>
                   </div>
                 </template>
               </div>
@@ -204,6 +204,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Sparkles, Maximize2, Minimize2 } from 'lucide-vue-next';
 import logoImg from '@/assets/logo_jairo.webp';
 import productService from '@/services/productService';
+import { formatCLP } from '@/utils/format';
 import { useMarketingConfig } from '@/composables/useMarketingConfig';
 import cashFlowService, { type ShiftWindow } from '@/services/cashFlowService';
 
@@ -289,7 +290,7 @@ const currentSlideTitle = computed(() => currentSlide.value?.title || 'CARTA & P
 // Carga y estructuración de productos para Smart TV
 const loadProductsForTv = async () => {
   try {
-    const res = await productService.getPublicProducts();
+    const res = await productService.getPublicProducts({ summary: 1 });
     const rawProducts = Array.isArray(res?.data) ? res.data : (res?.data?.data || []);
 
     const activeProducts = rawProducts.filter((p: any) => {

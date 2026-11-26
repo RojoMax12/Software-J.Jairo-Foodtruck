@@ -10,7 +10,14 @@
           :key="index" 
           class="carousel-slide"
         >
-          <img :src="image" alt="Banner Foodtruck J.Junior" class="carousel-image" />
+          <img
+            :src="image"
+            :alt="`Banner Foodtruck J.Junior ${index + 1}`"
+            class="carousel-image"
+            :loading="index === 0 ? 'eager' : 'lazy'"
+            :fetchpriority="index === 0 ? 'high' : 'auto'"
+            decoding="async"
+          />
         </div>
       </div>
     </div>

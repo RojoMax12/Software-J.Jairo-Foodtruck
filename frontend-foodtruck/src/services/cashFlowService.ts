@@ -1,4 +1,7 @@
 import api from './api';
+import { parseDateTimeString } from '@/utils/shift';
+
+export { parseDateTimeString };
 
 export interface CashTransaction {
   id: string;
@@ -39,52 +42,6 @@ export interface CashRegisterSession {
 
 const LOCAL_KEY_TRX = 'foodtruck_cashflow_custom_transactions_v2';
 const LOCAL_KEY_SESSION = 'foodtruck_cash_active_session_v2';
-
-export function parseDateTimeString(dateString?: string): { formatted: string; timestamp: number } {
-  if (!dateString) {
-    const n = new Date();
-    return {
-      formatted: `${String(n.getDate()).padStart(2, '0')}/${String(n.getMonth() + 1).padStart(2, '0')}/${n.getFullYear()} ${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`,
-      timestamp: n.getTime()
-    };
-  }
-
-  // Si viene en formato "YYYY-MM-DD HH:MM:SS" o "YYYY-MM-DDTHH:MM:SS"
-  const clean = dateString.replace('T', ' ').split('.')[0];
-  const parts = clean ? clean.split(' ') : [];
-  
-  if (parts.length >= 2) {
-    const dateParts = parts[0] ? parts[0].split('-') : [];
-    const timeParts = parts[1] ? parts[1].split(':') : [];
-    
-    if (dateParts.length === 3 && timeParts.length >= 2) {
-      const year = parseInt(dateParts[0] || '0', 10);
-      const month = parseInt(dateParts[1] || '0', 10);
-      const day = parseInt(dateParts[2] || '0', 10);
-      const hour = parseInt(timeParts[0] || '0', 10);
-      const minute = parseInt(timeParts[1] || '0', 10);
-      const second = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
-
-      const dateObj = new Date(year, month - 1, day, hour, minute, second);
-      return {
-        formatted: `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
-        timestamp: dateObj.getTime()
-      };
-    }
-  }
-
-  const d = new Date(dateString);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-
-  return {
-    formatted: `${day}/${month}/${year} ${hours}:${minutes}`,
-    timestamp: isNaN(d.getTime()) ? Date.now() : d.getTime()
-  };
-}
 
 export interface ShiftWindow {
   start: string;
@@ -268,19 +225,15 @@ export default {
     const parsedNow = parseDateTimeString();
     let backendId: number | string = 'turno_' + Date.now();
 
-    try {
-      const response = await api.post('/cajas', {
-        monto_inicial: Math.max(0, Number(initialCash || 0)),
-        total_ventas: 0,
-        total_recaudado: 0,
-        estado: 'abierta',
-        observaciones: `Cajero: ${cashierName}`
-      });
-      if (response.data?.id_caja) {
-        backendId = response.data.id_caja;
-      }
-    } catch (err) {
-      console.warn('No se pudo guardar la apertura de caja en backend:', err);
+    const response = await api.post('/cajas', {
+      monto_inicial: Math.max(0, Number(initialCash || 0)),
+      total_ventas: 0,
+      total_recaudado: 0,
+      estado: 'abierta',
+      observaciones: `Cajero: ${cashierName}`
+    });
+    if (response.data?.id_caja) {
+      backendId = response.data.id_caja;
     }
 
     const newSession: CashRegisterSession = {
@@ -316,22 +269,18 @@ export default {
 
     if (current.id_caja || (typeof current.id === 'number')) {
       const cajaId = current.id_caja || current.id;
-      try {
-        await api.put(`/cajas/${cajaId}`, {
-          total_ventas: Math.round(summary.totalSales || 0),
-          total_recaudado: Math.round(actualCashCounted || 0),
-          efectivo_esperado: Math.round(summary.expectedCashInDrawer || 0),
-          diferencia: Math.round(diff || 0),
-          ventas_efectivo: Math.round(summary.totalSalesCash || 0),
-          ventas_debito: Math.round(summary.totalSalesDebit || 0),
-          ventas_transferencia: Math.round(summary.totalSalesTransfer || 0),
-          gastos_efectivo: Math.round(summary.totalExpenses || 0),
-          observaciones: notes || 'Arqueo de cierre',
-          estado: 'cerrada'
-        });
-      } catch (err) {
-        console.warn('Error al actualizar cierre de caja en BD:', err);
-      }
+      await api.put(`/cajas/${cajaId}`, {
+        total_ventas: Math.round(summary.totalSales || 0),
+        total_recaudado: Math.round(actualCashCounted || 0),
+        efectivo_esperado: Math.round(summary.expectedCashInDrawer || 0),
+        diferencia: Math.round(diff || 0),
+        ventas_efectivo: Math.round(summary.totalSalesCash || 0),
+        ventas_debito: Math.round(summary.totalSalesDebit || 0),
+        ventas_transferencia: Math.round(summary.totalSalesTransfer || 0),
+        gastos_efectivo: Math.round(summary.totalExpenses || 0),
+        observaciones: notes || 'Arqueo de cierre',
+        estado: 'cerrada'
+      });
     }
 
     localStorage.setItem(LOCAL_KEY_SESSION, JSON.stringify(current));
@@ -377,7 +326,7 @@ export default {
     let orderTrxs: CashTransaction[] = [];
 
     try {
-      const response = await api.get('/pedidos');
+      const response = await api.get('/pedidos', { params: { limit: 500 } });
       const orders = response.data || [];
 
       // Filtrar órdenes válidas para caja: excluir cancelados

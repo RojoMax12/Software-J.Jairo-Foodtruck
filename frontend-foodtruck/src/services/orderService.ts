@@ -1,7 +1,7 @@
 import api from './api';
 
-export default { 
-    getOrders(params?: { fecha_inicio?: string; fecha_fin?: string; limit?: number }) {
+export default {
+    getOrders(params?: { fecha_inicio?: string; fecha_fin?: string; fecha?: string; limit?: number; page?: number; per_page?: number; paginate?: boolean }) {
         return api.get('/pedidos', { params });
     },
 
@@ -13,7 +13,7 @@ export default {
         return api.get(`/pedidos/${distributorId}/usuario_distribuidor`, { params })
             .catch(() => api.get('/pedidos/mis-pedidos', { params }));
     },
-    
+
     getOrderById(id: number | string) {
         return api.get(`/pedidos/${id}`);
     },
@@ -31,7 +31,7 @@ export default {
     },
 
     getOrderDetails(id: number | string) {
-        return api.get(`/public/pedidos/${id}`).catch(() => api.get(`/pedidos/${id}`));
+        return api.get(`/pedidos/${id}`);
     },
 
     changeOrderStatus(id_pedido: number | string) {
@@ -43,11 +43,15 @@ export default {
         return api.get(`/public/pedidos/comanda/${comanda}`, { params });
     },
 
-    getPublicOrderById(id: number | string) {
-        return api.get(`/public/pedidos/${id}`);
+    getPublicOrderByToken(token: string) {
+        return api.get(`/public/pedidos/${encodeURIComponent(token)}`);
+    },
+
+    getPublicOrderById(idOrToken: number | string) {
+        return api.get(`/public/pedidos/${encodeURIComponent(String(idOrToken))}`);
     },
 
     createPublicOrder(data: unknown) {
         return api.post('/public/pedidos', data);
     }
-}
+};

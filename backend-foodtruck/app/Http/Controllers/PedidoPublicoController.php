@@ -45,7 +45,17 @@ class PedidoPublicoController extends Controller
             ], 422);
         }
 
-        $data = $request->all();
+        $data = $request->validate([
+            'nombre_persona' => 'required_without:persona_recibe|string|max:150',
+            'persona_recibe' => 'required_without:nombre_persona|string|max:150',
+            'numero_telefono' => 'nullable|string|max:30',
+            'telefono' => 'nullable|string|max:30',
+            'metodo_pago' => 'nullable|string|max:60',
+            'notas' => 'nullable|string|max:1000',
+            'total' => 'nullable|numeric|min:0',
+            'items' => 'required_without:detalles|array|min:1|max:100',
+            'detalles' => 'required_without:items|array|min:1|max:100',
+        ]);
         $user = $this->resolverUsuarioOpcional($request);
         // El pedido siempre se asocia al usuario autenticado, nunca a un id enviado por el cliente
         $data['id_usuario'] = $user?->id_usuario;
@@ -75,20 +85,36 @@ class PedidoPublicoController extends Controller
     }
 
     /**
-     * Buscar pedido por ID de forma pública (para seguimiento)
+     * Buscar pedido de forma pública únicamente mediante su token criptográfico de seguimiento.
+     * Previene enumeración secuencial (IDOR) por ID autoincremental.
      */
     public function buscarPorId($id)
     {
+        $token = trim((string) $id);
+        if (strlen($token) < 12 || ctype_digit($token)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Para consultar el pedido ingresa el número de comanda del turno o usa tu enlace de seguimiento.'
+            ], 404);
+        }
+
         try {
-            $pedido = $this->pedidoService->getPedidoById($id);
+            $pedido = \App\Models\Pedido::with([
+                'detalles.producto',
+                'detalles.tamano',
+                'detalles.tamaño',
+                'detalles.ingredientes.ingrediente',
+                'estadoPedido',
+                'estadoPago',
+            ])->where('tracking_token', $token)->first();
+
             if (!$pedido) {
                 return response()->json([
                     'success' => false,
-                    'message' => "No encontramos el pedido con ID #{$id}."
+                    'message' => 'No encontramos un pedido asociado a ese código de seguimiento.'
                 ], 404);
             }
 
-            // Anonimizar teléfono para protección de datos personales
             if (!empty($pedido->numero_telefono)) {
                 $pedido->numero_telefono = $this->maskPhone($pedido->numero_telefono);
             }
@@ -98,7 +124,7 @@ class PedidoPublicoController extends Controller
                 'data' => $this->sanitizarPedidoPublico($pedido)
             ]);
         } catch (\Exception $e) {
-            Log::error("Error al consultar pedido ID #{$id}: " . $e->getMessage());
+            Log::error("Error al consultar pedido por token: " . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Ocurrió un inconveniente al consultar el pedido. Por favor, intenta más tarde.'
@@ -135,7 +161,6 @@ class PedidoPublicoController extends Controller
             ], 404);
         }
 
-        // Anonimizar teléfono para protección de datos en pantallas públicas
         if (!empty($pedido->numero_telefono)) {
             $pedido->numero_telefono = $this->maskPhone($pedido->numero_telefono);
         }
@@ -147,10 +172,6 @@ class PedidoPublicoController extends Controller
         ]);
     }
 
-    /**
-     * La ruta pública no usa jwt.auth: si llega un token válido se asocia el pedido
-     * a ese usuario; si no, el pedido queda anónimo. Nunca se confía en id_usuario del body.
-     */
     private function resolverUsuarioOpcional(Request $request)
     {
         $token = $request->bearerToken();
@@ -177,9 +198,6 @@ class PedidoPublicoController extends Controller
         }
     }
 
-    /**
-     * Oculta datos personales y relaciones internas en las consultas públicas.
-     */
     private function sanitizarPedidoPublico($pedido)
     {
         $pedido->unsetRelation('usuario');
@@ -192,7 +210,7 @@ class PedidoPublicoController extends Controller
         $clean = preg_replace('/\D/', '', $phone);
         if (strlen($clean) >= 8) {
             $last4 = substr($clean, -4);
-            return '+56 9 **** ' . $last4;
+            return '+56 **** ' . $last4;
         }
         return '****';
     }

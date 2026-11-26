@@ -507,6 +507,11 @@ import {
 } from 'lucide-vue-next';
 import orderService from '@/services/orderService';
 import { type ShiftWindow, fetchShiftWindowFromBackend } from '@/services/cashFlowService';
+import { getShiftDateString } from '@/utils/shift';
+import { formatCLP } from '@/utils/format';
+import { useNotification } from '@/composables/useNotification';
+
+const { notify } = useNotification();
 
 const orders = ref<any[]>([]);
 const isLoading = ref(true);
@@ -524,27 +529,48 @@ const playOrderNotificationSound = () => {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContextClass) return;
     const ctx = new AudioContextClass();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
+    // DynamicsCompressor + Boost Gain para amplificar el volumen percibido sin clipping
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.setValueAtTime(-14, ctx.currentTime);
+    compressor.knee.setValueAtTime(3, ctx.currentTime);
+    compressor.ratio.setValueAtTime(16, ctx.currentTime);
+    compressor.attack.setValueAtTime(0.001, ctx.currentTime);
+    compressor.release.setValueAtTime(0.1, ctx.currentTime);
+
+    const outputGain = ctx.createGain();
+    outputGain.gain.setValueAtTime(1.0, ctx.currentTime); // volumen máximo permitido (1.0)
+    compressor.connect(outputGain);
+    outputGain.connect(ctx.destination);
+
+    const boostGain = ctx.createGain();
+    boostGain.gain.setValueAtTime(2.8, ctx.currentTime); // pre-amplificación segura hacia el compresor
+    boostGain.connect(compressor);
 
     const playTone = (freq: number, start: number, dur: number) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'triangle';
+      osc.type = 'square'; // onda cuadrada más penetrante en ambiente de cocina
       osc.frequency.setValueAtTime(freq, start);
 
       gain.gain.setValueAtTime(0, start);
-      gain.gain.linearRampToValueAtTime(0.95, start + 0.04);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+      gain.gain.linearRampToValueAtTime(1.0, start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.01, start + dur);
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(boostGain);
 
       osc.start(start);
       osc.stop(start + dur);
     };
 
     const now = ctx.currentTime;
-    playTone(587.33, now, 0.35); // D5
-    playTone(880.00, now + 0.15, 0.5); // A5
+    playTone(880.00, now, 0.25);         // A5
+    playTone(1046.50, now + 0.18, 0.25); // C6
+    playTone(1318.51, now + 0.36, 0.45); // E6
   } catch (e) {
     console.warn('Alerta sonora de cocina no disponible:', e);
   }
@@ -609,41 +635,12 @@ const advanceOrderStatus = async (order: any) => {
     await orderService.updateOrder(order.real_id, { id_estado_pedido: nextId });
     // Sincronización transparente en segundo plano
     await fetchOrders(true);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error al avanzar estado de pedido:', err);
-    // Revertir cambio local si falla la petición en el servidor
     order.rawStatusId = prevStatusId;
     order.status = prevStatusName;
+    notify(err?.response?.data?.message || 'No se pudo actualizar el estado del pedido.', 'error');
   }
-};
-
-const getShiftDateString = (inputDate?: string | Date) => {
-  let dateObj: Date;
-  if (!inputDate) {
-    dateObj = new Date();
-  } else if (typeof inputDate === 'string') {
-    let dateToParse = inputDate;
-    if (inputDate.includes(' ') && !inputDate.includes('T')) {
-      dateToParse = inputDate.replace(' ', 'T');
-    }
-    dateObj = new Date(dateToParse);
-  } else {
-    dateObj = new Date(inputDate);
-  }
-
-  if (isNaN(dateObj.getTime())) {
-    dateObj = new Date();
-  }
-
-  if (dateObj.getHours() < 6) {
-    dateObj.setDate(dateObj.getDate() - 1);
-  }
-
-  const year = dateObj.getFullYear();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
 };
 
 const selectedDate = ref(getShiftDateString());
@@ -848,7 +845,7 @@ const stats = computed(() => {
   };
 });
 
-const formatPrice = (price: number) => price.toLocaleString('es-CL');
+const formatPrice = (price: number) => formatCLP(price);
 
 const getStatusClass = (status: string, statusId?: number) => {
   if (statusId) {

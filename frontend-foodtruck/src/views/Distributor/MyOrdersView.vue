@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { formatPriceCLP } from '@/utils/format'
 import { useRouter } from 'vue-router'
 import { 
   Calendar, RotateCw, Clock, 
@@ -205,10 +206,7 @@ const formatFriendlyDate = (dateString: string) => {
   return `${day} ${month}, ${hours}`
 }
 
-const formatCurrency = (value: any) => {
-  const safeValue = (value !== undefined && value !== null) ? Number(value) : 0
-  return `$${safeValue.toLocaleString('es-CL')}`
-}
+const formatCurrency = (value: any) => formatPriceCLP(value)
 
 // 🔁 REPETIR PEDIDO EN 1 CLIC (Integrado con CartModal / QuotationView)
 const repeatOrder = (order: any) => {

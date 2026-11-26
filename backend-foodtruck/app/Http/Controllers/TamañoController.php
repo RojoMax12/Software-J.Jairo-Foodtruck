@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\TamañoService;
+use App\Support\CatalogCache;
 use Illuminate\Http\Request;
 
 class TamañoController extends Controller
@@ -26,21 +27,28 @@ class TamañoController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'nombre' => 'required|string|max:100',
+        ]);
         $tamaño = $this->tamañoService->createTamaño($data);
+        CatalogCache::invalidate();
         return response()->json($tamaño, 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'nombre' => 'sometimes|required|string|max:100',
+        ]);
         $tamaño = $this->tamañoService->updateTamaño($id, $data);
+        CatalogCache::invalidate();
         return response()->json($tamaño);
     }
 
     public function destroy($id)
     {
         $this->tamañoService->deleteTamañoById($id);
+        CatalogCache::invalidate();
         return response()->json(null, 204);
     }
 

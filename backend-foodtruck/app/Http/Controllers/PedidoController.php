@@ -17,17 +17,49 @@ class PedidoController extends Controller
     public function index(Request $request)
     {
         $fecha = $request->query('fecha') ?? $request->query('fecha_turno');
-        return response()->json($this->pedidoService->getAllPedidos($fecha));
+
+        if ($request->has('page') || $request->boolean('paginate')) {
+            $perPage = (int) $request->query('per_page', 50);
+            $page = (int) $request->query('page', 1);
+            return response()->json($this->pedidoService->paginatePedidos($fecha, $perPage, $page));
+        }
+
+        $limit = (int) $request->query('limit', 300);
+        return response()->json($this->pedidoService->getAllPedidos($fecha, $limit));
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        return response()->json($this->pedidoService->getPedidoById($id));
+        $pedido = $this->pedidoService->getPedidoById($id);
+        if (!$pedido) {
+            return response()->json(['message' => 'Pedido no encontrado.'], 404);
+        }
+
+        $user = $request->user();
+        if ($user && !in_array((int)$user->id_rol, [1, 3], true)) {
+            if ((int)$pedido->id_usuario !== (int)$user->id_usuario) {
+                return response()->json(['message' => 'No autorizado para consultar este pedido.'], 403);
+            }
+        }
+
+        return response()->json($pedido);
     }
 
     public function store(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'id_usuario' => 'nullable|integer|exists:usuarios,id_usuario',
+            'id_estado_pago' => 'nullable|integer|in:1,2,3,4,5',
+            'nombre_persona' => 'nullable|string|max:150',
+            'persona_recibe' => 'nullable|string|max:150',
+            'numero_telefono' => 'nullable|string|max:30',
+            'telefono' => 'nullable|string|max:30',
+            'metodo_pago' => 'nullable|string|max:60',
+            'notas' => 'nullable|string|max:1000',
+            'total' => 'nullable|numeric|min:0',
+            'items' => 'required_without:detalles|array|min:1|max:100',
+            'detalles' => 'required_without:items|array|min:1|max:100',
+        ]);
         $user = $request->user();
 
         $pedidoRepo = app(\App\Repositories\PedidoRepository::class);
@@ -64,7 +96,16 @@ class PedidoController extends Controller
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'id_estado_pedido' => 'sometimes|integer|in:1,2,3,4,5',
+            'id_estado_pago' => 'sometimes|integer|in:1,2,3,4,5',
+            'nombre_persona' => 'sometimes|nullable|string|max:150',
+            'numero_telefono' => 'sometimes|nullable|string|max:30',
+            'metodo_pago' => 'sometimes|nullable|string|max:60',
+            'notas' => 'sometimes|nullable|string|max:1000',
+            'fecha_de_pago' => 'sometimes|nullable|date',
+            'items' => 'sometimes|array|min:1|max:100',
+        ]);
         return response()->json($this->pedidoService->updatePedido($id, $data));
     }
 
@@ -96,7 +137,7 @@ class PedidoController extends Controller
     public function getPedidosByUsuario(Request $request, $id)
     {
         $user = $request->user();
-        
+
         // Si el usuario es un cliente (rol 2), solo puede ver sus propios pedidos
         $targetUserId = ($user && (int)$user->id_rol === 2) ? $user->id_usuario : (int)$id;
 

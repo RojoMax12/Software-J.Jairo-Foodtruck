@@ -57,6 +57,7 @@ class MarketingSeeder extends Seeder
                     'badge' => 'HORARIOS',
                     'type' => 'schedule',
                     'text' => 'Atención de Lunes a Domingo de 19:00 a 00:30 hrs.',
+                    'text' => 'Dom a Jue: 19:00 a 00:30 hrs · Vie y Sáb: 19:00 a 01:30 hrs.',
                     'highlight' => '🔥 ¡Abierto hoy!',
                     'active' => true,
                 ],

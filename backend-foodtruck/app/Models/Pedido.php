@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Pedido extends Model
 {
@@ -18,6 +19,7 @@ class Pedido extends Model
         'id_usuario',
         'id_estado_pago',
         'numero_pedido_dia',
+        'tracking_token',
         'nombre_persona',
         'numero_telefono',
         'metodo_pago',
@@ -28,6 +30,15 @@ class Pedido extends Model
         'inventario_descontado'
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (Pedido $pedido) {
+            if (empty($pedido->tracking_token)) {
+                $pedido->tracking_token = Str::random(24);
+            }
+        });
+    }
+
     protected $casts = [
         'fecha' => 'datetime',
         'fecha_de_pago' => 'datetime',
@@ -37,7 +48,7 @@ class Pedido extends Model
 
     protected function serializeDate(\DateTimeInterface $date)
     {
-        return $date->format('Y-m-d H:i:s');
+        return $date->format(\DateTimeInterface::ATOM);
     }
 
     // Un pedido pertenece a un estado

@@ -97,10 +97,12 @@ class DatabaseSeeder extends Seeder
         $tamañosList = [
             'Único',
             'Chico',
+            'Mediano',
             'Grande',
             'Mediana',
             'Familiar',
             'XXL',
+            'Solo Jugo de Huesillo',
             'Simple',
             'Doble',
             'Pollo',
@@ -458,34 +460,76 @@ class DatabaseSeeder extends Seeder
             [
                 'nombre' => 'Pizza Individual Napolitana',
                 'categoria' => 'Pizzas',
-                'descripcion' => 'Pizza individual recién horneada personalizable.',
+                'descripcion' => 'Pizza individual recién horneada personalizable (Carne +$1.500, Tocino u otros extras +$1.000).',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 1000,
                 'precios_por_tamaño' => ['Único' => 1500],
                 'ingredientes_defecto' => ['Masa de pizzeta', 'Salsa de tomate', 'Queso gauda', 'Tomate', 'Oregano'],
+                'ingredientes_opcionales' => [
+                    ['ingrediente' => 'Carne', 'precio_extra' => 1500],
+                    ['ingrediente' => 'Tocino', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Pollo', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Jamón', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Pepperoni', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Salame', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Champiñón', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Choclo', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Aceitunas', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Cebolla', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Pimentón', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Extra queso', 'precio_extra' => 1000],
+                ],
             ],
 
             [
                 'nombre' => 'Pizza Individual Pepperoni',
                 'categoria' => 'Pizzas',
-                'descripcion' => 'Pizza recién horneada personalizable.',
+                'descripcion' => 'Pizza individual recién horneada personalizable (Carne +$1.500, Tocino u otros extras +$1.000).',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 1000,
                 'precios_por_tamaño' => ['Único' => 1500],
                 'ingredientes_defecto' => ['Masa de pizzeta', 'Salsa de tomate', 'Queso gauda', 'Pepperoni', 'Oregano'],
+                'ingredientes_opcionales' => [
+                    ['ingrediente' => 'Carne', 'precio_extra' => 1500],
+                    ['ingrediente' => 'Tocino', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Pollo', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Jamón', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Salame', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Tomate', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Champiñón', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Choclo', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Aceitunas', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Cebolla', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Pimentón', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Extra queso', 'precio_extra' => 1000],
+                ],
             ],
 
             [
                 'nombre' => 'Pizza Individual Salame',
                 'categoria' => 'Pizzas',
-                'descripcion' => 'Pizza recién horneada personalizable.',
+                'descripcion' => 'Pizza individual recién horneada personalizable (Carne +$1.500, Tocino u otros extras +$1.000).',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 1000,
                 'precios_por_tamaño' => ['Único' => 1500],
                 'ingredientes_defecto' => ['Masa de pizzeta', 'Salsa de tomate', 'Queso gauda', 'Salame', 'Oregano'],
+                'ingredientes_opcionales' => [
+                    ['ingrediente' => 'Carne', 'precio_extra' => 1500],
+                    ['ingrediente' => 'Tocino', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Pollo', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Jamón', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Pepperoni', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Tomate', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Champiñón', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Choclo', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Aceitunas', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Cebolla', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Pimentón', 'precio_extra' => 1000],
+                    ['ingrediente' => 'Extra queso', 'precio_extra' => 1000],
+                ],
             ],
 
             // --- FAJITAS (Personalizables, 3 ingredientes incluidos aparte de la proteína) ---
@@ -611,7 +655,7 @@ class DatabaseSeeder extends Seeder
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Chico' => 2500, 'Mediana' => 3500, 'Grande' => 4500],
+                'precios_por_tamaño' => ['Chico' => 3000, 'Mediana' => 4000, 'Grande' => 5000],
                 'ingredientes_defecto' => ['Papas fritas', 'Vianesa'],
             ],
             [
@@ -769,9 +813,100 @@ class DatabaseSeeder extends Seeder
                 'precios_por_tamaño' => ['Único' => 800],
             ],
             [
-                'nombre' => 'Bebida en Lata',
+                'nombre' => 'Lata Coca-Cola',
+                'grupo' => 'Bebida en Lata',
                 'categoria' => 'Bebidas frías',
-                'descripcion' => 'Gaseosa en lata 350ml: Coca-Cola, Fanta, Sprite, Coca-Cola Zero, jugo, Kem, limón, papaya, Crush o Pepsi',
+                'descripcion' => 'Gaseosa en lata 350ml · Línea Coca-Cola',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 1200],
+            ],
+            [
+                'nombre' => 'Lata Coca-Cola Zero',
+                'grupo' => 'Bebida en Lata',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Gaseosa en lata 350ml · Línea Coca-Cola',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 1200],
+            ],
+            [
+                'nombre' => 'Lata Fanta',
+                'grupo' => 'Bebida en Lata',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Gaseosa en lata 350ml · Línea Coca-Cola',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 1200],
+            ],
+            [
+                'nombre' => 'Lata Sprite',
+                'grupo' => 'Bebida en Lata',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Gaseosa en lata 350ml · Línea Coca-Cola',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 1200],
+            ],
+            [
+                'nombre' => 'Jugo en Lata',
+                'grupo' => 'Bebida en Lata',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Jugo en lata · Línea Coca-Cola',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 1200],
+            ],
+            [
+                'nombre' => 'Lata Kem',
+                'grupo' => 'Bebida en Lata',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Gaseosa en lata 350ml · Línea CCU',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 1200],
+            ],
+            [
+                'nombre' => 'Lata Limón Soda',
+                'grupo' => 'Bebida en Lata',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Gaseosa en lata 350ml · Línea CCU',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 1200],
+            ],
+            [
+                'nombre' => 'Lata Papaya',
+                'grupo' => 'Bebida en Lata',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Gaseosa en lata 350ml · Línea CCU',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 1200],
+            ],
+            [
+                'nombre' => 'Lata Crush',
+                'grupo' => 'Bebida en Lata',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Gaseosa en lata 350ml · Línea CCU',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 1200],
+            ],
+            [
+                'nombre' => 'Lata Pepsi',
+                'grupo' => 'Bebida en Lata',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Gaseosa en lata 350ml · Línea CCU',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
@@ -814,7 +949,116 @@ class DatabaseSeeder extends Seeder
                 'precios_por_tamaño' => ['Único' => 2000],
             ],
 
-            // --- Reunión 11/10 ---
+            // --- Reunión 11/10 y 11/26 ---
+            [
+                'nombre' => 'Mote con Huesillo',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Mote con huesillo artesanal: Chico ($1.000), Mediano ($2.000) o Solo Jugo de Huesillo ($1.500)',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Chico' => 1000, 'Mediano' => 2000, 'Solo Jugo de Huesillo' => 1500],
+            ],
+            [
+                'nombre' => 'Bebida Express Coca-Cola',
+                'grupo' => 'Bebida Express',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Bebida express · Línea Coca-Cola',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 800],
+            ],
+            [
+                'nombre' => 'Bebida Express Fanta',
+                'grupo' => 'Bebida Express',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Bebida express · Línea Coca-Cola',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 800],
+            ],
+            [
+                'nombre' => 'Bebida Express Sprite',
+                'grupo' => 'Bebida Express',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Bebida express · Línea Coca-Cola',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 800],
+            ],
+            [
+                'nombre' => 'Jugo Express',
+                'grupo' => 'Bebida Express',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Jugo express · Línea Coca-Cola',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 800],
+            ],
+            [
+                'nombre' => 'Bebida Express Kem',
+                'grupo' => 'Bebida Express',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Bebida express · Línea CCU',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 800],
+            ],
+            [
+                'nombre' => 'Bebida Express Limón Soda',
+                'grupo' => 'Bebida Express',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Bebida express · Línea CCU',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 800],
+            ],
+            [
+                'nombre' => 'Bebida Express Papaya',
+                'grupo' => 'Bebida Express',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Bebida express · Línea CCU',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 800],
+            ],
+            [
+                'nombre' => 'Bebida Express Bilz',
+                'grupo' => 'Bebida Express',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Bebida express · Línea CCU',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 800],
+            ],
+            [
+                'nombre' => 'Bebida Express Crush',
+                'grupo' => 'Bebida Express',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Bebida express · Línea CCU',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 800],
+            ],
+            [
+                'nombre' => 'Bebida Express Pepsi',
+                'grupo' => 'Bebida Express',
+                'categoria' => 'Bebidas frías',
+                'descripcion' => 'Bebida express · Línea CCU',
+                'tipo_armado' => 'Estandar',
+                'cantidad_incluida' => 0,
+                'precio_ingrediente_extra' => 0,
+                'precios_por_tamaño' => ['Único' => 800],
+            ],
             [
                 'nombre' => 'Papas Nuevas',
                 'categoria' => 'Papas & Chorrillanas',
@@ -836,27 +1080,9 @@ class DatabaseSeeder extends Seeder
                 'ingredientes_defecto' => ['Papas fritas', 'Tomate', 'Palta', 'Mayonesa'],
             ],
             [
-                'nombre' => 'Coca-Cola Express',
-                'categoria' => 'Bebidas frías',
-                'descripcion' => 'Bebida express Coca-Cola',
-                'tipo_armado' => 'Estandar',
-                'cantidad_incluida' => 0,
-                'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Único' => 800],
-            ],
-            [
-                'nombre' => 'Fanta y Sprite Express',
-                'categoria' => 'Bebidas frías',
-                'descripcion' => 'Bebida express Fanta o Sprite',
-                'tipo_armado' => 'Estandar',
-                'cantidad_incluida' => 0,
-                'precio_ingrediente_extra' => 0,
-                'precios_por_tamaño' => ['Único' => 800],
-            ],
-            [
                 'nombre' => 'Jugo Watts Botella',
                 'categoria' => 'Bebidas frías',
-                'descripcion' => 'Jugo Watts en botella',
+                'descripcion' => 'Jugo Watt\'s en botella',
                 'tipo_armado' => 'Estandar',
                 'cantidad_incluida' => 0,
                 'precio_ingrediente_extra' => 0,
@@ -915,15 +1141,6 @@ class DatabaseSeeder extends Seeder
             ],
         ];
 
-        // Aderezos disponibles en hamburguesas y fajitas (reunión 11/10)
-        $aderezos = ['Ketchup', 'Mostaza', 'Salsa BBQ', 'Mayonesa de ajo', 'Salsa de queso', 'Salsa de ají'];
-        foreach ($productosEstructurados as &$prodRef) {
-            if (in_array($prodRef['categoria'], ['Hamburguesas', 'Fajitas'], true)) {
-                $prodRef['ingredientes_opcionales'] = array_values(array_unique(array_merge($prodRef['ingredientes_opcionales'] ?? [], $aderezos)));
-            }
-        }
-        unset($prodRef);
-
         // 9. Guardar Productos, Precios por Tamaño e Ingredientes Asociados
         foreach ($productosEstructurados as $prodData) {
             $cat = $categoriasMap->get($prodData['categoria']);
@@ -933,6 +1150,7 @@ class DatabaseSeeder extends Seeder
                 ['nombre' => $prodData['nombre']],
                 [
                     'id_categoria' => $cat->id_categoria,
+                    'grupo' => $prodData['grupo'] ?? null,
                     'descripcion' => $prodData['descripcion'],
                     'tipo_armado' => $prodData['tipo_armado'],
                     'cantidad_incluida' => $prodData['cantidad_incluida'],
@@ -995,12 +1213,13 @@ class DatabaseSeeder extends Seeder
                     $nombreIng = is_array($ingInfo) ? $ingInfo['ingrediente'] : $ingInfo;
                     $nombreTam = is_array($ingInfo) ? ($ingInfo['tamaño'] ?? null) : null;
                     $cantidad = is_array($ingInfo) ? ($ingInfo['cantidad'] ?? 1) : 1;
+                    $precioExtra = is_array($ingInfo) ? ($ingInfo['precio_extra'] ?? null) : null;
 
                     $ingObj = $ingredientesMap->get($nombreIng);
                     $tamObj = $nombreTam ? $tamañosMap->get($nombreTam) : null;
 
                     if ($ingObj) {
-                        Producto_ingrediente::firstOrCreate(
+                        Producto_ingrediente::updateOrCreate(
                             [
                                 'id_producto' => $producto->id_producto,
                                 'id_ingrediente' => $ingObj->id_ingrediente,
@@ -1009,6 +1228,7 @@ class DatabaseSeeder extends Seeder
                             [
                                 'cantidad' => $cantidad,
                                 'incluido_por_defecto' => false,
+                                'precio_extra' => $precioExtra,
                             ]
                         );
                     }

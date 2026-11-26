@@ -22,9 +22,20 @@
         </div>
       </section>
 
+      <!-- AVISO DE ACTUALIZACIÓN DE PRECIOS / STOCK DESDE CATÁLOGO -->
+      <section v-if="priceUpdateNotice" class="store-closed-card" style="border-left-color: #d97706;">
+        <div class="closed-indicator-bubble">
+          <AlertTriangle :size="20" />
+        </div>
+        <div class="closed-content-text">
+          <strong>Actualizamos tu carrito según la carta vigente</strong>
+          <p>{{ priceUpdateNotice }}</p>
+        </div>
+      </section>
+
       <div class="quotation-grid">
         <!-- COLUMNA IZQUIERDA: DATOS DEL CLIENTE Y MÉTODO DE PAGO -->
-        <section class="forms-column">
+        <section v-if="quotationItems.length > 0" class="forms-column">
           <!-- AVISO DE SESIÓN O INVITACIÓN -->
           <div v-if="isLoggedIn" class="session-state-card active">
             <div class="session-badge">
@@ -272,9 +283,17 @@ import {
 } from 'lucide-vue-next'
 import boxPlaceholderImage from '@/assets/logo_jairo.webp'
 import orderService from '@/services/orderService'
+import productService from '@/services/productService'
 import TermsAndPrivacyModal from '@/components/TermsAndPrivacyModal.vue'
 import cashFlowService, { type ShiftWindow } from '@/services/cashFlowService'
 import { useNotification } from '@/composables/useNotification'
+import { formatCLP, parseNumericPrice } from '@/utils/format'
+import { getShiftDateString } from '@/utils/shift'
+import {
+  computeDeterministicExtrasCost,
+  resolvePromoPrice,
+  supportsAderezosGratuitos,
+} from '@/utils/catalogPricing'
 
 const router = useRouter()
 const { notify } = useNotification()
@@ -289,15 +308,13 @@ const userId = ref<number | null>(null)
 const isLoading = ref(false)
 const isLoggedIn = ref(false)
 const loggedUserName = ref('')
+const priceUpdateNotice = ref('')
 
 const shiftWindow = ref<ShiftWindow | null>(null)
 const isStoreClosed = computed(() => shiftWindow.value !== null && shiftWindow.value.es_jornada_activa === false)
 const quotationItems = ref<any[]>([])
 
-const formatPrice = (price: number | string) => {
-  const num = typeof price === 'string' ? Number(price.replace(/[^0-9]/g, '')) : Number(price || 0)
-  return num.toLocaleString('es-CL')
-}
+const formatPrice = (price: number | string) => formatCLP(price)
 
 const totalItemsCount = computed(() => {
   return quotationItems.value.reduce((acc, item) => acc + (Number(item.quantity) || 1), 0)
@@ -305,12 +322,10 @@ const totalItemsCount = computed(() => {
 
 const totalEstimated = computed(() => {
   const totalRaw = quotationItems.value.reduce((sum, item) => {
-    const cleanPrice = typeof item.price === 'string'
-      ? Number(item.price.replace(/[^0-9]/g, ''))
-      : Number(item.price || 0)
+    const cleanPrice = parseNumericPrice(item.price)
     return sum + (cleanPrice * (Number(item.quantity) || 1))
   }, 0)
-  return `$${totalRaw.toLocaleString('es-CL')}`
+  return `$${formatCLP(totalRaw)}`
 })
 
 const extract8DigitPhone = (rawPhone: any): string => {
@@ -403,10 +418,99 @@ onMounted(async () => {
   }
 
   // 3. Consultar turno y horario
+  // 3. Consultar turno y horario + revalidar precios vigentes del carrito contra BD
   try {
     shiftWindow.value = await cashFlowService.fetchShiftWindowFromBackend()
   } catch (e) {
     console.warn('Error al obtener horario en checkout:', e)
+  }
+
+  if (quotationItems.value.length > 0) {
+    try {
+      const prodRes = await productService.getPublicProducts()
+      const dbProducts: any[] = Array.isArray(prodRes.data) ? prodRes.data : []
+      if (dbProducts.length > 0) {
+        const productsById = new Map<number, any>()
+        for (const p of dbProducts) {
+          productsById.set(Number(p.id_producto), p)
+        }
+
+        const updatedItems: any[] = []
+        let hasPriceChange = false
+        const removedNames: string[] = []
+        const shiftDate = shiftWindow.value?.shift_date || getShiftDateString()
+
+        for (const item of quotationItems.value) {
+          const prodId = Number(
+            item.id_producto || (typeof item.id === 'number' ? item.id : String(item.id || '').split('_')[0])
+          )
+          const catalogProd = productsById.get(prodId)
+          if (!catalogProd) {
+            updatedItems.push(item)
+            continue
+          }
+
+          if (catalogProd.activo === false || catalogProd.disponible === false) {
+            removedNames.push(item.name || catalogProd.nombre || `Producto #${prodId}`)
+            continue
+          }
+
+          const rawSizeId = item.id_tamaño ?? item.tamano_id ?? item.id_tamano ?? null
+          const targetSizeId = rawSizeId ? Number(String(rawSizeId).split('_')[0]) : null
+          const sizeNameLower = String(item.size || '').trim().toLowerCase()
+
+          const tamanos: any[] = Array.isArray(catalogProd.tamaños) ? catalogProd.tamaños : []
+          const matchedTam =
+            (targetSizeId ? tamanos.find((t: any) => Number(t.id_tamaño) === targetSizeId) : undefined) ||
+            (sizeNameLower ? tamanos.find((t: any) => String(t.nombre || '').trim().toLowerCase() === sizeNameLower) : undefined) ||
+            tamanos[0]
+
+          let basePrice = matchedTam
+            ? Number(matchedTam.pivot?.precio ?? matchedTam.precio ?? 0)
+            : Number(catalogProd.precio_base ?? catalogProd.precio ?? 0)
+
+          const promos = catalogProd.promociones_activas || (catalogProd.promocion_activa ? [catalogProd.promocion_activa] : [])
+          basePrice = resolvePromoPrice({
+            basePrice,
+            promociones: promos,
+            sizeId: matchedTam ? Number(matchedTam.id_tamaño) : targetSizeId,
+            referenceDateStr: shiftDate,
+          })
+
+          const extrasList = item.agregados || item.extras || []
+          const extrasCost = computeDeterministicExtrasCost({
+            selectedExtras: Array.isArray(extrasList) ? extrasList : [],
+            productIngredients: catalogProd.ingredientes || [],
+            includedCount: Number(catalogProd.cantidad_incluida || 0),
+            defaultExtraPrice: Number(catalogProd.precio_ingrediente_extra || 0),
+            allowFreeAderezos: supportsAderezosGratuitos(catalogProd),
+          })
+
+          const freshUnitPrice = Math.round(basePrice + extrasCost)
+          const prevUnitPrice = Math.round(parseNumericPrice(item.price))
+
+          if (freshUnitPrice > 0 && freshUnitPrice !== prevUnitPrice) {
+            hasPriceChange = true
+            updatedItems.push({ ...item, price: freshUnitPrice })
+          } else {
+            updatedItems.push(item)
+          }
+        }
+
+        if (hasPriceChange || removedNames.length > 0) {
+          quotationItems.value = updatedItems
+          localStorage.setItem('dicreme_temp_cart', JSON.stringify(updatedItems))
+
+          const msgs: string[] = []
+          if (hasPriceChange) msgs.push('Algunos precios se ajustaron a la tarifa vigente del catálogo.')
+          if (removedNames.length > 0) msgs.push(`Se retiraron productos sin stock (${removedNames.join(', ')}).`)
+          priceUpdateNotice.value = msgs.join(' ')
+          notify(priceUpdateNotice.value, 'warning')
+        }
+      }
+    } catch (e) {
+      console.warn('No se pudieron revalidar precios en checkout:', e)
+    }
   }
 })
 
@@ -445,79 +549,81 @@ const handleConfirmQuotation = async () => {
 
   isLoading.value = true
 
-  const calculatedTotal = quotationItems.value.reduce((sum, item) => {
-    const cleanPrice = typeof item.price === 'string'
-      ? Number(item.price.replace(/[^0-9]/g, ''))
-      : Number(item.price || 0)
-    return sum + (cleanPrice * (Number(item.quantity) || 1))
-  }, 0)
-
-  const itemNotesSummary = quotationItems.value
-    .filter(item => item.notas && String(item.notas).trim())
-    .map(item => `${item.fullName || item.name}: ${String(item.notas).trim()}`)
-    .join(' | ')
-
-  const orderPayload = {
-    nombre_persona: `${firstName.value.trim()} ${lastName.value.trim()}`,
-    numero_telefono: cleanPhone,
-    id_usuario: userId.value || null,
-    total: calculatedTotal,
-    metodo_pago: selectedPaymentMethod.value,
-    id_estado_pago: 1, // Por pagar
-    id_estado_pedido: 1, // Pendiente
-    notas: itemNotesSummary || null,
-    detalles: quotationItems.value.map(item => {
-      const unitPrice = typeof item.price === 'string'
-        ? Number(item.price.replace(/[^0-9]/g, ''))
-        : Number(item.price || 0)
-
-      const rawExcluidosList = item.excluidos || item.exclusiones || []
-      const rawAgregadosList = item.agregados || item.extras || []
-      
-      const cleanProdId = item.id_producto 
-        ? Number(item.id_producto) 
-        : (typeof item.id === 'number' 
-            ? item.id 
-            : parseInt(String(item.id || '1').split('_')[0] || '1', 10) || 1)
-
-      const cleanTamanoId = item.id_tamaño 
-        ? Number(item.id_tamaño)
-        : (typeof item.tamano_id === 'number'
-            ? item.tamano_id
-            : (typeof item.id_tamano === 'number'
-                ? item.id_tamano
-                : parseInt(String(item.tamano_id || item.id_tamaño || item.id_tamano || '1').split('_')[0] || '1', 10) || 1))
-
-      return {
-        id_producto: cleanProdId,
-        id_tamaño: cleanTamanoId,
-        nombre_producto: item.name || item.nombre || 'Producto',
-        cantidad: Number(item.quantity || 1),
-        precio_unitario: unitPrice,
-        subtotal: unitPrice * Number(item.quantity || 1),
-        excluidos: rawExcluidosList,
-        agregados: rawAgregadosList,
-        opciones_seleccionadas: [
-          ...(item.size ? [{ tipo: 'Tamaño', valor: item.size }] : []),
-          ...(item.notas && String(item.notas).trim() ? [{ tipo: 'Nota', valor: String(item.notas).trim() }] : []),
-          ...rawExcluidosList.map((ex: any) => ({
-            tipo: 'Exclusión',
-            ingrediente: typeof ex === 'object' ? (ex.nombre || ex.name || '') : String(ex)
-          })),
-          ...rawAgregadosList.map((ag: any) => ({
-            tipo: 'Agregado',
-            precio: typeof ag === 'object' ? Number(ag.precio || ag.price || 0) : 0,
-            ingrediente: typeof ag === 'object' ? (ag.nombre || ag.name || '') : String(ag)
-          }))
-        ]
-      }
-    })
-  }
-
   try {
+    const calculatedTotal = quotationItems.value.reduce((sum, item) => {
+      const cleanPrice = parseNumericPrice(item.price)
+      return sum + (cleanPrice * (Number(item.quantity) || 1))
+    }, 0)
+
+    const itemNotesSummary = quotationItems.value
+      .filter(item => item.notas && String(item.notas).trim())
+      .map(item => `${item.fullName || item.name}: ${String(item.notas).trim()}`)
+      .join(' | ')
+
+    const orderPayload = {
+      nombre_persona: `${firstName.value.trim()} ${lastName.value.trim()}`,
+      numero_telefono: cleanPhone,
+      id_usuario: userId.value || null,
+      total: calculatedTotal,
+      metodo_pago: selectedPaymentMethod.value,
+      id_estado_pago: 1, // Por pagar
+      id_estado_pedido: 1, // Pendiente
+      notas: itemNotesSummary || null,
+      detalles: quotationItems.value.map(item => {
+        const unitPrice = parseNumericPrice(item.price)
+
+        const rawExcluidosList = item.excluidos || item.exclusiones || []
+        const rawAgregadosList = item.agregados || item.extras || []
+        
+        const cleanProdId = item.id_producto 
+          ? Number(item.id_producto) 
+          : (typeof item.id === 'number' 
+              ? item.id 
+              : parseInt(String(item.id || '').split('_')[0] || '0', 10))
+
+        const rawTamanoVal = item.id_tamaño ?? item.tamano_id ?? item.id_tamano
+        const cleanTamanoId = rawTamanoVal
+          ? parseInt(String(rawTamanoVal).split('_')[0] || '0', 10) || undefined
+          : undefined
+
+        if (!cleanProdId || isNaN(cleanProdId)) {
+          throw new Error(`Producto inválido en el carrito: ${item.name || 'Desconocido'}`)
+        }
+
+        return {
+          id_producto: cleanProdId,
+          ...(cleanTamanoId ? { id_tamaño: cleanTamanoId } : {}),
+          nombre_producto: item.name || item.nombre || 'Producto',
+          cantidad: Number(item.quantity || 1),
+          precio_unitario: unitPrice,
+          subtotal: unitPrice * Number(item.quantity || 1),
+          excluidos: rawExcluidosList,
+          agregados: rawAgregadosList,
+          opciones_seleccionadas: [
+            ...(item.size ? [{ tipo: 'Tamaño', valor: item.size }] : []),
+            ...(item.notas && String(item.notas).trim() ? [{ tipo: 'Nota', valor: String(item.notas).trim() }] : []),
+            ...rawExcluidosList.map((ex: any) => ({
+              tipo: 'Exclusión',
+              ingrediente: typeof ex === 'object' ? (ex.nombre || ex.name || '') : String(ex)
+            })),
+            ...rawAgregadosList.map((ag: any) => ({
+              tipo: 'Agregado',
+              precio: typeof ag === 'object' ? Number(ag.precio || ag.price || 0) : 0,
+              ingrediente: typeof ag === 'object' ? (ag.nombre || ag.name || '') : String(ag)
+            }))
+          ]
+        }
+      })
+    }
+
     let res: any
     if (userId.value) {
-      res = await orderService.createOrder(orderPayload).catch(() => orderService.createPublicOrder(orderPayload))
+      res = await orderService.createOrder(orderPayload).catch((authErr: any) => {
+        if (authErr?.response?.status === 401) {
+          return orderService.createPublicOrder(orderPayload)
+        }
+        throw authErr
+      })
     } else {
       res = await orderService.createPublicOrder(orderPayload)
     }
@@ -534,6 +640,7 @@ const handleConfirmQuotation = async () => {
       path: '/cotizacion-exitosa',
       query: {
         id: (createdOrder.numero_pedido_dia || createdOrder.id_pedido || createdOrder.id || '').toString(),
+        ...(createdOrder.tracking_token ? { token: String(createdOrder.tracking_token) } : {}),
         fecha: now.toLocaleDateString('es-CL'),
         hora: now.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
       }

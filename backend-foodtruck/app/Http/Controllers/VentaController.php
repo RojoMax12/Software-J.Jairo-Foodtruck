@@ -26,13 +26,19 @@ class VentaController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'id_pedido' => 'required|integer|exists:pedidos,id_pedido',
+            'id_caja' => 'required|integer|exists:cajas,id_caja',
+        ]);
         return response()->json($this->ventaService->createVenta($data), 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'id_pedido' => 'sometimes|required|integer|exists:pedidos,id_pedido',
+            'id_caja' => 'sometimes|required|integer|exists:cajas,id_caja',
+        ]);
         return response()->json($this->ventaService->updateVenta($id, $data));
     }
 

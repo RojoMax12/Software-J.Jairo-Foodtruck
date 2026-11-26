@@ -21,24 +21,28 @@ class RolController extends Controller
 
     public function show($id)
     {
-        return response()->json($this->rolService->getRolById($id));
+        return response()->json($this->rolService->getRoleById($id));
     }
 
     public function store(Request $request)
     {
-        $data = $request->all();
-        return response()->json($this->rolService->createRol($data), 201);
+        $data = $request->validate([
+            'nombre_rol' => 'required|string|max:80',
+        ]);
+        return response()->json($this->rolService->createRole($data), 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
-        return response()->json($this->rolService->updateRol($id, $data));
+        $data = $request->validate([
+            'nombre_rol' => 'sometimes|required|string|max:80',
+        ]);
+        return response()->json($this->rolService->updateRole($id, $data));
     }
 
     public function destroy($id)
     {
-        $this->rolService->deleteRolById($id);
+        $this->rolService->deleteRole($id);
         return response()->json(null, 204);
     }
 }

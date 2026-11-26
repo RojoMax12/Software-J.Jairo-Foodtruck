@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\IngredienteService;
+use App\Support\CatalogCache;
 use Illuminate\Http\Request;
 
 class IngredienteController extends Controller
@@ -44,7 +45,9 @@ class IngredienteController extends Controller
             $data['fecha_de_ingreso'] = now();
         }
 
-        return response()->json($this->ingredienteService->createIngrediente($data), 201);
+        $created = $this->ingredienteService->createIngrediente($data);
+        CatalogCache::invalidate();
+        return response()->json($created, 201);
     }
 
     public function update(Request $request, $id)
@@ -63,12 +66,15 @@ class IngredienteController extends Controller
             $data['cantidad_actual'] = $data['cantidad'];
         }
 
-        return response()->json($this->ingredienteService->updateIngrediente($id, $data));
+        $updated = $this->ingredienteService->updateIngrediente($id, $data);
+        CatalogCache::invalidate();
+        return response()->json($updated);
     }
 
     public function destroy($id)
     {
         $this->ingredienteService->deleteIngredienteById($id);
+        CatalogCache::invalidate();
         return response()->json(null, 204);
     }
 }

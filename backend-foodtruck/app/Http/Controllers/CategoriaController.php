@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\CategoriaService;
+use App\Support\CatalogCache;
 use Illuminate\Http\Request;
 
 class CategoriaController extends Controller
@@ -14,9 +15,10 @@ class CategoriaController extends Controller
         $this->categoriaService = $categoriaService;
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json($this->categoriaService->getAllCategorias());
+        $data = CatalogCache::rememberCategories(fn () => $this->categoriaService->getAllCategorias());
+        return CatalogCache::respondWithEtag($request, $data);
     }
 
     public function show($id)
@@ -26,19 +28,30 @@ class CategoriaController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
-        return response()->json($this->categoriaService->createCategoria($data), 201);
+        $data = $request->validate([
+            'nombre_categoria' => 'required|string|max:120',
+            'descripcion_categoria' => 'nullable|string|max:500',
+        ]);
+        $created = $this->categoriaService->createCategoria($data);
+        CatalogCache::invalidate();
+        return response()->json($created, 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
-        return response()->json($this->categoriaService->updateCategoria($id, $data));
+        $data = $request->validate([
+            'nombre_categoria' => 'sometimes|required|string|max:120',
+            'descripcion_categoria' => 'nullable|string|max:500',
+        ]);
+        $updated = $this->categoriaService->updateCategoria($id, $data);
+        CatalogCache::invalidate();
+        return response()->json($updated);
     }
 
     public function destroy($id)
     {
         $this->categoriaService->deleteCategoriaById($id);
+        CatalogCache::invalidate();
         return response()->json(null, 204);
     }
 }

@@ -230,7 +230,7 @@
                 </div>
               </div>
 
-              <!-- MODO PERSONALIZABLE -->
+              <!-- MODO PERSONALIZABLE (3 ingredientes incluidos) -->
               <div v-if="isPersonalizableProduct" class="ingredients-section">
                 <div class="ingredients-section-header">
                   <h4>Ingredientes a elección</h4>
@@ -258,37 +258,96 @@
                       <Check v-if="addedExtraIngredients.includes(pi.ingrediente?.nombre)" :size="13" />
                       <Plus v-else :size="13" />
                     </div>
-                    <span class="chip-label">{{ pi.ingrediente?.nombre }}</span>
+                    <span class="chip-label">
+                      {{ pi.ingrediente?.nombre }}
+                      <small v-if="getExtraIngredientUnitPrice(pi) > 0 && (addedExtraIngredients.length >= (activeVariant.cantidad_incluida || 3) || pi.precio_extra)" class="chip-extra-cost">
+                        (+${{ formatNumber(getExtraIngredientUnitPrice(pi)) }})
+                      </small>
+                    </span>
                   </button>
                 </div>
               </div>
 
-              <!-- MODO ESTÁNDAR -->
-              <div v-else class="ingredients-section">
+              <!-- MODO ESTÁNDAR (Receta base + Extras opcionales si tiene, ej. Pizza Individual) -->
+              <template v-else>
+                <div v-if="customizableRecipeIngredients.length > 0" class="ingredients-section">
+                  <div class="ingredients-section-header">
+                    <h4>Ingredientes de la receta</h4>
+                    <span class="section-hint">Toca para quitar ingredientes</span>
+                  </div>
+                  
+                  <div class="ingredients-chips-grid">
+                    <button 
+                      v-for="pi in customizableRecipeIngredients" 
+                      :key="pi.id" 
+                      class="ingredient-chip-toggle standard-chip"
+                      :class="{ 
+                        'is-removed': excludedIngredients.includes(pi.ingrediente?.nombre),
+                        'is-disabled': !pi.ingrediente?.disponible
+                      }"
+                      :disabled="!pi.ingrediente?.disponible"
+                      @click="toggleIngredient(pi.ingrediente?.nombre)"
+                    >
+                      <div class="chip-status-icon">
+                        <X v-if="excludedIngredients.includes(pi.ingrediente?.nombre)" :size="13" />
+                        <Check v-else :size="13" />
+                      </div>
+                      <span class="chip-label">
+                        {{ excludedIngredients.includes(pi.ingrediente?.nombre) ? 'Sin ' : '' }}{{ pi.ingrediente?.nombre }}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="optionalExtraIngredients.length > 0" class="ingredients-section" style="margin-top: 12px;">
+                  <div class="ingredients-section-header">
+                    <h4>Agregados opcionales</h4>
+                    <span v-if="extraIngredientsCost > 0" class="section-hint">+${{ formatNumber(extraIngredientsCost) }}</span>
+                  </div>
+                  <div class="ingredients-chips-grid">
+                    <button 
+                      v-for="pi in optionalExtraIngredients" 
+                      :key="pi.id" 
+                      class="ingredient-chip-toggle"
+                      :class="{ 
+                        'is-added': addedExtraIngredients.includes(pi.ingrediente?.nombre),
+                        'is-disabled': !pi.ingrediente?.disponible
+                      }"
+                      :disabled="!pi.ingrediente?.disponible"
+                      @click="toggleExtraIngredient(pi.ingrediente?.nombre)"
+                    >
+                      <div class="chip-status-icon">
+                        <Check v-if="addedExtraIngredients.includes(pi.ingrediente?.nombre)" :size="13" />
+                        <Plus v-else :size="13" />
+                      </div>
+                      <span class="chip-label">
+                        {{ pi.ingrediente?.nombre }} (+${{ formatNumber(getExtraIngredientUnitPrice(pi)) }})
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </template>
+
+              <!-- ADEREZOS GRATUITOS (HAMBURGUESAS Y FAJITAS) -->
+              <div v-if="supportsAderezos" class="ingredients-section" style="margin-top: 12px;">
                 <div class="ingredients-section-header">
-                  <h4>Ingredientes de la receta</h4>
-                  <span class="section-hint">Toca para quitar ingredientes</span>
+                  <h4>Aderezos (Sin costo)</h4>
+                  <span class="section-hint">{{ selectedAderezos.length }} seleccionado(s)</span>
                 </div>
                 
                 <div class="ingredients-chips-grid">
                   <button 
-                    v-for="pi in customizableRecipeIngredients" 
-                    :key="pi.id" 
-                    class="ingredient-chip-toggle standard-chip"
-                    :class="{ 
-                      'is-removed': excludedIngredients.includes(pi.ingrediente?.nombre),
-                      'is-disabled': !pi.ingrediente?.disponible
-                    }"
-                    :disabled="!pi.ingrediente?.disponible"
-                    @click="toggleIngredient(pi.ingrediente?.nombre)"
+                    v-for="aderezo in ADEREZOS_OPTIONS" 
+                    :key="aderezo" 
+                    class="ingredient-chip-toggle"
+                    :class="{ 'is-added': selectedAderezos.includes(aderezo) }"
+                    @click="toggleAderezo(aderezo)"
                   >
                     <div class="chip-status-icon">
-                      <X v-if="excludedIngredients.includes(pi.ingrediente?.nombre)" :size="13" />
-                      <Check v-else :size="13" />
+                      <Check v-if="selectedAderezos.includes(aderezo)" :size="13" />
+                      <Plus v-else :size="13" />
                     </div>
-                    <span class="chip-label">
-                      {{ excludedIngredients.includes(pi.ingrediente?.nombre) ? 'Sin ' : '' }}{{ pi.ingrediente?.nombre }}
-                    </span>
+                    <span class="chip-label">{{ aderezo }}</span>
                   </button>
                 </div>
               </div>
@@ -460,7 +519,7 @@
                 </div>
               </div>
 
-              <!-- MODO PERSONALIZABLE -->
+              <!-- MODO PERSONALIZABLE (3 ingredientes incluidos) -->
               <div v-if="isPersonalizableProduct" class="ingredients-section">
                 <div class="ingredients-section-header">
                   <h4>Ingredientes a elección</h4>
@@ -488,37 +547,96 @@
                       <Check v-if="addedExtraIngredients.includes(pi.ingrediente?.nombre)" :size="13" />
                       <Plus v-else :size="13" />
                     </div>
-                    <span class="chip-label">{{ pi.ingrediente?.nombre }}</span>
+                    <span class="chip-label">
+                      {{ pi.ingrediente?.nombre }}
+                      <small v-if="getExtraIngredientUnitPrice(pi) > 0 && (addedExtraIngredients.length >= (activeVariant.cantidad_incluida || 3) || pi.precio_extra)" class="chip-extra-cost">
+                        (+${{ formatNumber(getExtraIngredientUnitPrice(pi)) }})
+                      </small>
+                    </span>
                   </button>
                 </div>
               </div>
 
-              <!-- MODO ESTÁNDAR -->
-              <div v-else class="ingredients-section">
+              <!-- MODO ESTÁNDAR (Receta base + Extras opcionales si tiene, ej. Pizza Individual) -->
+              <template v-else>
+                <div v-if="customizableRecipeIngredients.length > 0" class="ingredients-section">
+                  <div class="ingredients-section-header">
+                    <h4>Ingredientes de la receta</h4>
+                    <span class="section-hint">Toca para quitar ingredientes</span>
+                  </div>
+                  
+                  <div class="ingredients-chips-grid">
+                    <button 
+                      v-for="pi in customizableRecipeIngredients" 
+                      :key="pi.id" 
+                      class="ingredient-chip-toggle standard-chip"
+                      :class="{ 
+                        'is-removed': excludedIngredients.includes(pi.ingrediente?.nombre),
+                        'is-disabled': !pi.ingrediente?.disponible
+                      }"
+                      :disabled="!pi.ingrediente?.disponible"
+                      @click="toggleIngredient(pi.ingrediente?.nombre)"
+                    >
+                      <div class="chip-status-icon">
+                        <X v-if="excludedIngredients.includes(pi.ingrediente?.nombre)" :size="13" />
+                        <Check v-else :size="13" />
+                      </div>
+                      <span class="chip-label">
+                        {{ excludedIngredients.includes(pi.ingrediente?.nombre) ? 'Sin ' : '' }}{{ pi.ingrediente?.nombre }}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="optionalExtraIngredients.length > 0" class="ingredients-section" style="margin-top: 12px;">
+                  <div class="ingredients-section-header">
+                    <h4>Agregados opcionales</h4>
+                    <span v-if="extraIngredientsCost > 0" class="section-hint">+${{ formatNumber(extraIngredientsCost) }}</span>
+                  </div>
+                  <div class="ingredients-chips-grid">
+                    <button 
+                      v-for="pi in optionalExtraIngredients" 
+                      :key="pi.id" 
+                      class="ingredient-chip-toggle"
+                      :class="{ 
+                        'is-added': addedExtraIngredients.includes(pi.ingrediente?.nombre),
+                        'is-disabled': !pi.ingrediente?.disponible
+                      }"
+                      :disabled="!pi.ingrediente?.disponible"
+                      @click="toggleExtraIngredient(pi.ingrediente?.nombre)"
+                    >
+                      <div class="chip-status-icon">
+                        <Check v-if="addedExtraIngredients.includes(pi.ingrediente?.nombre)" :size="13" />
+                        <Plus v-else :size="13" />
+                      </div>
+                      <span class="chip-label">
+                        {{ pi.ingrediente?.nombre }} (+${{ formatNumber(getExtraIngredientUnitPrice(pi)) }})
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </template>
+
+              <!-- ADEREZOS GRATUITOS (HAMBURGUESAS Y FAJITAS) -->
+              <div v-if="supportsAderezos" class="ingredients-section" style="margin-top: 12px;">
                 <div class="ingredients-section-header">
-                  <h4>Ingredientes de la receta</h4>
-                  <span class="section-hint">Toca para quitar ingredientes</span>
+                  <h4>Aderezos (Sin costo)</h4>
+                  <span class="section-hint">{{ selectedAderezos.length }} seleccionado(s)</span>
                 </div>
                 
                 <div class="ingredients-chips-grid">
                   <button 
-                    v-for="pi in customizableRecipeIngredients" 
-                    :key="pi.id" 
-                    class="ingredient-chip-toggle standard-chip"
-                    :class="{ 
-                      'is-removed': excludedIngredients.includes(pi.ingrediente?.nombre),
-                      'is-disabled': !pi.ingrediente?.disponible
-                    }"
-                    :disabled="!pi.ingrediente?.disponible"
-                    @click="toggleIngredient(pi.ingrediente?.nombre)"
+                    v-for="aderezo in ADEREZOS_OPTIONS" 
+                    :key="aderezo" 
+                    class="ingredient-chip-toggle"
+                    :class="{ 'is-added': selectedAderezos.includes(aderezo) }"
+                    @click="toggleAderezo(aderezo)"
                   >
                     <div class="chip-status-icon">
-                      <X v-if="excludedIngredients.includes(pi.ingrediente?.nombre)" :size="13" />
-                      <Check v-else :size="13" />
+                      <Check v-if="selectedAderezos.includes(aderezo)" :size="13" />
+                      <Plus v-else :size="13" />
                     </div>
-                    <span class="chip-label">
-                      {{ excludedIngredients.includes(pi.ingrediente?.nombre) ? 'Sin ' : '' }}{{ pi.ingrediente?.nombre }}
-                    </span>
+                    <span class="chip-label">{{ aderezo }}</span>
                   </button>
                 </div>
               </div>
@@ -828,91 +946,21 @@
     </div>
 
     <!-- STEP 3: ORDER SUMMARY & CONFIRMATION -->
-    <div v-if="currentStep === 3" class="step-container summary-step">
-      <div class="summary-receipt-card">
-        <div class="receipt-header">
-          <CheckCircle :size="36" class="receipt-icon" />
-          <h2>Confirmar Comanda</h2>
-          <p>Verifica los detalles antes de enviar el pedido a cocina.</p>
-        </div>
-
-        <div class="receipt-grid">
-          <div class="receipt-section client-info-box">
-            <h3>Datos de Atención</h3>
-            <div class="client-meta-row">
-              <span>Cliente:</span>
-              <strong>{{ customerForm.nombre || 'Cliente Presencial' }}</strong>
-            </div>
-            <div class="client-meta-row">
-              <span>Teléfono:</span>
-              <strong>{{ customerForm.telefono || 'Sin teléfono' }}</strong>
-            </div>
-            <div class="client-meta-row">
-              <span>Método de Pago:</span>
-              <strong class="payment-badge-highlight">{{ effectivePaymentMethod }}</strong>
-            </div>
-            <div v-if="customerForm.notas" class="client-meta-row notes-summary-row">
-              <span>Notas:</span>
-              <strong class="notes-text-highlight">{{ customerForm.notas }}</strong>
-            </div>
-          </div>
-
-          <div class="receipt-section products-summary-box">
-            <h3>Productos ({{ totalUnits }})</h3>
-            <div class="receipt-products-list">
-              <div v-for="item in cartItems" :key="item.id" class="receipt-item-row">
-                <div class="receipt-item-left">
-                  <span class="receipt-qty">{{ item.quantity }}x</span>
-                  <div class="receipt-item-names">
-                    <div class="receipt-item-name-header">
-                      <strong>{{ item.fullName }} ({{ item.size }})</strong>
-                      <span v-if="item.hasPromotion" class="receipt-promo-tag">-{{ item.discountPercent }}%</span>
-                    </div>
-                    <div v-if="item.excluidos && item.excluidos.length > 0" class="receipt-tags">
-                      <span class="tag-red">Sin {{ item.excluidos.join(', ') }}</span>
-                    </div>
-                    <div v-if="item.agregados && item.agregados.length > 0" class="receipt-tags">
-                      <span class="tag-blue">+ {{ item.agregados.join(', ') }}</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="receipt-item-pricing-col">
-                  <span v-if="item.hasPromotion && item.originalPrice > item.price" class="receipt-original-subtotal">
-                    ${{ formatNumber(item.originalPrice * item.quantity) }}
-                  </span>
-                  <span class="receipt-price">${{ formatNumber(item.price * item.quantity) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="totalSavings > 0" class="receipt-savings-strip">
-          <span class="savings-text">Ahorro total por promociones aplicadas:</span>
-          <strong class="savings-amount">-${{ formatNumber(totalSavings) }}</strong>
-        </div>
-
-        <div class="receipt-total-banner">
-          <span>Total a Pagar</span>
-          <strong>{{ totalQuote }}</strong>
-        </div>
-
-        <div class="receipt-actions">
-          <button type="button" class="btn-pos-secondary" :disabled="isSubmitting" @click="currentStep = 2">
-            <ArrowLeft :size="18" /> Modificar Datos
-          </button>
-          <button 
-            type="button" 
-            class="btn-pos-primary btn-confirm-order" 
-            :disabled="isSubmitting || Boolean(shiftWindow?.es_dia_cerrado)" 
-            @click="confirmQuote"
-          >
-            <CheckCircle :size="18" />
-            <span>{{ shiftWindow?.es_dia_cerrado ? 'DÍA CERRADO (NO DISPONIBLE)' : (isSubmitting ? 'Enviando a Cocina...' : 'Enviar Pedido a Cocina') }}</span>
-          </button>
-        </div>
-      </div>
-    </div>
+    <PosOrderReceipt
+      v-if="currentStep === 3"
+      :customer-name="customerForm.nombre"
+      :customer-phone="customerForm.telefono"
+      :customer-notes="customerForm.notas"
+      :effective-payment-method="effectivePaymentMethod"
+      :cart-items="cartItems"
+      :total-units="totalUnits"
+      :total-savings="totalSavings"
+      :total-quote="totalQuote"
+      :is-submitting="isSubmitting"
+      :es-dia-cerrado="Boolean(shiftWindow?.es_dia_cerrado)"
+      @back="currentStep = 2"
+      @confirm="confirmQuote"
+    />
   </div>
 </template>
 
@@ -929,6 +977,14 @@ import categoryService from '@/services/categoryService';
 import orderService from '@/services/orderService';
 import { useNotification } from '@/composables/useNotification';
 import cashFlowService, { type ShiftWindow } from '@/services/cashFlowService';
+import {
+  ADEREZOS_GRATUITOS as ADEREZOS_OPTIONS,
+  isAderezoGratuitoName as isAderezoName,
+  supportsAderezosGratuitos,
+} from '@/utils/catalogPricing';
+import { formatCLP, formatPriceCLP } from '@/utils/format';
+import { extractValidPromotions, buildSizePricingMaps } from '@/composables/useCatalogMapper';
+import PosOrderReceipt from './components/PosOrderReceipt.vue';
 
 const router = useRouter();
 const { notify } = useNotification();
@@ -942,7 +998,22 @@ const isMobileCartOpen = ref(false);
 const activeVariant = ref<any>(null);
 const excludedIngredients = ref<string[]>([]);
 const addedExtraIngredients = ref<string[]>([]);
+const selectedAderezos = ref<string[]>([]);
 const selectedPaymentMethod = ref('Efectivo');
+
+const supportsAderezos = computed(() => {
+  if (!activeVariant.value) return false;
+  return supportsAderezosGratuitos({
+    category: activeVariant.value.baseProduct?.category,
+    name: activeVariant.value.baseName,
+  });
+});
+
+const toggleAderezo = (name: string) => {
+  const idx = selectedAderezos.value.indexOf(name);
+  if (idx > -1) selectedAderezos.value.splice(idx, 1);
+  else selectedAderezos.value.push(name);
+};
 
 const customerForm = ref({ nombre: '', telefono: '+56', notas: '' });
 
@@ -960,10 +1031,7 @@ const selectedCategory = ref('Todas');
 const productSearch = ref('');
 const metodosdepago = ref<any[]>([]);
 
-const formatNumber = (num: any) => {
-  const n = Number(num || 0);
-  return isNaN(n) ? '0' : n.toLocaleString('es-CL');
-};
+const formatNumber = (num: any) => formatCLP(num);
 
 
 
@@ -977,34 +1045,6 @@ const cargarMetodosSimulados = () => {
 };
 
 const isLoadingProducts = ref(true);
-
-const isPromotionActive = (promo: any): boolean => {
-  if (!promo) return false;
-  if (promo.activo === false || promo.activo === 0 || promo.activo === '0') return false;
-
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const todayStr = `${year}-${month}-${day}`;
-
-  const startStr = String(promo.fecha_inicio || '').trim().slice(0, 10);
-  const endStr = String(promo.fecha_fin || '').trim().slice(0, 10);
-
-  let shiftDateStr = todayStr;
-  if (now.getHours() < 6) {
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const yYear = yesterday.getFullYear();
-    const yMonth = String(yesterday.getMonth() + 1).padStart(2, '0');
-    const yDay = String(yesterday.getDate()).padStart(2, '0');
-    shiftDateStr = `${yYear}-${yMonth}-${yDay}`;
-  }
-
-  const matchesToday = (!startStr || startStr <= todayStr) && (!endStr || endStr >= todayStr);
-  const matchesShift = (!startStr || startStr <= shiftDateStr) && (!endStr || endStr >= shiftDateStr);
-
-  return matchesToday || matchesShift;
-};
 
 const fetchProducts = async () => {
   isLoadingProducts.value = true;
@@ -1045,32 +1085,18 @@ const fetchProducts = async () => {
 
     foodProducts.value = activeDbProducts.map((prod: any) => {
       const catName = prod.categoria?.nombre_categoria || 'Varios';
-      const sizesArray = (prod.tamaños || []).map((t: any) => t.nombre);
-      const pricesMap: Record<string, number> = {};
-      const originalPricesMap: Record<string, number> = {};
-      const sizesMap: Record<string, number> = {};
-
-      (prod.tamaños || []).forEach((t: any) => {
-        const p = Number(t.pivot?.precio || t.precio || 0);
-        pricesMap[t.nombre] = p;
-        originalPricesMap[t.nombre] = p;
-        sizesMap[t.nombre] = Number(t.id_tamaño || t.id || 1);
-      });
-
-      const activePromo = prod.promocion_activa || prod.promocionActiva || null;
-      const isPromoValid = isPromotionActive(activePromo);
+      const validPromos = extractValidPromotions(prod);
+      const activePromo = validPromos[0] || null;
+      const isPromoValid = validPromos.length > 0;
+      const {
+        sizes: sizesArray,
+        pricesMap,
+        originalPricesMap,
+        sizesMap,
+        sizePromosMap,
+      } = buildSizePricingMaps(prod, validPromos);
 
       const promotionPrice = isPromoValid ? Number(activePromo?.precio_promocional ?? 0) : 0;
-      if (promotionPrice > 0) {
-        Object.keys(pricesMap).forEach(sizeName => {
-          const orig = originalPricesMap[sizeName] ?? 0;
-          if (orig > 0) {
-            pricesMap[sizeName] = Math.min(promotionPrice, orig);
-          } else {
-            pricesMap[sizeName] = promotionPrice;
-          }
-        });
-      }
 
       const prodImage = prod.imagen_url || prod.imagen || prod.image || categoryImages[catName] || '/src/assets/placeholder-food.webp';
 
@@ -1086,7 +1112,8 @@ const fetchProducts = async () => {
         activeSize: sizesArray[0] || 'Normal',
         tamano_id: prod.tamaños?.[0]?.id_tamaño || 1,
         sizesMap: sizesMap,
-        hasPromotion: isPromoValid && promotionPrice > 0,
+        sizePromos: sizePromosMap,
+        hasPromotion: isPromoValid && Object.keys(sizePromosMap).length > 0,
         promocionTitulo: activePromo?.titulo || activePromo?.nombre || 'Promoción',
         promocionPrecio: promotionPrice,
         originalPricesMap: originalPricesMap,
@@ -1098,6 +1125,7 @@ const fetchProducts = async () => {
             image: prodImage,
             prices: pricesMap,
             originalPrices: originalPricesMap,
+            sizePromos: sizePromosMap,
             producto_ingrediente: prod.ingredientes || []
           }
         ]
@@ -1139,12 +1167,14 @@ const isBaseIngredient = (nombre: string) => {
 const isPersonalizableProduct = computed(() => {
   if (!activeVariant.value) return false;
   const p = activeVariant.value;
-  const cat = (p.baseProduct?.category || '').toLowerCase();
-  return p.tipo_armado === 'Personalizable' || 
+  const tipo = String(p.tipo_armado || '').toLowerCase();
+  const cat = String(p.baseProduct?.category || '').toLowerCase();
+  const name = String(p.baseName || '').toLowerCase();
+  return tipo === 'personalizable' || 
          cat.includes('hamburguesa') || 
-         cat.includes('pizza') || 
          cat.includes('fajita') || 
-         (p.cantidad_incluida && p.cantidad_incluida > 0);
+         (cat.includes('pizza') && name.includes('familiar')) || 
+         Number(p.cantidad_incluida || 0) > 0;
 });
 
 const customizableRecipeIngredients = computed(() => {
@@ -1162,8 +1192,10 @@ const optionalExtraIngredients = computed(() => {
   const result: any[] = [];
 
   for (const pi of activeVariant.value.type.producto_ingrediente) {
+    if (pi.incluido_por_defecto !== false && pi.incluido_por_defecto !== 0) continue;
     const ingName = pi.ingrediente?.nombre || '';
     if (!ingName) continue;
+    if (supportsAderezos.value && isAderezoName(ingName)) continue;
 
     if (!seenNames.has(ingName)) {
       seenNames.add(ingName);
@@ -1174,13 +1206,38 @@ const optionalExtraIngredients = computed(() => {
   return result;
 });
 
+const getExtraIngredientUnitPrice = (pi: any): number => {
+  if (pi && pi.precio_extra !== null && pi.precio_extra !== undefined) {
+    return Number(pi.precio_extra);
+  }
+  return Number(activeVariant.value?.precio_ingrediente_extra || 0);
+};
+
 const extraIngredientsCost = computed(() => {
-  if (!activeVariant.value || !isPersonalizableProduct.value) return 0;
-  const includedCount = activeVariant.value.cantidad_incluida || 3;
-  const selectedCount = addedExtraIngredients.value.length;
-  const extraCount = Math.max(0, selectedCount - includedCount);
-  const extraPrice = activeVariant.value.precio_ingrediente_extra || 500;
-  return extraCount * extraPrice;
+  if (!activeVariant.value) return 0;
+  const includedCount = isPersonalizableProduct.value
+    ? (Number(activeVariant.value.cantidad_incluida) || 3)
+    : Number(activeVariant.value.cantidad_incluida || 0);
+
+  if (addedExtraIngredients.value.length <= includedCount) return 0;
+
+  let cost = 0;
+  addedExtraIngredients.value.forEach((name: string, index: number) => {
+    if (index < includedCount) return;
+    const pi = optionalExtraIngredients.value.find((item: any) => item.ingrediente?.nombre === name);
+    cost += getExtraIngredientUnitPrice(pi);
+  });
+  return cost;
+  const sortedUnitCosts = addedExtraIngredients.value
+    .map((name: string) => {
+      const pi = optionalExtraIngredients.value.find((item: any) => item.ingrediente?.nombre === name);
+      return getExtraIngredientUnitPrice(pi);
+    })
+    .sort((a: number, b: number) => a - b);
+
+  return sortedUnitCosts
+    .slice(includedCount)
+    .reduce((sum: number, unitCost: number) => sum + unitCost, 0);
 });
 
 const getProductOriginalPrice = (p: any, size?: string) => {
@@ -1265,7 +1322,7 @@ const effectivePaymentMethod = computed(() => {
   if (isSplitPayment.value) {
     const a1 = Number(splitAmount1.value) || 0;
     const a2 = Number(splitAmount2.value) || 0;
-    return `Pago Mixto (${splitMethod1.value}: $${a1.toLocaleString('es-CL')} / ${splitMethod2.value}: $${a2.toLocaleString('es-CL')})`;
+    return `Pago Mixto (${splitMethod1.value}: $${formatCLP(a1)} / ${splitMethod2.value}: $${formatCLP(a2)})`;
   }
   return selectedPaymentMethod.value || 'Efectivo';
 });
@@ -1304,6 +1361,7 @@ const selectVariant = (baseProduct: any, type: any, openMobile = false) => {
   };
   excludedIngredients.value = [];
   addedExtraIngredients.value = [];
+  selectedAderezos.value = [];
 
   if (openMobile && typeof window !== 'undefined' && window.innerWidth <= 1024) {
     isMobileRecipeOpen.value = true;
@@ -1365,8 +1423,12 @@ const addActiveVariantToCart = () => {
     }
   }
 
+  const combinedAgregados = Array.from(new Set([
+    ...addedExtraIngredients.value,
+    ...(supportsAderezos.value ? selectedAderezos.value : [])
+  ]));
   const exclusionKey = [...new Set(excludedIngredients.value)].sort().join('-');
-  const additionKey = [...new Set(addedExtraIngredients.value)].sort().join('-');
+  const additionKey = [...combinedAgregados].sort().join('-');
   const cartItemId = `${activeVariant.value.type.id}_${activeVariant.value.size}_${exclusionKey}_${additionKey}`;
 
   const fullProductName = `${activeVariant.value.baseName}`;
@@ -1395,7 +1457,7 @@ const addActiveVariantToCart = () => {
       promocionTitulo: activeVariant.value.promocionTitulo || '',
       quantity: 1,
       excluidos: isPersonalizable ? [] : [...new Set(excludedIngredients.value)],
-      agregados: isPersonalizable ? [...new Set(addedExtraIngredients.value)] : []
+      agregados: combinedAgregados
     });
   }
 
@@ -1410,7 +1472,7 @@ const updateQuantity = (index: number, change: number) => {
 };
 
 const windowQuote = computed(() => cartItems.value.reduce((sum, item) => sum + (item.price * item.quantity), 0));
-const totalQuote = computed(() => `$${windowQuote.value.toLocaleString('es-CL')}`);
+const totalQuote = computed(() => formatPriceCLP(windowQuote.value));
 const totalUnits = computed(() => cartItems.value.reduce((acc, item) => acc + item.quantity, 0));
 
 const totalSavings = computed(() => {
@@ -1441,7 +1503,7 @@ const nextStep = () => {
     if (!customerForm.value.nombre.trim()) return notify('Por favor, ingrese el Nombre del cliente.', 'warning');
     if (isSplitPayment.value) {
       if (splitDiff.value !== 0) {
-        return notify(`En Pago Mixto, los montos ingresados deben sumar exactamente el total de la orden ($${windowQuote.value.toLocaleString('es-CL')}).`, 'warning');
+        return notify(`En Pago Mixto, los montos ingresados deben sumar exactamente el total de la orden (${formatPriceCLP(windowQuote.value)}).`, 'warning');
       }
       if (!splitAmount1.value || !splitAmount2.value) {
         return notify('Ambos métodos deben tener un monto asignado mayor a 0.', 'warning');
@@ -1497,11 +1559,12 @@ const confirmQuote = async () => {
       }))
     };
 
-    try {
-      await orderService.createOrder(payload);
-    } catch {
-      await orderService.createPublicOrder(payload);
-    }
+    await orderService.createOrder(payload).catch((authErr: any) => {
+      if (authErr?.response?.status === 401) {
+        return orderService.createPublicOrder(payload);
+      }
+      throw authErr;
+    });
     notify('¡Pedido registrado y enviado a cocina exitosamente!', 'success');
     currentStep.value = 1; 
     cartItems.value = [];
@@ -2830,184 +2893,6 @@ onMounted(async () => {
   background: #f8fafc;
 }
 
-/* ----------------------------------------------------
-   9. PASO 3: CONFIRMACIÓN DE COMANDA
----------------------------------------------------- */
-.summary-receipt-card {
-  background: white;
-  border-radius: 16px;
-  border: 1px solid #f1ece7;
-  padding: 24px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
-  max-width: 750px;
-  margin: 0 auto;
-  width: 100%;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.receipt-header {
-  text-align: center;
-  border-bottom: 1px solid #f1ece7;
-  padding-bottom: 14px;
-}
-
-.receipt-icon {
-  color: #16a34a;
-  margin-bottom: 6px;
-}
-
-.receipt-header h2 {
-  font-size: 1.4rem;
-  font-weight: 900;
-  color: #1e293b;
-  margin: 0 0 4px;
-}
-
-.receipt-header p {
-  color: #64748b;
-  font-size: 0.85rem;
-  margin: 0;
-}
-
-.receipt-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-.receipt-section {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.receipt-section h3 {
-  margin: 0;
-  font-size: 0.88rem;
-  font-weight: 900;
-  color: #1e293b;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 6px;
-}
-
-.client-meta-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.85rem;
-}
-
-.client-meta-row span {
-  color: #64748b;
-}
-
-.client-meta-row strong {
-  color: #1e293b;
-}
-
-.payment-badge-highlight {
-  background: #ffedd5;
-  color: #c2410c;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 0.8rem;
-}
-
-.receipt-products-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 250px;
-  overflow-y: auto;
-}
-
-.receipt-item-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  font-size: 0.85rem;
-  gap: 8px;
-}
-
-.receipt-item-left {
-  display: flex;
-  gap: 8px;
-}
-
-.receipt-qty {
-  font-weight: 900;
-  color: #ff6b00;
-}
-
-.receipt-item-names {
-  display: flex;
-  flex-direction: column;
-}
-
-.receipt-tags {
-  margin-top: 2px;
-}
-
-.tag-red {
-  color: #dc2626;
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
-.tag-blue {
-  color: #2563eb;
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
-.receipt-price {
-  font-weight: 900;
-  color: #059669;
-}
-
-.receipt-total-banner {
-  background: #f0fdf4;
-  border: 1.5px solid #bbf7d0;
-  border-radius: 14px;
-  padding: 14px 18px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.receipt-total-banner span {
-  font-size: 0.95rem;
-  font-weight: 900;
-  color: #166534;
-}
-
-.receipt-total-banner strong {
-  font-size: 1.5rem;
-  font-weight: 900;
-  color: #15803d;
-}
-
-.receipt-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.btn-confirm-order {
-  flex: 1;
-  justify-content: center;
-  font-size: 1rem;
-  padding: 14px;
-}
-
 /* Skeletons y utilidades */
 .pos-card-skeleton {
   background: white;
@@ -3476,27 +3361,6 @@ onMounted(async () => {
     box-sizing: border-box;
   }
 
-  /* Paso 3 */
-  .summary-receipt-card {
-    padding: 16px 14px;
-  }
-
-  .receipt-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .receipt-actions {
-    flex-direction: column-reverse;
-    gap: 8px;
-  }
-
-  .btn-confirm-order {
-    width: 100%;
-    justify-content: center;
-    padding: 14px;
-    box-sizing: border-box;
-  }
 }
 
 @media (max-width: 420px) {
@@ -3874,70 +3738,4 @@ onMounted(async () => {
   color: #b91c1c;
 }
 
-/* Step 3: Resumen */
-.notes-summary-row {
-  margin-top: 4px;
-}
-
-.notes-text-highlight {
-  font-size: 0.88rem;
-  color: #0f172a;
-  background: #f1f5f9;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-weight: 600;
-}
-
-.receipt-item-name-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.receipt-promo-tag {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
-  font-size: 0.7rem;
-  font-weight: 800;
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-
-.receipt-item-pricing-col {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.receipt-original-subtotal {
-  font-size: 0.78rem;
-  color: #94a3b8;
-  text-decoration: line-through;
-  font-weight: 700;
-}
-
-.receipt-savings-strip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #fef2f2;
-  border: 1.5px solid #fecaca;
-  padding: 12px 18px;
-  border-radius: 12px;
-  margin-bottom: 14px;
-}
-
-.savings-text {
-  color: #b91c1c;
-  font-weight: 800;
-  font-size: 0.95rem;
-}
-
-.savings-amount {
-  color: #dc2626;
-  font-weight: 900;
-  font-size: 1.15rem;
-}
 </style>

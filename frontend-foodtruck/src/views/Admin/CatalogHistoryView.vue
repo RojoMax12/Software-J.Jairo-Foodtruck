@@ -248,6 +248,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { formatCLP } from '@/utils/format'
 import { useRoute } from 'vue-router'
 import catalogHistoryService, { type CatalogMovement } from '@/services/catalogHistoryService'
 import { 
@@ -292,10 +293,7 @@ const editsCount = computed(() => {
   return historyList.value.filter(m => m.accion === 'editar' || m.accion === 'estado').length
 })
 
-const formatPrice = (price: number | string) => {
-  const num = Number(price || 0)
-  return num.toLocaleString('es-CL')
-}
+const formatPrice = (price: number | string) => formatCLP(price)
 
 const formatTypeName = (tipo: string) => {
   switch (tipo) {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { formatPriceCLP } from '@/utils/format'
 import { useRoute, useRouter } from 'vue-router'
 import { FileSearch, CheckCircle2, IceCream } from 'lucide-vue-next'
 import quoteService from '@/services/quoteService'
@@ -86,11 +87,7 @@ onMounted(async () => {
     try {
       response = await quoteService.getQuoteDetails(quotationId.value);
     } catch (e) {
-      try {
-        response = await orderService.getPublicOrderById(quotationId.value);
-      } catch (e2) {
-        response = await orderService.getOrderById(quotationId.value);
-      }
+      response = await orderService.getOrderById(quotationId.value);
     }
 
     const payload = response?.data?.data || response?.data;
@@ -183,10 +180,7 @@ const getQuoteStatusLabel = (statusId: number): string => {
   return 'En proceso'
 }
 
-const formatCurrency = (value: number) => {
-  const safeValue = value ? Number(value) : 0
-  return `$${safeValue.toLocaleString('es-CL')}`
-}
+const formatCurrency = (value: number) => formatPriceCLP(value)
 
 const handleGoBack = () => {
   router.push('/mis-cotizaciones')

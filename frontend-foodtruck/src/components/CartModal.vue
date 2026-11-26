@@ -164,6 +164,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { X, Trash2, Plus, Minus, ShoppingCart, ShoppingBag, Clock, ArrowRight, MessageSquare } from 'lucide-vue-next';
+import { formatCLP, parseNumericPrice } from '@/utils/format';
 
 const props = withDefaults(
   defineProps<{
@@ -187,21 +188,15 @@ const totalCartItemsCount = computed(() => {
   return props.cartItems.reduce((acc, item) => acc + (Number(item.quantity) || 1), 0);
 });
 
-const formatPrice = (price: number | string) => {
-  const num = typeof price === 'string' ? Number(price.replace(/[^0-9]/g, '')) : Number(price || 0);
-  return num.toLocaleString('es-CL');
-};
+const formatPrice = (price: number | string) => formatCLP(price);
 
 const cartTotal = computed(() => {
   const totalRaw = props.cartItems.reduce((sum, item) => {
-    const cleanPrice = typeof item.price === 'string' 
-      ? Number(item.price.replace(/[^0-9]/g, '')) 
-      : Number(item.price || 0);
-      
+    const cleanPrice = parseNumericPrice(item.price);
     return sum + (cleanPrice * (Number(item.quantity) || 1));
   }, 0);
 
-  return `$${totalRaw.toLocaleString('es-CL')}`;
+  return `$${formatCLP(totalRaw)}`;
 });
 
 const getItemKey = (item: any) => {

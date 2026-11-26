@@ -102,6 +102,13 @@ class Producto extends Model
             ->latestOfMany('id_promocion');
     }
 
+    public function promocionesActivas()
+    {
+        return $this->hasMany(Promocion::class, 'id_producto', 'id_producto')
+            ->where('activo', true)
+            ->orderByDesc('id_promocion');
+    }
+
     // Antes usaba belongsToMany(Pedido::class, 'producto_pedido', ...) hacia una
     // tabla que ya no existe. Un pedido se relaciona con el producto vía detalle_pedido.
     public function detalles()

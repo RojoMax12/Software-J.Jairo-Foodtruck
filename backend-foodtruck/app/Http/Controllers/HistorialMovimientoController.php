@@ -35,7 +35,15 @@ class HistorialMovimientoController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'tipo' => 'required|string|max:60',
+            'accion' => 'required|string|max:60',
+            'descripcion' => 'required|string|max:255',
+            'entidad' => 'nullable|string|max:200',
+            'detalle' => 'nullable|string|max:1000',
+            'monto' => 'nullable|numeric',
+            'fecha' => 'nullable|date',
+        ]);
         $user = $request->user();
 
         if (empty($data['usuario']) && $user) {
@@ -55,7 +63,14 @@ class HistorialMovimientoController extends Controller
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'tipo' => 'sometimes|string|max:60',
+            'accion' => 'sometimes|string|max:60',
+            'descripcion' => 'sometimes|string|max:255',
+            'entidad' => 'nullable|string|max:200',
+            'detalle' => 'nullable|string|max:1000',
+            'monto' => 'nullable|numeric',
+        ]);
         $mov = $this->service->updateHistorialMovimiento($id, $data);
         if (!$mov) {
             return response()->json(['message' => 'Movimiento no encontrado'], 404);

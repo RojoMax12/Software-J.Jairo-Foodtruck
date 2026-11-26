@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Disallow: /general-home
+Disallow: /general-home/
+Disallow: /mis-pedidos
+Disallow: /mis-cotizaciones
+Disallow: /mi-perfil
+Disallow: /cotizacion
+Disallow: /cotizacion-exitosa
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+
+Sitemap: /sitemap.xml
+

@@ -556,6 +556,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { formatPriceCLP } from '@/utils/format';
 import {
   RefreshCw, Lock, Unlock, Coins, TrendingUp, TrendingDown,
   Wallet, CreditCard, Send, ReceiptText, History, MinusCircle,
@@ -734,34 +735,51 @@ const openCloseShiftModal = () => {
   isCloseModalOpen.value = true;
 };
 
-const submitCloseShift = () => {
+const submitCloseShift = async () => {
   if (countedCashInput.value === null || countedCashInput.value === undefined) {
     notify('Debes ingresar el monto contado en gaveta', 'warning');
     return;
   }
 
-  cashFlowService.closeSession(
-    Number(countedCashInput.value),
-    shiftSummary.value,
-    closeNotesInput.value
-  );
-
-  notify('Turno cerrado y arqueo guardado exitosamente', 'success');
-  isCloseModalOpen.value = false;
-  loadData();
+  try {
+    await cashFlowService.closeSession(
+      Number(countedCashInput.value),
+      shiftSummary.value,
+      closeNotesInput.value
+    );
+    notify('Turno cerrado y arqueo guardado exitosamente', 'success');
+    isCloseModalOpen.value = false;
+    await loadData();
+  } catch (error: any) {
+    const msg = error?.response?.data?.message || 'Error al cerrar la caja en el servidor.';
+    notify(msg, 'error');
+  }
 };
 
 const openOpenShiftModal = () => {
-  openCashierName.value = 'Administrador';
+  let defaultCashier = 'Administrador';
+  try {
+    const raw = localStorage.getItem('user');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.nombre) defaultCashier = String(parsed.nombre);
+    }
+  } catch {}
+  openCashierName.value = defaultCashier;
   openInitialCash.value = 50000;
   isOpenModalOpen.value = true;
 };
 
-const submitOpenShift = () => {
-  cashFlowService.openSession(openInitialCash.value, openCashierName.value);
-  notify('Nuevo turno de caja iniciado con éxito', 'success');
-  isOpenModalOpen.value = false;
-  loadData();
+const submitOpenShift = async () => {
+  try {
+    await cashFlowService.openSession(openInitialCash.value, openCashierName.value);
+    notify('Nuevo turno de caja iniciado con éxito', 'success');
+    isOpenModalOpen.value = false;
+    await loadData();
+  } catch (error: any) {
+    const msg = error?.response?.data?.message || 'No se pudo iniciar el turno de caja.';
+    notify(msg, 'error');
+  }
 };
 
 const openQuickExpenseModal = () => {
@@ -817,7 +835,7 @@ const submitQuickMovement = () => {
   loadData();
 };
 
-const formatCurrency = (val: number = 0) => `$${Number(val || 0).toLocaleString('es-CL')}`;
+const formatCurrency = (val: number = 0) => formatPriceCLP(val);
 
 const getMethodClass = (method: string) => {
   const m = method.toLowerCase();

@@ -82,6 +82,20 @@
         </div>
       </div>
 
+      <!-- ERROR DE RED AL CARGAR CATÁLOGO -->
+      <div v-else-if="catalogError" class="empty-search-state">
+        <div class="empty-icon-bubble">
+          <SearchX :size="36" />
+        </div>
+        <h3 class="empty-search-title">Error al cargar la carta</h3>
+        <p class="empty-search-desc">{{ catalogError }}</p>
+        <div class="empty-search-actions">
+          <button type="button" class="btn-empty-reset" @click="fetchCatalogProducts">
+            Reintentar carga
+          </button>
+        </div>
+      </div>
+
       <!-- ESTADO VACÍO CUANDO NO HAY COINCIDENCIAS -->
       <div v-else-if="filteredProducts.length === 0" class="empty-search-state">
         <div class="empty-icon-bubble">
@@ -221,6 +235,8 @@ import Carousel from '@/components/Carousel.vue';
 import AdminPreviewBar from '@/components/AdminPreviewBar.vue';
 import logoImg from '@/assets/logo_jairo.webp';
 import { useNotification } from '@/composables/useNotification';
+import { formatCLP, formatPriceCLP } from '@/utils/format';
+import { resolveCategoryColor, extractValidPromotions, buildSizePricingMaps, normalizeGroupedProduct } from '@/composables/useCatalogMapper';
 import cashFlowService, { type ShiftWindow } from '@/services/cashFlowService';
 
 const { notify } = useNotification();
@@ -236,6 +252,7 @@ const triggerHaptic = (duration = 10) => {
 const showScrollTop = ref(false);
 const isLoadingProducts = ref(true);
 const isRefreshingProducts = ref(false);
+const catalogError = ref('');
 const isCartOpen = ref(false);
 const isDetailOpen = ref(false);
 const isNoticeOpen = ref(false);
@@ -271,7 +288,7 @@ const totalCartAmount = computed(() => {
 });
 
 const totalCartAmountFormatted = computed(() => {
-  return `$${totalCartAmount.value.toLocaleString('es-CL')}`;
+  return formatPriceCLP(totalCartAmount.value);
 });
 
 const activePromotionsCount = computed(() => {
@@ -388,141 +405,10 @@ const getCardPrice = (product: any) => {
   if (minPrice === Infinity) return "Sin precio";
 
   if (hasMultipleVariants) {
-    return `Desde $${minPrice.toLocaleString("es-CL")}`;
+    return `Desde ${formatPriceCLP(minPrice)}`;
   }
 
-  return `$${minPrice.toLocaleString("es-CL")}`;
-};
-
-const isPromotionActive = (promo: any): boolean => {
-  if (!promo) return false;
-  if (promo.activo === false || promo.activo === 0 || promo.activo === '0') return false;
-
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const todayStr = `${year}-${month}-${day}`;
-
-  const startStr = String(promo.fecha_inicio || '').trim().slice(0, 10);
-  const endStr = String(promo.fecha_fin || '').trim().slice(0, 10);
-
-  let shiftDateStr = todayStr;
-  if (now.getHours() < 6) {
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const yYear = yesterday.getFullYear();
-    const yMonth = String(yesterday.getMonth() + 1).padStart(2, '0');
-    const yDay = String(yesterday.getDate()).padStart(2, '0');
-    shiftDateStr = `${yYear}-${yMonth}-${yDay}`;
-  }
-
-  const matchesToday = (!startStr || startStr <= todayStr) && (!endStr || endStr >= todayStr);
-  const matchesShift = (!startStr || startStr <= shiftDateStr) && (!endStr || endStr >= shiftDateStr);
-
-  return matchesToday || matchesShift;
-};
-
-const normalizeGroupedProduct = (product: any) => {
-  const uniqueSizes = Array.from(new Set(
-    (product.sizes || []).map((size: any) => String(size || '').trim()).filter(Boolean)
-  ));
-
-  const variantCount = product.types?.length || 0;
-  const hasMultipleSizes = uniqueSizes.length > 1;
-  const hasMultipleVariants = variantCount > 1;
-
-  let minPrice = Infinity;
-  let minOriginalPrice = Infinity;
-  let minPromoPrice = Infinity;
-  let minPromoOriginalPrice = Infinity;
-  let hasAnyPromotion = false;
-  let promoTitle = '';
-  let activePromoObj: any = null;
-
-  (product.types || []).forEach((type: any) => {
-    const isPromoType = !!(type.promocion_activa || type.hasPromotion);
-    if (isPromoType) {
-      hasAnyPromotion = true;
-      if (!activePromoObj) activePromoObj = type.promocion_activa;
-      if (!promoTitle && type.promocion_activa?.titulo) promoTitle = type.promocion_activa.titulo;
-    }
-
-    Object.entries(type.prices || {}).forEach(([sizeKey, price]: [string, any]) => {
-      const numeric = Number(price);
-      if (!isNaN(numeric) && numeric > 0) {
-        if (numeric < minPrice) minPrice = numeric;
-        if (isPromoType) {
-          const orig = Number(type.originalPrices?.[sizeKey] ?? numeric);
-          if (numeric < minPromoPrice) {
-            minPromoPrice = numeric;
-            minPromoOriginalPrice = orig;
-          }
-        }
-      }
-    });
-
-    Object.values(type.originalPrices || {}).forEach((price: any) => {
-      const numeric = Number(price);
-      if (!isNaN(numeric) && numeric > 0 && numeric < minOriginalPrice) {
-        minOriginalPrice = numeric;
-      }
-    });
-  });
-
-  const catLow = String(product.category ?? '').toLowerCase();
-  const nameLow = String(product.name ?? '').toLowerCase();
-  const isCategoryPromo = catLow.includes('promo') || catLow.includes('combo') || nameLow.includes('promo') || nameLow.includes('combo');
-
-  const hasPromoDiscount = minPromoOriginalPrice < Infinity && minPromoOriginalPrice > minPromoPrice;
-  const hasGeneralDiscount = minOriginalPrice < Infinity && minOriginalPrice > minPrice;
-  const hasDiscount = (hasAnyPromotion || isCategoryPromo) && (hasPromoDiscount || hasGeneralDiscount);
-
-  const effectiveMinPrice = hasPromoDiscount ? minPromoPrice : minPrice;
-  const effectiveMinOriginalPrice = hasPromoDiscount ? minPromoOriginalPrice : minOriginalPrice;
-
-  const displayPrice = effectiveMinPrice === Infinity ? 'Sin precio' : (
-    hasMultipleSizes || hasMultipleVariants
-      ? `Desde $${Number(effectiveMinPrice).toLocaleString('es-CL')}`
-      : `$${Number(effectiveMinPrice).toLocaleString('es-CL')}`
-  );
-
-  const originalDisplayPrice = hasDiscount && effectiveMinOriginalPrice < Infinity && effectiveMinOriginalPrice > effectiveMinPrice
-    ? (hasMultipleSizes || hasMultipleVariants
-        ? `Desde $${Number(effectiveMinOriginalPrice).toLocaleString('es-CL')}`
-        : `$${Number(effectiveMinOriginalPrice).toLocaleString('es-CL')}`)
-    : undefined;
-
-  const discountPercent = hasDiscount && effectiveMinOriginalPrice < Infinity && effectiveMinOriginalPrice > effectiveMinPrice
-    ? Math.round((1 - effectiveMinPrice / effectiveMinOriginalPrice) * 100)
-    : undefined;
-
-  let displayHint = '';
-  if (hasMultipleVariants && !hasMultipleSizes) {
-    displayHint = `${variantCount} variedades`;
-  } else if (hasMultipleSizes && !hasMultipleVariants) {
-    displayHint = `${uniqueSizes.length} tamaños`;
-  } else if (hasMultipleVariants && hasMultipleSizes) {
-    displayHint = `${variantCount} variedades · ${uniqueSizes.length} tamaños`;
-  }
-
-  const isOffer = hasAnyPromotion || isCategoryPromo;
-
-  return {
-    ...product,
-    kind: isOffer ? 'offer' : (product.kind || 'catalog'),
-    hasPromotion: isOffer,
-    isAvailable: product.isAvailable ?? true,
-    promocion_activa: activePromoObj,
-    promocionTitulo: promoTitle || (isCategoryPromo ? 'Combo / Promo' : 'Promoción'),
-    originalPrice: originalDisplayPrice,
-    discountPercent,
-    hasMultipleSizes,
-    hasMultipleVariants,
-    variantCount,
-    displayPrice,
-    displayHint,
-    minPrice: effectiveMinPrice === Infinity ? null : effectiveMinPrice
-  };
+  return formatPriceCLP(minPrice);
 };
 
 // Agregar al carrito
@@ -594,6 +480,7 @@ const goToQuotation = () => {
 const fetchCatalogProducts = async () => {
   if (isRefreshingProducts.value) return;
 
+  catalogError.value = '';
   isRefreshingProducts.value = true;
   if (catalogProducts.value.length === 0) {
     isLoadingProducts.value = true;
@@ -601,18 +488,21 @@ const fetchCatalogProducts = async () => {
 
   try {
     const [productsRes, categoriesRes] = await Promise.all([
-      productService.getPublicProducts(),
+      productService.getPublicProducts({ summary: 1 }),
       categoryService.getPublicCategories()
     ]);
 
-    const dbProducts = productsRes.data || [];
-    const dbCategories = categoriesRes.data || [];
+    const dbProducts = Array.isArray(productsRes.data)
+      ? productsRes.data
+      : (Array.isArray(productsRes.data?.data) ? productsRes.data.data : []);
+    const dbCategories = Array.isArray(categoriesRes.data)
+      ? categoriesRes.data
+      : (Array.isArray(categoriesRes.data?.data) ? categoriesRes.data.data : []);
 
     const activeDbProducts = dbProducts.filter((p: any) => {
       const isActivo = p.activo !== false && p.activo !== 0 && p.active !== false;
       const isDisponible = p.disponible !== false && p.disponible !== 0 && p.inStock !== false;
       return isActivo && isDisponible;
-      return isActivo;
     });
 
     categoriesList.value = dbCategories.map((c: any) => ({
@@ -621,105 +511,24 @@ const fetchCatalogProducts = async () => {
       descripcion_categoria: c.descripcion_categoria
     }));
 
-    const KNOWN_CATEGORY_COLORS: Record<string, string> = {
-      'Vianesas': '#E28743',
-      'As': '#C0392B',
-      'Churrascos': '#D35400',
-      'Lomitos': '#8E44AD',
-      'Hamburguesas': '#27AE60',
-      'Pizzas': '#F39C12',
-      'Fajitas': '#16A085',
-      'Sándwiches de Pollo': '#2980B9',
-      'Papas & Chorrillanas': '#F1C40F',
-      'Empanadas & Sopaipillas': '#E67E22',
-      'Handrolls & Arrollados': '#06B6D4',
-      'Bebidas frías': '#3498DB',
-      'Bebidas calientes': '#E74C3C',
-      'Promos / Combos': '#3498DB'
-    };
-
-    const resolveCategoryColor = (catName: string, catId?: number): string => {
-      const knownColor = KNOWN_CATEGORY_COLORS[catName];
-      if (knownColor) return knownColor;
-
-      const PALETTE = [
-        '#E28743', '#C0392B', '#D35400', '#8E44AD', '#27AE60',
-        '#F39C12', '#16A085', '#2980B9', '#F1C40F', '#E67E22',
-        '#3498DB', '#E74C3C', '#06B6D4', '#8B5CF6', '#EC4899'
-      ];
-
-      if (catId && !isNaN(catId) && catId > 0) {
-        return PALETTE[(catId - 1) % PALETTE.length] ?? '#E28743';
-      }
-
-      let hash = 0;
-      const str = String(catName || '');
-      for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-      }
-
-      return PALETTE[Math.abs(hash) % PALETTE.length] ?? '#E28743';
-    };
-
-    const normalizeSizeName = (value: any) => String(value ?? '').trim();
-
     // 1. Mapear cada producto de la BD a su estructura individual con precios y tamaños
     const rawItems = activeDbProducts.map((prod: any) => {
       const catName = prod.categoria?.nombre_categoria || 'Varios';
-      const activePromo = prod.promocion_activa || prod.promocionActiva || null;
-      const isPromoValid = isPromotionActive(activePromo);
+      const validPromos = extractValidPromotions(prod);
+      const activePromo = validPromos[0] || null;
+      const isPromoValid = validPromos.length > 0;
       const prodImage = prod.imagen_url || prod.imagen || prod.image || logoImg;
       const prodImagePosition = prod.imagen_posicion || prod.imagePosition || '50% 50%';
       const prodImageZoom = Number(prod.imagen_zoom || prod.imageZoom || 1);
       const prodImageFit = prod.imagen_ajuste === 'contain' || prod.imageFit === 'contain' ? 'contain' : 'cover';
 
-      const originalPricesMap: Record<string, number> = {};
-      const pricesMap: Record<string, number> = {};
-      const sizes: string[] = [];
-      const tamaños_obj: any[] = [];
-
-      if (prod.tamaños && prod.tamaños.length > 0) {
-        prod.tamaños.forEach((t: any) => {
-          const sizeName = normalizeSizeName(t.nombre);
-          if (!sizeName) return;
-
-          const baseVal = Number(t.pivot?.precio ?? t.precio ?? 0);
-          originalPricesMap[sizeName] = baseVal;
-          pricesMap[sizeName] = baseVal;
-
-          if (!sizes.some(s => s.toLowerCase() === sizeName.toLowerCase())) {
-            sizes.push(sizeName);
-          }
-
-          const sizeIdentifier = String(t.id_tamaño ?? sizeName).toLowerCase();
-          const hasSameTamaño = tamaños_obj.some((existing: any) => {
-            const existingId = String(existing.id_tamaño ?? existing.nombre ?? '').toLowerCase();
-            return existingId === sizeIdentifier || normalizeSizeName(existing.nombre).toLowerCase() === sizeName.toLowerCase();
-          });
-
-          if (!hasSameTamaño) {
-            tamaños_obj.push(t);
-          }
-        });
-      } else {
-        const defaultSizeName = 'Normal';
-        const baseVal = Number(prod.precio ?? 0);
-        originalPricesMap[defaultSizeName] = baseVal;
-        pricesMap[defaultSizeName] = baseVal;
-        sizes.push(defaultSizeName);
-      }
-
-      const promotionPrice = isPromoValid ? Number(activePromo?.precio_promocional ?? 0) : 0;
-      if (promotionPrice > 0) {
-        Object.keys(pricesMap).forEach(sizeName => {
-          const currentBase = Number(originalPricesMap[sizeName] ?? pricesMap[sizeName] ?? 0);
-          if (currentBase > 0) {
-            pricesMap[sizeName] = Math.min(promotionPrice, currentBase);
-          } else {
-            pricesMap[sizeName] = promotionPrice;
-          }
-        });
-      }
+      const {
+        originalPricesMap,
+        pricesMap,
+        sizePromosMap,
+        sizes,
+        tamaños_obj,
+      } = buildSizePricingMaps(prod, validPromos);
 
       const isAvailable = prod.disponible !== false && prod.disponible !== 0 && prod.inStock !== false;
 
@@ -750,10 +559,11 @@ const fetchCatalogProducts = async () => {
           imageFit: prodImageFit,
           prices: pricesMap,
           originalPrices: originalPricesMap,
+          sizePromos: sizePromosMap,
           promocion_activa: isPromoValid ? activePromo : null,
-          hasPromotion: isPromoValid && Boolean(activePromo),
+          hasPromotion: isPromoValid && Object.keys(sizePromosMap).length > 0,
           tamaños_obj: prod.tamaños || [],
-          producto_ingrediente: prod.ingredientes || []
+          producto_ingrediente: Array.isArray(prod.ingredientes) ? prod.ingredientes : null
         }
       };
     });
@@ -850,6 +660,9 @@ const fetchCatalogProducts = async () => {
     catalogProducts.value = mappedProducts;
   } catch (error) {
     console.error('Error al cargar catálogo de productos:', error);
+    if (catalogProducts.value.length === 0) {
+      catalogError.value = 'No pudimos conectar con el servidor para cargar la carta. Verifica tu conexión e intenta nuevamente.';
+    }
   } finally {
     isLoadingProducts.value = false;
     isRefreshingProducts.value = false;

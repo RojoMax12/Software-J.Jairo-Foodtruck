@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { formatPriceCLP } from '@/utils/format'
 import { useRoute, useRouter } from 'vue-router'
 import { ShieldCheck, UtensilsCrossed, ArrowLeft, MessageCircle, Clock, CheckCircle2 } from 'lucide-vue-next'
 import orderService from '@/services/orderService' 
@@ -81,13 +82,9 @@ onMounted(async () => {
 
     let response: any = null
     try {
-      response = await orderService.getPublicOrderById(pedidoId.value)
+      response = await orderService.getOrderById(pedidoId.value)
     } catch (err) {
-      try {
-        response = await orderService.getOrderById(pedidoId.value)
-      } catch (err2) {
-        response = await orderService.getOrderDetails(pedidoId.value)
-      }
+      response = await orderService.getOrderDetails(pedidoId.value)
     }
     
     const payload = response?.data?.data || response?.data 
@@ -160,10 +157,7 @@ onMounted(async () => {
   }
 })
 
-const formatCurrency = (value: any) => {
-  const safeValue = (value !== undefined && value !== null) ? Number(value) : 0
-  return `$${safeValue.toLocaleString('es-CL')}`
-}
+const formatCurrency = (value: any) => formatPriceCLP(value)
 </script>
 
 <template>

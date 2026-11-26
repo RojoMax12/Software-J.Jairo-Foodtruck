@@ -17,6 +17,13 @@ class Producto_ingrediente extends Model
         'id_tamaño',
         'cantidad',
         'incluido_por_defecto',
+        'precio_extra',
+    ];
+
+    protected $casts = [
+        'cantidad' => 'integer',
+        'incluido_por_defecto' => 'boolean',
+        'precio_extra' => 'integer',
     ];
 
     public function producto(): BelongsTo

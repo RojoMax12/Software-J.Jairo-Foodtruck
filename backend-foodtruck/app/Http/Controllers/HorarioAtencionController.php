@@ -30,7 +30,16 @@ class HorarioAtencionController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'dia_semana' => 'required|integer|min:0|max:6',
+            'hora_apertura' => ['required', 'string', 'regex:/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/'],
+            'hora_cierre' => ['required', 'string', 'regex:/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/'],
+            'minuto_colchon' => 'nullable|integer|min:0|max:180',
+            'activo' => 'sometimes|boolean',
+        ]);
+        if ($request->user()) {
+            $data['id_usuario'] = $request->user()->id_usuario ?? $request->user()->id;
+        }
         $horarioAtencion = $this->horarioAtencionService->createHorarioAtencion($data);
         return response()->json($horarioAtencion, 201);
     }
@@ -64,7 +73,6 @@ class HorarioAtencionController extends Controller
         return response()->json(null, 204);
     }
 
-    // Aliases para compatibilidad
     public function createHorarioAtencion(Request $request)
     {
         return $this->store($request);

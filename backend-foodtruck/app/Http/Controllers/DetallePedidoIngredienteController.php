@@ -30,14 +30,22 @@ class DetallePedidoIngredienteController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'id_detalle_pedido' => 'required|integer|exists:detalle_pedido,id_detalle_pedido',
+            'id_ingrediente' => 'required|integer|exists:ingredientes,id_ingrediente',
+            'tipo_modificacion' => 'required|string|max:40',
+            'precio_aplicado' => 'nullable|numeric|min:0',
+        ]);
         $detallePedidoIngrediente = $this->detallePedidoIngredienteService->createDetallePedidoIngrediente($data);
         return response()->json($detallePedidoIngrediente, 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'tipo_modificacion' => 'sometimes|string|max:40',
+            'precio_aplicado' => 'nullable|numeric|min:0',
+        ]);
         $detallePedidoIngrediente = $this->detallePedidoIngredienteService->updateDetallePedidoIngrediente($id, $data);
         if (!$detallePedidoIngrediente) {
             return response()->json(['message' => 'Modificación de ingrediente no encontrada'], 404);
@@ -54,7 +62,6 @@ class DetallePedidoIngredienteController extends Controller
         return response()->json(null, 204);
     }
 
-    // Aliases para compatibilidad
     public function createDetallePedidoIngrediente(Request $request)
     {
         return $this->store($request);

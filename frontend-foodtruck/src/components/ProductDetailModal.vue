@@ -74,12 +74,17 @@
                           ${{ getTypeOriginalPrice(tipo) }}
                         </span>
                         <span class="t-price" :class="{ 'is-promo': hasTypeDiscount(tipo) }">
-                          ${{ Number(tipo.prices[selectedSize] || 0).toLocaleString('es-CL') }}
+                          ${{ formatCLP(tipo.prices[selectedSize] || 0) }}
                         </span>
                       </template>
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <!-- Cargando ingredientes bajo demanda -->
+              <div v-if="isLoadingIngredients" class="config-section">
+                <p class="section-subtitle">Cargando ingredientes y agregados...</p>
               </div>
 
               <!-- 3. Ingredientes de la Receta (Desmarca para quitar) -->
@@ -138,11 +143,11 @@
                 <p v-if="minRequiredIngredients > 0" class="required-helper-text">
                   <span class="required-star">*</span> <strong>Obligatorio:</strong> Debes elegir al menos {{ minRequiredIngredients }} ingredientes (incluidos con el producto).
                   <template v-if="extraPricePerUnit > 0">
-                    Ingredientes extra adicionales: +${{ extraPricePerUnit.toLocaleString('es-CL') }} c/u.
+                    Ingredientes extra adicionales: +${{ formatCLP(extraPricePerUnit) }} c/u.
                   </template>
                 </p>
                 <p v-else-if="extraPricePerUnit > 0" class="subtitle-hint">
-                  (+${{ extraPricePerUnit.toLocaleString('es-CL') }} c/u)
+                  (+${{ formatCLP(extraPricePerUnit) }} c/u)
                 </p>
 
                 <div class="ingredients-list">
@@ -160,10 +165,44 @@
                         :disabled="!isIngredientAvailable(pi)"
                         class="custom-checkbox"
                       />
-                      <span class="ing-name">{{ pi.ingrediente.nombre }}</span>
+                      <span class="ing-name">
+                        {{ pi.ingrediente.nombre }}
+                        <small v-if="getExtraIngredientUnitPrice(pi) > 0 && (minRequiredIngredients === 0 || addedExtraIngredients.length >= minRequiredIngredients || pi.precio_extra)" class="ing-price-hint">
+                          (+${{ formatCLP(getExtraIngredientUnitPrice(pi)) }})
+                        </small>
+                      </span>
                     </div>
                     <span v-if="!isIngredientAvailable(pi)" class="status-badge no-stock">Sin Stock</span>
                     <span v-else-if="addedExtraIngredients.includes(pi.ingrediente.nombre)" class="status-badge added">Agregado</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- 4B. Selector de Aderezos (Fajitas y Hamburguesas, sin costo adicional) -->
+              <div v-if="supportsAderezos" class="config-section aderezos-section">
+                <div class="section-title-wrap">
+                  <p class="section-subtitle">Aderezos (Sin costo):</p>
+                  <span v-if="selectedAderezos.length > 0" class="required-status-badge status-ok">
+                    {{ selectedAderezos.length }} seleccionado{{ selectedAderezos.length === 1 ? '' : 's' }}
+                  </span>
+                </div>
+                <div class="ingredients-list aderezos-grid">
+                  <label 
+                    v-for="aderezo in ADEREZOS_OPTIONS" 
+                    :key="aderezo" 
+                    class="ingredient-item aderezo-item"
+                    :class="{ 'added': selectedAderezos.includes(aderezo) }"
+                  >
+                    <div class="ing-left">
+                      <input 
+                        type="checkbox" 
+                        :checked="selectedAderezos.includes(aderezo)"
+                        @change="toggleAderezo(aderezo)"
+                        class="custom-checkbox"
+                      />
+                      <span class="ing-name">{{ aderezo }}</span>
+                    </div>
+                    <span v-if="selectedAderezos.includes(aderezo)" class="status-badge added">Gratis</span>
                   </label>
                 </div>
               </div>
@@ -238,6 +277,13 @@
 import { ref, computed, watch } from 'vue';
 import { X, Plus, Minus, MessageSquare } from 'lucide-vue-next';
 import { useNotification } from '@/composables/useNotification';
+import productService from '@/services/productService';
+import { formatCLP } from '@/utils/format';
+import {
+  ADEREZOS_GRATUITOS as ADEREZOS_OPTIONS,
+  isAderezoGratuitoName as isAderezoName,
+  supportsAderezosGratuitos,
+} from '@/utils/catalogPricing';
 
 const { notify } = useNotification();
 
@@ -261,8 +307,42 @@ const selectedSize = ref('');
 const selectedType = ref<any>(null);
 const excludedIngredients = ref<string[]>([]);
 const addedExtraIngredients = ref<string[]>([]);
+const selectedAderezos = ref<string[]>([]);
 const customerNotes = ref('');
 const quantity = ref(1);
+const isLoadingIngredients = ref(false);
+
+const loadIngredientsForType = async (tipo: any) => {
+  if (!tipo || Array.isArray(tipo.producto_ingrediente) || !tipo.id) return;
+  isLoadingIngredients.value = true;
+  try {
+    const res = await productService.getPublicProductById(tipo.id);
+    const fullProd = res.data?.data || res.data;
+    tipo.producto_ingrediente = Array.isArray(fullProd?.ingredientes) ? fullProd.ingredientes : [];
+  } catch (err) {
+    console.warn('No se pudieron cargar ingredientes del producto:', err);
+    tipo.producto_ingrediente = [];
+  } finally {
+    isLoadingIngredients.value = false;
+  }
+};
+
+const supportsAderezos = computed(() =>
+  supportsAderezosGratuitos({
+    category: props.product?.category,
+    name: selectedType.value?.name || props.product?.name,
+  })
+);
+
+const toggleAderezo = (name: string) => {
+  triggerHaptic(10);
+  const idx = selectedAderezos.value.indexOf(name);
+  if (idx > -1) {
+    selectedAderezos.value.splice(idx, 1);
+  } else {
+    selectedAderezos.value.push(name);
+  }
+};
 
 const selectedProductImage = computed(() => {
   return selectedType.value?.image || props.product?.image || '';
@@ -333,6 +413,7 @@ const resetModalState = () => {
   quantity.value = 1;
   excludedIngredients.value = [];
   addedExtraIngredients.value = [];
+  selectedAderezos.value = [];
   customerNotes.value = '';
   if (props.product && props.product.types) {
     const firstAvailable = props.product.types.find((t: any) => isTypeAvailable(t));
@@ -342,6 +423,9 @@ const resetModalState = () => {
 
     selectedSize.value = fallbackSize;
     selectedType.value = firstAvailable || props.product.types[0] || null;
+    if (selectedType.value) {
+      loadIngredientsForType(selectedType.value);
+    }
   }
 };
 
@@ -365,7 +449,7 @@ const getSizePrice = (sizeName: string) => {
   if (!selectedType.value || !selectedType.value.prices) return '';
   const val = selectedType.value.prices[sizeName];
   if (val == null) return '';
-  return Number(val).toLocaleString('es-CL');
+  return formatCLP(val);
 };
 
 const selectType = (tipo: any) => {
@@ -373,7 +457,9 @@ const selectType = (tipo: any) => {
   selectedType.value = tipo;
   excludedIngredients.value = [];
   addedExtraIngredients.value = [];
+  selectedAderezos.value = [];
   customerNotes.value = '';
+  loadIngredientsForType(tipo);
 };
 
 const isIngredientAvailable = (pi: any) => {
@@ -457,6 +543,7 @@ const visibleRecipeIngredients = computed(() => {
 });
 
 // 2. Ingredientes Extra Opcionales (incluido_por_defecto === false)
+// 2. Ingredientes Extra Opcionales (incluido_por_defecto === false, excluyendo aderezos gratuitos)
 const optionalExtraIngredients = computed(() => {
   if (!selectedType.value || !selectedType.value.producto_ingrediente) return [];
 
@@ -467,6 +554,7 @@ const optionalExtraIngredients = computed(() => {
     if (pi.incluido_por_defecto !== false && pi.incluido_por_defecto !== 0) continue;
 
     const ingName = pi.ingrediente?.nombre || '';
+    if (supportsAderezos.value && isAderezoName(ingName)) continue;
 
     if (!seenNames.has(ingName)) {
       seenNames.add(ingName);
@@ -541,27 +629,56 @@ const extraPricePerUnit = computed(() => {
 });
 
 // Cálculo del costo adicional por agregados opcionales
+const getExtraIngredientUnitPrice = (pi: any): number => {
+  if (pi && pi.precio_extra !== null && pi.precio_extra !== undefined) {
+    return Number(pi.precio_extra);
+  }
+  return extraPricePerUnit.value;
+};
+
+// Cálculo del costo adicional por agregados opcionales (soporta precio_extra individual)
+// Cálculo del costo adicional por agregados opcionales (orden determinista ascendente para evitar arbitraje)
 const extraIngredientsCost = computed(() => {
-  const extraCount = addedExtraIngredients.value.length;
   const includedCount = minRequiredIngredients.value || Number(props.product?.cantidad_incluida || 0);
-  const billableExtras = Math.max(0, extraCount - includedCount);
-  return billableExtras * extraPricePerUnit.value;
+  const selectedNames = addedExtraIngredients.value;
+  if (selectedNames.length <= includedCount) return 0;
+
+  let cost = 0;
+  selectedNames.forEach((name: string, index: number) => {
+    if (index < includedCount) return;
+    const pi = optionalExtraIngredients.value.find((item: any) => item.ingrediente?.nombre === name);
+    cost += getExtraIngredientUnitPrice(pi);
+  });
+  return cost;
+  const sortedUnitCosts = selectedNames
+    .map((name: string) => {
+      const pi = optionalExtraIngredients.value.find((item: any) => item.ingrediente?.nombre === name);
+      return getExtraIngredientUnitPrice(pi);
+    })
+    .sort((a: number, b: number) => a - b);
+
+  return sortedUnitCosts
+    .slice(includedCount)
+    .reduce((sum: number, unitCost: number) => sum + unitCost, 0);
 });
 
 const hasTypeDiscount = (tipo: any) => {
   if (!tipo) return false;
-  const promo = tipo.promocion_activa;
-  if (!promo || promo.activo === false) return false;
   const effectiveSize = selectedSize.value || getEffectiveSizeForType(tipo);
   const currentP = Number(tipo.prices?.[effectiveSize] ?? 0);
   const origP = Number(tipo.originalPrices?.[effectiveSize] ?? currentP);
+  if (origP > currentP) return true;
+  const sizePromo = tipo.sizePromos?.[effectiveSize];
+  if (sizePromo && sizePromo.activo !== false) return origP > currentP;
+  const promo = tipo.promocion_activa;
+  if (!promo || promo.activo === false) return false;
   return origP > currentP;
 };
 
 const getTypeOriginalPrice = (tipo: any) => {
   const effectiveSize = selectedSize.value || getEffectiveSizeForType(tipo);
   const origP = Number(tipo?.originalPrices?.[effectiveSize] ?? tipo?.prices?.[effectiveSize] ?? 0);
-  return origP.toLocaleString('es-CL');
+  return formatCLP(origP);
 };
 
 const currentPrice = computed(() => {
@@ -582,13 +699,13 @@ const currentOriginalPrice = computed(() => {
 
 const originalTotalPriceFormatted = computed(() => {
   if (currentOriginalPrice.value > currentPrice.value) {
-    return (currentOriginalPrice.value * quantity.value).toLocaleString('es-CL');
+    return formatCLP(currentOriginalPrice.value * quantity.value);
   }
   return '';
 });
 
 const totalPriceFormatted = computed(() => {
-  return (currentPrice.value * quantity.value).toLocaleString('es-CL');
+  return formatCLP(currentPrice.value * quantity.value);
 });
 
 const selectedSizeId = computed(() => {
@@ -612,8 +729,12 @@ const handleAddToCart = () => {
   }
 
   const effectiveSize = selectedSize.value || getEffectiveSizeForType(selectedType.value);
+  const combinedAgregados = Array.from(new Set([
+    ...addedExtraIngredients.value,
+    ...(supportsAderezos.value ? selectedAderezos.value : [])
+  ]));
   const exclusionKey = [...excludedIngredients.value].sort().join('-');
-  const additionKey = [...addedExtraIngredients.value].sort().join('-');
+  const additionKey = [...combinedAgregados].sort().join('-');
   const notesKey = customerNotes.value.trim().toLowerCase();
   const cartItemId = `${selectedType.value.id}_${effectiveSize}_${exclusionKey}_${additionKey}_${notesKey}`;
 
@@ -627,13 +748,15 @@ const handleAddToCart = () => {
     };
   });
 
-  const agregadosDetails = addedExtraIngredients.value.map((name: string) => {
+  const agregadosDetails = combinedAgregados.map((name: string) => {
     const found = selectedType.value?.producto_ingrediente?.find(
       (pi: any) => pi.ingrediente?.nombre === name
     );
+    const isAderezo = supportsAderezos.value && isAderezoName(name);
     return {
       nombre: name,
-      id_ingrediente: found?.id_ingrediente || found?.ingrediente?.id_ingrediente || null
+      id_ingrediente: found?.id_ingrediente || found?.ingrediente?.id_ingrediente || null,
+      precio: isAderezo ? 0 : getExtraIngredientUnitPrice(found)
     };
   });
 
@@ -655,7 +778,8 @@ const handleAddToCart = () => {
     quantity: quantity.value,
     price: currentPrice.value,
     excluidos: [...excludedIngredients.value],
-    agregados: [...addedExtraIngredients.value],
+    agregados: combinedAgregados,
+    aderezos: supportsAderezos.value ? [...selectedAderezos.value] : [],
     excluidosDetails,
     agregadosDetails,
     notas: customerNotes.value.trim()
@@ -772,6 +896,18 @@ const handleAddToCart = () => {
 
 .section-subtitle { font-size: 1rem; font-weight: 800; color: var(--DC-gray); margin-bottom: 12px; }
 .subtitle-hint { font-size: 0.8rem; font-weight: 600; color: var(--DC-orange); }
+.ing-price-hint { font-size: 0.78rem; font-weight: 800; color: var(--DC-orange); margin-left: 4px; }
+.aderezos-section {
+  background: #fff9f2;
+  border: 1px solid rgba(226, 135, 67, 0.25);
+  border-radius: 12px;
+  padding: 12px;
+}
+.aderezos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+  gap: 8px;
+}
 
 /* 1. TAMAÑOS (PILLS) */
 .size-pills { display: flex; flex-wrap: wrap; gap: 10px; }

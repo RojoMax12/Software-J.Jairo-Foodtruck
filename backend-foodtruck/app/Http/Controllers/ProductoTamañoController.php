@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\ProductoTamañoService;
+use App\Support\CatalogCache;
 use Illuminate\Http\Request;
 
 class ProductoTamañoController extends Controller
@@ -30,18 +31,28 @@ class ProductoTamañoController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'id_producto' => 'required|integer|exists:productos,id_producto',
+            'id_tamaño' => 'required|integer|exists:tamaños,id_tamaño',
+            'precio' => 'required|integer|min:0',
+        ]);
         $productoTamaño = $this->productoTamañoService->createProductoTamaño($data);
+        CatalogCache::invalidate();
         return response()->json($productoTamaño, 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'id_producto' => 'sometimes|required|integer|exists:productos,id_producto',
+            'id_tamaño' => 'sometimes|required|integer|exists:tamaños,id_tamaño',
+            'precio' => 'sometimes|required|integer|min:0',
+        ]);
         $productoTamaño = $this->productoTamañoService->updateProductoTamaño($id, $data);
         if (!$productoTamaño) {
             return response()->json(['message' => 'Relación Producto-Tamaño no encontrada'], 404);
         }
+        CatalogCache::invalidate();
         return response()->json($productoTamaño);
     }
 
@@ -51,10 +62,10 @@ class ProductoTamañoController extends Controller
         if (!$deleted) {
             return response()->json(['message' => 'Relación Producto-Tamaño no encontrada'], 404);
         }
+        CatalogCache::invalidate();
         return response()->json(null, 204);
     }
 
-    // Aliases para compatibilidad
     public function createProductoTamaño(Request $request)
     {
         return $this->store($request);

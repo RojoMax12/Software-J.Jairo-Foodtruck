@@ -58,11 +58,16 @@ const hasNumber = computed(() =>
   /\d/.test(password.value)
 )
 
+const hasSymbol = computed(() =>
+  /[^A-Za-z0-9]/.test(password.value)
+)
+
 const passwordIsValid = computed(() =>
   hasMinLength.value &&
   hasUppercase.value &&
   hasLowercase.value &&
-  hasNumber.value
+  hasNumber.value &&
+  hasSymbol.value
 )
 
 const passwordsMatch = computed(() =>
@@ -233,6 +238,11 @@ const handleResetPassword = async () => {
               <span :class="{ valid: hasNumber }">
                 {{ hasNumber ? '✓' : '•' }}
                 Un número
+              </span>
+
+              <span :class="{ valid: hasSymbol }">
+                {{ hasSymbol ? '✓' : '•' }}
+                Un carácter especial (!@#$%^&*, etc.)
               </span>
 
             </div>

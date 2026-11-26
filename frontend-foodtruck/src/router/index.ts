@@ -9,55 +9,55 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: HomeView,
-      meta: { hideNavbar: false }
+      meta: { hideNavbar: false, title: 'Carta Online | Foodtruck J.Junior' }
     },
     {
       path: '/login',
       name: 'login',
       component: () => import('../components/LoginView.vue'),
-      meta: { hideNavbar: true, useLoader: true }
+      meta: { hideNavbar: true, useLoader: true, title: 'Iniciar Sesión | Foodtruck J.Junior' }
     },
     {
       path: '/register',
       name: 'register',
       component: () => import('../components/RegisterView.vue'),
-      meta: { hideNavbar: true, useLoader: true }
+      meta: { hideNavbar: true, useLoader: true, title: 'Crear Cuenta | Foodtruck J.Junior' }
     },
     {
       path: '/forgot-password',
       name: 'forgot-password',
       component: () => import('../components/ForgotPasswordView.vue'),
-      meta: { hideNavbar: true, useLoader: true }
+      meta: { hideNavbar: true, useLoader: true, title: 'Recuperar Contraseña | Foodtruck J.Junior' }
     },
     {
       path: '/reset-password',
       name: 'reset-password',
       component: () => import('../components/ResetPasswordView.vue'),
-      meta: { hideNavbar: true, useLoader: true }
+      meta: { hideNavbar: true, useLoader: true, title: 'Restablecer Contraseña | Foodtruck J.Junior' }
     },
     {
       path: '/checkorderstatus',
       name: 'checkorderstatus',
       component: () => import('../views/Operations/CheckOrderStatus.vue'),
-      meta: { useLoader: true }
+      meta: { useLoader: true, title: 'Revisa tu Pedido | Foodtruck J.Junior' }
     },
     {
       path: '/cotizacion',
       name: 'quotation',
       component: () => import('../views/Checkout/QuotationView.vue'),
-      meta: { useLoader: true }
+      meta: { useLoader: true, title: 'Confirmar Pedido | Foodtruck J.Junior' }
     },
     {
       path: '/cotizacion-exitosa',
       name: 'CotizacionExitosa',
       component: () => import('@/views/Checkout/SuccesfulQuotationView.vue'),
-      meta: { useLoader: true }
+      meta: { useLoader: true, title: 'Pedido Confirmado | Foodtruck J.Junior' }
     },
     {
       path: '/menu-board',
       name: 'menu-board',
       component: () => import('@/views/Operations/MenuBoardView.vue'),
-      meta: { hideNavbar: true, useLoader: false }
+      meta: { hideNavbar: true, useLoader: false, title: 'Tablero de Menú | Foodtruck J.Junior' }
     },
     {
       path: '/tv-menu',
@@ -162,7 +162,7 @@ const router = createRouter({
     },
 
     // ==========================================
-    // RUTAS EXCLUSIVAS DE ADMINISTRACIÓN (Rol 1)
+    // RUTAS OPERATIVAS DE CAJA Y ADMINISTRACIÓN
     // ==========================================
     {
       path: '/general-home/admin/cash-flow',
@@ -170,6 +170,9 @@ const router = createRouter({
       component: () => import('../views/Admin/CashFlowView.vue'),
       meta: { useLoader: true, roles: [1,3] }
     },
+    // ==========================================
+    // RUTAS EXCLUSIVAS DE ADMINISTRACIÓN (Rol 1)
+    // ==========================================
     {
       path: '/general-home/admin/worker',
       name: 'general-home-admin-worker',
@@ -245,8 +248,11 @@ router.beforeEach((to, from, next) => {
   next();
 });
 
-router.afterEach(() => {
+router.afterEach((to) => {
   globalLoading.value = false;
+  if (typeof document !== 'undefined') {
+    document.title = (to.meta?.title as string) || 'Foodtruck J.Junior — Carta Online y Pedidos';
+  }
 });
 
 export default router;

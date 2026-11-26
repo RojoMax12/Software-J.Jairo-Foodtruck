@@ -18,6 +18,11 @@ use Illuminate\Support\Facades\DB;
 # Repositorio Pedido
 class PedidoRepository
 {
+    /**
+     * Cache en memoria por instancia para evitar N+1 al resolver ingredientes por nombre.
+     */
+    protected ?\Illuminate\Support\Collection $ingredientesCache = null;
+
     public function normalizeIngredienteNombre($valor)
     {
         if ($valor === null || $valor === '') {
@@ -45,7 +50,10 @@ class PedidoRepository
             return null;
         }
 
-        $todosIngredientes = Ingrediente::all();
+        if ($this->ingredientesCache === null) {
+            $this->ingredientesCache = Ingrediente::all();
+        }
+        $todosIngredientes = $this->ingredientesCache;
 
         // 1. Coincidencia exacta
         $ing = $todosIngredientes->first(function ($item) use ($nombreNormalizado) {
@@ -63,6 +71,172 @@ class PedidoRepository
         });
 
         return $ingParcial ? $ingParcial->id_ingrediente : null;
+    }
+
+    /**
+     * Determina si un ingrediente corresponde a los aderezos gratuitos de fajitas/hamburguesas.
+     */
+    protected function isAderezoGratuito(?string $nombre): bool
+    {
+        $norm = $this->normalizeIngredienteNombre($nombre);
+        if (!$norm) {
+            return false;
+        }
+        return in_array($norm, [
+            'ketchup',
+            'mostaza',
+            'salsa bbq',
+            'bbq',
+            'mayonesa de ajo',
+            'salsa de queso',
+            'salsa de aji',
+        ], true);
+    }
+
+    /**
+     * Verifica si el producto habilita selector gratuito de aderezos (Hamburguesas y Fajitas).
+     */
+    protected function admiteAderezosGratuitos(?Producto $producto): bool
+    {
+        if (!$producto) {
+            return false;
+        }
+        $catNombre = mb_strtolower((string)($producto->categoria->nombre_categoria ?? ''), 'UTF-8');
+        $prodNombre = mb_strtolower((string)($producto->nombre ?? ''), 'UTF-8');
+        return str_contains($catNombre, 'hamburguesa')
+            || str_contains($catNombre, 'fajita')
+            || str_contains($prodNombre, 'hamburguesa')
+            || str_contains($prodNombre, 'fajita');
+    }
+
+    /**
+     * Resuelve el precio base considerando promociones vigentes por producto y tamaño.
+     */
+    protected function resolverPrecioConPromocion(?Producto $producto, ?int $idTamaño, float $precioBase): float
+    {
+        if (!$producto) {
+            return $precioBase;
+        }
+
+        $todayStr = now()->format('Y-m-d');
+        $window = $this->getShiftWindow();
+        $shiftDateStr = $window['shift_date'] ?? $todayStr;
+
+        $promos = $producto->relationLoaded('promocionesActivas')
+            ? $producto->promocionesActivas
+            : $producto->promocionesActivas()->get();
+
+        $vigentes = $promos->filter(function ($promo) use ($todayStr, $shiftDateStr) {
+            if (empty($promo->activo)) {
+                return false;
+            }
+            $inicio = $promo->fecha_inicio ? $promo->fecha_inicio->format('Y-m-d') : '';
+            $fin = $promo->fecha_fin ? $promo->fecha_fin->format('Y-m-d') : '';
+            $matchesToday = (!$inicio || $inicio <= $todayStr) && (!$fin || $fin >= $todayStr);
+            $matchesShift = (!$inicio || $inicio <= $shiftDateStr) && (!$fin || $fin >= $shiftDateStr);
+            return $matchesToday || $matchesShift;
+        });
+
+        // Prioridad: promoción específica para ese tamaño > promoción general (id_tamaño === null)
+        $promoAplicable = $vigentes->first(function ($promo) use ($idTamaño) {
+            return $idTamaño && $promo->id_tamaño !== null && (int)$promo->id_tamaño === (int)$idTamaño;
+        }) ?? $vigentes->first(function ($promo) {
+            return $promo->id_tamaño === null;
+        });
+
+        if ($promoAplicable && (float)$promoAplicable->precio_promocional > 0) {
+            $promoPrecio = (float)$promoAplicable->precio_promocional;
+            return $precioBase > 0 ? min($promoPrecio, $precioBase) : $promoPrecio;
+        }
+
+        return $precioBase;
+    }
+
+    /**
+     * Calcula el costo adicional real de los ingredientes agregados y devuelve también
+     * el precio aplicado por id_ingrediente (soporta precio_extra propio y aderezos gratuitos).
+     */
+    protected function calcularCostoExtras(?Producto $producto, array $rawAgregados): array
+    {
+        if (!$producto || empty($rawAgregados)) {
+            return ['total' => 0.0, 'precios_por_id' => []];
+        }
+
+        $piPorId = [];
+        $piPorNombre = [];
+        foreach ($producto->ingredientes ?? [] as $pi) {
+            if ($pi->id_ingrediente) {
+                if (!isset($piPorId[$pi->id_ingrediente]) || $pi->precio_extra !== null) {
+                    $piPorId[$pi->id_ingrediente] = $pi;
+                }
+            }
+            $norm = $this->normalizeIngredienteNombre($pi->ingrediente->nombre ?? '');
+            if ($norm && (!isset($piPorNombre[$norm]) || $pi->precio_extra !== null)) {
+                $piPorNombre[$norm] = $pi;
+            }
+        }
+
+        $permiteAderezos = $this->admiteAderezosGratuitos($producto);
+        $incluidos = (int)($producto->cantidad_incluida ?? 0);
+        $precioExtraDefault = (float)($producto->precio_ingrediente_extra ?? 0);
+
+        $cobrables = [];
+        $preciosPorId = [];
+
+        foreach ($rawAgregados as $ag) {
+            $ingNombre = is_array($ag) ? ($ag['nombre'] ?? $ag['name'] ?? $ag['ingrediente'] ?? '') : (is_string($ag) ? $ag : '');
+            $ingId = is_array($ag) ? ($ag['id_ingrediente'] ?? $ag['id'] ?? null) : (is_numeric($ag) ? (int)$ag : null);
+
+            if (!$ingId && $ingNombre) {
+                $ingId = $this->resolverIdIngredienteDesdeNombre($ingNombre);
+            }
+
+            if ($permiteAderezos && $this->isAderezoGratuito($ingNombre)) {
+                if ($ingId) {
+                    $preciosPorId[$ingId] = 0;
+                }
+                continue;
+            }
+
+            $pi = ($ingId && isset($piPorId[$ingId])) ? $piPorId[$ingId] : ($piPorNombre[$this->normalizeIngredienteNombre($ingNombre) ?? ''] ?? null);
+            if (!$pi) {
+                $label = $ingNombre ?: ('ID #' . ($ingId ?? '?'));
+                throw new \InvalidArgumentException("El agregado \"{$label}\" no está habilitado para \"{$producto->nombre}\".");
+            }
+
+            if ($pi->ingrediente && $pi->ingrediente->disponible === false) {
+                throw new \InvalidArgumentException("El ingrediente extra \"{$pi->ingrediente->nombre}\" no tiene stock disponible.");
+            }
+
+            $resolvedId = $ingId ?: $pi->id_ingrediente;
+            $unitCost = ($pi->precio_extra !== null) ? (float)$pi->precio_extra : $precioExtraDefault;
+
+            $cobrables[] = [
+                'id' => $resolvedId,
+                'cost' => $unitCost,
+            ];
+        }
+
+        // Ordenar de menor a mayor costo para que los incluidos gratuitos cubran de manera
+        // determinista los toppings base e impedir arbitraje por orden del arreglo enviado.
+        usort($cobrables, static function ($a, $b) {
+            return $a['cost'] <=> $b['cost'];
+        });
+
+        $totalExtras = 0.0;
+        foreach ($cobrables as $idx => $entry) {
+            // Los primeros N ingredientes no-aderezo están incluidos sin costo en productos personalizables
+            $cobro = ($idx < $incluidos) ? 0.0 : $entry['cost'];
+            $totalExtras += $cobro;
+            if (!empty($entry['id'])) {
+                $preciosPorId[$entry['id']] = $cobro;
+            }
+        }
+
+        return [
+            'total' => $totalExtras,
+            'precios_por_id' => $preciosPorId,
+        ];
     }
 
     public function getShiftWindow($referenceTime = null)
@@ -170,6 +344,28 @@ class PedidoRepository
         return $window['start'];
     }
 
+    /**
+     * Inicio efectivo de la jornada operativa para numeración de comandas,
+     * evitando que pedidos POS previos a las 19:00 colisionen con numero_pedido_dia = 1.
+     */
+    protected function getOrderNumberingStart(array $window): \Carbon\Carbon
+    {
+        $tz = config('app.timezone', 'America/Santiago');
+        $now = now($tz);
+        $shiftDate = $window['shift_date'] ?? $now->format('Y-m-d');
+        $opStart = \Carbon\Carbon::parse($shiftDate . ' 06:00:00', $tz);
+
+        if (!empty($window['is_active']) && !empty($window['start'])) {
+            return $window['start']->copy()->min($opStart);
+        }
+
+        if ($now->hour < 6) {
+            return $now->copy()->subDay()->setTime(6, 0, 0);
+        }
+
+        return $opStart;
+    }
+
     public function getPedidoByComandaTurno($numeroComanda, $targetDate = null)
     {
         $window = $this->getShiftWindow($targetDate);
@@ -234,7 +430,7 @@ class PedidoRepository
                 throw new \InvalidArgumentException('No es posible tomar pedidos: El día de hoy ha sido desactivado por administración (día de descanso).');
             }
 
-            $shiftStart = $this->getShiftStart();
+            $shiftStart = $this->getOrderNumberingStart($window);
             $ultimoPedidoShift = Pedido::where('created_at', '>=', $shiftStart)
                 ->orderBy('numero_pedido_dia', 'desc')
                 ->lockForUpdate()
@@ -267,51 +463,57 @@ class PedidoRepository
                 }
                 $idProducto = is_numeric($rawProd) ? (int)$rawProd : null;
 
-                $rawTamano = $item['id_tamaño'] ?? ($item['id_tamano'] ?? ($item['id_size'] ?? 1));
+                $rawTamano = $item['id_tamaño'] ?? ($item['id_tamano'] ?? ($item['id_size'] ?? null));
                 if (is_string($rawTamano) && strpos($rawTamano, '_') !== false) {
                     $rawTamano = explode('_', $rawTamano)[0];
                 }
-                $idTamaño = is_numeric($rawTamano) ? (int)$rawTamano : 1;
+                $idTamaño = is_numeric($rawTamano) ? (int)$rawTamano : null;
 
                 $cantidad = max(1, is_numeric($item['cantidad'] ?? ($item['quantity'] ?? 1)) 
                     ? (int)($item['cantidad'] ?? ($item['quantity'] ?? 1)) 
                     : 1);
 
                 if ($idProducto) {
-                    $productoModel = Producto::with('promocionActiva')->find($idProducto);
-
-                    // 1. Recalcular precio base del producto desde la BD
-                    $precioBase = 0;
-                    if ($productoModel) {
-                        $tamanoPrecio = Producto_Tamaño::where('id_producto', $idProducto)
-                            ->where('id_tamaño', $idTamaño)
-                            ->value('precio');
-
-                        if ($tamanoPrecio !== null && (float)$tamanoPrecio > 0) {
-                            $precioBase = (float)$tamanoPrecio;
-                        } else {
-                            $primerPrecio = Producto_Tamaño::where('id_producto', $idProducto)->value('precio');
-                            $precioBase = $primerPrecio ? (float)$primerPrecio : (float)($productoModel->precio ?? $productoModel->precio_base ?? 0);
-                        }
-
-                        if ($productoModel->promocionActiva && (float)$productoModel->promocionActiva->precio_promocional >= 0) {
-                            $precioBase = (float)$productoModel->promocionActiva->precio_promocional;
-                        }
+                    $productoModel = Producto::with(['categoria', 'tamaños', 'ingredientes.ingrediente', 'promocionesActivas'])->find($idProducto);
+                    if (!$productoModel) {
+                        throw new \InvalidArgumentException("El producto ID #{$idProducto} no existe en el catálogo.");
                     }
+                    if ($productoModel->activo === false || $productoModel->disponible === false) {
+                        throw new \InvalidArgumentException("El producto \"{$productoModel->nombre}\" no está disponible en este momento.");
+                    }
+
+                    // 1. Recalcular precio base del producto desde la BD (validando tamaño y promoción vigente)
+                    $precioBase = 0;
+                    $tamanosDisponibles = $productoModel->tamaños ?? collect();
+                    if ($tamanosDisponibles->isNotEmpty()) {
+                        if ($idTamaño === null) {
+                            $primerTamano = $tamanosDisponibles->sortBy('pivot.precio')->first();
+                            $idTamaño = (int)$primerTamano->id_tamaño;
+                            $tamanoRow = $primerTamano;
+                        } else {
+                            $tamanoRow = $tamanosDisponibles->firstWhere('id_tamaño', $idTamaño);
+                            if (!$tamanoRow) {
+                                throw new \InvalidArgumentException("El tamaño seleccionado no corresponde al producto \"{$productoModel->nombre}\".");
+                            }
+                        }
+                        $precioBase = (float)($tamanoRow->pivot->precio ?? 0);
+                    } else {
+                        $idTamaño = $idTamaño ?? 1;
+                        $precioBase = (float)($productoModel->precio ?? $productoModel->precio_base ?? 0);
+                    }
+
+                    $precioBase = $this->resolverPrecioConPromocion($productoModel, $idTamaño ? (int)$idTamaño : null, $precioBase);
 
                     // Blindaje de Seguridad: El precio debe provenir siempre del catálogo oficial de la BD
                     if ($precioBase <= 0) {
-                        $prodNombre = $productoModel ? $productoModel->nombre : "ID #{$idProducto}";
-                        throw new \InvalidArgumentException("El producto \"{$prodNombre}\" no tiene un precio válido asignado en el catálogo.");
+                        throw new \InvalidArgumentException("El producto \"{$productoModel->nombre}\" no tiene un precio válido asignado en el catálogo.");
                     }
 
-                    // 2. Calcular costo de extras / agregados cobrables
+                    // 2. Calcular costo de extras / agregados cobrables (soporta precio_extra propio y aderezos gratuitos)
                     $rawAgregados = $item['agregados'] ?? ($item['addedExtras'] ?? ($item['agregadosDetails'] ?? []));
-                    $numExtras = is_array($rawAgregados) ? count($rawAgregados) : 0;
-                    $incluidos = (int)($productoModel->cantidad_incluida ?? 0);
-                    $precioExtra = (float)($productoModel->precio_ingrediente_extra ?? 0);
-                    $extrasCobrables = max(0, $numExtras - $incluidos);
-                    $costoExtras = $extrasCobrables * $precioExtra;
+                    $extrasCalc = $this->calcularCostoExtras($productoModel, is_array($rawAgregados) ? $rawAgregados : []);
+                    $costoExtras = $extrasCalc['total'];
+                    $preciosExtrasPorId = $extrasCalc['precios_por_id'];
 
                     $precioUnitarioFinal = $precioBase + $costoExtras;
                     $subtotalItem = $precioUnitarioFinal * $cantidad;
@@ -380,11 +582,20 @@ class PedidoRepository
                         }
 
                         if ($idIngrediente) {
+                            if ($tipoMod === 'Agregado' && !array_key_exists($idIngrediente, $preciosExtrasPorId)) {
+                                // Ignorar agregados que no pasaron por la lista blanca y recálculo oficial de calcularCostoExtras
+                                continue;
+                            }
+
                             $modKey = $idIngrediente . '_' . strtolower($tipoMod);
                             if (isset($processedMods[$modKey])) {
                                 continue;
                             }
                             $processedMods[$modKey] = true;
+
+                            if ($tipoMod === 'Agregado') {
+                                $precioAplicado = $preciosExtrasPorId[$idIngrediente];
+                            }
 
                             Detalle_pedido_Ingrediente::create([
                                 'id_detalle_pedido' => $detalle->id_detalle_pedido,
@@ -417,9 +628,9 @@ class PedidoRepository
     }
 
     # Geters
-    public function getAllPedidos()
+    protected function buildAllPedidosQuery($fecha = null)
     {
-        return Pedido::with([
+        $query = Pedido::with([
             'detalles.producto',
             'detalles.tamano',
             'detalles.tamaño',
@@ -427,7 +638,31 @@ class PedidoRepository
             'estadoPedido',
             'estadoPago',
             'usuario',
-        ])->orderBy('id_pedido', 'desc')->get();
+        ]);
+
+        if (!empty($fecha)) {
+            $window = $this->getShiftWindow($fecha);
+            $opStart = $this->getOrderNumberingStart($window);
+            $query->whereBetween('created_at', [$opStart, $window['end']]);
+        }
+
+        return $query->orderBy('id_pedido', 'desc');
+    }
+
+    public function getAllPedidos($fecha = null, int $limit = 300)
+    {
+        $safeLimit = max(1, min(1000, $limit));
+        return $this->buildAllPedidosQuery($fecha)
+            ->limit($safeLimit)
+            ->get();
+    }
+
+    public function paginatePedidos($fecha = null, int $perPage = 50, int $page = 1)
+    {
+        $safePerPage = max(1, min(200, $perPage));
+        $safePage = max(1, $page);
+        return $this->buildAllPedidosQuery($fecha)
+            ->paginate($safePerPage, ['*'], 'page', $safePage);
     }
 
     public function getPedidoById($id)
@@ -561,33 +796,44 @@ class PedidoRepository
                         }
 
                         if ($idProducto) {
-                            $productoModel = Producto::find($idProducto);
-                            $precioBase = 0;
-                            if ($productoModel) {
-                                $tamanoPrecio = Producto_Tamaño::where('id_producto', $idProducto)
-                                    ->where('id_tamaño', $idTamaño)
-                                    ->value('precio');
-
-                                if ($tamanoPrecio !== null && (float)$tamanoPrecio > 0) {
-                                    $precioBase = (float)$tamanoPrecio;
-                                } else {
-                                    $primerPrecio = Producto_Tamaño::where('id_producto', $idProducto)->value('precio');
-                                    $precioBase = $primerPrecio ? (float)$primerPrecio : (float)($productoModel->precio ?? $productoModel->precio_base ?? 0);
-                                }
+                            $productoModel = Producto::with(['categoria', 'tamaños', 'ingredientes.ingrediente', 'promocionesActivas'])->find($idProducto);
+                            if (!$productoModel) {
+                                throw new \InvalidArgumentException("El producto ID #{$idProducto} no existe en el catálogo.");
                             }
+                            if ($productoModel->activo === false) {
+                                throw new \InvalidArgumentException("El producto \"{$productoModel->nombre}\" está inactivo.");
+                            }
+
+                            $precioBase = 0;
+                            $tamanosDisponibles = $productoModel->tamaños ?? collect();
+                            if ($tamanosDisponibles->isNotEmpty()) {
+                                if (!$idTamaño) {
+                                    $primerTamano = $tamanosDisponibles->sortBy('pivot.precio')->first();
+                                    $idTamaño = (int)$primerTamano->id_tamaño;
+                                    $tamanoRow = $primerTamano;
+                                } else {
+                                    $tamanoRow = $tamanosDisponibles->firstWhere('id_tamaño', (int)$idTamaño);
+                                    if (!$tamanoRow) {
+                                        throw new \InvalidArgumentException("El tamaño seleccionado no corresponde al producto \"{$productoModel->nombre}\".");
+                                    }
+                                }
+                                $precioBase = (float)($tamanoRow->pivot->precio ?? 0);
+                            } else {
+                                $idTamaño = $idTamaño ?? 1;
+                                $precioBase = (float)($productoModel->precio ?? $productoModel->precio_base ?? 0);
+                            }
+
+                            $precioBase = $this->resolverPrecioConPromocion($productoModel, $idTamaño ? (int)$idTamaño : null, $precioBase);
 
                             // Blindaje de Seguridad: Prevenir manipulación de precio en edición
                             if ($precioBase <= 0) {
-                                $prodNombre = $productoModel ? $productoModel->nombre : "ID #{$idProducto}";
-                                throw new \InvalidArgumentException("El producto \"{$prodNombre}\" no tiene un precio válido asignado en el catálogo.");
+                                throw new \InvalidArgumentException("El producto \"{$productoModel->nombre}\" no tiene un precio válido asignado en el catálogo.");
                             }
 
                             $addedList = $item['addedExtras'] ?? ($item['agregados'] ?? ($item['agregadosDetails'] ?? []));
-                            $numExtras = is_array($addedList) ? count($addedList) : 0;
-                            $incluidos = (int)($productoModel->cantidad_incluida ?? 0);
-                            $precioExtra = (float)($productoModel->precio_ingrediente_extra ?? 0);
-                            $extrasCobrables = max(0, $numExtras - $incluidos);
-                            $costoExtras = $extrasCobrables * $precioExtra;
+                            $extrasCalc = $this->calcularCostoExtras($productoModel, is_array($addedList) ? $addedList : []);
+                            $costoExtras = $extrasCalc['total'];
+                            $preciosExtrasPorId = $extrasCalc['precios_por_id'];
 
                             $precioUnitarioFinal = $precioBase + $costoExtras;
                             $totalCalculadoUpdate += ($precioUnitarioFinal * $cantidad);
@@ -638,7 +884,7 @@ class PedidoRepository
                                         'id_detalle_pedido' => $detalle->id_detalle_pedido,
                                         'id_ingrediente' => $extId,
                                         'tipo_modificacion' => 'Agregado',
-                                        'precio_aplicado' => is_array($ext) ? ($ext['precio'] ?? $ext['price'] ?? 0) : 0,
+                                        'precio_aplicado' => $preciosExtrasPorId[$extId] ?? (is_array($ext) ? ($ext['precio'] ?? $ext['price'] ?? 0) : 0),
                                     ]);
                                 }
                             }

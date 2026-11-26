@@ -259,7 +259,7 @@ onMounted(async () => {
     try {
         const [sizesRes, prodsRes] = await Promise.allSettled([
             sizeService.getSizes(),
-            productService.getPublicProducts()
+            productService.getPublicProducts({ summary: 1 })
         ])
 
         const dbSizes = sizesRes.status === 'fulfilled' ? sizesRes.value.data || [] : []

@@ -26,13 +26,23 @@ class OfertaController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'descripcion' => 'required|string|max:500',
+            'precio_oferta' => 'required|integer|min:0',
+            'fecha' => 'nullable|date',
+            'dia_semana' => 'nullable|string|max:30',
+        ]);
         return response()->json($this->ofertaService->createOferta($data), 201);
     }
 
     public function update(Request $request, $id)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'descripcion' => 'sometimes|required|string|max:500',
+            'precio_oferta' => 'sometimes|required|integer|min:0',
+            'fecha' => 'nullable|date',
+            'dia_semana' => 'nullable|string|max:30',
+        ]);
         return response()->json($this->ofertaService->updateOferta($id, $data));
     }
 

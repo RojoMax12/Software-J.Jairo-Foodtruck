@@ -262,7 +262,7 @@ onMounted(async () => {
     try {
         const [catsRes, prodsRes] = await Promise.allSettled([
             categoryService.getPublicCategories(),
-            productService.getPublicProducts()
+            productService.getPublicProducts({ summary: 1 })
         ])
 
         const dbCats = catsRes.status === 'fulfilled' ? catsRes.value.data || [] : []
