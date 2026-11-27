@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\OfertaService;
+use App\Support\CatalogCache;
 use Illuminate\Http\Request;
 
 class OfertaController extends Controller
@@ -32,7 +33,9 @@ class OfertaController extends Controller
             'fecha' => 'nullable|date',
             'dia_semana' => 'nullable|string|max:30',
         ]);
-        return response()->json($this->ofertaService->createOferta($data), 201);
+        $created = $this->ofertaService->createOferta($data);
+        CatalogCache::invalidate();
+        return response()->json($created, 201);
     }
 
     public function update(Request $request, $id)
@@ -43,12 +46,15 @@ class OfertaController extends Controller
             'fecha' => 'nullable|date',
             'dia_semana' => 'nullable|string|max:30',
         ]);
-        return response()->json($this->ofertaService->updateOferta($id, $data));
+        $updated = $this->ofertaService->updateOferta($id, $data);
+        CatalogCache::invalidate();
+        return response()->json($updated);
     }
 
     public function destroy($id)
     {
         $this->ofertaService->deleteOfertaById($id);
+        CatalogCache::invalidate();
         return response()->json(null, 204);
     }
 }

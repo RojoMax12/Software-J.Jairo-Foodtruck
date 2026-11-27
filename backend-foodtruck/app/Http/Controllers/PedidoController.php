@@ -109,9 +109,23 @@ class PedidoController extends Controller
         return response()->json($this->pedidoService->updatePedido($id, $data));
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        $this->pedidoService->deletePedidoById($id);
+        $user = $request->user();
+        if (!$user || (int)$user->id_rol !== 1) {
+            return response()->json(['message' => 'Solo un administrador puede eliminar pedidos.'], 403);
+        }
+
+        $pedido = $this->pedidoService->getPedidoById($id);
+        if (!$pedido) {
+            return response()->json(['message' => 'Pedido no encontrado.'], 404);
+        }
+
+        if ($pedido->inventario_descontado) {
+            $this->pedidoService->revertirInventario($pedido->id_pedido);
+        }
+
+        $this->pedidoService->deletePedidoById($pedido->id_pedido);
         return response()->json(null, 204);
     }
 

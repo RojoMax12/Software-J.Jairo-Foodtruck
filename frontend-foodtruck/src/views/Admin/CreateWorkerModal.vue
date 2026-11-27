@@ -183,6 +183,7 @@ import { computed, ref } from 'vue'
 import { useNotification } from '@/composables/useNotification'
 import { ChevronDown, UserPlus } from 'lucide-vue-next'
 import userService from '@/services/userService'
+import { checkPasswordRequirements, isStrongPassword, isValidChileanPhone, isValidEmail } from '@/utils/validators'
 import type { CreateWorkerRequest } from '@/services/userService'
 
 const { notify } = useNotification()
@@ -218,33 +219,10 @@ const isFormValid = computed(() => {
     )
 })
 
-const isPhoneValid = computed(() => {
-    const phoneRegex = /^(?:\+?56\s?9\s?\d{4}\s?\d{4}|9\s?\d{4}\s?\d{4})$/
-
-    return phoneRegex.test(phone.value.trim())
-})
-
-const isEmailValid = computed(() => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)
-})
-
-const passwordRequirements = computed(() => ({
-    minLength: password.value.length >= 8,
-    upperCase: /[A-Z]/.test(password.value),
-    lowerCase: /[a-z]/.test(password.value),
-    number: /[0-9]/.test(password.value),
-    specialChar: /[@$!%*?&_#\-+=~`^().]/.test(password.value),
-}))
-
-const isPasswordValid = computed(() => {
-    return (
-        passwordRequirements.value.minLength &&
-        passwordRequirements.value.upperCase &&
-        passwordRequirements.value.lowerCase &&
-        passwordRequirements.value.number &&
-        passwordRequirements.value.specialChar
-    )
-})
+const isPhoneValid = computed(() => isValidChileanPhone(phone.value))
+const isEmailValid = computed(() => isValidEmail(email.value))
+const passwordRequirements = computed(() => checkPasswordRequirements(password.value))
+const isPasswordValid = computed(() => isStrongPassword(password.value))
 
 const createWorker = async () => {
     if (role.value === null) {

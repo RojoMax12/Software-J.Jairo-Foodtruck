@@ -74,7 +74,7 @@ const isActive = (path: string) => {
         </nav>
 
         <div class="sidebar-footer">
-          <span class="version-text">Portal Distribuidor - Di Creme</span>
+          <span class="version-text">Portal Clientes - Foodtruck J.Junior</span>
         </div>
 
       </aside>

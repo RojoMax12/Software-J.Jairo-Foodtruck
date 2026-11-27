@@ -50,6 +50,7 @@ class ProductoController extends Controller
             'precio' => 'nullable|numeric|min:0',
             'id_tamaño' => 'nullable|integer|exists:tamaños,id_tamaño',
             'precios_tamanos' => 'nullable|array',
+            'ingredientes' => 'nullable|array',
         ]);
 
         // Normalización de campos obligatorios para PostgreSQL
@@ -82,9 +83,10 @@ class ProductoController extends Controller
 
         $producto = $this->productoService->createProducto($data);
 
-        // Sincronizar precios por tamaño si fueron enviados
+        // Sincronizar precios por tamaño e ingredientes si fueron enviados
         if ($producto) {
             $this->syncTamañosPrecios($producto, $data);
+            $this->syncIngredientes($producto, $data);
         }
 
         CatalogCache::invalidate();
@@ -129,9 +131,10 @@ class ProductoController extends Controller
 
         $producto = $this->productoService->updateProducto($id, $data);
 
-        // Sincronizar precios por tamaño si fueron enviados
+        // Sincronizar precios por tamaño e ingredientes si fueron enviados
         if ($producto) {
             $this->syncTamañosPrecios($producto, $data);
+            $this->syncIngredientes($producto, $data);
         }
 
         CatalogCache::invalidate();
@@ -183,6 +186,72 @@ class ProductoController extends Controller
             }
         } catch (\Throwable $e) {
             \Log::warning('No se pudo sincronizar producto_tamaño: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Sincroniza la receta base de ingredientes manteniendo extras y configuraciones previas.
+     */
+    protected function syncIngredientes($producto, array $data): void
+    {
+        if (!array_key_exists('ingredientes', $data) || !is_array($data['ingredientes'])) {
+            return;
+        }
+
+        try {
+            $selectedIds = [];
+            foreach ($data['ingredientes'] as $entry) {
+                if (is_numeric($entry)) {
+                    $ing = \App\Models\Ingrediente::find((int)$entry);
+                } else {
+                    $name = is_array($entry)
+                        ? trim((string)($entry['nombre'] ?? $entry['name'] ?? ''))
+                        : trim((string)$entry);
+                    if ($name === '') {
+                        continue;
+                    }
+                    $ing = \App\Models\Ingrediente::whereRaw('LOWER(nombre) = ?', [mb_strtolower($name, 'UTF-8')])->first();
+                    if (!$ing) {
+                        $ing = \App\Models\Ingrediente::create([
+                            'nombre' => $name,
+                            'cantidad_actual' => 0,
+                            'cantidad_minima' => 0,
+                            'disponible' => true,
+                            'tipo_inventario' => 'unidad',
+                            'unidades_por_pack' => 1,
+                            'es_cuantificable' => true,
+                            'fecha_de_ingreso' => now(),
+                        ]);
+                    }
+                }
+                if ($ing) {
+                    $selectedIds[] = (int)$ing->id_ingrediente;
+                }
+            }
+
+            $selectedIds = array_values(array_unique($selectedIds));
+
+            \App\Models\Producto_ingrediente::where('id_producto', $producto->id_producto)
+                ->where('incluido_por_defecto', true)
+                ->when(!empty($selectedIds), fn ($q) => $q->whereNotIn('id_ingrediente', $selectedIds))
+                ->delete();
+
+            foreach ($selectedIds as $ingId) {
+                $exists = \App\Models\Producto_ingrediente::where('id_producto', $producto->id_producto)
+                    ->where('id_ingrediente', $ingId)
+                    ->exists();
+
+                if (!$exists) {
+                    \App\Models\Producto_ingrediente::create([
+                        'id_producto' => $producto->id_producto,
+                        'id_ingrediente' => $ingId,
+                        'cantidad' => 1,
+                        'incluido_por_defecto' => true,
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('No se pudo sincronizar producto_ingrediente: ' . $e->getMessage());
         }
     }
 

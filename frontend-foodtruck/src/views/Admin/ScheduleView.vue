@@ -402,27 +402,35 @@ const saveDay = async (item: ScheduleItem) => {
 
 const saveAllSchedules = async () => {
   isSavingAll.value = true;
-  let savedCount = 0;
   try {
-    for (const item of schedules.value) {
-      const payload = {
-        hora_apertura: item.hora_apertura,
-        hora_cierre: item.hora_cierre,
-        minuto_colchon: item.minuto_colchon,
-        activo: item.activo,
-      };
-      await scheduleService.updateSchedule(item.id_horario_atencion, payload);
-      dirtyMap.value[item.id_horario_atencion] = false;
-      savedCount++;
-    }
-    const shiftRes = await scheduleService.getCurrentShift();
+    const results = await Promise.allSettled(
+      schedules.value.map(async (item) => {
+        const payload = {
+          hora_apertura: item.hora_apertura,
+          hora_cierre: item.hora_cierre,
+          minuto_colchon: item.minuto_colchon,
+          activo: item.activo,
+        };
+        await scheduleService.updateSchedule(item.id_horario_atencion, payload);
+        dirtyMap.value[item.id_horario_atencion] = false;
+        return getDayName(item.dia_semana);
+      })
+    );
+
+    const failedDays = results
+      .map((res, idx) => (res.status === 'rejected' ? getDayName(schedules.value[idx]?.dia_semana ?? idx) : null))
+      .filter((n): n is string => Boolean(n));
+
+    const shiftRes = await scheduleService.getCurrentShift().catch(() => null);
     if (shiftRes?.data) {
       currentShift.value = shiftRes.data;
     }
-    showToast(`¡Todos los horarios de la semana (${savedCount} días) fueron actualizados!`);
-  } catch (err: any) {
-    console.error('Error al guardar todos los horarios:', err);
-    showToast('Ocurrió un problema al guardar algunos horarios.', 'error');
+
+    if (failedDays.length === 0) {
+      showToast(`¡Todos los horarios de la semana (${schedules.value.length} días) fueron actualizados!`);
+    } else {
+      showToast(`No se pudieron guardar: ${failedDays.join(', ')}.`, 'error');
+    }
   } finally {
     isSavingAll.value = false;
   }

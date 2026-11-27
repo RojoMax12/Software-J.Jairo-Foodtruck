@@ -10,6 +10,8 @@ import {
   Palette,
   History,
   Clock,
+  FolderTree,
+  Tag,
   Tv,
   ExternalLink
 } from 'lucide-vue-next'
@@ -111,6 +113,24 @@ const isActive = (path: string) => {
             >
               <PackageSearch :size="18" class="nav-icon" />
               <span>Catálogo & Carta</span>
+            </button>
+
+            <button 
+              class="nav-item" 
+              :class="{ active: isActive('/general-home/admin/categories') }"
+              @click="navigateTo('/general-home/admin/categories')"
+            >
+              <FolderTree :size="18" class="nav-icon" />
+              <span>Categorías</span>
+            </button>
+
+            <button 
+              class="nav-item" 
+              :class="{ active: isActive('/general-home/admin/sizes') }"
+              @click="navigateTo('/general-home/admin/sizes')"
+            >
+              <Tag :size="18" class="nav-icon" />
+              <span>Tamaños & Formatos</span>
             </button>
 
             <button 

@@ -24,14 +24,31 @@
           </div>
           <div class="pill-group">
             <button
-              v-for="category in uniqueCategories"
+              type="button"
+              class="pill"
+              :class="{ active: activeCategory === 'all' }"
+              @click="activeCategory = 'all'"
+            >
+              Todos
+            </button>
+            <button
+              v-if="offerProductsCount > 0"
+              type="button"
+              class="pill pill-offer"
+              :class="{ active: activeCategory === '__offers__' }"
+              @click="activeCategory = '__offers__'"
+            >
+              🔥 En Oferta ({{ offerProductsCount }})
+            </button>
+            <button
+              v-for="category in uniqueCategories.filter((c) => c !== 'all')"
               :key="category"
               type="button"
               class="pill"
               :class="{ active: activeCategory === category }"
               @click="activeCategory = category"
             >
-              {{ category === 'all' ? 'Todos' : category }}
+              {{ category }}
             </button>
           </div>
 
@@ -47,11 +64,20 @@
               :key="item.id"
               type="button"
               class="product-option"
-              :class="{ active: selectedCatalogProduct?.id === item.id }"
+              :class="{ active: selectedCatalogProduct?.id === item.id, 'is-offer-row': isItemOffer(item) }"
               @click="selectCatalogProduct(item)"
             >
-              <span class="option-name">{{ item.name }}</span>
-              <span class="option-meta">{{ item.category }}</span>
+              <div class="option-left">
+                <span class="option-name">{{ item.name }}</span>
+                <div class="option-tags">
+                  <span v-if="isItemOffer(item)" class="offer-inline-badge">OFERTA</span>
+                  <span class="option-meta">{{ item.category }}</span>
+                </div>
+              </div>
+              <div class="option-price-col">
+                <span v-if="itemOriginalPrice(item) > itemDisplayPrice(item)" class="price-struck">${{ formatCLP(itemOriginalPrice(item)) }}</span>
+                <strong class="price-current" :class="{ 'price-offer': isItemOffer(item) }">${{ formatCLP(itemDisplayPrice(item)) }}</strong>
+              </div>
             </button>
           </div>
           <div v-else class="empty-products">No se encontraron productos coincidentes.</div>
@@ -70,6 +96,7 @@
               @click="selectedSize = typeof size === 'object' ? size.name : size"
             >
               <span class="size-name">{{ typeof size === 'object' ? size.name : size }}</span>
+              <span v-if="typeof size === 'object' && size.hasPromotion && size.originalPrice > size.price" class="size-price-old">${{ formatCLP(size.originalPrice) }}</span>
               <span v-if="typeof size === 'object' && size.price" class="size-price">${{ formatCLP(size.price) }}</span>
             </button>
           </div>
@@ -178,6 +205,10 @@
 import { ref, computed, watch } from 'vue';
 import { X } from 'lucide-vue-next';
 import { formatCLP } from '@/utils/format';
+import { useNotification } from '@/composables/useNotification';
+
+const { notify } = useNotification();
+import { computeDeterministicExtrasCost, supportsAderezosGratuitos } from '@/utils/catalogPricing';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -207,13 +238,54 @@ const addQuantity = ref(1);
 const searchQuery = ref('');
 const activeCategory = ref('all');
 
+const isItemOffer = (item: any): boolean => {
+  if (!item) return false;
+  const catLow = String(item.category || '').toLowerCase();
+  const nameLow = String(item.name || '').toLowerCase();
+  return Boolean(
+    item.en_oferta ||
+    item.hasPromotion ||
+    item.promocion_activa ||
+    (Array.isArray(item.promociones_activas) && item.promociones_activas.length > 0) ||
+    catLow.includes('promo') ||
+    catLow.includes('combo') ||
+    nameLow.includes('promo') ||
+    (Array.isArray(item.sizes) && item.sizes.some((s: any) => s?.hasPromotion))
+  );
+};
+
+const itemDisplayPrice = (item: any): number => {
+  if (!item) return 0;
+  if (Array.isArray(item.sizes) && item.sizes.length > 0) {
+    const prices = item.sizes.map((s: any) => Number(s?.price || 0)).filter((n: number) => n > 0);
+    if (prices.length > 0) return Math.min(...prices);
+  }
+  return Number(item.basePrice || 0);
+};
+
+const itemOriginalPrice = (item: any): number => {
+  if (!item) return 0;
+  if (Array.isArray(item.sizes) && item.sizes.length > 0) {
+    const firstPromoSize = item.sizes.find((s: any) => s?.hasPromotion && s?.originalPrice > s?.price);
+    if (firstPromoSize) return Number(firstPromoSize.originalPrice || 0);
+  }
+  return Number(item.originalBasePrice || itemDisplayPrice(item));
+};
+
+const offerProductsCount = computed(() => props.catalogProducts.filter(isItemOffer).length);
+
 const uniqueCategories = computed(() => ['all', ...new Set(props.catalogProducts.map((p: any) => p.category))]);
 
 const filteredCatalogProducts = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
   return props.catalogProducts.filter((p: any) => {
-    const matchesCat = activeCategory.value === 'all' || p.category === activeCategory.value;
-    const matchesQ = !q || p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
+    const matchesCat =
+      activeCategory.value === 'all'
+        ? true
+        : activeCategory.value === '__offers__'
+          ? isItemOffer(p)
+          : p.category === activeCategory.value;
+    const matchesQ = !q || p.name.toLowerCase().includes(q) || String(p.category || '').toLowerCase().includes(q);
     return matchesCat && matchesQ;
   });
 });
@@ -343,8 +415,13 @@ const extraChargeableCount = computed(() => {
 
 const extrasTotalPrice = computed(() => {
   if (!selectedCatalogProduct.value) return 0;
-  const pricePerExtra = selectedCatalogProduct.value.precio_ingrediente_extra || 0;
-  return extraChargeableCount.value * pricePerExtra;
+  return computeDeterministicExtrasCost({
+    selectedExtras: selectedOptionalIngredients.value,
+    productIngredients: selectedCatalogProduct.value.rawProductIngredients || selectedCatalogProduct.value.ingredients || [],
+    includedCount: Number(selectedCatalogProduct.value.cantidad_incluida || 0),
+    defaultExtraPrice: Number(selectedCatalogProduct.value.precio_ingrediente_extra || 0),
+    allowFreeAderezos: supportsAderezosGratuitos(selectedCatalogProduct.value),
+  });
 });
 
 const increaseAddQuantity = () => addQuantity.value++;
@@ -372,7 +449,7 @@ const confirmAddProduct = () => {
   if (isPersonalizable) {
     const includedCount = selectedCatalogProduct.value.cantidad_incluida || 3;
     if (selectedOptionalIngredients.value.length < includedCount) {
-      alert(`Debes elegir al menos ${includedCount} ingredientes para este producto. Te faltan ${includedCount - selectedOptionalIngredients.value.length}.`);
+      notify(`Debes elegir al menos ${includedCount} ingredientes para este producto. Te faltan ${includedCount - selectedOptionalIngredients.value.length}.`, 'warning');
       return;
     }
   }
@@ -554,8 +631,19 @@ const confirmAddProduct = () => {
   font-weight: 800;
 }
 
+.option-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.option-tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .option-name { font-size: 0.84rem; font-weight: 700; }
 .option-meta { font-size: 0.74rem; color: var(--DC-text-gray, #7c7468); }
+.offer-inline-badge { background: linear-gradient(135deg, #d80056 0%, #e28743 100%); color: #fff; font-size: 0.62rem; font-weight: 800; padding: 1px 6px; border-radius: 999px; letter-spacing: 0.04em; }
+.option-price-col { display: flex; align-items: baseline; gap: 6px; flex-shrink: 0; }
+.price-struck { font-size: 0.72rem; color: #94a3b8; text-decoration: line-through; }
+.price-current { font-size: 0.85rem; color: var(--DC-brown, #513119); }
+.price-current.price-offer { color: #d80056; }
+.product-option.is-offer-row { border-color: rgba(216, 0, 86, 0.22); }
+.pill-offer { border-color: rgba(216, 0, 86, 0.25); color: #b91c1c; background: #fff1f2; }
+.pill-offer.active { background: #d80056; border-color: #d80056; color: #fff; }
+.size-price-old { font-size: 0.68rem; text-decoration: line-through; opacity: 0.7; }
 
 .empty-products {
   font-size: 0.82rem;

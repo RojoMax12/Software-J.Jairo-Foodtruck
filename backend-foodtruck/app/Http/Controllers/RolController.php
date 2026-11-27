@@ -34,6 +34,10 @@ class RolController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (in_array((int)$id, [1, 2, 3], true)) {
+            return response()->json(['message' => 'Los roles base del sistema no pueden modificarse.'], 422);
+        }
+
         $data = $request->validate([
             'nombre_rol' => 'sometimes|required|string|max:80',
         ]);
@@ -42,6 +46,10 @@ class RolController extends Controller
 
     public function destroy($id)
     {
+        if (in_array((int)$id, [1, 2, 3], true)) {
+            return response()->json(['message' => 'Los roles base del sistema no pueden eliminarse.'], 422);
+        }
+
         $this->rolService->deleteRole($id);
         return response()->json(null, 204);
     }

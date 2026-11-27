@@ -137,7 +137,7 @@ onMounted(async () => {
           id: det.id_producto || prod.id_producto,
           nombre: prod.nombre || det.nombre_producto || 'Producto',
           categoria: prod.categoria?.nombre || 'Foodtruck',
-          tamano: det.tamano?.nombre_tamaño || det.tamaño?.nombre_tamaño || '',
+          tamano: det.tamano?.nombre || det.tamaño?.nombre || det.tamano?.nombre_tamaño || det.tamaño?.nombre_tamaño || '',
           cantidad: qty,
           precio_unitario_venta: unitPrice,
           subtotal: unitPrice * qty,

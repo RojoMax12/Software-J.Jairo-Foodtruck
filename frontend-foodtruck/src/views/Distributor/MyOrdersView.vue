@@ -76,7 +76,12 @@ const fetchOrders = async () => {
 const applyPreset = (preset: 'all' | 'today' | '7days' | 'this_month' | 'custom') => {
   selectedPreset.value = preset
   const today = new Date()
-  const formatDateForInput = (d: Date): string => d.toISOString().slice(0, 10)
+  const formatDateForInput = (d: Date): string => {
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
 
   if (preset === 'all') {
     showCustomDates.value = false
@@ -240,11 +245,15 @@ const repeatOrder = (order: any) => {
       ? Number(det.precio_unitario.replace(/[^0-9.]/g, ''))
       : Number(det.precio_unitario || 0)
 
-    const sizeName = det.tamano?.nombre_tamaño || det.tamaño?.nombre_tamaño || (det.id_tamaño === 1 ? 'Único' : 'Normal')
+    const sizeName = det.tamano?.nombre || det.tamaño?.nombre || det.tamano?.nombre_tamaño || det.tamaño?.nombre_tamaño || (det.id_tamaño === 1 ? 'Único' : 'Normal')
+    const prodNumericId = det.id_producto || prod.id_producto || det.id || 1
+    const exclusionKey = [...rawExcluidos].sort().join('-')
+    const additionKey = [...rawAgregados].sort().join('-')
+    const compositeCartId = `${prodNumericId}_${sizeName}_${exclusionKey}_${additionKey}_repeat`
 
     return {
-      id: det.id_producto || prod.id_producto || det.id || 1,
-      id_producto: det.id_producto || prod.id_producto || det.id || 1,
+      id: compositeCartId,
+      id_producto: prodNumericId,
       name: prod.nombre || det.nombre_producto || 'Producto',
       fullName: `${prod.nombre || det.nombre_producto || 'Producto'}${sizeName && sizeName !== 'Único' && sizeName !== 'Normal' ? ` (${sizeName})` : ''}`.trim(),
       category: prod.categoria?.nombre || 'Foodtruck',
@@ -407,8 +416,8 @@ onMounted(() => {
                 <div class="item-name-group">
                   <span class="item-quantity">{{ item.cantidad }}x</span>
                   <span class="item-product-name">{{ item.producto?.nombre ?? item.nombre_producto ?? 'Producto' }}</span>
-                  <span class="item-size-badge" v-if="item.tamano?.nombre_tamaño && item.tamano.nombre_tamaño !== 'Único' && item.tamano.nombre_tamaño !== 'Normal'">
-                    ({{ item.tamano.nombre_tamaño }})
+                  <span class="item-size-badge" v-if="(item.tamano?.nombre || item.tamaño?.nombre || item.tamano?.nombre_tamaño) && (item.tamano?.nombre || item.tamaño?.nombre || item.tamano?.nombre_tamaño) !== 'Único' && (item.tamano?.nombre || item.tamaño?.nombre || item.tamano?.nombre_tamaño) !== 'Normal'">
+                    ({{ item.tamano?.nombre || item.tamaño?.nombre || item.tamano?.nombre_tamaño }})
                   </span>
                 </div>
 

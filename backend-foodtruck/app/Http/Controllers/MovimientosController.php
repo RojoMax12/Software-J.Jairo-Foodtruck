@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Movimientos;
 use App\Services\MovimientosServices;
 use Illuminate\Http\Request;
 
@@ -17,7 +18,16 @@ class MovimientosController extends Controller
     public function index(Request $request)
     {
         $idIngrediente = $request->query('id_ingrediente');
-        $limit = (int) $request->query('limit', 100);
+        if ($request->has('page') || $request->boolean('paginate')) {
+            $perPage = max(1, min(200, (int) $request->query('per_page', 50)));
+            $query = Movimientos::with(['ingrediente'])->orderBy('id_movimiento', 'desc');
+            if ($idIngrediente) {
+                $query->where('id_ingrediente', $idIngrediente);
+            }
+            return response()->json($query->paginate($perPage));
+        }
+
+        $limit = max(1, min(500, (int) $request->query('limit', 100)));
         return response()->json($this->movimientosService->getAllMovimientos($idIngrediente, $limit));
     }
 
@@ -32,6 +42,11 @@ class MovimientosController extends Controller
 
     public function store(Request $request)
     {
+        $user = $request->user();
+        if (!$user || (int)$user->id_rol !== 1) {
+            return response()->json(['message' => 'Solo un administrador puede registrar ajustes manuales de kardex.'], 403);
+        }
+
         $data = $request->validate([
             'id_ingrediente' => 'required|integer|exists:ingredientes,id_ingrediente',
             'cantidad' => 'required|numeric|min:0',
@@ -44,6 +59,11 @@ class MovimientosController extends Controller
 
     public function update(Request $request, $id)
     {
+        $user = $request->user();
+        if (!$user || (int)$user->id_rol !== 1) {
+            return response()->json(['message' => 'Solo un administrador puede modificar movimientos de kardex.'], 403);
+        }
+
         $data = $request->validate([
             'id_ingrediente' => 'sometimes|required|integer|exists:ingredientes,id_ingrediente',
             'cantidad' => 'sometimes|required|numeric|min:0',
@@ -57,8 +77,13 @@ class MovimientosController extends Controller
         return response()->json($movimiento);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
+        $user = $request->user();
+        if (!$user || (int)$user->id_rol !== 1) {
+            return response()->json(['message' => 'Solo un administrador puede eliminar movimientos de kardex.'], 403);
+        }
+
         $deleted = $this->movimientosService->deleteMovimientoById($id);
         if (!$deleted) {
             return response()->json(['message' => 'Movimiento no encontrado'], 404);

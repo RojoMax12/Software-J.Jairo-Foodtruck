@@ -57,7 +57,7 @@
                 :key="getItemKey(item)" 
                 class="cart-item"
               >
-                <img :src="item.image || '/src/assets/placeholder-food.webp'" :alt="item.name" class="item-img" />
+                <img :src="item.image || logoImg" :alt="item.name" class="item-img" />
                 
                 <div class="item-details">
                   <div class="item-header-row">
@@ -97,7 +97,10 @@
                   </div>
                   
                   <div class="item-action-row">
-                    <span class="item-price-info">${{ formatPrice(item.price) }}</span>
+                    <div class="item-price-block">
+                      <span class="item-price-info">${{ formatPrice(parseNumericPrice(item.price) * (Number(item.quantity) || 1)) }}</span>
+                      <small v-if="(Number(item.quantity) || 1) > 1" style="display:block;font-size:0.7rem;color:#7c7468;">${{ formatPrice(item.price) }} c/u</small>
+                    </div>
                     
                     <div class="item-quantity-selector">
                       <button 
@@ -165,6 +168,7 @@
 import { computed } from 'vue';
 import { X, Trash2, Plus, Minus, ShoppingCart, ShoppingBag, Clock, ArrowRight, MessageSquare } from 'lucide-vue-next';
 import { formatCLP, parseNumericPrice } from '@/utils/format';
+import logoImg from '@/assets/logo_jairo.webp';
 
 const props = withDefaults(
   defineProps<{

@@ -83,8 +83,17 @@
         <p>Turnos de apertura, días de descanso y tolerancia nocturna</p>
       </router-link>
 
+      <!-- 8B. AUDITORÍA DEL SISTEMA (SOLO ADMIN) -->
+      <router-link v-role="[1]" to="/general-home/admin/history" class="admin-option-card">
+        <div class="icon-container icon-brown">
+          <History :size="38" />
+        </div>
+        <h2>Auditoría del Sistema</h2>
+        <p>Trazabilidad completa de pedidos, caja, stock y personal</p>
+      </router-link>
+
       <!-- 9. MENU BOARD DIGITAL (TV EXTERNA) -->
-      <a href="/menu-board" target="_blank" rel="noopener noreferrer" class="admin-option-card menu-board-card">
+      <a v-role="[1]" href="/menu-board" target="_blank" rel="noopener noreferrer" class="admin-option-card menu-board-card">
         <div class="icon-container icon-tv">
           <Tv :size="38" />
         </div>
@@ -104,7 +113,7 @@ import { ref, onMounted } from 'vue';
 import { 
   BadgeDollarSign, ShoppingBag, Package, Store, 
   Users, PackageSearch, Clock, Tv, Palette, 
-  Sparkles, ExternalLink 
+  History, ExternalLink 
 } from 'lucide-vue-next';
 
 const userRoleName = ref('Administración');
@@ -121,8 +130,6 @@ onMounted(() => {
         userRoleName.value = 'Administración';
       } else if (rId === 3) {
         userRoleName.value = 'Trabajador';
-      } else if (rId === 2) {
-        userRoleName.value = 'Cliente';
       } else {
         userRoleName.value = u.rol?.nombre_rol || 'Operaciones';
       }

@@ -566,45 +566,60 @@ const handleFileUpload = async (event: Event) => {
   }
 };
 
-const submitBannerForm = () => {
+const submitBannerForm = async () => {
   if (!bannerForm.value.image) return;
 
-  if (isEditingBanner.value) {
-    updateBanner(editingBannerId.value, {
-      title: bannerForm.value.title,
-      subtitle: bannerForm.value.subtitle,
-      image: bannerForm.value.image,
-      active: bannerForm.value.active
-    });
-    notify('Banner actualizado correctamente', 'success');
-  } else {
-    addBanner({
-      title: bannerForm.value.title,
-      subtitle: bannerForm.value.subtitle,
-      image: bannerForm.value.image,
-      active: bannerForm.value.active
-    });
-    notify('Nuevo banner añadido al carrusel', 'success');
+  try {
+    if (isEditingBanner.value) {
+      await updateBanner(editingBannerId.value, {
+        title: bannerForm.value.title,
+        subtitle: bannerForm.value.subtitle,
+        image: bannerForm.value.image,
+        active: bannerForm.value.active
+      });
+      notify('Banner actualizado correctamente', 'success');
+    } else {
+      await addBanner({
+        title: bannerForm.value.title,
+        subtitle: bannerForm.value.subtitle,
+        image: bannerForm.value.image,
+        active: bannerForm.value.active
+      });
+      notify('Nuevo banner añadido al carrusel', 'success');
+    }
+    isBannerModalOpen.value = false;
+  } catch (err: any) {
+    notify(err?.response?.data?.message || 'Error al guardar el banner en el servidor.', 'error');
   }
-  isBannerModalOpen.value = false;
 };
 
-const toggleBannerActive = (banner: BannerItem) => {
-  updateBanner(banner.id, { active: !banner.active });
-  notify(`Banner ${!banner.active ? 'activado' : 'desactivado'}`, 'success');
+const toggleBannerActive = async (banner: BannerItem) => {
+  try {
+    const nextState = !banner.active;
+    await updateBanner(banner.id, { active: nextState });
+    notify(`Banner ${nextState ? 'activado' : 'desactivado'}`, 'success');
+  } catch (err: any) {
+    notify(err?.response?.data?.message || 'No se pudo actualizar el estado del banner.', 'error');
+  }
 };
 
-const deleteBanner = (id: string) => {
-  if (confirm('¿Eliminar este banner del carrusel?')) {
-    removeBanner(id);
+const deleteBanner = async (id: string) => {
+  if (!confirm('¿Eliminar este banner del carrusel?')) return;
+  try {
+    await removeBanner(id);
     notify('Banner eliminado', 'warning');
+  } catch (err: any) {
+    notify(err?.response?.data?.message || 'No se pudo eliminar el banner.', 'error');
   }
 };
 
-const resetBanners = () => {
-  if (confirm('¿Restablecer los banners originales del sistema?')) {
-    resetDefaultBanners();
+const resetBanners = async () => {
+  if (!confirm('¿Restablecer los banners originales del sistema?')) return;
+  try {
+    await resetDefaultBanners();
     notify('Banners restablecidos', 'success');
+  } catch (err: any) {
+    notify(err?.response?.data?.message || 'No se pudieron restablecer los banners.', 'error');
   }
 };
 
@@ -647,33 +662,48 @@ const openEditAnnouncementModal = (ann: AnnouncementItem) => {
   isAnnModalOpen.value = true;
 };
 
-const submitAnnouncementForm = () => {
-  if (isEditingAnn.value) {
-    updateAnnouncement(editingAnnId.value, { ...annForm.value });
-    notify('Aviso actualizado', 'success');
-  } else {
-    addAnnouncement({ ...annForm.value });
-    notify('Nuevo aviso añadido a la marquesina', 'success');
+const submitAnnouncementForm = async () => {
+  try {
+    if (isEditingAnn.value) {
+      await updateAnnouncement(editingAnnId.value, { ...annForm.value });
+      notify('Aviso actualizado', 'success');
+    } else {
+      await addAnnouncement({ ...annForm.value });
+      notify('Nuevo aviso añadido a la marquesina', 'success');
+    }
+    isAnnModalOpen.value = false;
+  } catch (err: any) {
+    notify(err?.response?.data?.message || 'Error al guardar el aviso en el servidor.', 'error');
   }
-  isAnnModalOpen.value = false;
 };
 
-const toggleAnnouncementActive = (ann: AnnouncementItem) => {
-  updateAnnouncement(ann.id, { active: !ann.active });
-  notify(`Aviso ${!ann.active ? 'activado' : 'desactivado'}`, 'success');
+const toggleAnnouncementActive = async (ann: AnnouncementItem) => {
+  try {
+    const nextState = !ann.active;
+    await updateAnnouncement(ann.id, { active: nextState });
+    notify(`Aviso ${nextState ? 'activado' : 'desactivado'}`, 'success');
+  } catch (err: any) {
+    notify(err?.response?.data?.message || 'No se pudo actualizar el aviso.', 'error');
+  }
 };
 
-const deleteAnnouncement = (id: string) => {
-  if (confirm('¿Eliminar este aviso de la marquesina?')) {
-    removeAnnouncement(id);
+const deleteAnnouncement = async (id: string) => {
+  if (!confirm('¿Eliminar este aviso de la marquesina?')) return;
+  try {
+    await removeAnnouncement(id);
     notify('Aviso eliminado', 'warning');
+  } catch (err: any) {
+    notify(err?.response?.data?.message || 'No se pudo eliminar el aviso.', 'error');
   }
 };
 
-const resetAnnouncements = () => {
-  if (confirm('¿Restablecer los avisos originales del sistema?')) {
-    resetDefaultAnnouncements();
+const resetAnnouncements = async () => {
+  if (!confirm('¿Restablecer los avisos originales del sistema?')) return;
+  try {
+    await resetDefaultAnnouncements();
     notify('Avisos restablecidos', 'success');
+  } catch (err: any) {
+    notify(err?.response?.data?.message || 'No se pudieron restablecer los avisos.', 'error');
   }
 };
 </script>

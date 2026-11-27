@@ -359,6 +359,17 @@
       </footer>
     </div>
 
+    <ConfirmModal
+      v-if="isCancelConfirmOpen"
+      type="cancel"
+      :title="`¿Cancelar pedido #${orderId}?`"
+      description="Esta acción marcará la comanda como cancelada y no se podrá reactivar ni cobrar."
+      confirm-text="Sí, cancelar pedido"
+      cancel-text="Volver"
+      @confirm="executeCancelOrder"
+      @cancel="isCancelConfirmOpen = false"
+    />
+
     <!-- ===================== SUBMODAL: AGREGAR PRODUCTO ===================== -->
     <OrderAddProductModal
       :is-open="isAddModalOpen"
@@ -395,8 +406,10 @@ import orderService from '@/services/orderService';
 import productService from '@/services/productService';
 import stockService from '@/services/stockService';
 import { formatCLP } from '@/utils/format';
+import { extractValidPromotions, buildSizePricingMaps } from '@/composables/useCatalogMapper';
 import OrderAddProductModal from './components/OrderAddProductModal.vue';
 import KitchenVoucher from './components/KitchenVoucher.vue';
+import ConfirmModal from '@/components/ConfirmModal.vue';
 
 const { notify } = useNotification();
 const props = defineProps<{
@@ -413,6 +426,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['close', 'statusChanged', 'status-changed']);
+const isCancelConfirmOpen = ref(false);
 const localStatus = ref(props.status || 'Pendiente');
 const localStatusId = ref(props.statusId ? Number(props.statusId) : 1);
 const localPaymentStatusId = ref(props.rawOrder?.id_estado_pago ? Number(props.rawOrder.id_estado_pago) : 1);
@@ -606,20 +620,52 @@ const loadCatalogProducts = async () => {
       return isActivo && isDisponible;
     });
     
-    catalogProducts.value = activeRawProducts.map((product: any) => {
+    const mappedCatalog = activeRawProducts.map((product: any) => {
       const catName = product.categoria?.nombre_categoria || product.categoria?.nombre || product.id_categoria || 'Varios';
+      const validPromos = extractValidPromotions(product);
+      const { originalPricesMap, pricesMap, sizePromosMap } = buildSizePricingMaps(product, validPromos);
 
       const sizesArray = Array.isArray(product.tamaños) ? product.tamaños : (product.sizes || []);
       const sizesFormatted = sizesArray.length > 0
-        ? sizesArray.map((size: any) => ({
-            id: size.id_tamaño || size.pivot?.id_tamaño || size.id || 1,
-            name: size.nombre || 'Normal',
-            price: Number(size.pivot?.precio || size.pivot?.precio_venta || size.precio_venta || size.precio || 0)
-          }))
-        : [{ id: 1, name: 'Normal', price: Number(product.precio_base || product.precio || 0) }];
+        ? sizesArray.map((size: any) => {
+            const sName = String(size.nombre || 'Normal').trim();
+            const rawBase = Number(size.pivot?.precio || size.pivot?.precio_venta || size.precio_venta || size.precio || 0);
+            const origPrice = originalPricesMap[sName] ?? rawBase;
+            const finalPrice = pricesMap[sName] ?? rawBase;
+            const promoForSize = sizePromosMap[sName] || null;
+            return {
+              id: size.id_tamaño || size.pivot?.id_tamaño || size.id || 1,
+              name: sName,
+              price: finalPrice,
+              originalPrice: origPrice,
+              hasPromotion: Boolean(promoForSize) && origPrice > finalPrice && finalPrice > 0,
+              promocionTitulo: promoForSize?.titulo || '',
+            };
+          })
+        : (() => {
+            const rawBase = Number(product.precio_base || product.precio || 0);
+            const origPrice = originalPricesMap['Normal'] ?? rawBase;
+            const finalPrice = pricesMap['Normal'] ?? rawBase;
+            const promoObj = sizePromosMap['Normal'] || null;
+            return [{
+              id: 1,
+              name: 'Normal',
+              price: finalPrice,
+              originalPrice: origPrice,
+              hasPromotion: Boolean(promoObj) && origPrice > finalPrice && finalPrice > 0,
+              promocionTitulo: promoObj?.titulo || '',
+            }];
+          })();
 
-      const rawIngredients = Array.isArray(product.ingredientes) 
-        ? product.ingredientes 
+      const hasPromo = sizesFormatted.some((s: any) => s.hasPromotion) ||
+        validPromos.length > 0 ||
+        Boolean(product.en_oferta) ||
+        String(catName).toLowerCase().includes('promo') ||
+        String(catName).toLowerCase().includes('combo') ||
+        String(product.nombre || '').toLowerCase().includes('promo');
+
+      const rawIngredients = Array.isArray(product.ingredientes)
+        ? product.ingredientes
         : (product.producto_ingrediente || []);
 
       const ingredientsFormatted = rawIngredients.map((item: any) => {
@@ -628,7 +674,8 @@ const loadCatalogProducts = async () => {
           id: ingObj.id_ingrediente || item.id_ingrediente || item.id,
           name: ingObj.nombre || item.nombre || (typeof item === 'string' ? item : 'Ingrediente'),
           cantidad: item.cantidad || 1,
-          incluido_por_defecto: item.incluido_por_defecto === true || item.incluido_por_defecto === 1 || item.incluido_por_defecto === '1'
+          incluido_por_defecto: item.incluido_por_defecto === true || item.incluido_por_defecto === 1 || item.incluido_por_defecto === '1',
+          precio_extra: item.precio_extra ?? null,
         };
       });
 
@@ -641,9 +688,18 @@ const loadCatalogProducts = async () => {
         precio_ingrediente_extra: Number(product.precio_ingrediente_extra || 500),
         sizes: sizesFormatted,
         ingredients: ingredientsFormatted,
-        basePrice: sizesFormatted[0]?.price || 0
+        rawProductIngredients: rawIngredients,
+        basePrice: sizesFormatted[0]?.price || 0,
+        originalBasePrice: sizesFormatted[0]?.originalPrice || sizesFormatted[0]?.price || 0,
+        hasPromotion: hasPromo,
+        en_oferta: hasPromo,
+        promocion_activa: validPromos[0] || null,
+        promociones_activas: validPromos,
       };
     });
+
+    // Mostrar primero los productos en oferta / promoción para acceso rápido en comandas
+    catalogProducts.value = mappedCatalog.sort((a: any, b: any) => Number(b.en_oferta) - Number(a.en_oferta));
 
   } catch (error) {
     console.error('Error al cargar catálogo en modal:', error);
@@ -1025,7 +1081,7 @@ const updatePaymentMethod = async () => {
   }
 };
 
-const cancelOrder = async () => {
+const cancelOrder = () => {
   if (localStatusId.value === 4) {
     notify('Un pedido que ya ha sido entregado no puede ser cancelado.', 'error');
     return;
@@ -1034,8 +1090,11 @@ const cancelOrder = async () => {
     notify('Este pedido ya se encuentra cancelado.', 'warning');
     return;
   }
+  isCancelConfirmOpen.value = true;
+};
 
-  if (!confirm('¿Estás seguro de cancelar este pedido?')) return;
+const executeCancelOrder = async () => {
+  isCancelConfirmOpen.value = false;
   try {
     const targetId = props.realId || props.orderId;
     await orderService.updateOrder(targetId, { id_estado_pedido: 5, total: totalAmount.value });

@@ -639,17 +639,10 @@ const getExtraIngredientUnitPrice = (pi: any): number => {
 // Cálculo del costo adicional por agregados opcionales (soporta precio_extra individual)
 // Cálculo del costo adicional por agregados opcionales (orden determinista ascendente para evitar arbitraje)
 const extraIngredientsCost = computed(() => {
-  const includedCount = minRequiredIngredients.value || Number(props.product?.cantidad_incluida || 0);
+  const includedCount = Number(props.product?.cantidad_incluida ?? selectedType.value?.cantidad_incluida ?? minRequiredIngredients.value ?? 0);
   const selectedNames = addedExtraIngredients.value;
   if (selectedNames.length <= includedCount) return 0;
 
-  let cost = 0;
-  selectedNames.forEach((name: string, index: number) => {
-    if (index < includedCount) return;
-    const pi = optionalExtraIngredients.value.find((item: any) => item.ingrediente?.nombre === name);
-    cost += getExtraIngredientUnitPrice(pi);
-  });
-  return cost;
   const sortedUnitCosts = selectedNames
     .map((name: string) => {
       const pi = optionalExtraIngredients.value.find((item: any) => item.ingrediente?.nombre === name);
@@ -658,7 +651,7 @@ const extraIngredientsCost = computed(() => {
     .sort((a: number, b: number) => a - b);
 
   return sortedUnitCosts
-    .slice(includedCount)
+    .slice(Math.max(0, includedCount))
     .reduce((sum: number, unitCost: number) => sum + unitCost, 0);
 });
 

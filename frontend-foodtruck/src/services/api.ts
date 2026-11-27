@@ -121,7 +121,8 @@ api.interceptors.response.use(
       localStorage.removeItem('user');
 
       const currentPath = window.location.pathname;
-      if (hadToken && currentPath !== '/login' && currentPath !== '/') {
+      const publicPaths = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/checkorderstatus', '/menu-board', '/tv-menu', '/cotizacion', '/cotizacion-exitosa'];
+      if (hadToken && !publicPaths.includes(currentPath)) {
         window.location.href = '/login?expired=1';
       }
     }

@@ -116,6 +116,7 @@ import {
   LogOut, LayoutDashboard, User 
 } from 'lucide-vue-next'
 import { getUserInitials } from '@/composables/useUserInitials'
+import { authService } from '@/services/authService'
 
 const router = useRouter()
 const route = useRoute()
@@ -172,12 +173,9 @@ const navigateTo = (path: string) => {
   router.push(path)
 }
 
-const handleLogout = () => {
+const handleLogout = async () => {
   isUserMenuOpen.value = false
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
-  localStorage.removeItem('access_token')
-  sessionStorage.clear()
+  await authService.logout()
   isLoggedIn.value = false
   username.value = ''
   roleId.value = null

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Horario_atencion;
 use App\Services\HorarioAtencionService;
 use Illuminate\Http\Request;
 
@@ -31,12 +32,18 @@ class HorarioAtencionController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'dia_semana' => 'required|integer|min:0|max:6',
+            'dia_semana' => 'required|integer|min:0|max:6|unique:horario_atencion,dia_semana',
             'hora_apertura' => ['required', 'string', 'regex:/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/'],
             'hora_cierre' => ['required', 'string', 'regex:/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/'],
             'minuto_colchon' => 'nullable|integer|min:0|max:180',
             'activo' => 'sometimes|boolean',
+        ], [
+            'dia_semana.unique' => 'Ya existe una configuración para este día de la semana.',
         ]);
+
+        if (substr((string)$data['hora_apertura'], 0, 5) === substr((string)$data['hora_cierre'], 0, 5)) {
+            return response()->json(['message' => 'La hora de apertura y la hora de cierre no pueden ser iguales.'], 422);
+        }
         if ($request->user()) {
             $data['id_usuario'] = $request->user()->id_usuario ?? $request->user()->id;
         }
@@ -57,10 +64,17 @@ class HorarioAtencionController extends Controller
             $validated['id_usuario'] = $request->user()->id_usuario ?? $request->user()->id;
         }
 
-        $horarioAtencion = $this->horarioAtencionService->updateHorarioAtencion($id, $validated);
-        if (!$horarioAtencion) {
+        $actual = Horario_atencion::find($id);
+        if (!$actual) {
             return response()->json(['message' => 'Horario de atención no encontrado'], 404);
         }
+        $apertura = substr((string)($validated['hora_apertura'] ?? $actual->hora_apertura), 0, 5);
+        $cierre = substr((string)($validated['hora_cierre'] ?? $actual->hora_cierre), 0, 5);
+        if ($apertura === $cierre) {
+            return response()->json(['message' => 'La hora de apertura y la hora de cierre no pueden ser iguales.'], 422);
+        }
+
+        $horarioAtencion = $this->horarioAtencionService->updateHorarioAtencion($id, $validated);
         return response()->json($horarioAtencion);
     }
 

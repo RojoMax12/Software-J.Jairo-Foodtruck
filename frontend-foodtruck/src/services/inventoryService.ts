@@ -20,12 +20,20 @@ export interface StockMovement {
   };
 }
 
+export type InventoryTrackingType = 'unidad' | 'pack' | 'no_cuantitativo';
+
 export interface InventoryItem {
   id: number | string;
   productName: string;
   shortLabel: string;
   categoryName: string;
   formatName: string;
+  tipoInventario: InventoryTrackingType;
+  unidadesPorPack: number;
+  esCuantificable: boolean;
+  packsCount: number;
+  remainderUnits: number;
+  stockDisplayLabel: string;
   quantity: number;
   minStock: number;
   disponible: boolean;
@@ -68,93 +76,6 @@ const statusLabelByType: Record<InventoryStatus, string> = {
   over: 'Sobre stock',
 };
 
-const dummyInventoryItems: InventoryItem[] = [
-  {
-    id: 1,
-    productName: 'Pan brioche burger',
-    shortLabel: 'PB',
-    categoryName: 'Panadería',
-    formatName: 'Unidad',
-    quantity: 78,
-    minStock: 30,
-    disponible: true,
-    status: 'ok',
-    statusLabel: statusLabelByType.ok,
-    statusClass: 'status-ok',
-    updatedLabel: '15 jun 2026',
-  },
-  {
-    id: 2,
-    productName: 'Carne smash 150g',
-    shortLabel: 'CS',
-    categoryName: 'Proteínas',
-    formatName: 'Kg',
-    quantity: 11,
-    minStock: 18,
-    disponible: true,
-    status: 'low',
-    statusLabel: statusLabelByType.low,
-    statusClass: 'status-low',
-    updatedLabel: '15 jun 2026',
-  },
-  {
-    id: 3,
-    productName: 'Papas prefritas',
-    shortLabel: 'PP',
-    categoryName: 'Acompañamientos',
-    formatName: 'Bolsa',
-    quantity: 0,
-    minStock: 6,
-    disponible: false,
-    status: 'critical',
-    statusLabel: statusLabelByType.critical,
-    statusClass: 'status-critical',
-    updatedLabel: '14 jun 2026',
-  },
-  {
-    id: 4,
-    productName: 'Envases para hamburguesa',
-    shortLabel: 'EH',
-    categoryName: 'Empaques',
-    formatName: 'Caja',
-    quantity: 96,
-    minStock: 25,
-    disponible: true,
-    status: 'over',
-    statusLabel: statusLabelByType.over,
-    statusClass: 'status-over',
-    updatedLabel: '15 jun 2026',
-  },
-  {
-    id: 5,
-    productName: 'Queso cheddar',
-    shortLabel: 'QC',
-    categoryName: 'Lácteos',
-    formatName: 'Kg',
-    quantity: 23,
-    minStock: 12,
-    disponible: true,
-    status: 'ok',
-    statusLabel: statusLabelByType.ok,
-    statusClass: 'status-ok',
-    updatedLabel: '13 jun 2026',
-  },
-  {
-    id: 6,
-    productName: 'Bebidas cola lata',
-    shortLabel: 'BC',
-    categoryName: 'Empaques',
-    formatName: 'Pack',
-    quantity: 7,
-    minStock: 12,
-    disponible: true,
-    status: 'low',
-    statusLabel: statusLabelByType.low,
-    statusClass: 'status-low',
-    updatedLabel: '12 jun 2026',
-  },
-];
-
 const detectCategoryName = (name: string): string => {
   if (!name) return 'Insumos Varios';
   const lower = name.toLowerCase();
@@ -176,37 +97,65 @@ const getInventoryItems = async (): Promise<InventoryItem[]> => {
     const stocksRes = await stockService.getStocks();
     const rawStocks = toArray(stocksRes);
 
-    if (rawStocks.length === 0) {
-      return dummyInventoryItems;
-    }
-
     return rawStocks.map((ingrediente: any, index: number) => {
       const stockId = ingrediente.id_ingrediente ?? index + 1;
       const quantity = Number(ingrediente.cantidad_actual ?? 0);
       const minStock = Number(ingrediente.cantidad_minima ?? 5);
-      const status = buildStatus(quantity, minStock);
-      const ingName = ingrediente.nombre || `Ingrediente #${stockId}`;
+      const rawTipo = String(ingrediente.tipo_inventario || '');
+      const esCuantificable = ingrediente.es_cuantificable !== undefined
+        ? Boolean(ingrediente.es_cuantificable)
+        : rawTipo !== 'no_cuantitativo';
+      const tipoInventario: InventoryTrackingType = !esCuantificable
+        ? 'no_cuantitativo'
+        : (rawTipo === 'pack' ? 'pack' : 'unidad');
+      const unidadesPorPack = tipoInventario === 'pack' ? Math.max(1, Number(ingrediente.unidades_por_pack || 1)) : 1;
+      const packsCount = tipoInventario === 'pack' ? Math.floor(quantity / unidadesPorPack) : 0;
+      const remainderUnits = tipoInventario === 'pack' ? (quantity % unidadesPorPack) : 0;
 
-      const isAvailable = ingrediente.disponible !== false && quantity > 0;
+      const formatName = tipoInventario === 'pack'
+        ? `Pack × ${unidadesPorPack} unid.`
+        : (tipoInventario === 'no_cuantitativo' ? 'Porción libre (Disp.)' : 'Unidad');
+
+      const stockDisplayLabel = !esCuantificable
+        ? (ingrediente.disponible !== false ? 'Disponible' : 'Agotado')
+        : tipoInventario === 'pack'
+          ? (remainderUnits > 0
+              ? `${packsCount} pk + ${remainderUnits} u (${quantity} unid.)`
+              : `${packsCount} pack${packsCount === 1 ? '' : 's'} (${quantity} unid.)`)
+          : `${quantity} unid.`;
+
+      const status = !esCuantificable
+        ? (ingrediente.disponible !== false ? 'ok' : 'critical')
+        : buildStatus(quantity, minStock);
+
+      const ingName = ingrediente.nombre || `Ingrediente #${stockId}`;
+      const isAvailable = esCuantificable
+        ? (ingrediente.disponible !== false && quantity > 0)
+        : (ingrediente.disponible !== false);
 
       return {
         id: stockId,
         productName: ingName,
         shortLabel: ingName.toString().slice(0, 2).toUpperCase(),
         categoryName: detectCategoryName(ingName),
-        formatName: 'Unidad',
+        formatName,
+        tipoInventario,
+        unidadesPorPack,
+        esCuantificable,
+        packsCount,
+        remainderUnits,
+        stockDisplayLabel,
         quantity,
         minStock,
         disponible: isAvailable,
-        status: status,
-        statusLabel: statusLabelByType[status],
+        status,
+        statusLabel: !esCuantificable ? (isAvailable ? 'Disponible' : 'Agotado') : statusLabelByType[status],
         statusClass: `status-${status}`,
         updatedLabel: formatDateLabel(ingrediente.updated_at || ingrediente.created_at),
       };
     });
   } catch (error) {
-    console.warn('Usando datos dummy de inventario por error en API:', error);
-    return dummyInventoryItems;
+    throw error;
   }
 };
 
@@ -217,16 +166,25 @@ export default {
     descripcion?: string;
     cantidad_actual: number;
     cantidad_minima: number;
+    cantidad_packs?: number;
+    tipo_inventario?: InventoryTrackingType;
+    unidades_por_pack?: number;
+    es_cuantificable?: boolean;
     fecha_de_ingreso?: string;
     disponible?: boolean;
   }) {
     const res = await stockService.createStock(data);
     return res.data;
   },
-  async updateInventoryQuantity(stockId: number, quantity: number) {
+  async updateInventoryQuantity(
+    stockId: number,
+    quantity: number,
+    extra?: { tipo_inventario?: InventoryTrackingType; unidades_por_pack?: number; es_cuantificable?: boolean }
+  ) {
     await stockService.updateStock(stockId, {
       cantidad_actual: quantity,
       cantidad_stock: quantity,
+      ...(extra || {}),
     });
 
     return getInventoryItems();

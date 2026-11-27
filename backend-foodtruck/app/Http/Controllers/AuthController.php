@@ -86,10 +86,9 @@ class AuthController extends Controller
 
         $validated = $request->validate([
             'nombre' => 'sometimes|string|max:150',
-            'apellido' => 'sometimes|nullable|string|max:150',
             'telefono' => 'sometimes|nullable|string|max:30',
-            'correo' => 'sometimes|email|unique:usuarios,correo,' . $user->id_usuario . ',id_usuario',
-            'correo_electronico' => 'sometimes|nullable|email',
+            'correo' => 'sometimes|email|max:150|unique:usuarios,correo,' . $user->id_usuario . ',id_usuario',
+            'correo_electronico' => 'sometimes|nullable|email|max:150|unique:usuarios,correo,' . $user->id_usuario . ',id_usuario',
             'password_actual' => 'nullable|string',
             'nueva_password' => [
                 'nullable',
@@ -98,10 +97,11 @@ class AuthController extends Controller
             ]
         ], [
             'correo.unique' => 'El correo electrónico ya se encuentra registrado por otro usuario.',
+            'correo_electronico.unique' => 'El correo electrónico ya se encuentra registrado por otro usuario.',
             'nueva_password.min' => 'La nueva contraseña debe tener al menos 8 caracteres.',
         ]);
 
-        // Si desea cambiar la contraseña, validar la contraseña actual
+        $passwordChanged = false;
         if (!empty($validated['nueva_password'])) {
             if (empty($validated['password_actual'])) {
                 return response()->json([
@@ -116,41 +116,50 @@ class AuthController extends Controller
             }
 
             $user->contrasena = Hash::make($validated['nueva_password']);
+            $passwordChanged = true;
         }
 
         if (isset($validated['nombre'])) {
             $user->nombre = $validated['nombre'];
-        }
-        if (array_key_exists('apellido', $validated)) {
-            $user->apellido = $validated['apellido'];
         }
         if (array_key_exists('telefono', $validated)) {
             $user->telefono = $validated['telefono'];
         }
         if (isset($validated['correo'])) {
             $user->correo = $validated['correo'];
-            $user->correo_electronico = $validated['correo'];
-        } elseif (isset($validated['correo_electronico'])) {
+        } elseif (!empty($validated['correo_electronico'])) {
             $user->correo = $validated['correo_electronico'];
-            $user->correo_electronico = $validated['correo_electronico'];
         }
 
         $user->save();
 
-        return response()->json([
+        $responsePayload = [
             'success' => true,
             'message' => 'Tus datos se han actualizado correctamente.',
             'user' => [
                 'id' => $user->id_usuario,
                 'id_usuario' => $user->id_usuario,
                 'nombre' => $user->nombre,
-                'apellido' => $user->apellido ?? '',
                 'correo' => $user->correo,
                 'correo_electronico' => $user->correo,
                 'telefono' => $user->telefono,
                 'id_rol' => $user->id_rol,
             ]
-        ]);
+        ];
+
+        if ($passwordChanged) {
+            $oldClaims = $request->attributes->get('jwt_claims');
+            if ($oldClaims) {
+                $this->jwtService->blacklist($oldClaims);
+            }
+            $rotated = $this->jwtService->issueForUser($user);
+            $newToken = is_array($rotated) ? ($rotated['access_token'] ?? $rotated['token'] ?? null) : $rotated;
+            $responsePayload['access_token'] = $newToken;
+            $responsePayload['token'] = $newToken;
+            $responsePayload['expires_in'] = is_array($rotated) ? ($rotated['expires_in'] ?? 3600) : 3600;
+        }
+
+        return response()->json($responsePayload);
     }
 
     public function refresh(Request $request)

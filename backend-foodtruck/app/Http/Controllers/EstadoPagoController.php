@@ -30,6 +30,11 @@ class EstadoPagoController extends Controller
 
     public function store(Request $request)
     {
+        $user = $request->user();
+        if (!$user || (int)$user->id_rol !== 1) {
+            return response()->json(['message' => 'Solo un administrador puede crear estados de pago.'], 403);
+        }
+
         $data = $request->validate([
             'nombre' => 'required|string|max:80',
         ]);
@@ -39,6 +44,14 @@ class EstadoPagoController extends Controller
 
     public function update(Request $request, $id)
     {
+        $user = $request->user();
+        if (!$user || (int)$user->id_rol !== 1) {
+            return response()->json(['message' => 'Solo un administrador puede modificar estados de pago.'], 403);
+        }
+        if (in_array((int)$id, [1, 2, 3, 4, 5], true)) {
+            return response()->json(['message' => 'Los estados base de pago no pueden modificarse.'], 422);
+        }
+
         $data = $request->validate([
             'nombre' => 'sometimes|required|string|max:80',
         ]);
@@ -49,8 +62,16 @@ class EstadoPagoController extends Controller
         return response()->json($estadoPago);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
+        $user = $request->user();
+        if (!$user || (int)$user->id_rol !== 1) {
+            return response()->json(['message' => 'Solo un administrador puede eliminar estados de pago.'], 403);
+        }
+        if (in_array((int)$id, [1, 2, 3, 4, 5], true)) {
+            return response()->json(['message' => 'Los estados base de pago no pueden eliminarse.'], 422);
+        }
+
         $deleted = $this->estadoPagoService->deleteEstadoPagoById($id);
         if (!$deleted) {
             return response()->json(['message' => 'Estado de pago no encontrado'], 404);

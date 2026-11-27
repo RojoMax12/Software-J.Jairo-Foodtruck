@@ -65,6 +65,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { LogOut, Eye, Menu } from 'lucide-vue-next'
 import { getUserInitials } from '@/composables/useUserInitials'
+import { authService } from '@/services/authService'
 
 const router = useRouter()
 const route = useRoute()
@@ -114,12 +115,11 @@ watch(() => route.path, () => {
 const userInitials = computed(() => getUserInitials(username.value))
 
 const goToPreview = () => {
-  router.push('/')
+  router.push({ path: '/', query: { preview: '1' } })
 }
 
-const handleLogout = () => {
-  localStorage.clear()
-  sessionStorage.clear()
+const handleLogout = async () => {
+  await authService.logout()
   router.push('/')
 }
 

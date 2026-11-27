@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Eye, EyeOff } from 'lucide-vue-next'
 import api from '@/services/api'
 import { useNotification } from '@/composables/useNotification'
+import { checkPasswordRequirements, isStrongPassword } from '@/utils/validators'
 
 const router = useRouter()
 const route = useRoute()
@@ -42,33 +43,13 @@ const errorMessage = ref('')
 // Validaciones de contraseña
 // --------------------------------------------------
 
-const hasMinLength = computed(() =>
-  password.value.length >= 8
-)
-
-const hasUppercase = computed(() =>
-  /[A-Z]/.test(password.value)
-)
-
-const hasLowercase = computed(() =>
-  /[a-z]/.test(password.value)
-)
-
-const hasNumber = computed(() =>
-  /\d/.test(password.value)
-)
-
-const hasSymbol = computed(() =>
-  /[^A-Za-z0-9]/.test(password.value)
-)
-
-const passwordIsValid = computed(() =>
-  hasMinLength.value &&
-  hasUppercase.value &&
-  hasLowercase.value &&
-  hasNumber.value &&
-  hasSymbol.value
-)
+const passwordChecks = computed(() => checkPasswordRequirements(password.value))
+const hasMinLength = computed(() => passwordChecks.value.minLength)
+const hasUppercase = computed(() => passwordChecks.value.upperCase)
+const hasLowercase = computed(() => passwordChecks.value.lowerCase)
+const hasNumber = computed(() => passwordChecks.value.number)
+const hasSymbol = computed(() => passwordChecks.value.specialChar)
+const passwordIsValid = computed(() => isStrongPassword(password.value))
 
 const passwordsMatch = computed(() =>
   passwordConfirmation.value.length > 0 &&

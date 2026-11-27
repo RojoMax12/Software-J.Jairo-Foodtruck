@@ -16,7 +16,7 @@ class MarketingController extends Controller
                 [
                     'id' => 'banner-1',
                     'title' => 'Nuestras Mejores Vianesas y Completos XXL',
-                    'subtitle' => 'El auténtico sabor tradicional de J.Jairo',
+                    'subtitle' => 'El auténtico sabor tradicional de J.Junior',
                     'image' => '/storage/carousel/banner1.webp',
                     'active' => true,
                     'order' => 1,

@@ -361,15 +361,17 @@
                 </span>
               </td>
               <td>
-                <div v-if="getProductActivePromotion(product.id)" class="promo-cell-active">
-                  <span 
-                    class="promo-pill-badge clickable" 
-                    :title="'Promoción: $' + formatCLP(getProductActivePromotion(product.id)?.precio_promocional || 0) + ' (Clic para ver/editar)'"
-                    @click="openEditPromotionModal(getProductActivePromotion(product.id)!)"
+                <div v-if="getProductActivePromotions(product.id).length > 0" class="promo-cell-active" style="display:flex;flex-wrap:wrap;gap:4px;">
+                  <span
+                    v-for="promo in getProductActivePromotions(product.id)"
+                    :key="'desk-promo-' + promo.id_promocion"
+                    class="promo-pill-badge clickable"
+                    :title="'Promoción: $' + formatCLP(promo.precio_promocional || 0) + ' (Clic para ver/editar)'"
+                    @click="openEditPromotionModal(promo)"
                   >
-                    ${{ formatCLP(getProductActivePromotion(product.id)?.precio_promocional || 0) }}
-                    <template v-if="getProductActivePromotion(product.id)?.tamano?.nombre">
-                      ({{ getProductActivePromotion(product.id)?.tamano?.nombre }})
+                    ${{ formatCLP(promo.precio_promocional || 0) }}
+                    <template v-if="promo.tamano?.nombre">
+                      ({{ promo.tamano.nombre }})
                     </template>
                   </span>
                 </div>
@@ -443,16 +445,19 @@
               >
                 {{ product.active ? 'Activo' : 'Inactivo' }}
               </span>
-              <span
-                v-if="getProductActivePromotion(product.id)"
-                class="promo-pill-badge clickable"
-                @click="openEditPromotionModal(getProductActivePromotion(product.id)!)"
-              >
-                🔥 ${{ formatCLP(getProductActivePromotion(product.id)!.precio_promocional) }}
-                <template v-if="getProductActivePromotion(product.id)?.tamano?.nombre">
-                  · {{ getProductActivePromotion(product.id)?.tamano?.nombre }}
-                </template>
-              </span>
+              <template v-if="getProductActivePromotions(product.id).length > 0">
+                <span
+                  v-for="promo in getProductActivePromotions(product.id)"
+                  :key="'mob-promo-' + promo.id_promocion"
+                  class="promo-pill-badge clickable"
+                  @click="openEditPromotionModal(promo)"
+                >
+                  🔥 ${{ formatCLP(promo.precio_promocional) }}
+                  <template v-if="promo.tamano?.nombre">
+                    · {{ promo.tamano.nombre }}
+                  </template>
+                </span>
+              </template>
               <button
                 v-else
                 class="promo-add-btn-mob"
@@ -772,7 +777,6 @@
                     <div class="panel-promo-card-top">
                       <div>
                         <h5>{{ promo.titulo }}</h5>
-                        <span class="panel-product-tag">{{ promo.producto?.nombre || promo.productName || 'Producto' }}</span>
                         <span class="panel-product-tag">
                           {{ promo.producto?.nombre || promo.productName || 'Producto' }}
                           <strong v-if="promo.tamano?.nombre" class="promo-size-tag"> · {{ promo.tamano.nombre }}</strong>
@@ -1247,6 +1251,7 @@
       :selected-product-sizes="selectedPromotionProductSizes"
       @close="isPromotionModalOpen = false"
       @submit="submitPromotion"
+      @submit-batch="submitPromotionsBatch"
     />
 
     <ProductImageCustomizerModal
@@ -1254,6 +1259,16 @@
       :product-form="productForm"
       @cancel="cancelImageCustomization"
       @apply="applyImageCustomization"
+    />
+
+    <ConfirmModal
+      v-if="confirmState.isOpen"
+      :title="confirmState.title"
+      :description="confirmState.description"
+      :confirm-text="confirmState.confirmText"
+      cancel-text="Cancelar"
+      @confirm="executePendingConfirm"
+      @cancel="confirmState.isOpen = false"
     />
 
   </div>
@@ -1273,6 +1288,7 @@ import { formatCLP } from '@/utils/format'
 import CatalogTaxonomyModals from './components/CatalogTaxonomyModals.vue'
 import PromotionFormModal from './components/PromotionFormModal.vue'
 import ProductImageCustomizerModal from './components/ProductImageCustomizerModal.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
 import {
   BadgePercent,
@@ -1610,9 +1626,12 @@ const openEditModal = (product: any) => {
   isEditingProduct.value = true
   selectedProductForAction.value = product
   const sizes = product.sizes && product.sizes.length ? [...product.sizes] : (sizesList.value[0]?.nombre ? [sizesList.value[0]?.nombre] : [])
+  const sizeObjList = Array.isArray(product.sizes_obj) ? product.sizes_obj : []
   const sizePrices: Record<string, number> = {}
   sizes.forEach(sz => {
-    sizePrices[sz] = product.price || 4500
+    const matchedSize = sizeObjList.find((s: any) => String(s.nombre || '').trim().toLowerCase() === String(sz || '').trim().toLowerCase())
+    const exactPrice = Number(matchedSize?.pivot?.precio ?? matchedSize?.precio ?? 0)
+    sizePrices[sz] = exactPrice > 0 ? exactPrice : (product.price || 4500)
   })
 
   const foundCat = categoriesList.value.find((c: any) => c.nombre_categoria === product.category)
@@ -1665,7 +1684,7 @@ const submitCreateProduct = async () => {
     productForm.value.cantidad_incluida || (productForm.value.tipo_armado === 'personalizable' ? 3 : 0)
   )
 
-  const localItem = {
+  const localItem: any = {
     id: newId,
     image: productForm.value.image || '',
     imagePosition: productForm.value.imagePosition,
@@ -1681,6 +1700,7 @@ const submitCreateProduct = async () => {
     price: Number(basePrice),
     ingredients: [...productForm.value.selectedIngredients],
     sizes: [...productForm.value.selectedSizes],
+    sizes_obj: [],
     active: productForm.value.active,
     inStock: productForm.value.inStock,
     offer: 0
@@ -1705,8 +1725,12 @@ const submitCreateProduct = async () => {
       imagen_posicion: productForm.value.imagePosition,
       imagen_zoom: productForm.value.imageZoom,
       imagen_ajuste: productForm.value.imageFit,
+      ingredientes: [...productForm.value.selectedIngredients],
     })
     const createdId = res.data?.id_producto || res.data?.id || newId
+    if (Array.isArray(res.data?.tamaños)) {
+      localItem.sizes_obj = res.data.tamaños
+    }
     localItem.id = createdId
 
     if (productForm.value.imageFile) {
@@ -1783,7 +1807,11 @@ const submitEditProduct = async () => {
       imagen_posicion: productForm.value.imagePosition,
       imagen_zoom: productForm.value.imageZoom,
       imagen_ajuste: productForm.value.imageFit,
+      ingredientes: [...productForm.value.selectedIngredients],
     })
+    if (p && Array.isArray(updateRes.data?.tamaños)) {
+      p.sizes_obj = updateRes.data.tamaños
+    }
 
     if (productForm.value.imageFile) {
       const uploadRes = await productService.uploadProductImage(productForm.value.id, productForm.value.imageFile)
@@ -1803,22 +1831,28 @@ const submitEditProduct = async () => {
   }
 }
 
-const activePromotionsByProductId = computed(() => {
-  const map: Record<number, any> = {}
+const activePromotionsMapByProductId = computed(() => {
+  const map: Record<number, any[]> = {}
   const today = getLocalDateString()
   for (const p of promotions.value) {
     if (!p.activo) continue
     const start = String(p.fecha_inicio || '').slice(0, 10)
     const end = String(p.fecha_fin || '').slice(0, 10)
     if (today >= start && today <= end) {
-      map[Number(p.id_producto)] = p
+      const prodId = Number(p.id_producto)
+      if (!map[prodId]) map[prodId] = []
+      map[prodId].push(p)
     }
   }
   return map
 })
 
+const getProductActivePromotions = (productId: number | string) => {
+  return activePromotionsMapByProductId.value[Number(productId)] || []
+}
+
 const getProductActivePromotion = (productId: number | string) => {
-  return activePromotionsByProductId.value[Number(productId)] || null
+  return getProductActivePromotions(productId)[0] || null
 }
 
 const openCreatePromotionForProduct = (product: any) => {
@@ -1908,7 +1942,24 @@ const submitPromotion = async () => {
     window.dispatchEvent(new Event('foodtruck-products-update'))
     isPromotionModalOpen.value = false
   } catch (error: any) {
-    notify(error?.response?.data?.message || 'No se pudo guardar la promoción', 'warning')
+    notify(error?.response?.data?.message || 'No se pudo guardar la promoción', 'error')
+  }
+}
+
+const submitPromotionsBatch = async (payload: { reemplazar_conflictos: boolean; items: any[] }) => {
+  try {
+    const response = await promotionService.createPromotionsBatch(payload)
+    const freshPromosRes = await promotionService.getPromotions().catch(() => null)
+    if (freshPromosRes && Array.isArray(freshPromosRes.data)) {
+      promotions.value = freshPromosRes.data
+    } else if (Array.isArray(response?.data?.items)) {
+      promotions.value.unshift(...response.data.items)
+    }
+    notify(response?.data?.message || (payload.items.length + ' promociones creadas exitosamente'), 'success')
+    window.dispatchEvent(new Event('foodtruck-products-update'))
+    isPromotionModalOpen.value = false
+  } catch (error: any) {
+    notify(error?.response?.data?.message || 'No se pudieron crear las promociones en lote.', 'error')
   }
 }
 
@@ -1936,15 +1987,43 @@ const togglePromotionStatus = async (promotion: any) => {
   }
 }
 
-const handleDeletePromotion = async (promotion: any) => {
-  if (!confirm(`¿Eliminar la promoción "${promotion.titulo}"?`)) return
-  try {
-    await promotionService.deletePromotion(promotion.id_promocion)
-    promotions.value = promotions.value.filter(item => item.id_promocion !== promotion.id_promocion)
-    window.dispatchEvent(new Event('foodtruck-products-update'))
-    notify('Promoción eliminada', 'warning')
-  } catch {
-    notify('No se pudo eliminar la promoción', 'warning')
+const confirmState = ref<{
+  isOpen: boolean
+  title: string
+  description: string
+  confirmText: string
+  action: (() => Promise<void>) | null
+}>({
+  isOpen: false,
+  title: '',
+  description: '',
+  confirmText: 'Confirmar',
+  action: null
+})
+
+const executePendingConfirm = async () => {
+  const fn = confirmState.value.action
+  confirmState.value.isOpen = false
+  confirmState.value.action = null
+  if (fn) await fn()
+}
+
+const handleDeletePromotion = (promotion: any) => {
+  confirmState.value = {
+    isOpen: true,
+    title: `¿Eliminar promoción "${promotion.titulo}"?`,
+    description: 'Esta promoción dejará de estar visible en el catálogo y el calendario.',
+    confirmText: 'Sí, eliminar',
+    action: async () => {
+      try {
+        await promotionService.deletePromotion(promotion.id_promocion)
+        promotions.value = promotions.value.filter(item => item.id_promocion !== promotion.id_promocion)
+        window.dispatchEvent(new Event('foodtruck-products-update'))
+        notify('Promoción eliminada', 'warning')
+      } catch {
+        notify('No se pudo eliminar la promoción', 'warning')
+      }
+    }
   }
 }
 
@@ -2111,25 +2190,32 @@ const openCreatePromotionForDate = (dateStr?: string) => {
   isPromotionModalOpen.value = true
 }
 
-const handleDeleteProduct = async (product: any) => {
+const handleDeleteProduct = (product: any) => {
   if (!product.active) {
     notify(`El producto "${product.name}" ya se encuentra inactivo.`, 'warning')
     return
   }
-  if (!confirm(`¿Estás seguro de desactivar el producto "${product.name}"?`)) return
-  
-  const prevActive = product.active
-  const prevStock = product.inStock
-  product.active = false
-  product.inStock = false
-  try {
-    await productService.updateProduct(product.id, { activo: false, disponible: false })
-    notify(`Producto "${product.name}" desactivado correctamente`, 'warning')
-    window.dispatchEvent(new Event('foodtruck-products-update'))
-  } catch (error: any) {
-    product.active = prevActive
-    product.inStock = prevStock
-    notify(error?.response?.data?.message || 'No se pudo desactivar el producto.', 'error')
+
+  confirmState.value = {
+    isOpen: true,
+    title: `¿Desactivar producto "${product.name}"?`,
+    description: 'El producto dejará de estar visible en la carta pública y no podrá pedirse hasta reactivarlo.',
+    confirmText: 'Sí, desactivar',
+    action: async () => {
+      const prevActive = product.active
+      const prevStock = product.inStock
+      product.active = false
+      product.inStock = false
+      try {
+        await productService.updateProduct(product.id, { activo: false, disponible: false })
+        notify(`Producto "${product.name}" desactivado correctamente`, 'warning')
+        window.dispatchEvent(new Event('foodtruck-products-update'))
+      } catch (error: any) {
+        product.active = prevActive
+        product.inStock = prevStock
+        notify(error?.response?.data?.message || 'No se pudo desactivar el producto.', 'error')
+      }
+    }
   }
 }
 

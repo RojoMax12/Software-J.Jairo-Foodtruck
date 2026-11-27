@@ -102,6 +102,7 @@ Route::middleware('jwt.auth')->group(function () {
         Route::apiResource('productos', ProductoController::class);
         Route::apiResource('producto_ingredientes', ProductoIngredienteController::class);
         Route::apiResource('producto_tamaños', ProductoTamañoController::class);
+        Route::post('promociones/batch', [PromocionController::class, 'storeBatch']);
         Route::apiResource('promociones', PromocionController::class)
             ->only(['index', 'store', 'update', 'destroy'])
             ->parameters(['promociones' => 'promocion']);

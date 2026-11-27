@@ -44,6 +44,15 @@
                 <p>Cargando tamaños...</p>
             </div>
 
+            <div v-else-if="loadError" class="empty-state">
+                <Tag :size="48" />
+                <h3>No se pudieron cargar los tamaños</h3>
+                <p>{{ loadError }}</p>
+                <button class="primary-button" @click="fetchSizesData" style="margin-top: 12px;">
+                    <span>Reintentar</span>
+                </button>
+            </div>
+
             <div v-else-if="filteredSizes.length > 0" class="sizes-grid">
                 <div 
                     v-for="sz in filteredSizes" 
@@ -152,6 +161,7 @@ import { Tag, Plus, Pencil, Trash2, Search, X, Check } from 'lucide-vue-next'
 const { notify } = useNotification()
 
 const isLoading = ref(true)
+const loadError = ref('')
 const sizesList = ref<any[]>([])
 const productsList = ref<any[]>([])
 const search = ref('')
@@ -204,74 +214,70 @@ const openEditModal = (sz: any) => {
 }
 
 const submitForm = async () => {
-    if (!form.value.nombre) return
+    if (!form.value.nombre.trim()) return
 
-    if (isEditing.value) {
-        const target = sizesList.value.find((s: any) => (s.id_tamaño || s.id) === form.value.id_tamaño)
-        if (target) {
-            target.nombre = form.value.nombre
-            target.descripcion = form.value.descripcion
-        }
-        try {
-            await sizeService.updateSize(form.value.id_tamaño, {
-                nombre: form.value.nombre
+    try {
+        if (isEditing.value) {
+            const res = await sizeService.updateSize(form.value.id_tamaño, {
+                nombre: form.value.nombre.trim()
             })
+            const target = sizesList.value.find((s: any) => (s.id_tamaño || s.id) === form.value.id_tamaño)
+            if (target) {
+                target.nombre = res?.data?.nombre || form.value.nombre.trim()
+                target.descripcion = form.value.descripcion
+            }
             notify('Tamaño actualizado exitosamente', 'success')
-        } catch {
-            notify('Tamaño actualizado', 'success')
-        }
-    } else {
-        const newSize = {
-            id_tamaño: Date.now(),
-            nombre: form.value.nombre,
-            descripcion: form.value.descripcion || 'Formato de porción'
-        }
-        sizesList.value.push(newSize)
-        try {
+        } else {
             const res = await sizeService.createSize({
-                nombre: form.value.nombre
+                nombre: form.value.nombre.trim()
             })
-            if (res.data?.id_tamaño) newSize.id_tamaño = res.data.id_tamaño
+            if (res.data) {
+                sizesList.value.push({
+                    ...res.data,
+                    descripcion: form.value.descripcion || 'Formato de porción'
+                })
+            }
             notify('¡Tamaño creado exitosamente!', 'success')
-        } catch {
-            notify('Tamaño creado', 'success')
         }
+        isModalOpen.value = false
+    } catch (err: any) {
+        notify(err?.response?.data?.message || 'Error al guardar el tamaño en el servidor.', 'error')
     }
-
-    isModalOpen.value = false
 }
 
 const handleDelete = async (sz: any) => {
     const sizeId = sz.id_tamaño || sz.id
     if (!confirm(`¿Estás seguro de eliminar el formato "${sz.nombre}"?`)) return
 
-    sizesList.value = sizesList.value.filter((s: any) => (s.id_tamaño || s.id) !== sizeId)
     try {
         await sizeService.deleteSize(sizeId)
-        notify('Tamaño eliminado', 'warning')
-    } catch {
-        notify('Tamaño eliminado', 'warning')
+        sizesList.value = sizesList.value.filter((s: any) => (s.id_tamaño || s.id) !== sizeId)
+        notify('Tamaño eliminado correctamente', 'warning')
+    } catch (err: any) {
+        notify(err?.response?.data?.message || 'No se pudo eliminar el tamaño.', 'error')
     }
 }
 
-onMounted(async () => {
+const fetchSizesData = async () => {
     isLoading.value = true
+    loadError.value = ''
     try {
-        const [sizesRes, prodsRes] = await Promise.allSettled([
+        const [sizesRes, prodsRes] = await Promise.all([
             sizeService.getSizes(),
             productService.getPublicProducts({ summary: 1 })
         ])
-
-        const dbSizes = sizesRes.status === 'fulfilled' ? sizesRes.value.data || [] : []
-        const dbProds = prodsRes.status === 'fulfilled' ? prodsRes.value.data || [] : []
-
-        sizesList.value = Array.isArray(dbSizes) ? dbSizes : []
-        productsList.value = Array.isArray(dbProds) ? dbProds : []
-    } catch (e) {
+        sizesList.value = Array.isArray(sizesRes.data) ? sizesRes.data : (sizesRes.data?.data || [])
+        productsList.value = Array.isArray(prodsRes.data) ? prodsRes.data : (prodsRes.data?.data || [])
+    } catch (e: any) {
         console.error('Error cargando tamaños:', e)
+        loadError.value = e?.response?.data?.message || 'No se pudo conectar con el servidor.'
     } finally {
         isLoading.value = false
     }
+}
+
+onMounted(() => {
+    fetchSizesData()
 })
 </script>
 

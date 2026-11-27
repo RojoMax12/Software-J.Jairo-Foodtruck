@@ -7,6 +7,7 @@ import {
   UserPlus, AlertTriangle, RefreshCw, LogIn
 } from 'lucide-vue-next'
 import { authService } from '../services/authService'
+import { checkPasswordRequirements, isStrongPassword } from '@/utils/validators'
 import SuccessAccountModal from './SuccessAccountModal.vue'
 import TermsAndPrivacyModal from './TermsAndPrivacyModal.vue'
 
@@ -44,11 +45,12 @@ const acceptTerms = ref(false)
 const showTermsModal = ref(false)
 
 // Requisitos de seguridad de contraseña (Ley N° 21.719)
-const hasMinLength = computed(() => form.value.contrasena.length >= 8)
-const hasUppercase = computed(() => /[A-Z]/.test(form.value.contrasena))
-const hasNumber = computed(() => /\d/.test(form.value.contrasena))
-const hasSpecialChar = computed(() => /[@$!%*?&_#\-+=~`^().]/.test(form.value.contrasena))
-const isPasswordValid = computed(() => hasMinLength.value && hasUppercase.value && hasNumber.value && hasSpecialChar.value)
+const passwordChecks = computed(() => checkPasswordRequirements(form.value.contrasena))
+const hasMinLength = computed(() => passwordChecks.value.minLength)
+const hasUppercase = computed(() => passwordChecks.value.upperCase)
+const hasNumber = computed(() => passwordChecks.value.number)
+const hasSpecialChar = computed(() => passwordChecks.value.specialChar)
+const isPasswordValid = computed(() => isStrongPassword(form.value.contrasena))
 
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)

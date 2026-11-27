@@ -155,6 +155,18 @@
             </tr>
           </tbody>
 
+          <tbody v-else-if="loadError">
+            <tr>
+              <td colspan="5" class="text-center">
+                <div class="state-card empty-state">
+                  <UserRoundX :size="42" />
+                  <p>{{ loadError }}</p>
+                  <button @click="loadWorkers" class="btn-retry">Reintentar</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+
           <tbody v-else>
             <tr v-if="paginatedWorkers.length === 0">
               <td colspan="5" class="text-center">
@@ -364,6 +376,7 @@ type StatusFilter = 'all' | true | false;
 
 const { notify } = useNotification();
 const isLoading = ref(true);
+const loadError = ref('');
 const workers = ref<Worker[]>([]);
 
 const isRoleDropdownOpen = ref(false);
@@ -410,11 +423,14 @@ useModalScrollLock(isAnyModalOpen);
 
 const loadWorkers = async () => {
   isLoading.value = true;
+  loadError.value = '';
   try {
     const response = await userService.getWorkers();
     workers.value = response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error cargando trabajadores:', error);
+    loadError.value = error?.response?.data?.message || 'No se pudo cargar la lista de trabajadores.';
+    notify(loadError.value, 'error');
   } finally {
     isLoading.value = false;
   }

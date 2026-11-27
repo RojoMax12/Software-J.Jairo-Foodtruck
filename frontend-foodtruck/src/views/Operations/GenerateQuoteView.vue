@@ -101,6 +101,14 @@
                 Todas
               </button>
               <button
+                v-if="offerProductsCount > 0"
+                class="category-chip"
+                :class="{ active: selectedCategory === '__offers__' }"
+                @click="selectedCategory = '__offers__'"
+              >
+                🔥 En Oferta ({{ offerProductsCount }})
+              </button>
+              <button
                 v-for="cat in categoriesList"
                 :key="cat.id"
                 class="category-chip"
@@ -979,9 +987,11 @@ import { useNotification } from '@/composables/useNotification';
 import cashFlowService, { type ShiftWindow } from '@/services/cashFlowService';
 import {
   ADEREZOS_GRATUITOS as ADEREZOS_OPTIONS,
+  computeDeterministicExtrasCost,
   isAderezoGratuitoName as isAderezoName,
   supportsAderezosGratuitos,
 } from '@/utils/catalogPricing';
+import logoImg from '@/assets/logo_jairo.webp';
 import { formatCLP, formatPriceCLP } from '@/utils/format';
 import { extractValidPromotions, buildSizePricingMaps } from '@/composables/useCatalogMapper';
 import PosOrderReceipt from './components/PosOrderReceipt.vue';
@@ -1064,7 +1074,7 @@ const fetchProducts = async () => {
 
     const categoryImages: Record<string, string> = {
       'Vianesas': 'https://images.unsplash.com/photo-1612392062798-7c7e16d7f49f?w=900',
-      'Ass': 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=900',
+      'As': 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=900',
       'Churrascos': 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=900',
       'Lomitos': 'https://images.unsplash.com/photo-1509722747041-616f39b57569?w=900',
       'Hamburguesas': 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=900',
@@ -1098,7 +1108,7 @@ const fetchProducts = async () => {
 
       const promotionPrice = isPromoValid ? Number(activePromo?.precio_promocional ?? 0) : 0;
 
-      const prodImage = prod.imagen_url || prod.imagen || prod.image || categoryImages[catName] || '/src/assets/placeholder-food.webp';
+      const prodImage = prod.imagen_url || prod.imagen || prod.image || categoryImages[catName] || logoImg;
 
       return {
         id: prod.id_producto,
@@ -1219,25 +1229,13 @@ const extraIngredientsCost = computed(() => {
     ? (Number(activeVariant.value.cantidad_incluida) || 3)
     : Number(activeVariant.value.cantidad_incluida || 0);
 
-  if (addedExtraIngredients.value.length <= includedCount) return 0;
-
-  let cost = 0;
-  addedExtraIngredients.value.forEach((name: string, index: number) => {
-    if (index < includedCount) return;
-    const pi = optionalExtraIngredients.value.find((item: any) => item.ingrediente?.nombre === name);
-    cost += getExtraIngredientUnitPrice(pi);
+  return computeDeterministicExtrasCost({
+    selectedExtras: addedExtraIngredients.value,
+    productIngredients: activeVariant.value.type?.producto_ingrediente || [],
+    includedCount,
+    defaultExtraPrice: Number(activeVariant.value.precio_ingrediente_extra || 0),
+    allowFreeAderezos: supportsAderezos.value,
   });
-  return cost;
-  const sortedUnitCosts = addedExtraIngredients.value
-    .map((name: string) => {
-      const pi = optionalExtraIngredients.value.find((item: any) => item.ingrediente?.nombre === name);
-      return getExtraIngredientUnitPrice(pi);
-    })
-    .sort((a: number, b: number) => a - b);
-
-  return sortedUnitCosts
-    .slice(includedCount)
-    .reduce((sum: number, unitCost: number) => sum + unitCost, 0);
 });
 
 const getProductOriginalPrice = (p: any, size?: string) => {
@@ -1327,14 +1325,25 @@ const effectivePaymentMethod = computed(() => {
   return selectedPaymentMethod.value || 'Efectivo';
 });
 
+const offerProductsCount = computed(() => {
+  return foodProducts.value.filter((item) => Boolean(item.hasPromotion)).length;
+});
+
 const filteredProducts = computed(() => {
   let results = foodProducts.value;
-  if (selectedCategory.value !== 'Todas') {
+  if (selectedCategory.value === '__offers__') {
+    results = results.filter(item => Boolean(item.hasPromotion));
+  } else if (selectedCategory.value !== 'Todas') {
     results = results.filter(item => item.category === selectedCategory.value);
   }
   if (productSearch.value.trim()) {
     const s = productSearch.value.toLowerCase();
-    results = results.filter(item => item.name.toLowerCase().includes(s));
+    results = results.filter(item => item.name.toLowerCase().includes(s) || String(item.category || '').toLowerCase().includes(s));
+  }
+  if (selectedCategory.value === 'Todas') {
+    const promos = results.filter(item => Boolean(item.hasPromotion));
+    const regulars = results.filter(item => !item.hasPromotion);
+    return [...promos, ...regulars];
   }
   return results;
 });

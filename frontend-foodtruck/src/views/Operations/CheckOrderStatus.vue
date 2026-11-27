@@ -427,7 +427,7 @@ const handleSearch = async (isSilent: boolean = false) => {
 
     const itemsMapped = (data.detalles || []).map((det: any) => {
       const prodName = det.producto?.nombre || det.nombre_producto || 'Producto';
-      const sizeName = det.tamano?.nombre_tamaño || det.tamaño?.nombre_tamaño || '';
+      const sizeName = det.tamano?.nombre || det.tamaño?.nombre || det.tamano?.nombre_tamaño || det.tamaño?.nombre_tamaño || '';
 
       let excluidosList: string[] = [];
       let agregadosList: string[] = [];

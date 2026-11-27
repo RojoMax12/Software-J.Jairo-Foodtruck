@@ -211,6 +211,7 @@
 import { ref, watch, computed } from 'vue'
 import { useNotification } from '@/composables/useNotification'
 import type { Worker, UpdateWorkerRequest } from '@/services/userService'
+import { checkPasswordRequirements, isStrongPassword, isValidChileanPhone, isValidEmail } from '@/utils/validators'
 import { ChevronDown, Edit3 } from 'lucide-vue-next'
 
 const { notify } = useNotification()
@@ -270,37 +271,10 @@ const hasChanges = computed(() => {
     )
 })
 
-const isPhoneValid = computed(() => {
-    const phoneRegex = /^(?:\+?56\s?9\s?\d{4}\s?\d{4}|9\s?\d{4}\s?\d{4})$/
-
-    return phoneRegex.test(phone.value.trim())
-})
-
-const isEmailValid = computed(() => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)
-})
-
-const passwordRequirements = computed(() => ({
-    minLength: password.value.length >= 8,
-    upperCase: /[A-Z]/.test(password.value),
-    lowerCase: /[a-z]/.test(password.value),
-    number: /[0-9]/.test(password.value),
-    specialChar: /[@$!%*?&_#\-+=~`^()]/.test(password.value),
-}))
-
-const isPasswordValid = computed(() => {
-    if (password.value === '') {
-        return true
-    }
-
-    return (
-        passwordRequirements.value.minLength &&
-        passwordRequirements.value.upperCase &&
-        passwordRequirements.value.lowerCase &&
-        passwordRequirements.value.number &&
-        passwordRequirements.value.specialChar
-    )
-})
+const isPhoneValid = computed(() => isValidChileanPhone(phone.value))
+const isEmailValid = computed(() => isValidEmail(email.value))
+const passwordRequirements = computed(() => checkPasswordRequirements(password.value))
+const isPasswordValid = computed(() => password.value === '' || isStrongPassword(password.value))
 
 const isFormValid = computed(() => {
     return (

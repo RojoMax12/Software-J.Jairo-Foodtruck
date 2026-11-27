@@ -56,5 +56,20 @@ export const authService = {
   async updateProfile(data: ProfileUpdateData) {
     const response = await api.put('/auth/profile', data);
     return response.data;
+  },
+
+  async logout() {
+    const hasToken = !!localStorage.getItem('token');
+    if (hasToken) {
+      try {
+        await api.post('/auth/logout');
+      } catch {
+        // Ignorar si ya expiró
+      }
+    }
+    localStorage.removeItem('token');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
+    sessionStorage.removeItem('admin_preview_mode');
   }
 };

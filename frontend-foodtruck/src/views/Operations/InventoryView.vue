@@ -41,9 +41,9 @@
             <Boxes :size="22" />
           </div>
           <div>
-            <span class="summary-label">Total registros</span>
+            <span class="summary-label">Insumos cuantificables</span>
             <strong class="summary-value">{{ stats.total }}</strong>
-            <p class="summary-helper">Items de inventario cargados</p>
+            <p class="summary-helper">Por unidad o pack con unidades</p>
           </div>
         </article>
 
@@ -98,11 +98,22 @@
                   </select>
                 </div>
 
+                <div class="select-box">
+                  <Boxes :size="18" class="select-icon" />
+                  <select v-model="trackingFilter">
+                    <option value="quantifiable">Cuantificables (Unidad / Pack)</option>
+                    <option value="pack">Solo por Pack (con X unid.)</option>
+                    <option value="unit">Solo por Unidad</option>
+                    <option value="non_quantifiable">No cuantificables (Disponibilidad)</option>
+                    <option value="all">Todos los insumos</option>
+                  </select>
+                </div>
+
                 <button 
-                  v-if="searchQuery || statusFilter !== 'all'" 
+                  v-if="searchQuery || statusFilter !== 'all' || trackingFilter !== 'quantifiable'" 
                   class="btn-reset-filters" 
                   type="button" 
-                  @click="searchQuery = ''; statusFilter = 'all'"
+                  @click="searchQuery = ''; statusFilter = 'all'; trackingFilter = 'quantifiable'"
                 >
                   <X :size="14" />
                   <span>Limpiar</span>
@@ -208,7 +219,18 @@
                         <span>{{ item.formatName }}</span>
                       </div>
                     </td>
-                    <td class="text-center col-stock stock-amount">{{ item.quantity }}</td>
+                    <td class="text-center col-stock stock-amount">
+                      <template v-if="!item.esCuantificable">
+                        <span class="non-quant-chip">No cuantitativo</span>
+                      </template>
+                      <template v-else-if="item.tipoInventario === 'pack'">
+                        <div class="pack-stock-cell">
+                          <strong>{{ item.packsCount }} pack{{ item.packsCount === 1 ? '' : 's' }}</strong>
+                          <small>{{ item.quantity }} unid.</small>
+                        </div>
+                      </template>
+                      <template v-else>{{ item.quantity }} unid.</template>
+                    </td>
                     <td class="text-center col-min">{{ item.minStock }}</td>
                     <td class="text-center col-status">
                       <span class="stock-badge" :class="item.statusClass">{{ item.statusLabel }}</span>
@@ -258,7 +280,9 @@
                 <div class="mobile-card-stats">
                   <div class="stat-box">
                     <span class="stat-lbl">Stock Actual</span>
-                    <strong class="stat-num stock-amount">{{ item.quantity }}</strong>
+                    <strong class="stat-num stock-amount">
+                      {{ item.esCuantificable ? (item.tipoInventario === 'pack' ? `${item.packsCount} pk (${item.quantity}u)` : item.quantity) : 'Libre' }}
+                    </strong>
                   </div>
                   <div class="stat-box">
                     <span class="stat-lbl">Mínimo</span>
@@ -581,13 +605,44 @@
           <button type="button" class="modal-close" aria-label="Cerrar" @click="closeStockModal">
             <X :size="20" />
           </button>
-          <span class="eyebrow">Stock</span>
-          <h2>Actualizar cantidad</h2>
+          <span class="eyebrow">Control de Stock</span>
+          <h2>Actualizar cantidad y formato</h2>
           <p class="modal-product">{{ selectedStockItem?.productName }}</p>
-          <label class="field-label" for="new-stock-quantity">Nueva cantidad</label>
-          <input id="new-stock-quantity" v-model.number="newQuantity" type="number" min="0" class="form-input" />
-          <p class="helper-text">Cantidad actual: {{ selectedStockItem?.quantity ?? 0 }} {{ selectedStockItem?.formatName }}</p>
-          <button class="btn-primary" type="submit" :disabled="isSaving || newQuantity === null">
+
+          <label class="field-label" for="edit-tracking-type">Forma de cuantificación</label>
+          <select id="edit-tracking-type" v-model="editTipoInventario" class="form-input" style="margin-bottom: 10px;">
+            <option value="unidad">Cuantificable por Unidad</option>
+            <option value="pack">Cuantificable por Pack (con X unidades)</option>
+            <option value="no_cuantitativo">No cuantificable (solo Disponible / Agotado)</option>
+          </select>
+
+          <template v-if="editTipoInventario === 'pack'">
+            <div class="form-row-2" style="margin-bottom: 10px;">
+              <div>
+                <label class="field-label" for="edit-units-per-pack">Unid. por pack</label>
+                <input id="edit-units-per-pack" v-model.number="editUnidadesPorPack" type="number" min="1" max="5000" class="form-input" />
+              </div>
+              <div>
+                <label class="field-label" for="edit-packs-qty">Cantidad de packs</label>
+                <input id="edit-packs-qty" v-model.number="editPacksCount" type="number" min="0" class="form-input" />
+              </div>
+            </div>
+            <label class="field-label" for="edit-remainder-units">Unidades sueltas adicionales</label>
+            <input id="edit-remainder-units" v-model.number="editRemainderUnits" type="number" min="0" class="form-input" />
+            <p class="helper-text">Total calculado en inventario: <strong>{{ computedPackTotalUnits }} unidades</strong></p>
+          </template>
+
+          <template v-else-if="editTipoInventario === 'unidad'">
+            <label class="field-label" for="new-stock-quantity">Nueva cantidad (Unidades)</label>
+            <input id="new-stock-quantity" v-model.number="newQuantity" type="number" min="0" class="form-input" />
+            <p class="helper-text">Cantidad actual: {{ selectedStockItem?.quantity ?? 0 }} unid.</p>
+          </template>
+
+          <p v-else class="helper-text">
+            Este insumo pasará a gestionarse solo mediante el botón Disponible / Agotado sin conteo numérico.
+          </p>
+
+          <button class="btn-primary" type="submit" :disabled="isSaving || (editTipoInventario === 'unidad' && newQuantity === null)">
             <RefreshCw :size="18" :class="{ spinning: isSaving }" />
             <span>{{ isSaving ? 'Guardando' : 'Guardar cambio' }}</span>
           </button>
@@ -629,8 +684,50 @@
               />
             </div>
 
-            <div class="form-row-2">
+            <div class="form-group">
+              <label class="field-label" for="insumo-tipo-inventario">
+                ¿Cómo se cuantifica este insumo?
+              </label>
+              <select id="insumo-tipo-inventario" v-model="newInsumoForm.tipo_inventario" class="form-input">
+                <option value="unidad">Por Unidad (ej: huevos, panes, láminas)</option>
+                <option value="pack">Por Pack con X unidades (ej: pack x12 panes, bolsa x20)</option>
+                <option value="no_cuantitativo">No cuantificable (ej: salsas, aderezos, especias)</option>
+              </select>
+            </div>
+
+            <div v-if="newInsumoForm.tipo_inventario === 'pack'" class="form-row-2">
               <div class="form-group">
+                <label class="field-label" for="insumo-unidades-pack">
+                  Unidades que trae cada Pack <span class="required">*</span>
+                </label>
+                <input
+                  id="insumo-unidades-pack"
+                  v-model.number="newInsumoForm.unidades_por_pack"
+                  type="number"
+                  min="1"
+                  max="5000"
+                  class="form-input"
+                  placeholder="12"
+                />
+              </div>
+
+              <div class="form-group">
+                <label class="field-label" for="insumo-packs-iniciales">
+                  Packs Iniciales (= {{ Math.max(0, Number(newInsumoForm.cantidad_packs || 0)) * Math.max(1, Number(newInsumoForm.unidades_por_pack || 1)) }} unid.)
+                </label>
+                <input
+                  id="insumo-packs-iniciales"
+                  v-model.number="newInsumoForm.cantidad_packs"
+                  type="number"
+                  min="0"
+                  class="form-input"
+                  placeholder="1"
+                />
+              </div>
+            </div>
+
+            <div v-if="newInsumoForm.tipo_inventario !== 'no_cuantitativo'" class="form-row-2">
+              <div v-if="newInsumoForm.tipo_inventario === 'unidad'" class="form-group">
                 <label class="field-label" for="insumo-cantidad">
                   Stock Inicial (Unidades)
                 </label>
@@ -646,7 +743,7 @@
 
               <div class="form-group">
                 <label class="field-label" for="insumo-minimo">
-                  Stock Mínimo (Alerta)
+                  Stock Mínimo (Unidades alerta)
                 </label>
                 <input 
                   id="insumo-minimo"
@@ -703,7 +800,7 @@ import {
   AlertTriangle, ArrowDownRight, ArrowLeftRight, ArrowUpRight, Boxes, ChevronLeft, ChevronRight, 
   Clock3, Edit3, Filter, Layers3, Package, Plus, RefreshCw, Search, Sparkles, TrendingUp, X 
 } from 'lucide-vue-next';
-import inventoryService, { type InventoryItem, type InventoryStatus, type StockMovement } from '@/services/inventoryService';
+import inventoryService, { type InventoryItem, type InventoryStatus, type InventoryTrackingType, type StockMovement } from '@/services/inventoryService';
 import { useNotification } from '@/composables/useNotification';
 
 const { notify } = useNotification();
@@ -718,6 +815,9 @@ const isCreatingInsumo = ref(false);
 const newInsumoForm = ref({
   nombre: '',
   descripcion: '',
+  tipo_inventario: 'unidad' as InventoryTrackingType,
+  unidades_por_pack: 12,
+  cantidad_packs: 1,
   cantidad_actual: 0,
   cantidad_minima: 5,
   disponible: true,
@@ -740,13 +840,25 @@ watch([kardexSearch, kardexTypeFilter, kardexIngredientFilter], () => {
 const errorMessage = ref('');
 const searchQuery = ref('');
 const statusFilter = ref<'all' | InventoryStatus>('all');
+const trackingFilter = ref<'quantifiable' | 'pack' | 'unit' | 'non_quantifiable' | 'all'>('quantifiable');
 const selectedStockId = ref('');
 const newQuantity = ref<number | null>(null);
+const editTipoInventario = ref<InventoryTrackingType>('unidad');
+const editUnidadesPorPack = ref<number>(12);
+const editPacksCount = ref<number>(0);
+const editRemainderUnits = ref<number>(0);
+
+const computedPackTotalUnits = computed(() => {
+  const perPack = Math.max(1, Number(editUnidadesPorPack.value || 1));
+  const packs = Math.max(0, Number(editPacksCount.value || 0));
+  const rem = Math.max(0, Number(editRemainderUnits.value || 0));
+  return (packs * perPack) + rem;
+});
 
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
 
-watch([searchQuery, statusFilter], () => {
+watch([searchQuery, statusFilter, trackingFilter], () => {
   currentPage.value = 1;
 });
 
@@ -789,6 +901,14 @@ const openStockModal = (item: InventoryItem) => {
   selectedStockItem.value = item;
   selectedStockId.value = String(item.id);
   newQuantity.value = item.quantity;
+  editTipoInventario.value = item.tipoInventario || 'unidad';
+  editUnidadesPorPack.value = item.unidadesPorPack > 1 ? item.unidadesPorPack : 12;
+  editPacksCount.value = item.tipoInventario === 'pack'
+    ? item.packsCount
+    : Math.floor(item.quantity / editUnidadesPorPack.value);
+  editRemainderUnits.value = item.tipoInventario === 'pack'
+    ? (item.remainderUnits || 0)
+    : (item.quantity % editUnidadesPorPack.value);
   isStockModalOpen.value = true;
 };
 
@@ -803,6 +923,9 @@ const openAddInsumoModal = () => {
   newInsumoForm.value = {
     nombre: '',
     descripcion: '',
+    tipo_inventario: 'unidad',
+    unidades_por_pack: 12,
+    cantidad_packs: 1,
     cantidad_actual: 0,
     cantidad_minima: 5,
     disponible: true,
@@ -822,11 +945,22 @@ const submitCreateInsumo = async () => {
   }
   isCreatingInsumo.value = true;
   try {
+    const tipo = newInsumoForm.value.tipo_inventario;
+    const perPack = tipo === 'pack' ? Math.max(1, Number(newInsumoForm.value.unidades_por_pack || 1)) : 1;
+    const initialUnits = tipo === 'no_cuantitativo'
+      ? 0
+      : (tipo === 'pack'
+          ? Math.max(0, Number(newInsumoForm.value.cantidad_packs || 0)) * perPack
+          : Math.max(0, Number(newInsumoForm.value.cantidad_actual || 0)));
+
     await inventoryService.createInventoryItem({
       nombre: newInsumoForm.value.nombre.trim(),
       descripcion: newInsumoForm.value.descripcion?.trim() || undefined,
-      cantidad_actual: Number(newInsumoForm.value.cantidad_actual || 0),
-      cantidad_minima: Number(newInsumoForm.value.cantidad_minima || 0),
+      tipo_inventario: tipo,
+      unidades_por_pack: perPack,
+      es_cuantificable: tipo !== 'no_cuantitativo',
+      cantidad_actual: initialUnits,
+      cantidad_minima: tipo === 'no_cuantitativo' ? 0 : Number(newInsumoForm.value.cantidad_minima || 0),
       disponible: newInsumoForm.value.disponible,
       fecha_de_ingreso: new Date().toISOString().slice(0, 19).replace('T', ' '),
     });
@@ -961,16 +1095,30 @@ const toggleIngredientAvailability = async (item: InventoryItem) => {
 };
 
 const submitStockUpdate = async () => {
-  if (!selectedStockId.value || newQuantity.value === null || Number.isNaN(Number(newQuantity.value))) {
+  if (!selectedStockId.value) return;
+  const tipo = editTipoInventario.value;
+  const finalUnits = tipo === 'pack'
+    ? computedPackTotalUnits.value
+    : (tipo === 'no_cuantitativo' ? (selectedStockItem.value?.quantity ?? 0) : Number(newQuantity.value ?? 0));
+
+  if (tipo === 'unidad' && (newQuantity.value === null || Number.isNaN(Number(newQuantity.value)))) {
     return;
   }
 
   isSaving.value = true;
 
   try {
-    const updatedItems = await inventoryService.updateInventoryQuantity(Number(selectedStockId.value), Number(newQuantity.value));
+    const updatedItems = await inventoryService.updateInventoryQuantity(
+      Number(selectedStockId.value),
+      finalUnits,
+      {
+        tipo_inventario: tipo,
+        unidades_por_pack: tipo === 'pack' ? Math.max(1, Number(editUnidadesPorPack.value || 1)) : 1,
+        es_cuantificable: tipo !== 'no_cuantitativo',
+      }
+    );
     inventoryItems.value = updatedItems;
-    notify('¡Stock de insumo actualizado correctamente!', 'success');
+    notify('¡Insumo actualizado correctamente!', 'success');
     newQuantity.value = null;
     closeStockModal();
   } catch (error) {
@@ -982,10 +1130,18 @@ const submitStockUpdate = async () => {
   }
 };
 
+const quantifiableItems = computed(() => inventoryItems.value.filter((item) => item.esCuantificable));
+
 const filteredItems = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
 
   return inventoryItems.value.filter((item) => {
+    let matchesTracking = true;
+    if (trackingFilter.value === 'quantifiable') matchesTracking = item.esCuantificable;
+    else if (trackingFilter.value === 'pack') matchesTracking = item.esCuantificable && item.tipoInventario === 'pack';
+    else if (trackingFilter.value === 'unit') matchesTracking = item.esCuantificable && item.tipoInventario === 'unidad';
+    else if (trackingFilter.value === 'non_quantifiable') matchesTracking = !item.esCuantificable;
+
     const matchesQuery = !query || [item.productName, item.categoryName, item.formatName]
       .some((value) => value.toLowerCase().includes(query));
     
@@ -994,7 +1150,7 @@ const filteredItems = computed(() => {
       matchesStatus = item.status === 'ok' || item.status === 'over';
     }
 
-    return matchesQuery && matchesStatus;
+    return matchesTracking && matchesQuery && matchesStatus;
   });
 });
 
@@ -1006,15 +1162,15 @@ const paginatedItems = computed(() => {
 });
 
 const criticalItems = computed(() => {
-  return inventoryItems.value
+  return quantifiableItems.value
     .filter((item) => item.status === 'critical' || item.status === 'low');
 });
 
 const stats = computed(() => {
   return {
-    total: inventoryItems.value.length,
-    healthy: inventoryItems.value.filter((item) => item.status === 'ok' || item.status === 'over').length,
-    low: inventoryItems.value.filter((item) => item.status === 'low' || item.status === 'critical').length,
+    total: quantifiableItems.value.length,
+    healthy: quantifiableItems.value.filter((item) => item.status === 'ok' || item.status === 'over').length,
+    low: quantifiableItems.value.filter((item) => item.status === 'low' || item.status === 'critical').length,
   };
 });
 
@@ -1715,6 +1871,10 @@ onMounted(() => {
 .status-low { background: rgba(226, 135, 67, 0.16); color: var(--DC-orange); }
 .status-critical { background: rgba(216, 0, 86, 0.14); color: var(--DC-pink); }
 .status-over { background: rgba(81, 49, 25, 0.1); color: var(--DC-brown); }
+
+.pack-stock-cell { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
+.pack-stock-cell small { font-size: 0.7rem; color: #7c7468; font-weight: 700; }
+.non-quant-chip { font-size: 0.72rem; color: #64748b; background: #f1f5f9; padding: 3px 8px; border-radius: 999px; font-weight: 700; }
 
 /* PAGINACIÓN */
 .inventory-pagination {

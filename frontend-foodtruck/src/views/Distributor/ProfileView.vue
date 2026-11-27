@@ -148,7 +148,14 @@
                 </div>
               </div>
 
-              <p class="password-rules">
+              <div v-if="form.nueva_password" class="password-rules" style="display:flex;flex-direction:column;gap:3px;font-size:0.8rem;">
+                <span :style="{ color: pwdChecks.minLength ? '#16a34a' : '#64748b' }">{{ pwdChecks.minLength ? '✓' : '•' }} Mínimo 8 caracteres</span>
+                <span :style="{ color: pwdChecks.upperCase ? '#16a34a' : '#64748b' }">{{ pwdChecks.upperCase ? '✓' : '•' }} Una mayúscula</span>
+                <span :style="{ color: pwdChecks.lowerCase ? '#16a34a' : '#64748b' }">{{ pwdChecks.lowerCase ? '✓' : '•' }} Una minúscula</span>
+                <span :style="{ color: pwdChecks.number ? '#16a34a' : '#64748b' }">{{ pwdChecks.number ? '✓' : '•' }} Un número</span>
+                <span :style="{ color: pwdChecks.specialChar ? '#16a34a' : '#64748b' }">{{ pwdChecks.specialChar ? '✓' : '•' }} Un carácter especial (@$!%*?&#., etc.)</span>
+              </div>
+              <p v-else class="password-rules">
                 La contraseña debe contener al menos 8 caracteres, combinando mayúsculas, minúsculas, números y símbolos.
               </p>
             </div>
@@ -174,7 +181,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { checkPasswordRequirements, isStrongPassword } from '@/utils/validators'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, User, Lock, Save, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-vue-next'
 import { authService } from '@/services/authService'
@@ -197,6 +205,7 @@ const showCurrentPass = ref(false)
 const showNewPass = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
+const pwdChecks = computed(() => checkPasswordRequirements(form.value.nueva_password))
 
 onMounted(async () => {
   const userParsed = localStorage.getItem('user')
@@ -269,8 +278,8 @@ const handleSubmit = async () => {
       errorMessage.value = 'Debes ingresar tu contraseña actual para poder cambiarla.'
       return
     }
-    if (form.value.nueva_password.length < 8) {
-      errorMessage.value = 'La nueva contraseña debe tener al menos 8 caracteres.'
+    if (!isStrongPassword(form.value.nueva_password)) {
+      errorMessage.value = 'La nueva contraseña debe incluir al menos 8 caracteres, mayúscula, minúscula, número y un símbolo.'
       return
     }
     if (form.value.nueva_password !== form.value.confirmar_password) {
@@ -295,6 +304,11 @@ const handleSubmit = async () => {
     }
 
     const response = await authService.updateProfile(payload)
+
+    const rotatedToken = response?.access_token || response?.token
+    if (typeof rotatedToken === 'string' && rotatedToken.length > 0) {
+      localStorage.setItem('token', rotatedToken)
+    }
 
     if (response?.user) {
       // Actualizar localStorage para que todas las vistas reflejen el cambio

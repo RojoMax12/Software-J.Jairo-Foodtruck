@@ -20,13 +20,18 @@ class Ingrediente extends Model
         'cantidad_minima',
         'fecha_de_ingreso',
         'disponible',
+        'tipo_inventario',
+        'unidades_por_pack',
+        'es_cuantificable',
     ];
 
     protected $casts = [
-        'cantidad_actual'   => 'integer',
-        'cantidad_minima'   => 'integer',
+        'cantidad_actual' => 'integer',
+        'cantidad_minima' => 'integer',
+        'unidades_por_pack' => 'integer',
         'fecha_de_ingreso' => 'datetime',
-        'disponible'       => 'boolean',
+        'disponible' => 'boolean',
+        'es_cuantificable' => 'boolean',
     ];
 
     // Un ingrediente pertenece a muchos producto_ingrediente (one-to-many)

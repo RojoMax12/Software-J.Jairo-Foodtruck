@@ -154,9 +154,9 @@ class PedidoRepository
 
     /**
      * Calcula el costo adicional real de los ingredientes agregados y devuelve también
-     * el precio aplicado por id_ingrediente (soporta precio_extra propio y aderezos gratuitos).
+     * el precio aplicado por id_ingrediente (soporta precio_extra por tamaño y aderezos gratuitos).
      */
-    protected function calcularCostoExtras(?Producto $producto, array $rawAgregados): array
+    public function calcularCostoExtras(?Producto $producto, array $rawAgregados, ?int $idTamaño = null): array
     {
         if (!$producto || empty($rawAgregados)) {
             return ['total' => 0.0, 'precios_por_id' => []];
@@ -164,14 +164,28 @@ class PedidoRepository
 
         $piPorId = [];
         $piPorNombre = [];
+        $rank = static function ($pi) use ($idTamaño): int {
+            $sizePriority = 1;
+            if ($idTamaño !== null) {
+                if ((int)($pi->id_tamaño ?? 0) === $idTamaño) {
+                    $sizePriority = 3;
+                } elseif ($pi->id_tamaño === null) {
+                    $sizePriority = 2;
+                }
+            } else {
+                $sizePriority = $pi->id_tamaño === null ? 2 : 1;
+            }
+            return ($sizePriority * 10) + ($pi->precio_extra !== null ? 2 : 0) + ($pi->incluido_por_defecto === false ? 1 : 0);
+        };
+
         foreach ($producto->ingredientes ?? [] as $pi) {
             if ($pi->id_ingrediente) {
-                if (!isset($piPorId[$pi->id_ingrediente]) || $pi->precio_extra !== null) {
+                if (!isset($piPorId[$pi->id_ingrediente]) || $rank($pi) > $rank($piPorId[$pi->id_ingrediente])) {
                     $piPorId[$pi->id_ingrediente] = $pi;
                 }
             }
             $norm = $this->normalizeIngredienteNombre($pi->ingrediente->nombre ?? '');
-            if ($norm && (!isset($piPorNombre[$norm]) || $pi->precio_extra !== null)) {
+            if ($norm && (!isset($piPorNombre[$norm]) || $rank($pi) > $rank($piPorNombre[$norm]))) {
                 $piPorNombre[$norm] = $pi;
             }
         }
@@ -509,9 +523,9 @@ class PedidoRepository
                         throw new \InvalidArgumentException("El producto \"{$productoModel->nombre}\" no tiene un precio válido asignado en el catálogo.");
                     }
 
-                    // 2. Calcular costo de extras / agregados cobrables (soporta precio_extra propio y aderezos gratuitos)
+                    // 2. Calcular costo de extras / agregados cobrables (soporta precio_extra por tamaño y aderezos gratuitos)
                     $rawAgregados = $item['agregados'] ?? ($item['addedExtras'] ?? ($item['agregadosDetails'] ?? []));
-                    $extrasCalc = $this->calcularCostoExtras($productoModel, is_array($rawAgregados) ? $rawAgregados : []);
+                    $extrasCalc = $this->calcularCostoExtras($productoModel, is_array($rawAgregados) ? $rawAgregados : [], $idTamaño ? (int)$idTamaño : null);
                     $costoExtras = $extrasCalc['total'];
                     $preciosExtrasPorId = $extrasCalc['precios_por_id'];
 
@@ -672,6 +686,11 @@ class PedidoRepository
 
     public function getPedidoBySearch($search)
     {
+        if (!is_numeric($search) || (int)$search <= 0) {
+            return null;
+        }
+
+        $num = (int)$search;
         $shiftStart = $this->getShiftStart();
 
         $relations = [
@@ -684,29 +703,16 @@ class PedidoRepository
             'usuario',
         ];
 
-        // 1. Prioridad: Buscar por numero_pedido_dia de la jornada/horario actual
-        $pedidoJornada = Pedido::with($relations)
-            ->where('numero_pedido_dia', $search)
-            ->where('created_at', '>=', $shiftStart)
-            ->orderBy('id_pedido', 'desc')
-            ->first();
-
-        if ($pedidoJornada) {
-            return $pedidoJornada;
-        }
-
-        // 2. Si el search es un ID general de pedido (ej: 36)
-        if (is_numeric($search) && (int)$search > 0) {
-            $pedidoById = Pedido::with($relations)->find((int)$search);
-            if ($pedidoById) {
-                return $pedidoById;
-            }
-        }
-
-        // 3. Fallback: Buscar por numero_pedido_dia mas reciente en cualquier jornada anterior
+        // Consulta única priorizando: 1) comanda de la jornada actual, 2) ID primario, 3) comanda histórica
         return Pedido::with($relations)
-            ->where('numero_pedido_dia', $search)
-            ->orderBy('id_pedido', 'desc')
+            ->where(function ($q) use ($num) {
+                $q->where('numero_pedido_dia', $num)
+                  ->orWhere('id_pedido', $num);
+            })
+            ->orderByRaw(
+                'CASE WHEN numero_pedido_dia = ? AND created_at >= ? THEN 0 WHEN id_pedido = ? THEN 1 ELSE 2 END, id_pedido DESC',
+                [$num, $shiftStart, $num]
+            )
             ->first();
     }
 
@@ -831,7 +837,7 @@ class PedidoRepository
                             }
 
                             $addedList = $item['addedExtras'] ?? ($item['agregados'] ?? ($item['agregadosDetails'] ?? []));
-                            $extrasCalc = $this->calcularCostoExtras($productoModel, is_array($addedList) ? $addedList : []);
+                            $extrasCalc = $this->calcularCostoExtras($productoModel, is_array($addedList) ? $addedList : [], $idTamaño ? (int)$idTamaño : null);
                             $costoExtras = $extrasCalc['total'];
                             $preciosExtrasPorId = $extrasCalc['precios_por_id'];
 

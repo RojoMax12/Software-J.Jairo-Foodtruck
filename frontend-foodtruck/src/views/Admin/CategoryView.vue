@@ -44,6 +44,15 @@
                 <p>Cargando categorías...</p>
             </div>
 
+            <div v-else-if="loadError" class="empty-state">
+                <FolderTree :size="48" />
+                <h3>No se pudieron cargar las categorías</h3>
+                <p>{{ loadError }}</p>
+                <button class="primary-button" @click="fetchCategoriesData" style="margin-top: 12px;">
+                    <span>Reintentar</span>
+                </button>
+            </div>
+
             <div v-else-if="filteredCategories.length > 0" class="categories-grid">
                 <div 
                     v-for="cat in filteredCategories" 
@@ -152,6 +161,7 @@ import { FolderTree, Plus, Pencil, Trash2, Search, X, Check } from 'lucide-vue-n
 const { notify } = useNotification()
 
 const isLoading = ref(true)
+const loadError = ref('')
 const categoriesList = ref<any[]>([])
 const productsList = ref<any[]>([])
 const search = ref('')
@@ -200,43 +210,34 @@ const openEditModal = (cat: any) => {
 }
 
 const submitForm = async () => {
-    if (!form.value.nombre_categoria) return
+    if (!form.value.nombre_categoria.trim()) return
 
-    if (isEditing.value) {
-        const target = categoriesList.value.find((c: any) => (c.id_categoria || c.id) === form.value.id_categoria)
-        if (target) {
-            target.nombre_categoria = form.value.nombre_categoria
-            target.descripcion_categoria = form.value.descripcion_categoria
-        }
-        try {
-            await categoryService.updateCategory(form.value.id_categoria, {
-                nombre_categoria: form.value.nombre_categoria,
+    try {
+        if (isEditing.value) {
+            const res = await categoryService.updateCategory(form.value.id_categoria, {
+                nombre_categoria: form.value.nombre_categoria.trim(),
                 descripcion_categoria: form.value.descripcion_categoria
             })
+            const target = categoriesList.value.find((c: any) => (c.id_categoria || c.id) === form.value.id_categoria)
+            if (target) {
+                target.nombre_categoria = res?.data?.nombre_categoria || form.value.nombre_categoria.trim()
+                target.descripcion_categoria = res?.data?.descripcion_categoria ?? form.value.descripcion_categoria
+            }
             notify('Categoría actualizada exitosamente', 'success')
-        } catch {
-            notify('Categoría actualizada', 'success')
-        }
-    } else {
-        const newCat = {
-            id_categoria: Date.now(),
-            nombre_categoria: form.value.nombre_categoria,
-            descripcion_categoria: form.value.descripcion_categoria
-        }
-        categoriesList.value.push(newCat)
-        try {
+        } else {
             const res = await categoryService.createCategory({
-                nombre_categoria: form.value.nombre_categoria,
+                nombre_categoria: form.value.nombre_categoria.trim(),
                 descripcion_categoria: form.value.descripcion_categoria
             })
-            if (res.data?.id_categoria) newCat.id_categoria = res.data.id_categoria
+            if (res.data) {
+                categoriesList.value.push(res.data)
+            }
             notify('¡Categoría creada exitosamente!', 'success')
-        } catch {
-            notify('Categoría creada', 'success')
         }
+        isModalOpen.value = false
+    } catch (err: any) {
+        notify(err?.response?.data?.message || 'Error al guardar la categoría en el servidor.', 'error')
     }
-
-    isModalOpen.value = false
 }
 
 const handleDelete = async (cat: any) => {
@@ -248,33 +249,35 @@ const handleDelete = async (cat: any) => {
         if (!confirm(`¿Estás seguro de eliminar la categoría "${cat.nombre_categoria}"?`)) return
     }
 
-    categoriesList.value = categoriesList.value.filter((c: any) => (c.id_categoria || c.id) !== catId)
     try {
         await categoryService.deleteCategory(catId)
-        notify('Categoría eliminada', 'warning')
-    } catch {
-        notify('Categoría eliminada', 'warning')
+        categoriesList.value = categoriesList.value.filter((c: any) => (c.id_categoria || c.id) !== catId)
+        notify('Categoría eliminada correctamente', 'warning')
+    } catch (err: any) {
+        notify(err?.response?.data?.message || 'No se pudo eliminar la categoría.', 'error')
     }
 }
 
-onMounted(async () => {
+const fetchCategoriesData = async () => {
     isLoading.value = true
+    loadError.value = ''
     try {
-        const [catsRes, prodsRes] = await Promise.allSettled([
+        const [catsRes, prodsRes] = await Promise.all([
             categoryService.getPublicCategories(),
             productService.getPublicProducts({ summary: 1 })
         ])
-
-        const dbCats = catsRes.status === 'fulfilled' ? catsRes.value.data || [] : []
-        const dbProds = prodsRes.status === 'fulfilled' ? prodsRes.value.data || [] : []
-
-        categoriesList.value = dbCats
-        productsList.value = dbProds
-    } catch (e) {
+        categoriesList.value = Array.isArray(catsRes.data) ? catsRes.data : (catsRes.data?.data || [])
+        productsList.value = Array.isArray(prodsRes.data) ? prodsRes.data : (prodsRes.data?.data || [])
+    } catch (e: any) {
         console.error('Error cargando categorías:', e)
+        loadError.value = e?.response?.data?.message || 'No se pudo conectar con el servidor.'
     } finally {
         isLoading.value = false
     }
+}
+
+onMounted(() => {
+    fetchCategoriesData()
 })
 </script>
 

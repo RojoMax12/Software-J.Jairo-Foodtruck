@@ -214,7 +214,7 @@ class PedidoService
 
                 foreach ($receta as $itemReceta) {
                     $ingrediente = Ingrediente::lockForUpdate()->find($itemReceta->id_ingrediente);
-                    if (!$ingrediente) {
+                    if (!$ingrediente || (isset($ingrediente->es_cuantificable) && !$ingrediente->es_cuantificable) || ($ingrediente->tipo_inventario ?? null) === 'no_cuantitativo') {
                         continue;
                     }
 
@@ -251,7 +251,7 @@ class PedidoService
                         ? Ingrediente::lockForUpdate()->find($itemAgregado->id_ingrediente)
                         : null;
 
-                    if (!$ingrediente) {
+                    if (!$ingrediente || (isset($ingrediente->es_cuantificable) && !$ingrediente->es_cuantificable) || ($ingrediente->tipo_inventario ?? null) === 'no_cuantitativo') {
                         continue;
                     }
 

@@ -142,33 +142,51 @@ function loadFromLocalStorage() {
   } catch {}
 }
 
-async function syncToBackend() {
-  localStorage.setItem(STORAGE_KEY_BANNERS, JSON.stringify(banners.value));
-  localStorage.setItem(STORAGE_KEY_ANNOUNCEMENTS, JSON.stringify(announcements.value));
-  localStorage.setItem(STORAGE_KEY_INTERVAL, String(autoPlayInterval.value));
-  window.dispatchEvent(new Event('foodtruck-marketing-update'));
+async function syncToBackend(): Promise<void> {
+  const prevBanners = localStorage.getItem(STORAGE_KEY_BANNERS);
+  const prevAnnouncements = localStorage.getItem(STORAGE_KEY_ANNOUNCEMENTS);
+  const prevInterval = localStorage.getItem(STORAGE_KEY_INTERVAL);
 
   try {
-    await api.post('/marketing', {
+    const res = await api.post('/marketing', {
       banners: banners.value,
       announcements: announcements.value,
       autoPlayInterval: autoPlayInterval.value
     });
+    const saved = res?.data?.data;
+    if (saved) {
+      if (Array.isArray(saved.banners)) banners.value = saved.banners;
+      if (Array.isArray(saved.announcements)) announcements.value = saved.announcements;
+      if (saved.autoPlayInterval) autoPlayInterval.value = Number(saved.autoPlayInterval);
+    }
+    localStorage.setItem(STORAGE_KEY_BANNERS, JSON.stringify(banners.value));
+    localStorage.setItem(STORAGE_KEY_ANNOUNCEMENTS, JSON.stringify(announcements.value));
+    localStorage.setItem(STORAGE_KEY_INTERVAL, String(autoPlayInterval.value));
+    window.dispatchEvent(new Event('foodtruck-marketing-update'));
   } catch (err) {
-    console.warn('No se pudo sincronizar marketing con el backend:', err);
+    if (prevBanners) {
+      try { banners.value = JSON.parse(prevBanners); } catch {}
+    }
+    if (prevAnnouncements) {
+      try { announcements.value = JSON.parse(prevAnnouncements); } catch {}
+    }
+    if (prevInterval) {
+      autoPlayInterval.value = Number(prevInterval) || 5000;
+    }
+    throw err;
   }
 }
 
-function saveBanners() {
-  syncToBackend();
+function saveBanners(): Promise<void> {
+  return syncToBackend();
 }
 
-function saveAnnouncements() {
-  syncToBackend();
+function saveAnnouncements(): Promise<void> {
+  return syncToBackend();
 }
 
-function saveInterval() {
-  syncToBackend();
+function saveInterval(): Promise<void> {
+  return syncToBackend();
 }
 
 export function useMarketingConfig() {
@@ -183,7 +201,7 @@ export function useMarketingConfig() {
   }
 
   // --- MÉTODOS PARA BANNERS ---
-  function addBanner(banner: Omit<BannerItem, 'id' | 'order'>) {
+  function addBanner(banner: Omit<BannerItem, 'id' | 'order'>): Promise<void> {
     const newId = 'banner-' + Date.now();
     const newOrder = banners.value.length + 1;
     const item: BannerItem = {
@@ -192,10 +210,10 @@ export function useMarketingConfig() {
       order: newOrder,
     };
     banners.value.push(item);
-    saveBanners();
+    return saveBanners();
   }
 
-  function updateBanner(id: string, updated: Partial<BannerItem>) {
+  function updateBanner(id: string, updated: Partial<BannerItem>): Promise<void> {
     const idx = banners.value.findIndex(b => b.id === id);
     if (idx !== -1) {
       const current = banners.value[idx];
@@ -208,56 +226,58 @@ export function useMarketingConfig() {
           active: updated.active ?? current.active,
           order: updated.order ?? current.order,
         };
-        saveBanners();
+        return saveBanners();
       }
     }
+    return Promise.resolve();
   }
 
-  function deleteBanner(id: string) {
+  function deleteBanner(id: string): Promise<void> {
     banners.value = banners.value.filter(b => b.id !== id);
     banners.value.forEach((b, i) => {
       b.order = i + 1;
     });
-    saveBanners();
+    return saveBanners();
   }
 
-  function removeBanner(id: string) {
-    deleteBanner(id);
+  function removeBanner(id: string): Promise<void> {
+    return deleteBanner(id);
   }
 
-  function toggleBannerActive(id: string) {
+  function toggleBannerActive(id: string): Promise<void> {
     const banner = banners.value.find(b => b.id === id);
     if (banner) {
       banner.active = !banner.active;
-      saveBanners();
+      return saveBanners();
     }
+    return Promise.resolve();
   }
 
-  function reorderBanners(newBanners: BannerItem[]) {
+  function reorderBanners(newBanners: BannerItem[]): Promise<void> {
     newBanners.forEach((b, i) => {
       b.order = i + 1;
     });
     banners.value = [...newBanners];
-    saveBanners();
+    return saveBanners();
   }
 
-  function resetDefaultBanners() {
+  function resetDefaultBanners(): Promise<void> {
     banners.value = [...defaultBanners];
-    saveBanners();
+    return saveBanners();
   }
 
   // --- MÉTODOS PARA ANUNCIOS ---
-  function addAnnouncement(ann: Omit<AnnouncementItem, 'id'>) {
+  function addAnnouncement(ann: Omit<AnnouncementItem, 'id'>): Promise<void> {
     const newId = 'ann-' + Date.now();
     const item: AnnouncementItem = {
       ...ann,
       id: newId,
     };
     announcements.value.push(item);
-    saveAnnouncements();
+    return saveAnnouncements();
   }
 
-  function updateAnnouncement(id: string, updated: Partial<AnnouncementItem>) {
+  function updateAnnouncement(id: string, updated: Partial<AnnouncementItem>): Promise<void> {
     const idx = announcements.value.findIndex(a => a.id === id);
     if (idx !== -1) {
       const current = announcements.value[idx];
@@ -270,31 +290,33 @@ export function useMarketingConfig() {
           highlight: updated.highlight ?? current.highlight,
           active: updated.active ?? current.active,
         };
-        saveAnnouncements();
+        return saveAnnouncements();
       }
     }
+    return Promise.resolve();
   }
 
-  function deleteAnnouncement(id: string) {
+  function deleteAnnouncement(id: string): Promise<void> {
     announcements.value = announcements.value.filter(a => a.id !== id);
-    saveAnnouncements();
+    return saveAnnouncements();
   }
 
-  function removeAnnouncement(id: string) {
-    deleteAnnouncement(id);
+  function removeAnnouncement(id: string): Promise<void> {
+    return deleteAnnouncement(id);
   }
 
-  function toggleAnnouncementActive(id: string) {
+  function toggleAnnouncementActive(id: string): Promise<void> {
     const ann = announcements.value.find(a => a.id === id);
     if (ann) {
       ann.active = !ann.active;
-      saveAnnouncements();
+      return saveAnnouncements();
     }
+    return Promise.resolve();
   }
 
-  function resetDefaultAnnouncements() {
+  function resetDefaultAnnouncements(): Promise<void> {
     announcements.value = [...defaultAnnouncements];
-    saveAnnouncements();
+    return saveAnnouncements();
   }
 
   function setIntervalSeconds(seconds: number) {

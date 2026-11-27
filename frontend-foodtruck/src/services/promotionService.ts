@@ -10,6 +10,9 @@ export default {
     createPromotion(data: unknown) {
         return api.post('/promociones', data);
     },
+    createPromotionsBatch(data: { reemplazar_conflictos?: boolean; items: unknown[] }) {
+        return api.post('/promociones/batch', data);
+    },
     updatePromotion(id: number | string, data: unknown) {
         return api.put(`/promociones/${id}`, data);
     },

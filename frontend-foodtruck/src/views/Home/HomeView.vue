@@ -294,15 +294,11 @@ const totalCartAmountFormatted = computed(() => {
 const activePromotionsCount = computed(() => {
   return catalogProducts.value.filter(item => {
     const catLow = String(item.category ?? '').toLowerCase();
-    const nameLow = String(item.name ?? '').toLowerCase();
     return Boolean(
-      item.hasPromotion || 
-      item.kind === 'offer' || 
-      item.promocion_activa || 
-      catLow.includes('promo') || 
-      nameLow.includes('promo') || 
-      catLow.includes('combo') || 
-      nameLow.includes('combo')
+      item.hasPromotion ||
+      item.kind === 'offer' ||
+      item.promocion_activa ||
+      catLow.includes('promo')
     );
   }).length;
 });
@@ -476,9 +472,16 @@ const goToQuotation = () => {
   router.push('/cotizacion'); 
 };
 
-// Carga de productos
-const fetchCatalogProducts = async () => {
+// Carga de productos con control de enfriamiento para evitar ráfagas en focus/storage
+let lastCatalogFetchAt = 0;
+
+const fetchCatalogProducts = async (force: boolean | Event = true) => {
   if (isRefreshingProducts.value) return;
+  const nowTs = Date.now();
+  const isForced = typeof force === 'boolean' ? force : true;
+  if (!isForced && nowTs - lastCatalogFetchAt < 15000 && catalogProducts.value.length > 0) {
+    return;
+  }
 
   catalogError.value = '';
   isRefreshingProducts.value = true;
@@ -658,6 +661,7 @@ const fetchCatalogProducts = async () => {
     });
 
     catalogProducts.value = mappedProducts;
+    lastCatalogFetchAt = Date.now();
   } catch (error) {
     console.error('Error al cargar catálogo de productos:', error);
     if (catalogProducts.value.length === 0) {
@@ -682,14 +686,27 @@ const scrollToTop = () => {
 
 let productsRefreshTimer: number | undefined;
 
+const handleFocusRefresh = () => {
+  fetchCatalogProducts(false);
+};
+
+const handleStorageRefresh = (e: StorageEvent) => {
+  if (e.key && e.key.startsWith('dicreme_temp_')) return;
+  fetchCatalogProducts(false);
+};
+
+const handleForcedCatalogUpdate = () => {
+  fetchCatalogProducts(true);
+};
+
 onMounted(() => {
   loadShiftStatus();
-  fetchCatalogProducts();
+  fetchCatalogProducts(true);
 
   window.addEventListener('scroll', handleScroll, { passive: true });
-  window.addEventListener('storage', fetchCatalogProducts);
-  window.addEventListener('focus', fetchCatalogProducts);
-  window.addEventListener('foodtruck-products-update', fetchCatalogProducts);
+  window.addEventListener('storage', handleStorageRefresh);
+  window.addEventListener('focus', handleFocusRefresh);
+  window.addEventListener('foodtruck-products-update', handleForcedCatalogUpdate);
 
   productsRefreshTimer = window.setInterval(() => {
     if (document.visibilityState === 'visible') {
@@ -710,9 +727,9 @@ onMounted(() => {
 onUnmounted(() => {
   if (productsRefreshTimer) window.clearInterval(productsRefreshTimer);
   window.removeEventListener('scroll', handleScroll);
-  window.removeEventListener('storage', fetchCatalogProducts);
-  window.removeEventListener('focus', fetchCatalogProducts);
-  window.removeEventListener('foodtruck-products-update', fetchCatalogProducts);
+  window.removeEventListener('storage', handleStorageRefresh);
+  window.removeEventListener('focus', handleFocusRefresh);
+  window.removeEventListener('foodtruck-products-update', handleForcedCatalogUpdate);
 });
 
 watch(

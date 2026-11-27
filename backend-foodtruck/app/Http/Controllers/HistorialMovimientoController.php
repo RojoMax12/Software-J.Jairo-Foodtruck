@@ -16,7 +16,7 @@ class HistorialMovimientoController extends Controller
 
     public function index(Request $request)
     {
-        $limit = (int) $request->query('limit', 200);
+        $limit = max(1, min(500, (int) $request->query('limit', 200)));
         $tipo = $request->query('tipo');
         $search = $request->query('search');
 
@@ -63,28 +63,16 @@ class HistorialMovimientoController extends Controller
 
     public function update(Request $request, $id)
     {
-        $data = $request->validate([
-            'tipo' => 'sometimes|string|max:60',
-            'accion' => 'sometimes|string|max:60',
-            'descripcion' => 'sometimes|string|max:255',
-            'entidad' => 'nullable|string|max:200',
-            'detalle' => 'nullable|string|max:1000',
-            'monto' => 'nullable|numeric',
-        ]);
-        $mov = $this->service->updateHistorialMovimiento($id, $data);
-        if (!$mov) {
-            return response()->json(['message' => 'Movimiento no encontrado'], 404);
-        }
-        return response()->json($mov);
+        return response()->json([
+            'message' => 'Los registros de auditoría son inmutables y no pueden modificarse.'
+        ], 403);
     }
 
     public function destroy($id)
     {
-        $deleted = $this->service->deleteHistorialMovimientoById($id);
-        if (!$deleted) {
-            return response()->json(['message' => 'Movimiento no encontrado'], 404);
-        }
-        return response()->json(null, 204);
+        return response()->json([
+            'message' => 'Los registros de auditoría son inmutables y no pueden eliminarse.'
+        ], 403);
     }
 
     public function clear()

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\OfertaProductoService;
+use App\Support\CatalogCache;
 use Illuminate\Http\Request;
 
 class OfertaProductoController extends Controller
@@ -34,7 +35,9 @@ class OfertaProductoController extends Controller
             'precio_oferta' => 'nullable|integer|min:0',
             'tipo' => 'nullable|string|max:60',
         ]);
-        return response()->json($this->ofertaProductoService->createOfertaProducto($data), 201);
+        $created = $this->ofertaProductoService->createOfertaProducto($data);
+        CatalogCache::invalidate();
+        return response()->json($created, 201);
     }
 
     public function update(Request $request, $id)
@@ -47,12 +50,15 @@ class OfertaProductoController extends Controller
             'precio_oferta' => 'nullable|integer|min:0',
             'tipo' => 'nullable|string|max:60',
         ]);
-        return response()->json($this->ofertaProductoService->updateOfertaProducto($id, $data));
+        $updated = $this->ofertaProductoService->updateOfertaProducto($id, $data);
+        CatalogCache::invalidate();
+        return response()->json($updated);
     }
 
     public function destroy($id)
     {
         $this->ofertaProductoService->deleteOfertaProductoById($id);
+        CatalogCache::invalidate();
         return response()->json(null, 204);
     }
 }

@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { formatCLP } from '@/utils/format'
 import { useRouter } from 'vue-router'
-import { FileText, Calendar, Clock, ChevronRight, IceCream } from 'lucide-vue-next'
+import { FileText, Calendar, Clock, ChevronRight, ShoppingBag } from 'lucide-vue-next'
 import Navbar from '@/components/Navbar.vue'
 import quoteService from '@/services/quoteService'
 
@@ -12,6 +12,7 @@ const router = useRouter()
 const quotations = ref<any[]>([])
 const isLoading = ref(true)
 const userId = ref<number | null>(null)
+const errorMessage = ref('')
 
 // --- CARGA DE DATOS AL MONTAR EL COMPONENTE ---
 onMounted(async () => {
@@ -20,7 +21,7 @@ onMounted(async () => {
   if (userParsed) {
     try {
       const userObj = JSON.parse(userParsed)
-      userId.value = userObj.id || null
+      userId.value = userObj.id_usuario || userObj.id || null
       
       // Validación estricta para asegurar el tipo de dato en TypeScript
       if (!userId.value) {
@@ -34,12 +35,8 @@ onMounted(async () => {
       
     } catch (error) {
       console.error('Error fetching historical quotations:', error)
-      
-      quotations.value = [
-        { id: 1, fecha_creacion: '2026-05-26', hora_creacion: '16:26:00', id_estado_cotizacion: 1, total_cotizacion: 139100 },
-        { id: 2, fecha_creacion: '2026-05-12', hora_creacion: '11:15:00', id_estado_cotizacion: 2, total_cotizacion: 84500 },
-        { id: 3, fecha_creacion: '2026-04-20', hora_creacion: '09:30:00', id_estado_cotizacion: 3, total_cotizacion: 210000 }
-      ]
+      quotations.value = []
+      errorMessage.value = 'No pudimos cargar tus solicitudes en este momento.'
     } finally {
       isLoading.value = false
     }
@@ -97,14 +94,20 @@ const handleGoBack = () => {
       </div>
 
       <div v-if="isLoading" class="loading-state">
-        <IceCream class="spinner" :size="40" color="#e4869f" />
-        <p>Buscando tus cotizaciones...</p>
+        <ShoppingBag class="spinner" :size="40" color="#e28743" />
+        <p>Cargando tu historial de pedidos...</p>
+      </div>
+
+      <div v-else-if="errorMessage" class="empty-state">
+        <FileText :size="48" color="#b5b2bc" />
+        <p class="empty-text">{{ errorMessage }}</p>
+        <button class="btn-start-quoting" @click="handleGoBack">Volver a la carta</button>
       </div>
 
       <div v-else-if="quotations.length === 0" class="empty-state">
         <FileText :size="48" color="#b5b2bc" />
-        <p class="empty-text">Aún no has ingresado ninguna cotización en el sistema.</p>
-        <button class="btn-start-quoting" @click="handleGoBack">Cotizar Helados</button>
+        <p class="empty-text">Aún no has realizado pedidos en Foodtruck J.Junior.</p>
+        <button class="btn-start-quoting" @click="handleGoBack">Explorar Carta</button>
       </div>
 
       <div v-else class="quotations-list">

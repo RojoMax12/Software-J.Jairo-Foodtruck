@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { formatPriceCLP } from '@/utils/format'
 import { useRoute, useRouter } from 'vue-router'
-import { FileSearch, CheckCircle2, IceCream } from 'lucide-vue-next'
+import { FileSearch, CheckCircle2, UtensilsCrossed } from 'lucide-vue-next'
 import quoteService from '@/services/quoteService'
 import orderService from '@/services/orderService'
 import userService from '@/services/userService'
@@ -18,13 +18,13 @@ const router = useRouter()
 // --- ESTADOS REACTIVOS ---
 const quotationData = ref<any>(null)
 const distributorData = ref<any>(null)
-const usuarioDicremeData = ref<any>(null)
+const fallbackCustomerLabel = 'Cliente J.Junior'
 const productsData = ref<any[]>([]) 
 const isLoading = ref(true)
 const errorMessage = ref('')
 
 // Fallbacks de seguridad basados en la sesión activa por si algún campo viene null
-const fallbackCompany = ref('Distribuidor Di Creme')
+const fallbackCompany = ref(fallbackCustomerLabel)
 const fallbackAddress = ref('Dirección registrada')
 const fallbackPhone = ref('No registrado')
 const fallbackEmail = ref('No registrado')
@@ -68,7 +68,7 @@ onMounted(async () => {
   if (userParsed) {
     try {
       const userObj = JSON.parse(userParsed)
-      fallbackCompany.value = userObj.nombre_empresa || 'Distribuidor Di Creme'
+      fallbackCompany.value = userObj.nombre_empresa || fallbackCustomerLabel
       fallbackAddress.value = userObj.direccion || 'Dirección registrada'
       fallbackPhone.value = userObj.telefono || 'No registrado'
       fallbackEmail.value = userObj.email || userObj.correo_electronico || 'No registrado'
@@ -197,7 +197,7 @@ const handleGoBack = () => {
       </div>
 
       <div class="state-box" v-if="isLoading">
-        <IceCream class="spinner" :size="40" color="#e4869f" />
+        <UtensilsCrossed class="spinner" :size="40" color="#e4869f" />
         <p>Cargando el estado de tu cotización...</p>
       </div>
       

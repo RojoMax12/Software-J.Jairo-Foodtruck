@@ -131,7 +131,7 @@
       <!-- BLOQUE QR PARA PEDIR ONLINE -->
       <div class="footer-qr-block">
         <div class="qr-code-box">
-          <img :src="qrCodeUrl" alt="Código QR para pedir online" class="qr-image" />
+          <img :src="qrCodeUrl" alt="Código QR para pedir online" class="qr-image" @error="handleQrError" />
         </div>
         <div class="qr-text">
           <strong class="qr-heading">¡PIDE DESDE TU MÓVIL!</strong>
@@ -206,6 +206,7 @@ import logoImg from '@/assets/logo_jairo.webp';
 import productService from '@/services/productService';
 import { formatCLP } from '@/utils/format';
 import { useMarketingConfig } from '@/composables/useMarketingConfig';
+import { extractValidPromotions, buildSizePricingMaps } from '@/composables/useCatalogMapper';
 import cashFlowService, { type ShiftWindow } from '@/services/cashFlowService';
 
 const { activeBanners, activeAnnouncements, resolveImageUrl } = useMarketingConfig();
@@ -271,11 +272,22 @@ const updateClock = () => {
   currentDateStr.value = `${dayName.charAt(0).toUpperCase() + dayName.slice(1)}, ${dayNum} ${monthName}`;
 };
 
-// Generación de QR dinámico
+// Generación de QR dinámico con respaldo offline SVG local
+const qrFallbackUsed = ref(false);
+const localOfflineQrSvg = (() => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="12" fill="#1a1412"/><rect x="12" y="12" width="34" height="34" rx="4" fill="none" stroke="#f8f6f3" stroke-width="6"/><rect x="22" y="22" width="14" height="14" fill="#e28743"/><rect x="74" y="12" width="34" height="34" rx="4" fill="none" stroke="#f8f6f3" stroke-width="6"/><rect x="84" y="22" width="14" height="14" fill="#e28743"/><rect x="12" y="74" width="34" height="34" rx="4" fill="none" stroke="#f8f6f3" stroke-width="6"/><rect x="22" y="84" width="14" height="14" fill="#e28743"/><rect x="56" y="52" width="12" height="12" fill="#f8f6f3"/><rect x="74" y="56" width="10" height="10" fill="#e28743"/><rect x="88" y="74" width="20" height="10" fill="#f8f6f3"/><rect x="58" y="78" width="16" height="12" fill="#f8f6f3"/><rect x="78" y="94" width="30" height="12" fill="#e28743"/></svg>';
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+})();
+
 const qrCodeUrl = computed(() => {
+  if (qrFallbackUsed.value) return localOfflineQrSvg;
   const host = window.location.origin;
   return `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(host)}&bgcolor=1a1412&color=f8f6f3&margin=1`;
 });
+
+const handleQrError = () => {
+  qrFallbackUsed.value = true;
+};
 
 const customAnnouncement = computed(() => {
   const list = typeof activeAnnouncements === 'function' ? activeAnnouncements() : [];
@@ -301,15 +313,15 @@ const loadProductsForTv = async () => {
       const catName = p.categoria?.nombre_categoria || p.category || 'Carta';
       const prodImage = p.imagen_url || p.imagen || p.image || logoImg;
 
+      const validPromos = extractValidPromotions(p);
+      const { pricesMap, sizePromosMap, sizes: mappedSizes } = buildSizePricingMaps(p, validPromos);
       const sizePrices: { size: string; price: number }[] = [];
-      const rawSizes = p.tamaños || p.tamanos || p.sizes || [];
 
-      if (Array.isArray(rawSizes) && rawSizes.length > 0) {
-        rawSizes.forEach((t: any) => {
-          const sName = String(t.nombre || t.name || '').trim();
-          const sPrice = Number(t.pivot?.precio ?? t.precio ?? t.price ?? 0);
+      if (mappedSizes.length > 0) {
+        mappedSizes.forEach((sz: string) => {
+          const sPrice = Number(pricesMap[sz] ?? 0);
           if (sPrice > 0) {
-            sizePrices.push({ size: sName || 'Normal', price: sPrice });
+            sizePrices.push({ size: sz || 'Normal', price: sPrice });
           }
         });
       }
@@ -325,13 +337,8 @@ const loadProductsForTv = async () => {
         });
       }
 
-      const promotionPrice = Number(p.promocion_activa?.precio_promocional ?? 0);
-      if (promotionPrice > 0) {
-        sizePrices.forEach(sp => { sp.price = promotionPrice; });
-      }
-
       if (sizePrices.length === 0) {
-        const flat = Number(p.precio || p.price || 0);
+        const flat = Number(p.precio || p.precio_base || p.price || 0);
         if (flat > 0) {
           sizePrices.push({ size: 'Normal', price: flat });
         }
@@ -340,6 +347,7 @@ const loadProductsForTv = async () => {
       const isOnlyUnico = sizePrices.length === 1 && (sizePrices[0]?.size.toLowerCase() === 'único' || sizePrices[0]?.size.toLowerCase() === 'unico');
       const hasMultiplePrices = sizePrices.length > 1 && !isOnlyUnico;
       const singlePrice = sizePrices.length > 0 && sizePrices[0] ? sizePrices[0].price : 0;
+      const hasAnyPromo = Object.keys(sizePromosMap).length > 0 || validPromos.length > 0;
 
       const ingredients = (p.ingredientes || p.types?.[0]?.producto_ingrediente || [])
         .map((pi: any) => pi.ingrediente?.nombre || pi.nombre)
@@ -357,7 +365,7 @@ const loadProductsForTv = async () => {
         hasMultiplePrices,
         singlePrice,
         sizePrices,
-        isOffer: Boolean(p.en_oferta || p.is_offer || promotionPrice > 0)
+        isOffer: Boolean(p.en_oferta || p.is_offer || hasAnyPromo)
       };
     });
 
